@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            
+    <meta name="theme-color" content="#ffffff">
+<title>Admin Dashboard - PowerWorld Fitness</title>
+    <meta name="description" content="Admin dashboard for PowerWorld Fitness">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="icon" href="images/logo.png">
+</head>
+<body>
+    <div class="min-h-screen bg-secondary flex flex-col">
+        <!-- Navigation Header -->
+        <nav class="bg-primary text-primary py-4 px-6 relative z-10 border-b border-primary shadow-sm">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <a href="index.html" class="flex items-center space-x-3 group">
+                        <img src="images/logo.png" alt="PowerWorld Fitness Logo" width="50" height="50" class="transition-transform group-hover:scale-105">
+                        <span class="text-xl font-bold text-primary group-hover:text-red-500 transition-colors">
+                            PowerWorld
+                        </span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <div class="text-sm text-tertiary">Admin Panel</div>
+                        <div class="text-primary font-semibold">Administrator</div>
+                    </div>
+                    <div class="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">AD</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="flex-1 px-6 py-8">
+            <div class="max-w-7xl mx-auto">
+                <!-- Header -->
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-primary mb-2">System Administration Dashboard</h1>
+                    <p class="text-secondary" id="adminDashboardTimestamp">Friday, January 12, 2025 • 09:30 AM</p>
+                </div>
+
+                <!-- System Alerts -->
+                <div id="adminSystemAlerts" class="mb-8 hidden"></div>
+
+                <!-- Quick Stats -->
+                <div id="adminQuickStats" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"></div>
+
+                <!-- Management Actions -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" id="adminManagementActions"></div>
+
+                <!-- Main Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                    <div class="lg:col-span-2 bg-primary border border-primary rounded-lg p-6 shadow-sm">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-xl font-semibold text-primary">Recent System Activities</h3>
+                            <a href="admin/activities/page.html" class="text-red-500 hover:text-red-600 text-sm font-medium transition-colors">View All</a>
+                        </div>
+                        <div id="adminRecentActivities" class="space-y-4"></div>
+                    </div>
+
+                    <div class="bg-primary border border-primary rounded-lg p-6 shadow-sm">
+                        <h3 class="text-xl font-semibold text-primary mb-6">Subscription Plans</h3>
+                        <div id="adminSubscriptionPlans" class="space-y-4"></div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const timestampEl = document.getElementById('adminDashboardTimestamp');
+            const alertsContainer = document.getElementById('adminSystemAlerts');
+            const quickStatsContainer = document.getElementById('adminQuickStats');
+            const actionsContainer = document.getElementById('adminManagementActions');
+            const activitiesContainer = document.getElementById('adminRecentActivities');
+            const plansContainer = document.getElementById('adminSubscriptionPlans');
+
+            const dashboardData = {
+                alerts: [
+                    { type: 'warning', message: 'Database backup overdue', priority: 'high' },
+                    { type: 'info', message: 'New software update available', priority: 'medium' }
+                ],
+                stats: [
+                    {
+                        title: 'Total Members',
+                        value: '1,247',
+                        detail: '<span class="text-green-500">1,089</span> active',
+                        color: 'blue',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />'
+                    },
+                    {
+                        title: 'Revenue',
+                        value: 'Rs. 4,568,000',
+                        detail: '<span class="text-green-500">Rs. 1,234,000</span> this month',
+                        color: 'green',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />'
+                    },
+                    {
+                        title: 'System Uptime',
+                        value: '99.9%',
+                        detail: 'Last 30 days',
+                        color: 'purple',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />'
+                    },
+                    {
+                        title: 'Subscriptions',
+                        value: '1,089',
+                        detail: '<span class="text-red-500">23</span> pending payments',
+                        color: 'orange',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />'
+                    }
+                ],
+                actions: [
+                    {
+                        href: 'admin/users/page.html',
+                        title: 'User Management',
+                        description: 'Manage members, staff, and roles',
+                        color: 'blue',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />'
+                    },
+                    {
+                        href: 'admin/settings/page.html',
+                        title: 'System Settings',
+                        description: 'Configure system parameters',
+                        color: 'purple',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />'
+                    },
+                    {
+                        href: 'admin/plans/page.html',
+                        title: 'Subscription Plans',
+                        description: 'Manage pricing and bundles',
+                        color: 'green',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />'
+                    },
+                    {
+                        href: 'admin/reports/page.html',
+                        title: 'System Reports',
+                        description: 'Generate detailed insights',
+                        color: 'red',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />'
+                    }
+                ],
+                activities: [
+                    { title: 'New member registration', user: 'Kasun Perera', time: '2 min ago', type: 'member', color: 'blue' },
+                    { title: 'Subscription plan updated', user: 'Admin', time: '15 min ago', type: 'system', color: 'green' },
+                    { title: 'Payment processed', user: 'Nimali Fernando', time: '1 hour ago', type: 'payment', color: 'purple' },
+                    { title: 'System backup completed', user: 'System', time: '2 hours ago', type: 'system', color: 'red' }
+                ],
+                plans: [
+                    { name: 'Basic Plan', price: 'Rs. 2,999 / month', members: '456', status: 'Active' },
+                    { name: 'Premium Plan', price: 'Rs. 4,999 / month', members: '389', status: 'Active' },
+                    { name: 'Elite Plan', price: 'Rs. 7,999 / month', members: '244', status: 'Active' }
+                ]
+            };
+
+            const colorTokens = {
+                blue: {
+                    border: 'border-blue-500',
+                    bgSoft: 'bg-blue-500/10',
+                    bgHover: 'hover:bg-blue-500/20',
+                    text: 'text-blue-400',
+                    icon: 'text-blue-500',
+                    gradient: 'from-blue-500 to-blue-600'
+                },
+                green: {
+                    border: 'border-green-500',
+                    bgSoft: 'bg-green-500/10',
+                    bgHover: 'hover:bg-green-500/20',
+                    text: 'text-green-400',
+                    icon: 'text-green-500',
+                    gradient: 'from-green-500 to-green-600'
+                },
+                purple: {
+                    border: 'border-purple-500',
+                    bgSoft: 'bg-purple-500/10',
+                    bgHover: 'hover:bg-purple-500/20',
+                    text: 'text-purple-400',
+                    icon: 'text-purple-500',
+                    gradient: 'from-purple-500 to-purple-600'
+                },
+                red: {
+                    border: 'border-red-500',
+                    bgSoft: 'bg-red-500/10',
+                    bgHover: 'hover:bg-red-500/20',
+                    text: 'text-red-400',
+                    icon: 'text-red-500',
+                    gradient: 'from-red-500 to-red-600'
+                },
+                orange: {
+                    border: 'border-orange-500',
+                    bgSoft: 'bg-orange-500/10',
+                    bgHover: 'hover:bg-orange-500/20',
+                    text: 'text-orange-400',
+                    icon: 'text-orange-500',
+                    gradient: 'from-orange-500 to-orange-600'
+                }
+            };
+
+            const alertTokens = {
+                warning: {
+                    wrapper: 'border-yellow-200 bg-yellow-50 text-yellow-800',
+                    dot: 'bg-yellow-400',
+                    badge: 'bg-yellow-100 text-yellow-700'
+                },
+                error: {
+                    wrapper: 'border-red-200 bg-red-50 text-red-800',
+                    dot: 'bg-red-400',
+                    badge: 'bg-red-100 text-red-700'
+                },
+                info: {
+                    wrapper: 'border-blue-200 bg-blue-50 text-blue-800',
+                    dot: 'bg-blue-400',
+                    badge: 'bg-blue-100 text-blue-700'
+                },
+                default: {
+                    wrapper: 'border-primary bg-secondary text-secondary',
+                    dot: 'bg-gray-400',
+                    badge: 'bg-tertiary text-secondary'
+                }
+            };
+
+            function updateTimestamp() {
+                const now = new Date();
+                const formattedDate = now.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                const formattedTime = now.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                });
+                timestampEl.textContent = `${formattedDate} • ${formattedTime}`;
+            }
+
+            function renderAlerts() {
+                if (!dashboardData.alerts.length) {
+                    return;
+                }
+                alertsContainer.classList.remove('hidden');
+                alertsContainer.innerHTML = `
+                    <h2 class="text-xl font-semibold text-primary mb-4">System Alerts</h2>
+                    <div class="space-y-3">
+                        ${dashboardData.alerts.map(alert => {
+                            const tone = alertTokens[alert.type] || alertTokens.default;
+                            return `
+                                <div class="p-4 rounded-lg border ${tone.wrapper}">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-2 h-2 ${tone.dot} rounded-full"></div>
+                                            <span class="font-medium">${alert.message}</span>
+                                        </div>
+                                        <span class="text-xs px-2 py-1 rounded-full ${tone.badge} capitalize">${alert.priority}</span>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }
+
+            function renderQuickStats() {
+                quickStatsContainer.innerHTML = dashboardData.stats.map(stat => {
+                    const tokens = colorTokens[stat.color] || colorTokens.blue;
+                    return `
+                        <div class="bg-primary border border-primary rounded-lg p-6 shadow-sm">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-primary">${stat.title}</h3>
+                                <div class="w-8 h-8 bg-gradient-to-br ${tokens.gradient} rounded-full flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">${stat.icon}</svg>
+                                </div>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="text-3xl font-bold text-primary">${stat.value}</div>
+                                <div class="text-sm text-secondary">${stat.detail}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            function renderActions() {
+                actionsContainer.innerHTML = dashboardData.actions.map(action => {
+                    const tokens = colorTokens[action.color] || colorTokens.blue;
+                    return `
+                        <a href="${action.href}" class="p-6 rounded-lg border-2 ${tokens.border} ${tokens.bgSoft} ${tokens.text} ${tokens.bgHover} transition-all duration-300 transform hover:scale-105">
+                            <div class="flex items-center justify-center mb-3">
+                                <span class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${tokens.gradient} text-white">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">${action.icon}</svg>
+                                </span>
+                            </div>
+                            <h3 class="font-semibold text-lg mb-1">${action.title}</h3>
+                            <p class="text-sm opacity-75">${action.description}</p>
+                        </a>
+                    `;
+                }).join('');
+            }
+
+            function renderActivities() {
+                activitiesContainer.innerHTML = dashboardData.activities.map(activity => {
+                    const tokens = colorTokens[activity.color];
+                    return `
+                        <div class="flex items-center justify-between p-4 bg-secondary rounded-lg">
+                            <div class="flex items-center space-x-4">
+                                <div class="w-10 h-10 rounded-full flex items-center justify-center ${tokens.bgSoft}">
+                                    <svg class="w-5 h-5 ${tokens.icon}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h4 class="text-primary font-semibold">${activity.title}</h4>
+                                    <p class="text-secondary text-sm">${activity.user} • ${activity.time}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs font-medium text-tertiary uppercase">${activity.type}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            function renderPlans() {
+                plansContainer.innerHTML = dashboardData.plans.map(plan => `
+                    <div class="bg-secondary rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="text-primary font-semibold">${plan.name}</h4>
+                            <span class="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-600">${plan.status}</span>
+                        </div>
+                        <div class="flex justify-between text-sm text-secondary">
+                            <span>Price</span>
+                            <span class="text-primary">${plan.price}</span>
+                        </div>
+                        <div class="flex justify-between text-sm text-secondary">
+                            <span>Members</span>
+                            <span class="text-primary">${plan.members}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            updateTimestamp();
+            setInterval(updateTimestamp, 1000);
+            renderAlerts();
+            renderQuickStats();
+            renderActions();
+            renderActivities();
+            renderPlans();
+        });
+    </script>
+</body>
+</html>

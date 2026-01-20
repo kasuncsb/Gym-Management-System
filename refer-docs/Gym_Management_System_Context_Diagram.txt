@@ -1,0 +1,50 @@
+Gym Management System - Context Diagram
+
+Gym Management System
+- Membership Management
+- Access Control
+- Scheduling & Appointments
+- Progress Tracking
+- Reporting & Analytics
+
+Member (Core User / Gym Visitor)
+- Scan in/out
+- Buy subscriptions
+- Make appointments
+- Track progress
+
+Staff (Gym Employee / Support Role)
+- Manual check-in
+- Member assistance
+
+Instructor (Fitness Trainer / Specialist)
+- Train members
+- View insights
+- Manage schedule
+
+Manager / Admin (Administrator / System Manager)
+- Generate reports
+- System configuration
+- View analytics
+
+External Systems
+Payment Gateway (Stripe, PayPal)
+- Process payments
+
+Authentication Service (Identity Provider: Auth0, Custom IDP)
+- User verification
+
+Email / Notification Service (SMS, Push, Email)
+- Send notifications
+
+Hardware Devices
+Door Unlocking System (Physical Hardware)
+- Control access
+
+QR Scanner Device (Tablet, Kiosk, Mobile Phone)
+- QR code scanning
+
+Legend:
+- Primary Human Actors
+- External Systems
+- Hardware Devices

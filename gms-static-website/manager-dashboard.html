@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            
+    <meta name="theme-color" content="#ffffff">
+<title>Manager Dashboard - PowerWorld Fitness</title>
+    <meta name="description" content="Manager dashboard for PowerWorld Fitness">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="icon" href="images/logo.png">
+</head>
+<body>
+    <div class="min-h-screen bg-secondary flex flex-col">
+        <!-- Navigation Header -->
+        <nav class="bg-primary text-primary py-4 px-6 relative z-10 border-b border-primary shadow-sm">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <a href="index.html" class="flex items-center space-x-3 group">
+                        <img src="images/logo.png" alt="PowerWorld Fitness Logo" width="50" height="50" class="transition-transform group-hover:scale-105">
+                        <span class="text-xl font-bold text-primary group-hover:text-red-500 transition-colors">
+                            PowerWorld
+                        </span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <div class="text-sm text-tertiary">Manager Panel</div>
+                        <div class="text-primary font-semibold">Manager</div>
+                    </div>
+                    <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">MG</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="flex-1 px-6 py-8">
+            <div class="max-w-7xl mx-auto">
+                <!-- Header -->
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-primary mb-2">Management Dashboard</h1>
+                    <p class="text-secondary" id="managerDashboardTimestamp">Friday, January 12, 2025 • 09:30 AM</p>
+                </div>
+
+                <!-- Period Controls -->
+                <div class="flex flex-wrap gap-2 mb-6" id="managerPeriodControls"></div>
+
+                <!-- Manager Stats -->
+                <div id="managerQuickStats" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"></div>
+
+                <!-- Management Actions -->
+                <div id="managerManagementActions" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"></div>
+
+                <!-- Insights & Tasks -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                    <div class="lg:col-span-2 bg-primary border border-primary rounded-lg p-6 shadow-sm">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-xl font-semibold text-primary">Key Insights</h3>
+                            <a href="manager/insights/page.html" class="text-red-500 hover:text-red-600 text-sm font-medium transition-colors">View All</a>
+                        </div>
+                        <div id="managerInsights" class="space-y-4"></div>
+                    </div>
+
+                    <div class="bg-primary border border-primary rounded-lg p-6 shadow-sm">
+                        <h3 class="text-xl font-semibold text-primary mb-6">Upcoming Tasks</h3>
+                        <div id="managerTasks" class="space-y-4"></div>
+                    </div>
+                </div>
+
+                <!-- Occupancy Chart -->
+                <div class="bg-primary border border-primary rounded-lg p-6 shadow-sm">
+                    <h3 class="text-xl font-semibold text-primary mb-6">Gym Occupancy Trend</h3>
+                    <div class="flex items-end justify-between h-48" id="managerOccupancyChart"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const timestampEl = document.getElementById('managerDashboardTimestamp');
+            const periodControlsEl = document.getElementById('managerPeriodControls');
+            const statsContainer = document.getElementById('managerQuickStats');
+            const actionsContainer = document.getElementById('managerManagementActions');
+            const insightsContainer = document.getElementById('managerInsights');
+            const tasksContainer = document.getElementById('managerTasks');
+            const occupancyContainer = document.getElementById('managerOccupancyChart');
+
+            const managerData = {
+                periods: ['week', 'month', 'year'],
+                selectedPeriod: 'week',
+                stats: [
+                    {
+                        title: 'Total Members',
+                        value: '1,247',
+                        detail: '<span class="text-green-500">1,089</span> active',
+                        color: 'blue',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />'
+                    },
+                    {
+                        title: 'Monthly Revenue',
+                        value: 'Rs. 1,234,000',
+                        detail: '<span class="text-green-500">+12%</span> vs last month',
+                        color: 'green',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />'
+                    },
+                    {
+                        title: 'Retention Rate',
+                        value: '87.5%',
+                        detail: '<span class="text-red-500">-3%</span> vs last month',
+                        color: 'purple',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2" />'
+                    },
+                    {
+                        title: 'Member Satisfaction',
+                        value: '4.6 / 5',
+                        detail: 'Average rating',
+                        color: 'orange',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />'
+                    }
+                ],
+                actions: [
+                    {
+                        href: 'manager/reports/page.html',
+                        title: 'Generate Reports',
+                        description: 'Create detailed analytics',
+                        color: 'blue',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />'
+                    },
+                    {
+                        href: 'manager/insights/page.html',
+                        title: 'View Insights',
+                        description: 'Analytics and trends',
+                        color: 'purple',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />'
+                    },
+                    {
+                        href: 'manager/staff/page.html',
+                        title: 'Staff Analytics',
+                        description: 'Analyze team performance',
+                        color: 'green',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />'
+                    },
+                    {
+                        href: 'manager/members/page.html',
+                        title: 'Member Analytics',
+                        description: 'Track member activity',
+                        color: 'orange',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />'
+                    }
+                ],
+                insights: [
+                    {
+                        title: 'Peak Hours Analysis',
+                        description: 'Gym is busiest between 6-8 PM on weekdays',
+                        impact: 'high',
+                        recommendation: 'Consider adding more staff during peak hours',
+                        value: '+15%',
+                        trend: '📈'
+                    },
+                    {
+                        title: 'Revenue Growth',
+                        description: 'Monthly revenue increased by 12% compared to last month',
+                        impact: 'positive',
+                        recommendation: 'Continue current marketing strategies',
+                        value: '+12%',
+                        trend: '💰'
+                    },
+                    {
+                        title: 'Member Retention',
+                        description: 'Retention rate dropped by 3% this month',
+                        impact: 'medium',
+                        recommendation: 'Implement member engagement programs',
+                        value: '-3%',
+                        trend: '👥'
+                    },
+                    {
+                        title: 'Equipment Usage',
+                        description: 'Cardio equipment usage is 15% higher than strength training',
+                        impact: 'low',
+                        recommendation: 'Consider expanding cardio section',
+                        value: '+15%',
+                        trend: '🏃'
+                    }
+                ],
+                tasks: [
+                    { task: 'Review monthly budget', priority: 'high', due: 'Jan 20, 2025', owner: 'Management' },
+                    { task: 'Staff performance evaluation', priority: 'medium', due: 'Jan 22, 2025', owner: 'HR Team' },
+                    { task: 'Equipment maintenance schedule', priority: 'low', due: 'Jan 25, 2025', owner: 'Facilities' },
+                    { task: 'Member feedback analysis', priority: 'medium', due: 'Jan 18, 2025', owner: 'Customer Ops' }
+                ],
+                occupancyData: {
+                    week: [45, 52, 48, 61, 58, 35, 28],
+                    month: [42, 45, 48, 52, 55, 58, 61, 58, 55, 52, 48, 45, 42, 45, 48, 52, 55, 58, 61, 58, 55, 52, 48, 45, 42, 45, 48, 52, 55, 58, 61],
+                    year: [35, 38, 42, 45, 48, 52, 55, 58, 61, 58, 55, 52]
+                }
+            };
+
+            const colorTokens = {
+                blue: {
+                    border: 'border-blue-500',
+                    bgSoft: 'bg-blue-500/10',
+                    bgHover: 'hover:bg-blue-500/20',
+                    text: 'text-blue-400',
+                    icon: 'text-blue-500',
+                    gradient: 'from-blue-500 to-blue-600'
+                },
+                green: {
+                    border: 'border-green-500',
+                    bgSoft: 'bg-green-500/10',
+                    bgHover: 'hover:bg-green-500/20',
+                    text: 'text-green-400',
+                    icon: 'text-green-500',
+                    gradient: 'from-green-500 to-green-600'
+                },
+                purple: {
+                    border: 'border-purple-500',
+                    bgSoft: 'bg-purple-500/10',
+                    bgHover: 'hover:bg-purple-500/20',
+                    text: 'text-purple-400',
+                    icon: 'text-purple-500',
+                    gradient: 'from-purple-500 to-purple-600'
+                },
+                red: {
+                    border: 'border-red-500',
+                    bgSoft: 'bg-red-500/10',
+                    bgHover: 'hover:bg-red-500/20',
+                    text: 'text-red-400',
+                    icon: 'text-red-500',
+                    gradient: 'from-red-500 to-red-600'
+                },
+                orange: {
+                    border: 'border-orange-500',
+                    bgSoft: 'bg-orange-500/10',
+                    bgHover: 'hover:bg-orange-500/20',
+                    text: 'text-orange-400',
+                    icon: 'text-orange-500',
+                    gradient: 'from-orange-500 to-orange-600'
+                }
+            };
+
+            const impactTokens = {
+                high: 'text-red-400 bg-red-500/20',
+                medium: 'text-yellow-400 bg-yellow-500/20',
+                low: 'text-blue-400 bg-blue-500/20',
+                positive: 'text-green-400 bg-green-500/20',
+                default: 'text-quaternary bg-secondary0/20'
+            };
+
+            const priorityTokens = {
+                high: 'text-red-400 bg-red-500/20',
+                medium: 'text-yellow-400 bg-yellow-500/20',
+                low: 'text-blue-400 bg-blue-500/20',
+                default: 'text-quaternary bg-secondary0/20'
+            };
+
+            function updateTimestamp() {
+                const now = new Date();
+                const formattedDate = now.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                const formattedTime = now.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                });
+                timestampEl.textContent = `${formattedDate} • ${formattedTime}`;
+            }
+
+            function renderPeriodControls() {
+                periodControlsEl.innerHTML = managerData.periods.map(period => `
+                    <button data-period="${period}" class="px-4 py-2 rounded-lg transition-colors capitalize ${managerData.selectedPeriod === period ? 'bg-red-500 text-white shadow-sm' : 'bg-gray-200 text-secondary hover:bg-gray-300'}">
+                        ${period}
+                    </button>
+                `).join('');
+
+                periodControlsEl.querySelectorAll('button').forEach(button => {
+                    button.addEventListener('click', () => {
+                        managerData.selectedPeriod = button.dataset.period;
+                        renderPeriodControls();
+                        renderOccupancyChart();
+                    });
+                });
+            }
+
+            function renderStats() {
+                statsContainer.innerHTML = managerData.stats.map(stat => {
+                    const tokens = colorTokens[stat.color] || colorTokens.blue;
+                    return `
+                        <div class="bg-primary border border-primary rounded-lg p-6 shadow-sm">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-primary">${stat.title}</h3>
+                                <div class="w-8 h-8 bg-gradient-to-br ${tokens.gradient} rounded-full flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">${stat.icon}</svg>
+                                </div>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="text-3xl font-bold text-primary">${stat.value}</div>
+                                <div class="text-sm text-secondary">${stat.detail}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            function renderActions() {
+                actionsContainer.innerHTML = managerData.actions.map(action => {
+                    const tokens = colorTokens[action.color] || colorTokens.blue;
+                    return `
+                        <a href="${action.href}" class="p-6 rounded-lg border-2 ${tokens.border} ${tokens.bgSoft} ${tokens.text} ${tokens.bgHover} transition-all duration-300 transform hover:scale-105">
+                            <div class="flex items-center justify-center mb-3">
+                                <span class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${tokens.gradient} text-white">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">${action.icon}</svg>
+                                </span>
+                            </div>
+                            <h3 class="font-semibold text-lg mb-1 text-primary">${action.title}</h3>
+                            <p class="text-sm opacity-75">${action.description}</p>
+                        </a>
+                    `;
+                }).join('');
+            }
+
+            function renderInsights() {
+                insightsContainer.innerHTML = managerData.insights.map(insight => {
+                    const impactClass = impactTokens[insight.impact] || impactTokens.default;
+                    return `
+                        <div class="p-4 bg-secondary rounded-lg">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center space-x-3">
+                                    <span class="text-2xl">${insight.trend}</span>
+                                    <h4 class="text-primary font-semibold">${insight.title}</h4>
+                                </div>
+                                <span class="text-sm text-tertiary">${insight.value}</span>
+                            </div>
+                            <p class="text-secondary text-sm mb-3">${insight.description}</p>
+                            <div class="flex items-center justify-between">
+                                <span class="px-2 py-1 rounded-full text-xs font-semibold ${impactClass}">${insight.impact}</span>
+                                <span class="text-xs text-tertiary italic">Recommendation: ${insight.recommendation}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            function renderTasks() {
+                tasksContainer.innerHTML = managerData.tasks.map(task => {
+                    const priorityClass = priorityTokens[task.priority] || priorityTokens.default;
+                    return `
+                        <div class="p-4 bg-secondary rounded-lg">
+                            <div class="flex items-start justify-between mb-2">
+                                <h4 class="text-primary font-semibold text-sm">${task.task}</h4>
+                                <span class="px-2 py-1 rounded-full text-xs font-semibold ${priorityClass}">${task.priority}</span>
+                            </div>
+                            <div class="space-y-1 text-xs text-secondary">
+                                <div class="flex justify-between"><span>Due:</span><span class="text-primary">${task.due}</span></div>
+                                <div class="flex justify-between"><span>Owner:</span><span class="text-primary">${task.owner}</span></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            function renderOccupancyChart() {
+                const data = managerData.occupancyData[managerData.selectedPeriod] || [];
+                if (!data.length) {
+                    occupancyContainer.innerHTML = '<p class="text-sm text-tertiary">No occupancy data available.</p>';
+                    return;
+                }
+
+                const maxValue = Math.max(...data, 1);
+                occupancyContainer.innerHTML = data.map((value, index) => {
+                    let label = '';
+                    if (managerData.selectedPeriod === 'week') {
+                        const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                        label = days[index] || '';
+                    } else if (managerData.selectedPeriod === 'month') {
+                        label = `${index + 1}`;
+                    } else {
+                        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                        label = months[index] || '';
+                    }
+
+                    return `
+                        <div class="flex flex-col items-center">
+                            <div class="w-6 rounded-t-lg bg-gradient-to-t from-red-500 to-red-400 transition-all duration-300" style="height: ${(value / maxValue) * 100}%"></div>
+                            <span class="text-secondary text-xs mt-2">${label}</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            updateTimestamp();
+            setInterval(updateTimestamp, 60000);
+            renderPeriodControls();
+            renderStats();
+            renderActions();
+            renderInsights();
+            renderTasks();
+            renderOccupancyChart();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            
+    <meta name="theme-color" content="#ffffff">
+<title>Detailed Reports - PowerWorld Admin</title>
+    <meta name="description" content="Generate detailed attendance, revenue and membership reports for PowerWorld Fitness.">
+    <link rel="stylesheet" href="../../css/styles.css">
+    <link rel="icon" href="../../images/logo.png">
+</head>
+<body>
+    <div class="min-h-screen bg-secondary flex flex-col">
+        <nav class="bg-primary text-primary py-4 px-6 relative z-10 border-b border-primary shadow-sm">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <a href="../../admin-dashboard.html" class="flex items-center space-x-3 group">
+                        <img src="../../images/logo.png" alt="PowerWorld Fitness Logo" width="50" height="50" class="transition-transform group-hover:scale-105">
+                        <span class="text-xl font-bold text-primary group-hover:text-red-500 transition-colors">PowerWorld Admin</span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <div class="text-sm text-tertiary">System Administrator</div>
+                        <div class="text-primary font-semibold">Detailed Reports</div>
+                    </div>
+                    <div class="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">A</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="flex-1 px-6 py-8">
+            <div class="max-w-7xl mx-auto">
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+                    <div class="min-w-0">
+                        <h1 class="text-3xl font-bold text-primary mb-2">Detailed Reports</h1>
+                        <p class="text-secondary">Configure, preview and export high-level analytics across all gym operations.</p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button type="button" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Generate Report</button>
+                        <div class="flex space-x-2">
+                            <button type="button" class="px-3 py-2 bg-tertiary text-secondary rounded-lg hover:bg-gray-300 transition-colors">PDF</button>
+                            <button type="button" class="px-3 py-2 bg-tertiary text-secondary rounded-lg hover:bg-gray-300 transition-colors">CSV</button>
+                            <button type="button" class="px-3 py-2 bg-tertiary text-secondary rounded-lg hover:bg-gray-300 transition-colors">Excel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-primary rounded-lg shadow-sm border border-primary p-6 mb-6">
+                    <h2 class="text-lg font-semibold text-primary mb-4">Report Configuration</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-secondary mb-2">Report Type</label>
+                            <select class="w-full px-3 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                                <option>Attendance Report</option>
+                                <option>Revenue Report</option>
+                                <option>Membership Report</option>
+                                <option>Equipment Usage</option>
+                                <option>Staff Performance</option>
+                                <option>System Analytics</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-secondary mb-2">Start Date</label>
+                            <input type="date" value="2024-01-01" class="w-full px-3 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-secondary mb-2">End Date</label>
+                            <input type="date" value="2024-01-31" class="w-full px-3 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-secondary mb-2">Member Status</label>
+                            <select class="w-full px-3 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                                <option>All Members</option>
+                                <option>Active Members</option>
+                                <option>Inactive Members</option>
+                                <option>Suspended Members</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-6">
+                        <button type="button" class="px-4 py-2 bg-tertiary text-secondary rounded-lg hover:bg-gray-300 transition-colors">Save Configuration</button>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h2 class="text-lg font-semibold text-primary mb-4">Available Reports</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="p-4 border-2 border-red-500 bg-red-50 rounded-lg">
+                            <h3 class="font-semibold text-primary mb-1">Attendance Report</h3>
+                            <p class="text-sm text-secondary">Member check-in/out patterns, peak hours and retention scores.</p>
+                        </div>
+                        <div class="p-4 border-2 border-primary bg-primary rounded-lg">
+                            <h3 class="font-semibold text-primary mb-1">Revenue Report</h3>
+                            <p class="text-sm text-secondary">Financial performance, payment method splits and plan revenue.</p>
+                        </div>
+                        <div class="p-4 border-2 border-primary bg-primary rounded-lg">
+                            <h3 class="font-semibold text-primary mb-1">Membership Report</h3>
+                            <p class="text-sm text-secondary">Demographics, subscription trends and churn analytics.</p>
+                        </div>
+                        <div class="p-4 border-2 border-primary bg-primary rounded-lg">
+                            <h3 class="font-semibold text-primary mb-1">Equipment Usage</h3>
+                            <p class="text-sm text-secondary">Utilization, maintenance reminders and downtime tracking.</p>
+                        </div>
+                        <div class="p-4 border-2 border-primary bg-primary rounded-lg">
+                            <h3 class="font-semibold text-primary mb-1">Staff Performance</h3>
+                            <p class="text-sm text-secondary">Staff schedules, appointment feedback and productivity.</p>
+                        </div>
+                        <div class="p-4 border-2 border-primary bg-primary rounded-lg">
+                            <h3 class="font-semibold text-primary mb-1">System Analytics</h3>
+                            <p class="text-sm text-secondary">System uptime, API usage and integration health.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-primary rounded-lg shadow-sm border border-primary p-6 mb-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-lg font-semibold text-primary">Attendance Report Preview</h2>
+                        <span class="text-sm text-tertiary">Last updated: 15 Jan 2025 · Auto-refresh in 5 min</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <h3 class="text-sm font-medium text-blue-700">Total Check-ins</h3>
+                            <p class="text-2xl font-bold text-blue-900">2,847</p>
+                            <p class="text-xs text-blue-500 mt-1">+6.5% vs last month</p>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <h3 class="text-sm font-medium text-green-700">Avg Daily Attendance</h3>
+                            <p class="text-2xl font-bold text-green-900">92</p>
+                            <p class="text-xs text-green-500 mt-1">Across 31 tracked days</p>
+                        </div>
+                        <div class="bg-yellow-50 p-4 rounded-lg">
+                            <h3 class="text-sm font-medium text-yellow-700">Peak Hours</h3>
+                            <p class="text-lg font-bold text-yellow-900">6:00 PM - 8:00 PM</p>
+                            <p class="text-xs text-yellow-600 mt-1">Evening rush remains dominant</p>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <h3 class="text-sm font-medium text-purple-700">Retention Rate</h3>
+                            <p class="text-2xl font-bold text-purple-900">87.5%</p>
+                            <p class="text-xs text-purple-600 mt-1">Target: 90% this quarter</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="border border-primary rounded-lg p-6">
+                            <h3 class="text-lg font-semibold text-primary mb-4">Top Active Members</h3>
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between p-3 bg-secondary rounded-lg">
+                                    <div>
+                                        <p class="font-medium text-primary">Kasun Perera</p>
+                                        <p class="text-sm text-tertiary">Last visit: 2024-01-15</p>
+                                    </div>
+                                    <span class="text-sm font-semibold text-primary">28 visits</span>
+                                </div>
+                                <div class="flex items-center justify-between p-3 bg-secondary rounded-lg">
+                                    <div>
+                                        <p class="font-medium text-primary">Nimali Fernando</p>
+                                        <p class="text-sm text-tertiary">Last visit: 2024-01-14</p>
+                                    </div>
+                                    <span class="text-sm font-semibold text-primary">26 visits</span>
+                                </div>
+                                <div class="flex items-center justify-between p-3 bg-secondary rounded-lg">
+                                    <div>
+                                        <p class="font-medium text-primary">Chamara Jayasinghe</p>
+                                        <p class="text-sm text-tertiary">Last visit: 2024-01-13</p>
+                                    </div>
+                                    <span class="text-sm font-semibold text-primary">24 visits</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="border border-primary rounded-lg p-6">
+                            <h3 class="text-lg font-semibold text-primary mb-4">Operational Insights</h3>
+                            <ul class="space-y-3 text-sm text-secondary">
+                                <li class="flex items-start space-x-3">
+                                    <span class="text-green-500">●</span>
+                                    <span>Morning traffic (6 AM - 9 AM) increased by 12%; consider adding cardio classes.</span>
+                                </li>
+                                <li class="flex items-start space-x-3">
+                                    <span class="text-yellow-500">●</span>
+                                    <span>Weekend visits dipped by 4%; run weekend-only promotions.</span>
+                                </li>
+                                <li class="flex items-start space-x-3">
+                                    <span class="text-red-500">●</span>
+                                    <span>Identify members with 7+ day inactivity for a re-engagement campaign.</span>
+                                </li>
+                                <li class="flex items-start space-x-3">
+                                    <span class="text-blue-500">●</span>
+                                    <span>Introduce fast lane check-in to reduce evening queue congestion.</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-primary rounded-lg shadow-sm border border-primary p-6">
+                    <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                        <h2 class="text-lg font-semibold text-primary">Quick Export Templates</h2>
+                        <button type="button" class="px-4 py-2 bg-tertiary text-secondary rounded-lg hover:bg-gray-300 transition-colors">Manage Templates</button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="p-4 border border-primary rounded-lg hover:border-red-500 hover:bg-red-50 transition-colors cursor-pointer">
+                            <h3 class="font-semibold text-primary">Monthly Attendance Summary</h3>
+                            <p class="text-sm text-secondary mt-1">Downloadable PDF with attendance, retention and peak-hour charts.</p>
+                        </div>
+                        <div class="p-4 border border-primary rounded-lg hover:border-red-500 hover:bg-red-50 transition-colors cursor-pointer">
+                            <h3 class="font-semibold text-primary">Revenue Performance Pack</h3>
+                            <p class="text-sm text-secondary mt-1">CSV and charts covering revenue by plan, payment split and growth.</p>
+                        </div>
+                        <div class="p-4 border border-primary rounded-lg hover:border-red-500 hover:bg-red-50 transition-colors cursor-pointer">
+                            <h3 class="font-semibold text-primary">Executive Dashboard Snapshot</h3>
+                            <p class="text-sm text-secondary mt-1">Cross-functional snapshot for weekly leadership reviews.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8">
+                    <a href="../../admin-dashboard.html" class="inline-flex items-center space-x-2 text-red-500 hover:text-red-600 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                        <span>Back to Admin Dashboard</span>
+                    </a>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../../js/main.js"></script>
+</body>
+</html>

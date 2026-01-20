@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            
+    <meta name="theme-color" content="#ffffff">
+<title>Manager Member Analytics</title>
+    <meta name="description" content="Manage gym members, analytics, and profiles">
+    <link rel="stylesheet" href="../../css/styles.css">
+    <link rel="icon" href="../../images/logo.png">
+</head>
+<body>
+    <div class="min-h-screen bg-secondary flex flex-col">
+        <nav class="bg-primary text-primary py-4 px-6 relative z-10 border-b border-primary shadow-sm">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <a href="../../manager-dashboard.html" class="flex items-center space-x-3 group">
+                        <img src="../../images/logo.png" alt="PowerWorld Fitness Logo" width="48" height="48" class="transition-transform group-hover:scale-105">
+                        <span class="text-xl font-bold text-primary group-hover:text-red-500 transition-colors">
+                            PowerWorld Manager
+                        </span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <div class="text-sm text-tertiary">Gym Manager</div>
+                        <div class="text-primary font-semibold">Member Analytics</div>
+                    </div>
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                        <span class="text-white font-semibold">M</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="flex-1 px-6 py-8">
+            <div class="max-w-7xl mx-auto">
+                <header class="mb-8">
+                    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                        <div>
+                            <h1 class="text-3xl font-bold text-primary mb-2">Member Analytics</h1>
+                            <p class="text-secondary" id="members-subtitle">AI-driven insights and detailed member directory</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <button class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors" id="new-member-btn">
+                                Add Member
+                            </button>
+                            <button class="px-4 py-2 bg-tertiary text-secondary rounded-lg hover:bg-gray-300 transition-colors" id="export-member-btn">
+                                Export Directory
+                            </button>
+                        </div>
+                    </div>
+                </header>
+
+                <div class="mb-6 border-b border-primary">
+                    <nav class="-mb-px flex space-x-8" id="member-tabs">
+                        <button data-tab="analytics" class="py-2 px-1 border-b-2 font-medium text-sm border-red-500 text-red-500">
+                            Analytics
+                        </button>
+                        <button data-tab="directory" class="py-2 px-1 border-b-2 font-medium text-sm border-transparent text-tertiary hover:text-secondary hover:border-secondary">
+                            Member Directory
+                        </button>
+                    </nav>
+                </div>
+
+                <div class="mb-6 hidden" id="member-search">
+                    <input id="member-search-input" type="text" placeholder="Search by name, email, or ID..." class="w-full max-w-xl px-4 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                </div>
+
+                <section id="analytics-section" class="space-y-8"></section>
+                <section id="directory-section" class="space-y-4 hidden"></section>
+            </div>
+        </main>
+    </div>
+
+    <div id="member-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden">
+        <div class="bg-primary rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto border border-primary">
+            <div class="flex items-center justify-between p-6 border-b border-primary">
+                <h2 class="text-xl font-semibold text-primary" id="modal-title">Member Details</h2>
+                <button id="modal-close" class="text-quaternary hover:text-secondary">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4" id="modal-content"></div>
+        </div>
+    </div>
+
+    <script src="../../js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var state = {
+                activeTab: 'analytics',
+                searchTerm: '',
+                selectedMember: null
+            };
+
+            var data = {
+                overview: {
+                    totalMembers: 1247,
+                    activeMembers: 1089,
+                    newMembersThisMonth: 89,
+                    memberRetention: 87.5,
+                    averageSatisfaction: 4.6,
+                    averageWorkoutFrequency: 4.2
+                },
+                demographics: {
+                    ageGroups: [
+                        { range: '18-25', percentage: 25 },
+                        { range: '26-35', percentage: 40 },
+                        { range: '36-45', percentage: 25 },
+                        { range: '46+', percentage: 10 }
+                    ],
+                    gender: [
+                        { type: 'Male', percentage: 60 },
+                        { type: 'Female', percentage: 40 }
+                    ],
+                    plans: [
+                        { label: 'Basic Monthly', count: 456, percentage: 36.6 },
+                        { label: 'Premium Monthly', count: 389, percentage: 31.2 },
+                        { label: 'Elite Monthly', count: 244, percentage: 19.6 },
+                        { label: 'Annual Basic', count: 123, percentage: 9.9 }
+                    ]
+                },
+                trends: {
+                    memberGrowth: '+12%',
+                    retentionImprovement: '+3%',
+                    satisfactionIncrease: '+0.2',
+                    averageWorkoutTime: '+5 min'
+                },
+                members: [
+                    {
+                        id: 'MEM001',
+                        name: 'Kasun Perera',
+                        email: 'kasun.perera@email.com',
+                        phone: '+94123456789',
+                        joinDate: '2024-01-15',
+                        status: 'active',
+                        subscription: 'Premium Monthly',
+                        lastVisit: '2024-01-15',
+                        totalVisits: 28,
+                        averageWorkoutTime: 75,
+                        memberSatisfaction: 4.8,
+                        preferredTime: 'Evening',
+                        workoutFrequency: '5x/week'
+                    },
+                    {
+                        id: 'MEM002',
+                        name: 'Nimali Fernando',
+                        email: 'nimali.fernando@email.com',
+                        phone: '+94123456788',
+                        joinDate: '2024-01-10',
+                        status: 'active',
+                        subscription: 'Basic Monthly',
+                        lastVisit: '2024-01-14',
+                        totalVisits: 26,
+                        averageWorkoutTime: 60,
+                        memberSatisfaction: 4.7,
+                        preferredTime: 'Morning',
+                        workoutFrequency: '4x/week'
+                    },
+                    {
+                        id: 'MEM003',
+                        name: 'Chamara Jayasinghe',
+                        email: 'chamara.jayasinghe@email.com',
+                        phone: '+94123456787',
+                        joinDate: '2024-01-05',
+                        status: 'active',
+                        subscription: 'Elite Monthly',
+                        lastVisit: '2024-01-13',
+                        totalVisits: 24,
+                        averageWorkoutTime: 90,
+                        memberSatisfaction: 4.6,
+                        preferredTime: 'Evening',
+                        workoutFrequency: '6x/week'
+                    },
+                    {
+                        id: 'MEM004',
+                        name: 'Dilini Dissanayake',
+                        email: 'dilini.dissanayake@email.com',
+                        phone: '+94123456786',
+                        joinDate: '2024-01-20',
+                        status: 'inactive',
+                        subscription: 'Annual Basic',
+                        lastVisit: '2024-01-10',
+                        totalVisits: 5,
+                        averageWorkoutTime: 45,
+                        memberSatisfaction: 4.2,
+                        preferredTime: 'Afternoon',
+                        workoutFrequency: '2x/week'
+                    },
+                    {
+                        id: 'MEM005',
+                        name: 'Ravindu Bandara',
+                        email: 'ravindu.bandara@email.com',
+                        phone: '+94123456785',
+                        joinDate: '2024-01-12',
+                        status: 'active',
+                        subscription: 'Premium Monthly',
+                        lastVisit: '2024-01-15',
+                        totalVisits: 22,
+                        averageWorkoutTime: 80,
+                        memberSatisfaction: 4.9,
+                        preferredTime: 'Evening',
+                        workoutFrequency: '5x/week'
+                    }
+                ]
+            };
+
+            var tabs = document.getElementById('member-tabs');
+            var searchContainer = document.getElementById('member-search');
+            var searchInput = document.getElementById('member-search-input');
+            var analyticsSection = document.getElementById('analytics-section');
+            var directorySection = document.getElementById('directory-section');
+            var modal = document.getElementById('member-modal');
+            var modalContent = document.getElementById('modal-content');
+            var modalClose = document.getElementById('modal-close');
+
+            function initials(name) {
+                return name.split(' ').map(function(part) { return part.charAt(0); }).join('');
+            }
+
+            function statusClass(status) {
+                if (status === 'active') {
+                    return 'text-green-400 bg-green-500/20';
+                }
+                if (status === 'inactive') {
+                    return 'text-quaternary bg-secondary0/20';
+                }
+                return 'text-yellow-400 bg-yellow-500/20';
+            }
+
+            function satisfactionClass(rating) {
+                if (rating >= 4.5) {
+                    return 'text-green-500';
+                }
+                if (rating >= 4.0) {
+                    return 'text-yellow-500';
+                }
+                return 'text-red-500';
+            }
+
+            function renderAnalytics() {
+                var metrics = [
+                    { label: 'Total Members', value: data.overview.totalMembers.toLocaleString(), icon: '👥', tone: 'from-blue-500 to-blue-600' },
+                    { label: 'Active Members', value: data.overview.activeMembers.toLocaleString(), icon: '✅', tone: 'from-green-500 to-green-600' },
+                    { label: 'New This Month', value: data.overview.newMembersThisMonth, icon: '📈', tone: 'from-purple-500 to-purple-600' },
+                    { label: 'Retention Rate', value: data.overview.memberRetention + '%', icon: '🔄', tone: 'from-yellow-500 to-yellow-600' },
+                    { label: 'Avg Satisfaction', value: data.overview.averageSatisfaction + '/5', icon: '⭐', tone: 'from-red-500 to-red-600' },
+                    { label: 'Avg Frequency', value: data.overview.averageWorkoutFrequency + 'x/week', icon: '🏃', tone: 'from-indigo-500 to-indigo-600' }
+                ];
+
+                var metricsGrid = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">' +
+                    metrics.map(function(metric) {
+                        return (
+                            '<div class="bg-primary p-6 rounded-lg shadow-sm border border-primary">' +
+                                '<div class="flex items-center justify-between mb-4">' +
+                                    '<h3 class="text-lg font-semibold text-primary">' + metric.label + '</h3>' +
+                                    '<div class="w-10 h-10 bg-gradient-to-br ' + metric.tone + ' rounded-full flex items-center justify-center text-white">' + metric.icon + '</div>' +
+                                '</div>' +
+                                '<p class="text-3xl font-bold text-primary">' + metric.value + '</p>' +
+                            '</div>'
+                        );
+                    }).join('') +
+                '</div>';
+
+                var ageCard = '<div class="bg-primary rounded-lg shadow-sm border border-primary p-6">' +
+                    '<h3 class="text-lg font-semibold text-primary mb-4">Age Distribution</h3>' +
+                    '<div class="space-y-3">' +
+                    data.demographics.ageGroups.map(function(group) {
+                        return (
+                            '<div class="flex items-center justify-between">' +
+                                '<span class="text-sm text-secondary">' + group.range + ' years</span>' +
+                                '<div class="flex items-center space-x-3">' +
+                                    '<div class="w-32 bg-tertiary rounded-full h-2">' +
+                                        '<div class="bg-blue-500 h-2 rounded-full" style="width: ' + group.percentage + '%"></div>' +
+                                    '</div>' +
+                                    '<span class="text-sm font-medium text-primary">' + group.percentage + '%</span>' +
+                                '</div>' +
+                            '</div>'
+                        );
+                    }).join('') +
+                    '</div>' +
+                '</div>';
+
+                var genderCard = '<div class="bg-primary rounded-lg shadow-sm border border-primary p-6">' +
+                    '<h3 class="text-lg font-semibold text-primary mb-4">Gender Distribution</h3>' +
+                    '<div class="space-y-3">' +
+                    data.demographics.gender.map(function(group) {
+                        return (
+                            '<div class="flex items-center justify-between">' +
+                                '<span class="text-sm text-secondary">' + group.type + '</span>' +
+                                '<div class="flex items-center space-x-3">' +
+                                    '<div class="w-32 bg-tertiary rounded-full h-2">' +
+                                        '<div class="bg-green-500 h-2 rounded-full" style="width: ' + group.percentage + '%"></div>' +
+                                    '</div>' +
+                                    '<span class="text-sm font-medium text-primary">' + group.percentage + '%</span>' +
+                                '</div>' +
+                            '</div>'
+                        );
+                    }).join('') +
+                    '</div>' +
+                '</div>';
+
+                var planCard = '<div class="bg-primary rounded-lg shadow-sm border border-primary p-6">' +
+                    '<h3 class="text-lg font-semibold text-primary mb-4">Subscription Plans</h3>' +
+                    '<div class="space-y-3">' +
+                    data.demographics.plans.map(function(plan) {
+                        return (
+                            '<div class="flex items-center justify-between p-3 bg-secondary rounded-lg">' +
+                                '<div>' +
+                                    '<h4 class="font-medium text-primary">' + plan.label + '</h4>' +
+                                    '<p class="text-sm text-secondary">' + plan.count + ' members</p>' +
+                                '</div>' +
+                                '<div class="text-right">' +
+                                    '<p class="text-lg font-semibold text-primary">' + plan.percentage + '%</p>' +
+                                '</div>' +
+                            '</div>'
+                        );
+                    }).join('') +
+                    '</div>' +
+                '</div>';
+
+                var trends = '<div class="bg-primary rounded-lg shadow-sm border border-primary p-6">' +
+                    '<h3 class="text-lg font-semibold text-primary mb-4">Performance Trends</h3>' +
+                    '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">' +
+                        '<div class="text-center"><div class="text-3xl font-bold text-green-500 mb-2">' + data.trends.memberGrowth + '</div><p class="text-sm text-secondary">Member Growth</p></div>' +
+                        '<div class="text-center"><div class="text-3xl font-bold text-green-500 mb-2">' + data.trends.retentionImprovement + '</div><p class="text-sm text-secondary">Retention Improvement</p></div>' +
+                        '<div class="text-center"><div class="text-3xl font-bold text-green-500 mb-2">+' + data.trends.satisfactionIncrease + '</div><p class="text-sm text-secondary">Satisfaction Increase</p></div>' +
+                        '<div class="text-center"><div class="text-3xl font-bold text-green-500 mb-2">' + data.trends.averageWorkoutTime + '</div><p class="text-sm text-secondary">Avg Workout Time</p></div>' +
+                    '</div>' +
+                '</div>';
+
+                analyticsSection.innerHTML = metricsGrid + '<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">' + ageCard + genderCard + planCard + '</div>' + trends;
+            }
+
+            function filteredMembers() {
+                if (!state.searchTerm) {
+                    return data.members;
+                }
+                var term = state.searchTerm.toLowerCase();
+                return data.members.filter(function(member) {
+                    return member.name.toLowerCase().includes(term) ||
+                        member.email.toLowerCase().includes(term) ||
+                        member.id.toLowerCase().includes(term);
+                });
+            }
+
+            function renderDirectory() {
+                var members = filteredMembers();
+                if (members.length === 0) {
+                    directorySection.innerHTML = '<div class="text-center py-12 bg-primary rounded-lg border border-primary">' +
+                        '<div class="text-quaternary text-5xl mb-4">🔍</div>' +
+                        '<h3 class="text-lg font-semibold text-primary mb-2">No members found</h3>' +
+                        '<p class="text-sm text-secondary">Try a different search query</p>' +
+                    '</div>';
+                    return;
+                }
+
+                directorySection.innerHTML = members.map(function(member) {
+                    return (
+                        `
+                        <div class="bg-primary rounded-lg shadow-sm border border-primary p-6 hover:shadow-md transition-shadow">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-4">
+                                    <div class="w-12 h-12 bg-tertiary rounded-full flex items-center justify-center">
+                                        <span class="text-secondary font-semibold">${initials(member.name)}</span>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-lg font-semibold text-primary">${member.name}</h3>
+                                        <p class="text-sm text-secondary">${member.email}</p>
+                                        <div class="flex items-center space-x-2 mt-1">
+                                            <span class="px-2 py-1 rounded-full text-xs font-semibold ${statusClass(member.status)}">${member.status}</span>
+                                            <span class="text-xs text-tertiary">${member.subscription}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-6">
+                                    <div class="text-center">
+                                        <p class="text-sm text-secondary">Visits</p>
+                                        <p class="text-lg font-semibold text-primary">${member.totalVisits}</p>
+                                    </div>
+                                    <div class="text-center">
+                                        <p class="text-sm text-secondary">Avg Time</p>
+                                        <p class="text-lg font-semibold text-primary">${member.averageWorkoutTime} min</p>
+                                    </div>
+                                    <div class="text-center">
+                                        <p class="text-sm text-secondary">Satisfaction</p>
+                                        <p class="text-lg font-semibold ${satisfactionClass(member.memberSatisfaction)}">${member.memberSatisfaction}/5</p>
+                                    </div>
+                                    <button class="px-3 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors" data-member="${member.id}">View Details</button>
+                                </div>
+                            </div>
+                        </div>
+                        `
+                    );
+                }).join('');
+            }
+
+            function renderTabs() {
+                Array.prototype.forEach.call(tabs.querySelectorAll('button'), function(button) {
+                    var isActive = button.getAttribute('data-tab') === state.activeTab;
+                    button.className = 'py-2 px-1 border-b-2 font-medium text-sm ' + (isActive ? 'border-red-500 text-red-500' : 'border-transparent text-tertiary hover:text-secondary hover:border-secondary');
+                });
+
+                if (state.activeTab === 'analytics') {
+                    searchContainer.classList.add('hidden');
+                    analyticsSection.classList.remove('hidden');
+                    directorySection.classList.add('hidden');
+                } else {
+                    searchContainer.classList.remove('hidden');
+                    analyticsSection.classList.add('hidden');
+                    directorySection.classList.remove('hidden');
+                }
+            }
+
+            function openModal(member) {
+                state.selectedMember = member;
+                modalContent.innerHTML = `
+                    <div class="flex items-center space-x-4">
+                        <div class="w-16 h-16 bg-tertiary rounded-full flex items-center justify-center">
+                            <span class="text-secondary font-semibold text-xl">${initials(member.name)}</span>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold text-primary">${member.name}</h3>
+                            <p class="text-sm text-secondary">${member.id}</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-secondary p-4 rounded-lg"><p class="text-sm text-tertiary">Email</p><p class="text-sm text-primary">${member.email}</p></div>
+                        <div class="bg-secondary p-4 rounded-lg"><p class="text-sm text-tertiary">Phone</p><p class="text-sm text-primary">${member.phone}</p></div>
+                        <div class="bg-secondary p-4 rounded-lg"><p class="text-sm text-tertiary">Subscription</p><p class="text-sm text-primary">${member.subscription}</p></div>
+                        <div class="bg-secondary p-4 rounded-lg"><p class="text-sm text-tertiary">Join Date</p><p class="text-sm text-primary">${member.joinDate}</p></div>
+                        <div class="bg-secondary p-4 rounded-lg"><p class="text-sm text-tertiary">Last Visit</p><p class="text-sm text-primary">${member.lastVisit}</p></div>
+                        <div class="bg-secondary p-4 rounded-lg"><p class="text-sm text-tertiary">Preferred Time</p><p class="text-sm text-primary">${member.preferredTime}</p></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-primary border border-primary rounded-lg p-4 text-center"><p class="text-sm text-secondary">Total Visits</p><p class="text-lg font-semibold text-primary">${member.totalVisits}</p></div>
+                        <div class="bg-primary border border-primary rounded-lg p-4 text-center"><p class="text-sm text-secondary">Avg Session</p><p class="text-lg font-semibold text-primary">${member.averageWorkoutTime} min</p></div>
+                        <div class="bg-primary border border-primary rounded-lg p-4 text-center"><p class="text-sm text-secondary">Satisfaction</p><p class="text-lg font-semibold ${satisfactionClass(member.memberSatisfaction)}">${member.memberSatisfaction}/5</p></div>
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4 border-t border-primary">
+                        <button class="px-4 py-2 bg-tertiary text-secondary rounded-lg hover:bg-gray-300 transition-colors">Message</button>
+                        <button class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">View History</button>
+                    </div>
+                `;
+                modal.classList.remove('hidden');
+            }
+
+            function closeModal() {
+                state.selectedMember = null;
+                modal.classList.add('hidden');
+            }
+
+            tabs.addEventListener('click', function(event) {
+                var tab = event.target.closest('button[data-tab]');
+                if (!tab) {
+                    return;
+                }
+                state.activeTab = tab.getAttribute('data-tab');
+                renderTabs();
+                if (state.activeTab === 'directory') {
+                    renderDirectory();
+                }
+            });
+
+            searchInput.addEventListener('input', function(event) {
+                state.searchTerm = event.target.value;
+                renderDirectory();
+            });
+
+            directorySection.addEventListener('click', function(event) {
+                var button = event.target.closest('button[data-member]');
+                if (!button) {
+                    return;
+                }
+                var id = button.getAttribute('data-member');
+                var member = data.members.find(function(item) { return item.id === id; });
+                if (member) {
+                    openModal(member);
+                }
+            });
+
+            modalClose.addEventListener('click', closeModal);
+            modal.addEventListener('click', function(event) {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+
+            document.getElementById('export-member-btn').addEventListener('click', function() {
+                document.getElementById('members-subtitle').textContent = 'Exporting member directory...';
+                setTimeout(function() {
+                    document.getElementById('members-subtitle').textContent = 'Member directory ready for download';
+                }, 1200);
+            });
+
+            renderTabs();
+            renderAnalytics();
+        });
+    </script>
+</body>
+</html>
+

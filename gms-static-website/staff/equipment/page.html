@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            
+    <meta name="theme-color" content="#ffffff">
+<title>Equipment Monitoring - PowerWorld Fitness</title>
+    <meta name="description" content="Track gym equipment health, maintenance, and issues">
+    <link rel="stylesheet" href="../../css/styles.css">
+    <link rel="icon" href="../../images/logo.png">
+</head>
+<body>
+    <div class="min-h-screen bg-secondary flex flex-col">
+        <nav class="bg-primary text-primary py-4 px-6 relative z-10 border-b border-primary shadow-sm">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <a href="../../staff-dashboard.html" class="flex items-center space-x-3 group">
+                        <img src="../../images/logo.png" alt="PowerWorld Fitness Logo" width="50" height="50" class="transition-transform group-hover:scale-105">
+                        <span class="text-xl font-bold text-primary group-hover:text-red-500 transition-colors">
+                            PowerWorld Staff
+                        </span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <div class="text-sm text-tertiary">Staff Member</div>
+                        <div class="text-primary font-semibold">Equipment Monitoring</div>
+                    </div>
+                    <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
+                        <span class="text-white font-semibold text-sm">S</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="flex-1 px-6 py-8">
+            <div class="max-w-7xl mx-auto">
+                <header class="mb-8">
+                    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                        <div>
+                            <h1 class="text-3xl font-bold text-primary mb-2">Equipment Monitoring</h1>
+                            <p class="text-secondary" id="equipment-subtitle">Monitor equipment status and schedule maintenance</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <button class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors" id="equipment-report-issue">
+                                Report Issue
+                            </button>
+                            <button class="px-4 py-2 bg-tertiary text-secondary rounded-lg hover:bg-gray-300 transition-colors" id="equipment-schedule-maintenance">
+                                Schedule Maintenance
+                            </button>
+                        </div>
+                    </div>
+                </header>
+
+                <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8" id="equipment-stats"></section>
+
+                <section class="bg-primary rounded-lg shadow-sm border border-primary p-6 mb-8">
+                    <h2 class="text-lg font-semibold text-primary mb-4">Filters</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label for="equipment-filter-status" class="block text-sm font-medium text-secondary mb-2">Status</label>
+                            <select id="equipment-filter-status" class="w-full px-3 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                                <option value="all">All Status</option>
+                                <option value="operational">Operational</option>
+                                <option value="maintenance">Maintenance</option>
+                                <option value="out_of_order">Out of Order</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="equipment-filter-category" class="block text-sm font-medium text-secondary mb-2">Category</label>
+                            <select id="equipment-filter-category" class="w-full px-3 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                                <option value="all">All Categories</option>
+                                <option value="Cardio">Cardio</option>
+                                <option value="Strength">Strength</option>
+                                <option value="Flexibility">Flexibility</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="equipment-filter-location" class="block text-sm font-medium text-secondary mb-2">Location</label>
+                            <select id="equipment-filter-location" class="w-full px-3 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                                <option value="all">All Locations</option>
+                                <option value="Cardio Zone">Cardio Zone</option>
+                                <option value="Weight Room">Weight Room</option>
+                                <option value="Yoga Studio">Yoga Studio</option>
+                                <option value="Pool Area">Pool Area</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="equipment-search" class="block text-sm font-medium text-secondary mb-2">Search</label>
+                            <input id="equipment-search" type="text" placeholder="Search equipment..." class="w-full px-3 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                        </div>
+                    </div>
+                </section>
+
+                <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="equipment-list"></section>
+
+                <div class="text-center py-12 hidden" id="equipment-empty-state">
+                    <div class="text-quaternary text-4xl mb-4">📦</div>
+                    <h3 class="text-lg font-medium text-primary mb-2">No equipment matches your filters</h3>
+                    <p class="text-secondary">Adjust filters or search terms to see more results</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="equipment-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden">
+        <div class="bg-primary rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto border border-primary">
+            <div class="flex items-center justify-between p-6 border-b border-primary">
+                <div>
+                    <h2 class="text-xl font-semibold text-primary" id="equipment-modal-title">Equipment Details</h2>
+                    <p class="text-sm text-tertiary" id="equipment-modal-subtitle"></p>
+                </div>
+                <button id="equipment-modal-close" class="text-quaternary hover:text-secondary">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-6" id="equipment-modal-content"></div>
+        </div>
+    </div>
+
+    <script src="../../js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var state = {
+                filters: {
+                    status: 'all',
+                    category: 'all',
+                    location: 'all',
+                    search: ''
+                },
+                selectedEquipment: null
+            };
+
+            var equipment = [
+                { id: 'EQ001', name: 'Treadmill #1', category: 'Cardio', location: 'Cardio Zone', status: 'operational', lastMaintenance: '2024-01-10', nextMaintenance: '2024-02-10', usageHours: 156, issues: [] },
+                { id: 'EQ002', name: 'Treadmill #2', category: 'Cardio', location: 'Cardio Zone', status: 'maintenance', lastMaintenance: '2024-01-15', nextMaintenance: '2024-01-20', usageHours: 203, issues: ['Belt needs replacement', 'Display flickering'] },
+                { id: 'EQ003', name: 'Elliptical #1', category: 'Cardio', location: 'Cardio Zone', status: 'operational', lastMaintenance: '2024-01-12', nextMaintenance: '2024-02-12', usageHours: 89, issues: [] },
+                { id: 'EQ004', name: 'Weight Bench #1', category: 'Strength', location: 'Weight Room', status: 'operational', lastMaintenance: '2024-01-08', nextMaintenance: '2024-02-08', usageHours: 234, issues: [] },
+                { id: 'EQ005', name: 'Rowing Machine', category: 'Cardio', location: 'Cardio Zone', status: 'out_of_order', lastMaintenance: '2024-01-14', nextMaintenance: '2024-01-18', usageHours: 67, issues: ['Motor failure', 'Seat adjustment broken'] },
+                { id: 'EQ006', name: 'Dumbbell Set (20kg)', category: 'Strength', location: 'Weight Room', status: 'operational', lastMaintenance: '2024-01-05', nextMaintenance: '2024-02-05', usageHours: 312, issues: [] },
+                { id: 'EQ007', name: 'Stationary Bike #1', category: 'Cardio', location: 'Cardio Zone', status: 'operational', lastMaintenance: '2024-01-11', nextMaintenance: '2024-02-11', usageHours: 145, issues: [] },
+                { id: 'EQ008', name: 'Cable Machine', category: 'Strength', location: 'Weight Room', status: 'maintenance', lastMaintenance: '2024-01-16', nextMaintenance: '2024-01-22', usageHours: 178, issues: ['Cable tension adjustment needed'] },
+                { id: 'EQ009', name: 'Yoga Mats Set', category: 'Flexibility', location: 'Yoga Studio', status: 'operational', lastMaintenance: '2024-01-09', nextMaintenance: '2024-02-09', usageHours: 98, issues: [] },
+                { id: 'EQ010', name: 'Pool Pump', category: 'Maintenance', location: 'Pool Area', status: 'maintenance', lastMaintenance: '2024-01-13', nextMaintenance: '2024-01-19', usageHours: 210, issues: ['Filter cleaning required'] }
+            ];
+
+            var statsContainer = document.getElementById('equipment-stats');
+            var listContainer = document.getElementById('equipment-list');
+            var emptyState = document.getElementById('equipment-empty-state');
+            var modal = document.getElementById('equipment-modal');
+            var modalTitle = document.getElementById('equipment-modal-title');
+            var modalSubtitle = document.getElementById('equipment-modal-subtitle');
+            var modalContent = document.getElementById('equipment-modal-content');
+            var subtitle = document.getElementById('equipment-subtitle');
+
+            function statusColor(status) {
+                if (status === 'operational') {
+                    return 'text-green-400 bg-green-500/20';
+                }
+                if (status === 'maintenance') {
+                    return 'text-yellow-400 bg-yellow-500/20';
+                }
+                if (status === 'out_of_order') {
+                    return 'text-red-400 bg-red-500/20';
+                }
+                return 'text-quaternary bg-secondary0/20';
+            }
+
+            function statusIcon(status) {
+                if (status === 'operational') {
+                    return '✅';
+                }
+                if (status === 'maintenance') {
+                    return '⚠️';
+                }
+                if (status === 'out_of_order') {
+                    return '❌';
+                }
+                return 'ℹ️';
+            }
+
+            function categoryIcon(category) {
+                if (category === 'Cardio') {
+                    return '🏃';
+                }
+                if (category === 'Strength') {
+                    return '🏋️';
+                }
+                if (category === 'Flexibility') {
+                    return '🧘';
+                }
+                if (category === 'Maintenance') {
+                    return '🛠️';
+                }
+                return '📦';
+            }
+
+            function filteredEquipment() {
+                return equipment.filter(function(item) {
+                    var matchesStatus = state.filters.status === 'all' || item.status === state.filters.status;
+                    var matchesCategory = state.filters.category === 'all' || item.category === state.filters.category;
+                    var matchesLocation = state.filters.location === 'all' || item.location === state.filters.location;
+                    var term = state.filters.search.trim().toLowerCase();
+                    var matchesSearch = !term || item.name.toLowerCase().includes(term) || item.id.toLowerCase().includes(term);
+                    return matchesStatus && matchesCategory && matchesLocation && matchesSearch;
+                });
+            }
+
+            function renderStats() {
+                var operational = equipment.filter(function(item) { return item.status === 'operational'; }).length;
+                var maintenance = equipment.filter(function(item) { return item.status === 'maintenance'; }).length;
+                var outOfOrder = equipment.filter(function(item) { return item.status === 'out_of_order'; }).length;
+                var total = equipment.length;
+
+                var cards = [
+                    { label: 'Operational', value: operational, tone: 'from-green-500 to-green-600', icon: '✅' },
+                    { label: 'Maintenance', value: maintenance, tone: 'from-yellow-500 to-yellow-600', icon: '⚠️' },
+                    { label: 'Out of Order', value: outOfOrder, tone: 'from-red-500 to-red-600', icon: '❌' },
+                    { label: 'Total Equipment', value: total, tone: 'from-blue-500 to-blue-600', icon: '📊' }
+                ];
+
+                statsContainer.innerHTML = cards.map(function(card) {
+                    return (
+                        '<div class="bg-primary p-6 rounded-lg shadow-sm border border-primary">' +
+                            '<div class="flex items-center">' +
+                                '<div class="w-8 h-8 rounded-full bg-gradient-to-br ' + card.tone + ' flex items-center justify-center text-white">' + card.icon + '</div>' +
+                                '<div class="ml-4">' +
+                                    '<p class="text-sm text-secondary">' + card.label + '</p>' +
+                                    '<p class="text-2xl font-bold text-primary">' + card.value + '</p>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>'
+                    );
+                }).join('');
+            }
+
+            function renderList() {
+                var items = filteredEquipment();
+                listContainer.innerHTML = items.map(function(item) {
+                    var issuesSection = '';
+                    if (item.issues.length > 0) {
+                        issuesSection = '<div class="mb-4"><h4 class="text-sm font-medium text-secondary mb-2">Current Issues</h4><div class="space-y-1">' +
+                            item.issues.map(function(issue) {
+                                return '<div class="text-sm text-red-600 bg-red-50 p-2 rounded">• ' + issue + '</div>';
+                            }).join('') +
+                        '</div></div>';
+                    }
+
+                    return (
+                        '<div class="bg-primary rounded-lg shadow-sm border border-primary p-6 hover:shadow-md transition-shadow" data-equipment="' + item.id + '">' +
+                            '<div class="flex items-start justify-between mb-4">' +
+                                '<div class="flex items-center space-x-3">' +
+                                    '<span class="text-2xl">' + categoryIcon(item.category) + '</span>' +
+                                    '<div>' +
+                                        '<h3 class="text-lg font-semibold text-primary">' + item.name + '</h3>' +
+                                        '<p class="text-sm text-tertiary">' + item.id + '</p>' +
+                                    '</div>' +
+                                '</div>' +
+                                '<span class="px-2 py-1 rounded-full text-xs font-semibold ' + statusColor(item.status) + '">' + statusIcon(item.status) + ' ' + item.status.replace(/_/g, ' ') + '</span>' +
+                            '</div>' +
+                            '<div class="space-y-3 mb-4">' +
+                                '<div class="flex justify-between text-sm text-secondary"><span>Category:</span><span class="text-primary">' + item.category + '</span></div>' +
+                                '<div class="flex justify-between text-sm text-secondary"><span>Location:</span><span class="text-primary">' + item.location + '</span></div>' +
+                                '<div class="flex justify-between text-sm text-secondary"><span>Usage Hours:</span><span class="text-primary">' + item.usageHours + 'h</span></div>' +
+                                '<div class="flex justify-between text-sm text-secondary"><span>Last Maintenance:</span><span class="text-primary">' + item.lastMaintenance + '</span></div>' +
+                                '<div class="flex justify-between text-sm text-secondary"><span>Next Maintenance:</span><span class="text-primary">' + item.nextMaintenance + '</span></div>' +
+                            '</div>' +
+                            issuesSection +
+                            '<div class="flex space-x-2">' +
+                                '<button class="flex-1 px-3 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors" data-action="view" data-equipment="' + item.id + '">View Details</button>' +
+                                '<button class="px-3 py-2 bg-yellow-500 text-white text-sm rounded-lg hover:bg-yellow-600 transition-colors" data-action="report" data-equipment="' + item.id + '">Report Issue</button>' +
+                            '</div>' +
+                        '</div>'
+                    );
+                }).join('');
+
+                emptyState.classList.toggle('hidden', items.length > 0);
+            }
+
+            function openModal(item) {
+                state.selectedEquipment = item;
+                modalTitle.textContent = item.name;
+                modalSubtitle.textContent = item.id + ' • ' + item.location;
+                modalContent.innerHTML = (
+                    '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
+                        '<div class="bg-secondary p-4 rounded-lg"><p class="text-sm text-tertiary">Status</p><p class="text-sm text-primary capitalize">' + item.status.replace(/_/g, ' ') + '</p></div>' +
+                        '<div class="bg-secondary p-4 rounded-lg"><p class="text-sm text-tertiary">Category</p><p class="text-sm text-primary">' + item.category + '</p></div>' +
+                        '<div class="bg-secondary p-4 rounded-lg"><p class="text-sm text-tertiary">Last Maintenance</p><p class="text-sm text-primary">' + item.lastMaintenance + '</p></div>' +
+                        '<div class="bg-secondary p-4 rounded-lg"><p class="text-sm text-tertiary">Next Maintenance</p><p class="text-sm text-primary">' + item.nextMaintenance + '</p></div>' +
+                        '<div class="bg-secondary p-4 rounded-lg"><p class="text-sm text-tertiary">Usage Hours</p><p class="text-sm text-primary">' + item.usageHours + 'h</p></div>' +
+                        '<div class="bg-secondary p-4 rounded-lg"><p class="text-sm text-tertiary">Location</p><p class="text-sm text-primary">' + item.location + '</p></div>' +
+                    '</div>' +
+                    (item.issues.length ? '<div><h3 class="text-lg font-semibold text-primary mb-3">Reported Issues</h3><div class="space-y-2">' + item.issues.map(function(issue) {
+                        return '<div class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">' + issue + '</div>';
+                    }).join('') + '</div></div>' : '') +
+                    '<div class="flex justify-end space-x-3 pt-4 border-t border-primary">' +
+                        '<button class="px-4 py-2 bg-tertiary text-secondary rounded-lg hover:bg-gray-300 transition-colors" data-action="schedule" data-equipment="' + item.id + '">Schedule Maintenance</button>' +
+                        '<button class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors" data-action="report" data-equipment="' + item.id + '">Report Issue</button>' +
+                    '</div>'
+                );
+                modal.classList.remove('hidden');
+            }
+
+            function closeModal() {
+                state.selectedEquipment = null;
+                modal.classList.add('hidden');
+            }
+
+            function updateSubtitle(message) {
+                subtitle.textContent = message;
+                setTimeout(function() {
+                    subtitle.textContent = 'Monitor equipment status and schedule maintenance';
+                }, 1400);
+            }
+
+            document.getElementById('equipment-filter-status').addEventListener('change', function(event) {
+                state.filters.status = event.target.value;
+                renderList();
+            });
+
+            document.getElementById('equipment-filter-category').addEventListener('change', function(event) {
+                state.filters.category = event.target.value;
+                renderList();
+            });
+
+            document.getElementById('equipment-filter-location').addEventListener('change', function(event) {
+                state.filters.location = event.target.value;
+                renderList();
+            });
+
+            document.getElementById('equipment-search').addEventListener('input', function(event) {
+                state.filters.search = event.target.value;
+                renderList();
+            });
+
+            listContainer.addEventListener('click', function(event) {
+                var actionButton = event.target.closest('button[data-action]');
+                if (!actionButton) {
+                    return;
+                }
+                var id = actionButton.getAttribute('data-equipment');
+                var action = actionButton.getAttribute('data-action');
+                var item = equipment.find(function(eq) { return eq.id === id; });
+                if (!item) {
+                    return;
+                }
+                if (action === 'view') {
+                    openModal(item);
+                }
+                if (action === 'report') {
+                    updateSubtitle('Logging maintenance ticket for ' + item.name + '...');
+                    showNotification('Issue reported for ' + item.name, 'success');
+                }
+            });
+
+            modalContent.addEventListener('click', function(event) {
+                var modalButton = event.target.closest('button[data-action]');
+                if (!modalButton) {
+                    return;
+                }
+                var id = modalButton.getAttribute('data-equipment');
+                var action = modalButton.getAttribute('data-action');
+                var item = equipment.find(function(eq) { return eq.id === id; });
+                if (!item) {
+                    return;
+                }
+                if (action === 'schedule') {
+                    updateSubtitle('Scheduling maintenance for ' + item.name + '...');
+                    showNotification('Maintenance scheduled for ' + item.name, 'success');
+                }
+                if (action === 'report') {
+                    updateSubtitle('Logging maintenance ticket for ' + item.name + '...');
+                    showNotification('Issue reported for ' + item.name, 'success');
+                }
+                closeModal();
+            });
+
+            document.getElementById('equipment-modal-close').addEventListener('click', closeModal);
+            modal.addEventListener('click', function(event) {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+
+            document.getElementById('equipment-report-issue').addEventListener('click', function() {
+                updateSubtitle('Preparing issue report...');
+                showNotification('New equipment issue logged', 'success');
+            });
+
+            document.getElementById('equipment-schedule-maintenance').addEventListener('click', function() {
+                updateSubtitle('Maintenance scheduler opened');
+                showNotification('Maintenance scheduler is ready', 'success');
+            });
+
+            renderStats();
+            renderList();
+        });
+    </script>
+</body>
+</html>

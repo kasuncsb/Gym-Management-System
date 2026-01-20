@@ -1,0 +1,306 @@
+Gym Management System - Use Case Descriptors
+
+UC-01 — Scan QR Code
+
+Field
+	Description
+Brief	Member scans a gym QR code (at the entrance) so the system can identify them, validate membership and log their arrival/departure.
+Primary actor	Member (or Staff scanning on member’s behalf)
+Secondary actors	Gym System (backend), QR scanner device (mobile app), Authentication service, Subscription service, Timestamp service, Door unlocking system
+Preconditions	Member has a valid account in the system; QR code is displayed using a display; network available.
+Postconditions (success)	Member is authenticated (door opened), subscription validated, and entrance (or exit) timestamp is recorded.
+Postconditions (failure)	Scan fails or authentication/validation fails; no timestamp recorded; member is shown an error and instructions.
+
+Trigger	Member (or staff) presents QR; device scans it.
+
+Main success scenario	1. Member opens scanner or presents printed QR to kiosk.
+	2. Scanner reads QR code (memberID / session token / check-in code).
+	3. System fetches member profile using QR data.
+	4. System calls Validate subscription (UC-02).
+	5. System calls Authenticate user (UC-03) to confirm identity/session.
+	6. System calls to unlock the door.
+	7. System calls Record timestamp (UC-04) to log arrival/exit.
+
+Extensions / alternate flows	QR unreadable → scanner asks to retry or type member ID.
+	Subscription invalid/expired → prompt to Buy subscription (UC-05) or display restricted access message.
+	Authentication fails → display the error message.
+	Timestamp logging unavailable → store locally.
+
+Special requirements	Secure QR code (signed or one-time token), rate-limiting to prevent replay, low-latency response at gym entrance, clear accessible UI messages.
+
+Notes	Diagram shows this use case includes UC-02, UC-03 and UC-04.
+
+UC-02 — Validate subscription
+
+Field
+	Description
+Brief	Check membership/subscription status and entitlements for a member.
+Primary actor	Gym System (triggered by other use cases)
+Secondary actors	Billing/subscriptions service, Payment gateway, Membership database
+Preconditions	Member record exists; subscription data available.
+Postconditions (success)	Returns valid/invalid status and entitlements (access hours, facility restrictions).
+Postconditions (failure)	Unable to determine status (service down) or subscription not valid.
+Trigger	Called by scanning, entry attempts, or feature access requests (e.g., booking class).
+
+Main success scenario	1. Request arrives with member ID.
+	2. Service looks up active subscriptions and entitlements.
+	3. Service returns validation result and expiry/limits.
+
+Extensions / alternate flows	Member has multiple subscriptions — resolve priority and return effective entitlement.
+	Any failure → return error code and message prompting user action (renew, contact support).
+
+
+UC-03 — Authenticate user (in/out)
+
+Field	Description
+
+Brief	Verify the identity of the person scanning in/out and opening the door.
+Primary actor	Member; Staff (for manual auth)
+Secondary actors	Authentication service, Identity provider (IDP), device (mobile)
+Preconditions	Member has authentication credentials.
+Postconditions (success)	Member is marked authenticated, door unlocked.
+Postconditions (failure)	Authentication denied; entry blocked.
+Trigger	Called by Scan QR Code.
+
+Main success scenario	1. Member scans the QR Code and door unlocks.
+
+Extensions / alternate flows	1. Invalid QR Code.
+	2. Subscription Expired.
+	3. QR Code Timed out.
+
+UC-04 — Record timestamp (in/out)
+
+Field	Description
+
+Brief	Create a log entry for member arrival or departure.
+Primary actor	Gym System (backend), triggered by scan/auth events
+Secondary actors	Time-series database, member profile service
+
+Preconditions	Member authenticated and subscription validated (if required).
+
+Postconditions (success)	Persistent timestamp record with memberID, time, location and event type (IN/OUT).
+
+Postconditions (failure)	No record created.
+
+Trigger	Authentication success; manual check-in/out by staff; scheduled auto-checkout.
+Main success scenario	1. Received event (memberID, IN/OUT).
+	2. Validate event ordering (prevent duplicate INs or OUTs).
+	3. Persist timestamp with metadata (deviceID, gateID).
+	4. Return acknowledgement.
+
+Extensions / alternate flows	Duplicate IN detected → flag for staff review and optionally deny second IN.
+	DB write fails → notify the administrator.
+
+UC-05 — Buy subscription
+
+Field	Description
+
+Brief	Member purchases or renews a subscription via the app or website.
+
+Primary actor	Member
+
+Secondary actors	Payment gateway, Billing service, Validate subscription (UC-02), Email/notification service
+
+Preconditions	Member account exists; payment method available.
+
+Postconditions (success)	Subscription becomes active or extended and member receives confirmation; subscription data updated in system.
+
+Postconditions (failure)	Payment fails; system rolls back partial changes; member notified.
+
+Trigger	Member selects new plan or renewal from UI.
+
+Main success scenario	1. Member selects plan and payment method.
+	2. System shows price & terms; member confirms.
+	3. System processes payment via gateway.
+	4. Billing service activates subscription and updates member record.
+	5. System calls Validate subscription to ensure new status is visible.
+	6. Confirmation sent to member.
+
+Extensions / alternate flows	Payment declined → show error, allow retry or alternate payment.
+	Activation fails → scheduled activation and notify member with expected time.
+
+UC-06 — Make an appointment
+
+Field	Description
+
+Brief	Member schedules a trainer appointment.
+Primary actor	Member, Instructor
+Secondary actors	Scheduling system, Trainer/staff, Validate subscription (UC-02), Notification service, Record timestamp (UC-04)
+
+Preconditions	Member authenticated; scheduling data (availability) up-to-date.
+Postconditions (success)	Appointment is created, calendar updated, notifications sent to member/trainer.
+Postconditions (failure)	Time slot unavailable; appointment not created.
+Trigger	Member selects time slot and preferred instructor in app.
+Main success scenario	1. Member browses available slots, instructor and selects one.
+	2. System verifies member entitlement via Validate subscription.
+	3. System confirms slot availability and reserves it.
+	4. System saves appointment and notifies participants.
+	5. Optionally, system may create a calendar entry and reminder.
+Extensions / alternate flows	Insufficient entitlement → prompt to upgrade subscription (UC-05).
+	Slot was taken concurrently → present next available alternatives.
+	Member cancels → apply cancellation policy and notify trainer.
+
+UC-07 — Mark workout done
+
+Field	Description
+
+Brief	Member marks a scheduled workout or completed routine as done (for progress tracking).
+
+Primary actor	Member
+
+Secondary actors	Workout scheduler, Progress tracking module (UC-08), Record timestamp (UC-04), Notification service
+
+Preconditions	Member has a workout scheduled or a routine to complete.
+
+Postconditions (success)	Workout status marked complete, progress metrics updated, timestamp recorded.
+
+Postconditions (failure)	System fails to update progress; member warned and retry option given.
+Trigger	Member presses “Done” in app, or system auto-detects completion (optional) – upon leaving.
+
+Main success scenario	1. Member opens the session and marks it completed.
+	2. System verifies session identity and marks status complete.
+	3. System calls Record timestamp to log completion time.
+	4. Progress statistics are recalculated and updates shown to member.
+
+Extensions / alternate flows	Member attempts to mark before required activities finished → prompt confirmation.
+	Offline → persist locally and sync later.
+
+UC-08 — View / Track progress
+
+Field	Description
+
+Brief	Member views historical workout data, trends and statistics.
+
+Primary actor	Member
+
+Secondary actors	Progress analytics, Data storage, Mark workout done (UC-07)
+
+Preconditions	Member has historical workout data (timestamps, routines, measurements).
+
+Postconditions (success)	Dashboard is displayed with up-to-date metrics and visualizations.
+
+Postconditions (failure)	Partial data shown with message, or no data if none exists.
+
+Trigger	Member opens progress page.
+
+Main success scenario	1. Member navigates to progress screen.
+	2. System gathers activity history, workout completion, and measurement data.
+	3. Analytics engine computes trends (consistency, volume, personal records).
+	4. System displays graphs, summaries and suggestions.
+
+Extensions / alternate flows	System permissions missing (e.g., wearable integration) → show authorized steps.
+	Insufficient data → show tips to get started.
+
+UC-09 — Enter / Leave Gym
+
+Field	Description
+
+Brief	Use case representing physical access for staff; may extend or be realized by scanning QR, staff presence within gym.
+
+Primary actor	Staff
+
+Secondary actors	Door control system, Scan QR Code (UC-01), Record timestamp (UC-04), Wi-Fi
+
+Preconditions	Door hardware functioning; Gym Wi-Fi connection is up and running.
+
+Postconditions (success)	Staff member enters or leaves; access record logged.
+
+Postconditions (failure)	Entry denied and staff alerted.
+
+Trigger	Staff member attempts to enter or exit facility.
+
+Main success scenario	1. Member requests access (QR scan) or presence detected via Wi-Fi. 
+	2. System validates and authenticates (UC-02, UC-03).
+	3. Door unlocks, and Record timestamp captures IN/OUT.
+
+UC-10 — Change / Modify workout schedule
+
+Field	Description
+
+Brief	Member or instructor edits a workout plan.
+
+Primary actor	Member; Instructor
+
+Secondary actors	Workout scheduler, Notification service, Progress module
+
+Preconditions	User authenticated and authorized to change the schedule.
+
+Postconditions (success)	Schedule updated; affected participants notified.
+
+Postconditions (failure)	Conflict detected and change rejected or queued for approval.
+
+Trigger	User selects edit/reschedule.
+
+Main success scenario	1. User opens schedule and edits exercises/times.
+	2. System verifies constraints (trainer availability, subscription entitlements).
+	3. System saves changes and sends notifications.
+
+Extensions / alternate flows	Conflicting appointments → present alternatives or request approval.
+
+UC-11 — View insights
+
+Field	Description
+
+Brief	Instructor or manager views higher-level insights (trends, recommended actions, occupancy patterns).
+
+Primary actor	Manager; Instructor
+
+Secondary actors	Analytics engine (including AI), Data warehouse, Notifications
+
+Preconditions	Sufficient aggregated data available.
+
+Postconditions (success)	Insights generated and displayed; optionally action items suggested.
+
+Postconditions (failure)	Insufficient data for certain insights → system limits results and suggests how to collect more.
+
+Trigger	User opens Insights page or system sends proactive insights.
+
+Main success scenario	1. User requests insights.
+	2. System runs analytics on activity, attendance, and performance.
+	3. Results and suggestions displayed.
+
+UC-12 — Access detailed reports
+
+Field	Description
+
+Brief	Managers or authorized staff generate/export detailed reports (attendance, revenue, utilization).
+
+Primary actor	Manager / Admin
+
+Secondary actors	Reporting subsystem, Database, Export service (PDF/CSV), Authentication/Authorization service
+
+Preconditions	User has proper role and permissions.
+
+Postconditions (success)	Report generated and downloadable; logs of access stored.
+
+Postconditions (failure)	Report generation error; user informed.
+
+Trigger	Manager selects report parameters and requests generation.
+
+Main success scenario	1. Manager picks report type, date range and filters.
+	2. System validates permission and retrieves data.
+	3. Report compiled and presented; export options provided.
+
+UC-13 — Manage the entire system
+
+Field	Description
+
+Brief	Admin-level operations: configure facilities, user roles, pricing plans, hardware endpoints, and overall system settings.
+
+Primary actor	System Administrator
+
+Secondary actors	All subsystems (billing, auth, scheduler, door controllers)
+
+Preconditions	Admin authenticated with appropriate privileges.
+
+Postconditions (success)	System configuration updated; changes applied to dependent services.
+
+Postconditions (failure)
+	Partial updates rolled back; admin alerted.
+
+Trigger	Admin chooses management task (create plan, change pricing, add location).
+
+Main success scenario	1. Admin opens Admin console.
+	2. Admin selects a management function (e.g., create a subscription plan).
+	3. System validates inputs and saves changes.
+	4. System logs action and informs affected components/users if necessary.
