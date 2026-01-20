@@ -8,7 +8,7 @@ export default function MemberDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isCheckedIn] = useState(false);
   const [memberData] = useState({
-    name: "John Doe",
+    name: "Kasun Fernando",
     memberId: "PW2025001",
     subscriptionStatus: "Active",
     subscriptionPlan: "Premium",
@@ -31,14 +31,14 @@ export default function MemberDashboard() {
   const [upcomingAppointments] = useState([
     {
       id: 1,
-      trainer: "Sarah Johnson",
+      trainer: "Chathurika Silva",
       date: "2025-01-18",
       time: "10:00 AM",
       type: "Personal Training"
     },
     {
       id: 2,
-      trainer: "Mike Chen",
+      trainer: "Isuru Bandara",
       date: "2025-01-20",
       time: "2:00 PM",
       type: "Nutrition Consultation"

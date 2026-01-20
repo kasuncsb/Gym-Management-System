@@ -13,11 +13,11 @@ export default function AppointmentsPage() {
   const [viewMode, setViewMode] = useState('calendar'); // 'calendar' or 'list'
 
   const trainers = [
-    { id: '1', name: 'Sarah Johnson', specialization: 'Strength Training', rating: 4.9, experience: '5 years', avatar: '/trainers/sarah.jpg' },
-    { id: '2', name: 'Mike Chen', specialization: 'Cardio & HIIT', rating: 4.8, experience: '7 years', avatar: '/trainers/mike.jpg' },
-    { id: '3', name: 'Emma Wilson', specialization: 'Yoga & Flexibility', rating: 4.9, experience: '4 years', avatar: '/trainers/emma.jpg' },
-    { id: '4', name: 'David Rodriguez', specialization: 'Bodybuilding', rating: 4.7, experience: '8 years', avatar: '/trainers/david.jpg' },
-    { id: '5', name: 'Lisa Thompson', specialization: 'Nutrition & Wellness', rating: 4.9, experience: '6 years', avatar: '/trainers/lisa.jpg' }
+    { id: '1', name: 'Chathurika Silva', specialization: 'Strength Training', rating: 4.9, experience: '5 years', avatar: '/not-found.png' },
+    { id: '2', name: 'Isuru Bandara', specialization: 'Cardio & HIIT', rating: 4.8, experience: '7 years', avatar: '/not-found.png' },
+    { id: '3', name: 'Thilini Wijesinghe', specialization: 'Yoga & Flexibility', rating: 4.9, experience: '4 years', avatar: '/not-found.png' },
+    { id: '4', name: 'Dinesh Fernando', specialization: 'Bodybuilding', rating: 4.7, experience: '8 years', avatar: '/not-found.png' },
+    { id: '5', name: 'Gayani Fernando', specialization: 'Nutrition & Wellness', rating: 4.9, experience: '6 years', avatar: '/not-found.png' }
   ];
 
   const appointmentTypes = [
@@ -38,7 +38,7 @@ export default function AppointmentsPage() {
   const upcomingAppointments = [
     {
       id: 1,
-      trainer: 'Sarah Johnson',
+      trainer: 'Chathurika Silva',
       type: 'Personal Training',
       date: '2025-01-18',
       time: '10:00 AM',
@@ -48,7 +48,7 @@ export default function AppointmentsPage() {
     },
     {
       id: 2,
-      trainer: 'Mike Chen',
+      trainer: 'Isuru Bandara',
       type: 'Nutrition Consultation',
       date: '2025-01-20',
       time: '2:00 PM',
@@ -58,7 +58,7 @@ export default function AppointmentsPage() {
     },
     {
       id: 3,
-      trainer: 'Emma Wilson',
+      trainer: 'Thilini Wijesinghe',
       type: 'Group Class',
       date: '2025-01-22',
       time: '6:00 PM',
@@ -71,7 +71,7 @@ export default function AppointmentsPage() {
   const pastAppointments = [
     {
       id: 4,
-      trainer: 'David Rodriguez',
+      trainer: 'Dinesh Fernando',
       type: 'Personal Training',
       date: '2025-01-15',
       time: '9:00 AM',
@@ -82,7 +82,7 @@ export default function AppointmentsPage() {
     },
     {
       id: 5,
-      trainer: 'Lisa Thompson',
+      trainer: 'Gayani Fernando',
       type: 'Nutrition Consultation',
       date: '2025-01-12',
       time: '3:00 PM',

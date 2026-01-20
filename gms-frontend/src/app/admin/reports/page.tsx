@@ -33,9 +33,9 @@ export default function AdminReports() {
       peakHours: '6:00 PM - 8:00 PM',
       memberRetention: 87.5,
       topMembers: [
-        { name: 'John Smith', checkIns: 28, lastVisit: '2024-01-15' },
-        { name: 'Sarah Johnson', checkIns: 26, lastVisit: '2024-01-14' },
-        { name: 'Mike Chen', checkIns: 24, lastVisit: '2024-01-13' }
+        { name: 'Nimal Perera', checkIns: 28, lastVisit: '2024-01-15' },
+        { name: 'Chathurika Silva', checkIns: 26, lastVisit: '2024-01-14' },
+        { name: 'Isuru Bandara', checkIns: 24, lastVisit: '2024-01-13' }
       ]
     },
     revenue: {

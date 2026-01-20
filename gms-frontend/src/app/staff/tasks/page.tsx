@@ -55,7 +55,7 @@ export default function StaffTasks() {
       dueDate: '2024-01-14',
       estimatedTime: '45 min',
       location: 'All Areas',
-      completedBy: 'John Smith',
+      completedBy: 'Nimal Perera',
       completedAt: '2024-01-14 16:30',
       notes: 'All equipment checked, no issues found'
     },
@@ -115,7 +115,7 @@ export default function StaffTasks() {
       dueDate: '2024-01-14',
       estimatedTime: '35 min',
       location: 'Weight Room',
-      completedBy: 'Sarah Johnson',
+      completedBy: 'Chathurika Silva',
       completedAt: '2024-01-14 18:00',
       notes: 'All weights organized, floor mopped'
     },

@@ -17,11 +17,11 @@ export default function StaffDashboard() {
   });
 
   const [recentCheckIns] = useState([
-    { id: 1, member: 'John Smith', time: '2 min ago', type: 'check-in', status: 'completed' },
-    { id: 2, member: 'Sarah Johnson', time: '5 min ago', type: 'check-out', status: 'completed' },
-    { id: 3, member: 'Mike Chen', time: '8 min ago', type: 'check-in', status: 'completed' },
-    { id: 4, member: 'Emma Wilson', time: '12 min ago', type: 'assistance', status: 'completed' },
-    { id: 5, member: 'David Rodriguez', time: '15 min ago', type: 'check-in', status: 'completed' }
+    { id: 1, member: 'Nimal Perera', time: '2 min ago', type: 'check-in', status: 'completed' },
+    { id: 2, member: 'Chathurika Silva', time: '5 min ago', type: 'check-out', status: 'completed' },
+    { id: 3, member: 'Isuru Bandara', time: '8 min ago', type: 'check-in', status: 'completed' },
+    { id: 4, member: 'Thilini Wijesinghe', time: '12 min ago', type: 'assistance', status: 'completed' },
+    { id: 5, member: 'Saman Jayasinghe', time: '15 min ago', type: 'check-in', status: 'completed' }
   ]);
 
   const [pendingTasks] = useState([
@@ -39,9 +39,9 @@ export default function StaffDashboard() {
   ]);
 
   const [memberRequests] = useState([
-    { id: 1, member: 'Lisa Thompson', request: 'Need help with form on bench press', time: '5 min ago', priority: 'medium' },
-    { id: 2, member: 'Alex Brown', request: 'Equipment not working properly', time: '12 min ago', priority: 'high' },
-    { id: 3, member: 'Maria Garcia', request: 'Looking for workout recommendations', time: '18 min ago', priority: 'low' }
+    { id: 1, member: 'Gayani Fernando', request: 'Need help with form on bench press', time: '5 min ago', priority: 'medium' },
+    { id: 2, member: 'Ruwan Jayawardena', request: 'Equipment not working properly', time: '12 min ago', priority: 'high' },
+    { id: 3, member: 'Nirosha Senanayake', request: 'Looking for workout recommendations', time: '18 min ago', priority: 'low' }
   ]);
 
   useEffect(() => {

@@ -112,7 +112,7 @@ export default function PersonalDetails() {
                     value={formData.firstName}
                     onChange={handleChange}
                     className="block w-full px-3 py-3 border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200"
-                    placeholder="John"
+                    placeholder="Nimal"
                   />
                 </div>
                 <div className="space-y-2">
@@ -126,7 +126,7 @@ export default function PersonalDetails() {
                     value={formData.lastName}
                     onChange={handleChange}
                     className="block w-full px-3 py-3 border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200"
-                    placeholder="Doe"
+                    placeholder="Perera"
                   />
                 </div>
               </div>

@@ -15,7 +15,7 @@ export default function StaffAssistance() {
   const [requests] = useState([
     {
       id: 1,
-      member: 'Lisa Thompson',
+      member: 'Gayani Fernando',
       memberId: 'MEM004',
       request: 'Need help with form on bench press',
       category: 'Form Check',
@@ -27,7 +27,7 @@ export default function StaffAssistance() {
     },
     {
       id: 2,
-      member: 'Alex Brown',
+      member: 'Ruwan Jayawardena',
       memberId: 'MEM005',
       request: 'Equipment not working properly',
       category: 'Equipment Issue',
@@ -39,7 +39,7 @@ export default function StaffAssistance() {
     },
     {
       id: 3,
-      member: 'Maria Garcia',
+      member: 'Nirosha Senanayake',
       memberId: 'MEM006',
       request: 'Looking for workout recommendations',
       category: 'General Help',
@@ -51,7 +51,7 @@ export default function StaffAssistance() {
     },
     {
       id: 4,
-      member: 'John Smith',
+      member: 'Nimal Perera',
       memberId: 'MEM001',
       request: 'Can\'t access locker room',
       category: 'Access Issue',
@@ -63,7 +63,7 @@ export default function StaffAssistance() {
     },
     {
       id: 5,
-      member: 'Sarah Johnson',
+      member: 'Chathurika Silva',
       memberId: 'MEM002',
       request: 'Need spotter for heavy lifts',
       category: 'Safety',
@@ -75,7 +75,7 @@ export default function StaffAssistance() {
     },
     {
       id: 6,
-      member: 'Mike Chen',
+      member: 'Isuru Bandara',
       memberId: 'MEM003',
       request: 'Water fountain not working',
       category: 'Facility Issue',

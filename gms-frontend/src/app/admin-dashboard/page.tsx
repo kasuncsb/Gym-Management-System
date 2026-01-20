@@ -18,11 +18,11 @@ export default function AdminDashboard() {
   });
 
   const [recentActivities] = useState([
-    { id: 1, action: 'New member registered', user: 'John Smith', time: '2 min ago', type: 'member' },
+    { id: 1, action: 'New member registered', user: 'Nimal Perera', time: '2 min ago', type: 'member' },
     { id: 2, action: 'Subscription plan updated', user: 'Admin', time: '15 min ago', type: 'system' },
-    { id: 3, action: 'Payment processed', user: 'Sarah Johnson', time: '1 hour ago', type: 'payment' },
+    { id: 3, action: 'Payment processed', user: 'Chathurika Silva', time: '1 hour ago', type: 'payment' },
     { id: 4, action: 'System backup completed', user: 'System', time: '2 hours ago', type: 'system' },
-    { id: 5, action: 'Member check-in', user: 'Mike Chen', time: '3 hours ago', type: 'member' }
+    { id: 5, action: 'Member check-in', user: 'Isuru Bandara', time: '3 hours ago', type: 'member' }
   ]);
 
   const [systemAlerts] = useState([
@@ -173,9 +173,9 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div className="space-y-2">
-                <div className="text-3xl font-bold text-gray-900">${systemStats.totalRevenue.toLocaleString()}</div>
+                <div className="text-3xl font-bold text-gray-900">Rs.{systemStats.totalRevenue.toLocaleString()}</div>
                 <div className="text-sm text-gray-600">
-                  <span className="text-green-500">${systemStats.monthlyRevenue}</span> this month
+                  <span className="text-green-500">Rs.{systemStats.monthlyRevenue}</span> this month
                 </div>
               </div>
             </div>
@@ -334,7 +334,7 @@ export default function AdminDashboard() {
                       <div className="space-y-1">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Price:</span>
-                          <span className="text-gray-900">${plan.price}</span>
+                          <span className="text-gray-900">Rs.{plan.price}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Duration:</span>

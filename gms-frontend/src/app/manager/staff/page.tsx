@@ -12,8 +12,8 @@ export default function ManagerStaff() {
   const [staff] = useState([
     {
       id: 'STF001',
-      name: 'Mike Davis',
-      email: 'mike.d@email.com',
+      name: 'Suresh Perera',
+      email: 'suresh.p@email.com',
       phone: '+94123456784',
       role: 'admin',
       hireDate: '2023-06-01',
@@ -26,8 +26,8 @@ export default function ManagerStaff() {
     },
     {
       id: 'STF002',
-      name: 'Lisa Thompson',
-      email: 'lisa.t@email.com',
+      name: 'Gayani Fernando',
+      email: 'gayani.f@email.com',
       phone: '+94123456783',
       role: 'manager',
       hireDate: '2023-08-15',
@@ -40,8 +40,8 @@ export default function ManagerStaff() {
     },
     {
       id: 'STF003',
-      name: 'Alex Brown',
-      email: 'alex.b@email.com',
+      name: 'Ruwan Jayawardena',
+      email: 'ruwan.j@email.com',
       phone: '+94123456782',
       role: 'instructor',
       hireDate: '2023-09-10',
@@ -54,8 +54,8 @@ export default function ManagerStaff() {
     },
     {
       id: 'STF004',
-      name: 'Maria Garcia',
-      email: 'maria.g@email.com',
+      name: 'Nirosha Senanayake',
+      email: 'nirosha.s@email.com',
       phone: '+94123456781',
       role: 'receptionist',
       hireDate: '2023-10-05',
@@ -68,8 +68,8 @@ export default function ManagerStaff() {
     },
     {
       id: 'STF005',
-      name: 'John Wilson',
-      email: 'john.w@email.com',
+      name: 'Kasun Fernando',
+      email: 'kasun.f@email.com',
       phone: '+94123456780',
       role: 'instructor',
       hireDate: '2023-11-20',

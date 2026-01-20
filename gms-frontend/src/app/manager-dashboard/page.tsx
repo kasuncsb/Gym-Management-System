@@ -202,7 +202,7 @@ export default function ManagerDashboard() {
                 </div>
               </div>
               <div className="space-y-2">
-                <div className="text-3xl font-bold text-gray-900">${managerStats.monthlyRevenue.toLocaleString()}</div>
+                <div className="text-3xl font-bold text-gray-900">Rs.{managerStats.monthlyRevenue.toLocaleString()}</div>
                 <div className="text-sm text-gray-600">
                   <span className="text-green-500">+12%</span> vs last month
                 </div>

@@ -10,19 +10,19 @@ export default function StaffCheckin() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [members] = useState([
-    { id: 'MEM001', name: 'John Smith', email: 'john.smith@email.com', phone: '+94123456789', status: 'active', lastVisit: '2024-01-14', subscription: 'Premium Monthly' },
-    { id: 'MEM002', name: 'Sarah Johnson', email: 'sarah.j@email.com', phone: '+94123456788', status: 'active', lastVisit: '2024-01-15', subscription: 'Basic Monthly' },
-    { id: 'MEM003', name: 'Mike Chen', email: 'mike.chen@email.com', phone: '+94123456787', status: 'active', lastVisit: '2024-01-13', subscription: 'Elite Monthly' },
-    { id: 'MEM004', name: 'Emma Wilson', email: 'emma.w@email.com', phone: '+94123456786', status: 'inactive', lastVisit: '2024-01-10', subscription: 'Annual Basic' },
-    { id: 'MEM005', name: 'David Rodriguez', email: 'david.r@email.com', phone: '+94123456785', status: 'active', lastVisit: '2024-01-15', subscription: 'Premium Monthly' }
+    { id: 'MEM001', name: 'Nimal Perera', email: 'nimal.perera@email.com', phone: '+94711234567', status: 'active', lastVisit: '2024-01-14', subscription: 'Premium Monthly' },
+    { id: 'MEM002', name: 'Chathurika Silva', email: 'chathurika.silva@email.com', phone: '+94711234568', status: 'active', lastVisit: '2024-01-15', subscription: 'Basic Monthly' },
+    { id: 'MEM003', name: 'Isuru Bandara', email: 'isuru.bandara@email.com', phone: '+94711234569', status: 'active', lastVisit: '2024-01-13', subscription: 'Elite Monthly' },
+    { id: 'MEM004', name: 'Thilini Wijesinghe', email: 'thilini.wijesinghe@email.com', phone: '+94711234570', status: 'inactive', lastVisit: '2024-01-10', subscription: 'Annual Basic' },
+    { id: 'MEM005', name: 'Saman Jayasinghe', email: 'saman.jayasinghe@email.com', phone: '+94711234571', status: 'active', lastVisit: '2024-01-15', subscription: 'Premium Monthly' }
   ]);
 
   const [recentCheckIns] = useState([
-    { id: 1, member: 'John Smith', memberId: 'MEM001', time: '14:30', type: 'check-in', status: 'completed' },
-    { id: 2, member: 'Sarah Johnson', memberId: 'MEM002', time: '14:25', type: 'check-out', status: 'completed' },
-    { id: 3, member: 'Mike Chen', memberId: 'MEM003', time: '14:20', type: 'check-in', status: 'completed' },
-    { id: 4, member: 'Emma Wilson', memberId: 'MEM004', time: '14:15', type: 'check-in', status: 'completed' },
-    { id: 5, member: 'David Rodriguez', memberId: 'MEM005', time: '14:10', type: 'check-out', status: 'completed' }
+    { id: 1, member: 'Nimal Perera', memberId: 'MEM001', time: '14:30', type: 'check-in', status: 'completed' },
+    { id: 2, member: 'Chathurika Silva', memberId: 'MEM002', time: '14:25', type: 'check-out', status: 'completed' },
+    { id: 3, member: 'Isuru Bandara', memberId: 'MEM003', time: '14:20', type: 'check-in', status: 'completed' },
+    { id: 4, member: 'Thilini Wijesinghe', memberId: 'MEM004', time: '14:15', type: 'check-in', status: 'completed' },
+    { id: 5, member: 'Dinesh Fernando', memberId: 'MEM005', time: '14:10', type: 'check-out', status: 'completed' }
   ]);
 
   const filteredMembers = members.filter(member => 

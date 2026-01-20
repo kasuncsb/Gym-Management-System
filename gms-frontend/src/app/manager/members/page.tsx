@@ -12,9 +12,9 @@ export default function ManagerMembers() {
   const [members] = useState([
     {
       id: 'MEM001',
-      name: 'John Smith',
-      email: 'john.smith@email.com',
-      phone: '+94123456789',
+      name: 'Nimal Perera',
+      email: 'nimal.perera@email.com',
+      phone: '+94711234567',
       joinDate: '2024-01-15',
       status: 'active',
       subscription: 'Premium Monthly',
@@ -27,9 +27,9 @@ export default function ManagerMembers() {
     },
     {
       id: 'MEM002',
-      name: 'Sarah Johnson',
-      email: 'sarah.j@email.com',
-      phone: '+94123456788',
+      name: 'Chathurika Silva',
+      email: 'chathurika.silva@email.com',
+      phone: '+94711234568',
       joinDate: '2024-01-10',
       status: 'active',
       subscription: 'Basic Monthly',
@@ -42,8 +42,8 @@ export default function ManagerMembers() {
     },
     {
       id: 'MEM003',
-      name: 'Mike Chen',
-      email: 'mike.chen@email.com',
+      name: 'Isuru Bandara',
+      email: 'isuru.bandara@email.com',
       phone: '+94123456787',
       joinDate: '2024-01-05',
       status: 'active',
@@ -57,8 +57,8 @@ export default function ManagerMembers() {
     },
     {
       id: 'MEM004',
-      name: 'Emma Wilson',
-      email: 'emma.w@email.com',
+      name: 'Thilini Wijesinghe',
+      email: 'thilini.w@email.com',
       phone: '+94123456786',
       joinDate: '2024-01-20',
       status: 'inactive',
@@ -72,8 +72,8 @@ export default function ManagerMembers() {
     },
     {
       id: 'MEM005',
-      name: 'David Rodriguez',
-      email: 'david.r@email.com',
+      name: 'Dinesh Fernando',
+      email: 'dinesh.f@email.com',
       phone: '+94123456785',
       joinDate: '2024-01-12',
       status: 'active',

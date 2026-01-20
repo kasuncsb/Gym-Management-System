@@ -10,24 +10,24 @@ export default function AdminUsers() {
   const [selectedRole, setSelectedRole] = useState('all');
 
   const [members] = useState([
-    { id: 'MEM001', name: 'John Smith', email: 'john.smith@email.com', phone: '+94123456789', joinDate: '2024-01-15', status: 'active', subscription: 'Premium Monthly' },
-    { id: 'MEM002', name: 'Sarah Johnson', email: 'sarah.j@email.com', phone: '+94123456788', joinDate: '2024-01-10', status: 'active', subscription: 'Basic Monthly' },
-    { id: 'MEM003', name: 'Mike Chen', email: 'mike.chen@email.com', phone: '+94123456787', joinDate: '2024-01-05', status: 'inactive', subscription: 'Elite Monthly' },
-    { id: 'MEM004', name: 'Emma Wilson', email: 'emma.w@email.com', phone: '+94123456786', joinDate: '2024-01-20', status: 'active', subscription: 'Annual Basic' },
-    { id: 'MEM005', name: 'David Rodriguez', email: 'david.r@email.com', phone: '+94123456785', joinDate: '2024-01-12', status: 'suspended', subscription: 'Premium Monthly' }
+    { id: 'MEM001', name: 'Nimal Perera', email: 'nimal.perera@email.com', phone: '+94711234567', joinDate: '2024-01-15', status: 'active', subscription: 'Premium Monthly' },
+    { id: 'MEM002', name: 'Chathurika Silva', email: 'chathurika.silva@email.com', phone: '+94711234568', joinDate: '2024-01-10', status: 'active', subscription: 'Basic Monthly' },
+    { id: 'MEM003', name: 'Isuru Bandara', email: 'isuru.bandara@email.com', phone: '+94711234569', joinDate: '2024-01-05', status: 'inactive', subscription: 'Elite Monthly' },
+    { id: 'MEM004', name: 'Thilini Wijesinghe', email: 'thilini.wijesinghe@email.com', phone: '+94711234570', joinDate: '2024-01-20', status: 'active', subscription: 'Annual Basic' },
+    { id: 'MEM005', name: 'Saman Jayasinghe', email: 'saman.jayasinghe@email.com', phone: '+94711234571', joinDate: '2024-01-12', status: 'suspended', subscription: 'Premium Monthly' }
   ]);
 
   const [staff] = useState([
-    { id: 'STF001', name: 'Mike Davis', email: 'mike.d@email.com', phone: '+94123456784', role: 'admin', hireDate: '2023-06-01', status: 'active' },
-    { id: 'STF002', name: 'Lisa Thompson', email: 'lisa.t@email.com', phone: '+94123456783', role: 'manager', hireDate: '2023-08-15', status: 'active' },
-    { id: 'STF003', name: 'Alex Brown', email: 'alex.b@email.com', phone: '+94123456782', role: 'instructor', hireDate: '2023-09-10', status: 'active' },
-    { id: 'STF004', name: 'Maria Garcia', email: 'maria.g@email.com', phone: '+94123456781', role: 'receptionist', hireDate: '2023-10-05', status: 'inactive' }
+    { id: 'STF001', name: 'Suresh Perera', email: 'suresh.p@email.com', phone: '+94711234572', role: 'admin', hireDate: '2023-06-01', status: 'active' },
+    { id: 'STF002', name: 'Gayani Fernando', email: 'gayani.f@email.com', phone: '+94711234573', role: 'manager', hireDate: '2023-08-15', status: 'active' },
+    { id: 'STF003', name: 'Ruwan Jayawardena', email: 'ruwan.j@email.com', phone: '+94711234574', role: 'instructor', hireDate: '2023-09-10', status: 'active' },
+    { id: 'STF004', name: 'Nirosha Senanayake', email: 'nirosha.s@email.com', phone: '+94711234575', role: 'receptionist', hireDate: '2023-10-05', status: 'inactive' }
   ]);
 
   const [trainers] = useState([
-    { id: 'TRN001', name: 'Sarah Johnson', email: 'sarah.trainer@email.com', phone: '+94123456780', specialization: 'Weightlifting', hourlyRate: 2500, status: 'active' },
-    { id: 'TRN002', name: 'Tom Wilson', email: 'tom.w@email.com', phone: '+94123456779', specialization: 'Yoga', hourlyRate: 2000, status: 'active' },
-    { id: 'TRN003', name: 'Jessica Lee', email: 'jessica.l@email.com', phone: '+94123456778', specialization: 'Cardio', hourlyRate: 2200, status: 'inactive' }
+    { id: 'TRN001', name: 'Chathurika Silva', email: 'chathurika.s@email.com', phone: '+94711234576', specialization: 'Weightlifting', hourlyRate: 2500, status: 'active' },
+    { id: 'TRN002', name: 'Tharindu Wijesekara', email: 'tharindu.w@email.com', phone: '+94711234577', specialization: 'Yoga', hourlyRate: 2000, status: 'active' },
+    { id: 'TRN003', name: 'Nipuni Rajapaksa', email: 'nipuni.r@email.com', phone: '+94711234578', specialization: 'Cardio', hourlyRate: 2200, status: 'inactive' }
   ]);
 
   const getStatusColor = (status: string) => {

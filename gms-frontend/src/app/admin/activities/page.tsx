@@ -16,7 +16,7 @@ export default function AdminActivities() {
     {
       id: 1,
       timestamp: '2024-01-15 14:30:25',
-      user: 'John Smith',
+      user: 'Nimal Perera',
       userId: 'MEM001',
       action: 'Member Check-in',
       type: 'member',
@@ -40,7 +40,7 @@ export default function AdminActivities() {
     {
       id: 3,
       timestamp: '2024-01-15 14:20:45',
-      user: 'Sarah Johnson',
+      user: 'Chathurika Silva',
       userId: 'MEM002',
       action: 'Payment Processed',
       type: 'payment',
@@ -52,7 +52,7 @@ export default function AdminActivities() {
     {
       id: 4,
       timestamp: '2024-01-15 14:15:30',
-      user: 'Mike Chen',
+      user: 'Isuru Bandara',
       userId: 'MEM003',
       action: 'Failed Login Attempt',
       type: 'security',
@@ -64,7 +64,7 @@ export default function AdminActivities() {
     {
       id: 5,
       timestamp: '2024-01-15 14:10:15',
-      user: 'Lisa Thompson',
+      user: 'Gayani Fernando',
       userId: 'STF002',
       action: 'Member Profile Updated',
       type: 'staff',
@@ -88,7 +88,7 @@ export default function AdminActivities() {
     {
       id: 7,
       timestamp: '2024-01-15 14:00:20',
-      user: 'Emma Wilson',
+      user: 'Thilini Wijesinghe',
       userId: 'MEM004',
       action: 'Appointment Booked',
       type: 'member',
@@ -100,7 +100,7 @@ export default function AdminActivities() {
     {
       id: 8,
       timestamp: '2024-01-15 13:55:10',
-      user: 'Alex Brown',
+      user: 'Ruwan Jayawardena',
       userId: 'STF003',
       action: 'Equipment Status Updated',
       type: 'staff',
@@ -112,7 +112,7 @@ export default function AdminActivities() {
     {
       id: 9,
       timestamp: '2024-01-15 13:50:35',
-      user: 'David Rodriguez',
+      user: 'Dinesh Fernando',
       userId: 'MEM005',
       action: 'Subscription Renewed',
       type: 'member',
@@ -272,9 +272,9 @@ export default function AdminActivities() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 >
                   <option value="all">All Users</option>
-                  <option value="MEM001">John Smith</option>
+                  <option value="MEM001">Nimal Perera</option>
                   <option value="STF001">Admin</option>
-                  <option value="STF002">Lisa Thompson</option>
+                  <option value="STF002">Gayani Fernando</option>
                   <option value="SYSTEM">System</option>
                 </select>
               </div>
