@@ -6,12 +6,14 @@ import { useRouter } from "next/navigation";
 import { authAPI } from "@/lib/api";
 import { Dumbbell, ArrowLeft, Mail, Lock, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const { login } = useAuth();
     const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -32,8 +34,9 @@ export default function Login() {
             const response = await authAPI.login(email, password, userType);
             const { token, user } = response.data.data;
 
-            localStorage.setItem('token', token);
-            localStorage.setItem('user', JSON.stringify(user));
+
+
+            login(token, user);
 
             if (userType === 'staff') {
                 router.push(user.role === 'admin' ? '/admin-dashboard' : '/staff-dashboard');

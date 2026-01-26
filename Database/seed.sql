@@ -21,23 +21,23 @@ INSERT INTO `branches` (`id`, `name`, `code`, `address`, `phone`, `email`, `is_a
 -- Users (Admin, Managers, Trainers, Staff, Members)
 INSERT INTO `users` (`id`, `email`, `password_hash`, `role`, `full_name`, `phone`, `avatar_url`, `is_active`) VALUES
 -- Admin
-('u0001', 'admin@powerworld.lk', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'admin', 'System Administrator', '+94 77 000 0000', '/avatars/admin.jpg', 1),
+('u0001', 'admin@powerworld.lk', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'admin', 'System Administrator', '+94 77 000 0000', '/avatars/admin.jpg', 1),
 -- Managers
-('u0002', 'manager.kbt@powerworld.lk', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'manager', 'Kamal Perera', '+94 77 111 2222', '/avatars/kamal.jpg', 1),
-('u0003', 'manager.atd@powerworld.lk', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'manager', 'Sanduni Wijesinghe', '+94 77 222 3333', '/avatars/sanduni.jpg', 1),
+('u0002', 'manager.kbt@powerworld.lk', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'manager', 'Kamal Perera', '+94 77 111 2222', '/avatars/kamal.jpg', 1),
+('u0003', 'manager.atd@powerworld.lk', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'manager', 'Sanduni Wijesinghe', '+94 77 222 3333', '/avatars/sanduni.jpg', 1),
 -- Trainers (Certified trainers as per website)
-('u0004', 'trainer.jay@powerworld.lk', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'trainer', 'Jayantha Silva', '+94 77 333 4444', '/avatars/jay.jpg', 1),
-('u0005', 'trainer.nimal@powerworld.lk', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'trainer', 'Nimal Rajapakse', '+94 77 444 5555', '/avatars/nimal.jpg', 1),
-('u0006', 'trainer.priya@powerworld.lk', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'trainer', 'Priya Kumari', '+94 77 555 6666', '/avatars/priya.jpg', 1),
-('u0007', 'trainer.rohan@powerworld.lk', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'trainer', 'Rohan Fernando', '+94 77 666 7777', '/avatars/rohan.jpg', 1),
-('u0008', 'trainer.madhushi@powerworld.lk', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'trainer', 'Madhushi Perera', '+94 77 777 8888', '/avatars/madhushi.jpg', 1),
+('u0004', 'trainer.jay@powerworld.lk', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'trainer', 'Jayantha Silva', '+94 77 333 4444', '/avatars/jay.jpg', 1),
+('u0005', 'trainer.nimal@powerworld.lk', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'trainer', 'Nimal Rajapakse', '+94 77 444 5555', '/avatars/nimal.jpg', 1),
+('u0006', 'trainer.priya@powerworld.lk', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'trainer', 'Priya Kumari', '+94 77 555 6666', '/avatars/priya.jpg', 1),
+('u0007', 'trainer.rohan@powerworld.lk', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'trainer', 'Rohan Fernando', '+94 77 666 7777', '/avatars/rohan.jpg', 1),
+('u0008', 'trainer.madhushi@powerworld.lk', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'trainer', 'Madhushi Perera', '+94 77 777 8888', '/avatars/madhushi.jpg', 1),
 -- Staff
-('u0009', 'rec.amara@powerworld.lk', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'staff', 'Amara Fernando', '+94 77 888 9999', '/avatars/amara.jpg', 1),
-('u0010', 'rec.dilshan@powerworld.lk', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'staff', 'Dilshan Wickramasinghe', '+94 77 999 0000', '/avatars/dilshan.jpg', 1),
+('u0009', 'rec.amara@powerworld.lk', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'staff', 'Amara Fernando', '+94 77 888 9999', '/avatars/amara.jpg', 1),
+('u0010', 'rec.dilshan@powerworld.lk', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'staff', 'Dilshan Wickramasinghe', '+94 77 999 0000', '/avatars/dilshan.jpg', 1),
 -- Members (Diverse member base)
-('u1001', 'kasun.m@gmail.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'member', 'Kasun Mendis', '+94 71 234 5678', '/avatars/kasun.jpg', 1),
-('u1002', 'nimali.d@gmail.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'member', 'Nimali De Silva', '+94 71 876 5432', '/avatars/nimali.jpg', 1),
-('u1003', 'saman.k@gmail.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'member', 'Saman Kumara', '+94 71 555 1234', '/avatars/saman.jpg', 1),
+('u1001', 'kasun.m@gmail.com', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'member', 'Kasun Mendis', '+94 71 234 5678', '/avatars/kasun.jpg', 1),
+('u1002', 'nimali.d@gmail.com', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'member', 'Nimali De Silva', '+94 71 876 5432', '/avatars/nimali.jpg', 1),
+('u1003', 'saman.k@gmail.com', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'member', 'Saman Kumara', '+94 71 555 1234', '/avatars/saman.jpg', 1),
 ('u1004', 'priyanka.w@gmail.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'member', 'Priyanka Wickramasinghe', '+94 71 666 7890', '/avatars/priyanka.jpg', 1),
 ('u1005', 'tharindu.r@gmail.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'member', 'Tharindu Rathnayake', '+94 71 111 2222', '/avatars/tharindu.jpg', 1),
 ('u1006', 'chamari.s@gmail.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5n8jLGG', 'member', 'Chamari Samaraweera', '+94 71 333 4444', '/avatars/chamari.jpg', 1),

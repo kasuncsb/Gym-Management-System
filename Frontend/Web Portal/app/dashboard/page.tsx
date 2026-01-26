@@ -1,23 +1,31 @@
+"use client";
+
 import { Users, CreditCard, Activity, TrendingUp } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
 import { ActivityChart } from "@/components/ui/ActivityChart";
 
+import { useAuth } from "@/context/AuthContext";
+
 export default function DashboardPage() {
+    const { user } = useAuth();
+
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-3xl font-bold text-white">Dashboard</h2>
-                    <p className="text-zinc-400 mt-1">Welcome back, Admin</p>
+                    <p className="text-zinc-400 mt-1">Welcome back, <span className="text-indigo-400 font-medium">{user?.name || 'User'}</span></p>
                 </div>
                 <div className="flex gap-3">
-                    <button className="px-4 py-2 bg-zinc-900 border border-zinc-800 text-white rounded-lg hover:bg-zinc-800 transition">
+                    <button className="px-4 py-2 bg-zinc-900/50 border border-zinc-800 text-white rounded-lg hover:bg-zinc-800 transition backdrop-blur-sm">
                         Download Report
                     </button>
-                    <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition">
-                        Add Member
-                    </button>
+                    {user?.role !== 'member' && (
+                        <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition">
+                            Add Member
+                        </button>
+                    )}
                 </div>
             </div>
 
