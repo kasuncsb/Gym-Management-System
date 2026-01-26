@@ -77,7 +77,6 @@ export const members = mysqlTable('members', {
     homeBranchId: varchar('home_branch_id', { length: 36 }).references(() => branches.id),
     joinDate: date('join_date').notNull(),
     status: statusEnum.default('active'),
-    qrCode: varchar('qr_code', { length: 100 }).unique(), // Keeping strict backward compat if needed, but qrCodeSecret is preferred
     qrCodeSecret: text('qr_code_secret'), // For generating dynamic TOTP codes
     lastQrGeneratedAt: timestamp('last_qr_generated_at'),
     referralSourceId: varchar('referral_source_id', { length: 36 }), // Could link to another member
@@ -351,16 +350,6 @@ export const dietPlans = mysqlTable('diet_plans', {
     trainerId: varchar('trainer_id', { length: 36 }).references(() => trainers.id),
     dailyCalorieTarget: int('daily_calorie_target'),
     macroRatio: varchar('macro_ratio', { length: 50 }), // e.g. "40P/30C/30F"
-    startDate: date('start_date'),
-    endDate: date('end_date'),
-    isActive: boolean('is_active').default(true),
-});
-
-export const workoutPlans = mysqlTable('workout_plans', { // Kept for backwards compat if needed, but workoutRoutines is superior
-    id: varchar('id', { length: 36 }).primaryKey(),
-    memberId: varchar('member_id', { length: 36 }).references(() => members.id),
-    creatorId: varchar('creator_id', { length: 36 }).references(() => trainers.id),
-    name: varchar('name', { length: 100 }),
     startDate: date('start_date'),
     endDate: date('end_date'),
     isActive: boolean('is_active').default(true),

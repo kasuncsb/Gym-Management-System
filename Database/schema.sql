@@ -81,14 +81,12 @@ CREATE TABLE `members` (
   `home_branch_id` varchar(36) DEFAULT NULL,
   `join_date` date NOT NULL,
   `status` enum('active','inactive','suspended','pending','archived','banned') DEFAULT 'active',
-  `qr_code` varchar(100) DEFAULT NULL,
   `qr_code_secret` text,
   `last_qr_generated_at` timestamp DEFAULT NULL,
   `referral_source_id` varchar(36) DEFAULT NULL,
   `deleted_at` timestamp DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `member_code` (`member_code`),
-  UNIQUE KEY `qr_code` (`qr_code`),
   FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   FOREIGN KEY (`home_branch_id`) REFERENCES `branches` (`id`)
 );
@@ -457,21 +455,6 @@ CREATE TABLE `diet_plans` (
   FOREIGN KEY (`member_id`) REFERENCES `members` (`id`),
   FOREIGN KEY (`trainer_id`) REFERENCES `trainers` (`id`)
 );
-
-DROP TABLE IF EXISTS `workout_plans`;
-CREATE TABLE `workout_plans` (
-  `id` varchar(36) NOT NULL,
-  `member_id` varchar(36) DEFAULT NULL,
-  `creator_id` varchar(36) DEFAULT NULL,
-  `name` varchar(100) DEFAULT NULL,
-  `start_date` date DEFAULT NULL,
-  `end_date` date DEFAULT NULL,
-  `is_active` boolean DEFAULT true,
-  PRIMARY KEY (`id`),
-  FOREIGN KEY (`member_id`) REFERENCES `members` (`id`),
-  FOREIGN KEY (`creator_id`) REFERENCES `trainers` (`id`)
-);
-
 
 -- --- 7. HUMAN RESOURCES (HR) ---
 
