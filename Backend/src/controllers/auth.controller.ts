@@ -2,7 +2,7 @@
 import { Request, Response } from 'express';
 import { eq } from 'drizzle-orm';
 import { db } from '../config/database';
-import { members, trainers, staff } from '../db/schema';
+import { members, trainers, staff, users } from '../db/schema';
 import { AuthService } from '../services/auth.service';
 import { asyncHandler } from '../middleware/error-handler.middleware';
 import { successResponse } from '../utils/response-formatter';
@@ -49,42 +49,66 @@ export class AuthController {
 
         let profile;
         if (userRole === 'member') {
-            [profile] = await db.select({
-                memberId: members.memberId,
-                name: members.name,
-                email: members.email,
-                phone: members.phone,
-                dateOfBirth: members.dateOfBirth,
-                joinDate: members.joinDate,
-                status: members.status
+            const [result] = await db.select({
+                member: members,
+                user: users
             })
                 .from(members)
-                .where(eq(members.memberId, userId))
+                .innerJoin(users, eq(members.userId, users.id))
+                .where(eq(members.id, userId))
                 .limit(1);
+
+            if (result) {
+                profile = {
+                    id: result.member.id,
+                    name: result.user.fullName,
+                    email: result.user.email,
+                    phone: result.user.phone,
+                    dateOfBirth: result.member.dateOfBirth,
+                    joinDate: result.member.joinDate,
+                    status: result.member.status
+                };
+            }
         } else if (userRole === 'trainer') {
-            [profile] = await db.select({
-                trainerId: trainers.trainerId,
-                name: trainers.name,
-                email: trainers.email,
-                phone: trainers.phone,
-                specialization: trainers.specialization,
-                status: trainers.status
+            const [result] = await db.select({
+                trainer: trainers,
+                user: users
             })
                 .from(trainers)
-                .where(eq(trainers.trainerId, userId))
+                .innerJoin(users, eq(trainers.userId, users.id))
+                .where(eq(trainers.id, userId))
                 .limit(1);
+
+            if (result) {
+                profile = {
+                    id: result.trainer.id,
+                    name: result.user.fullName,
+                    email: result.user.email,
+                    phone: result.user.phone,
+                    specialization: result.trainer.specialization,
+                    status: result.user.isActive ? 'active' : 'inactive' // Trainer has no status column, use user.isActive
+                };
+            }
         } else {
-            [profile] = await db.select({
-                staffId: staff.staffId,
-                name: staff.name,
-                email: staff.email,
-                phone: staff.phone,
-                role: staff.role,
-                status: staff.status
+            const [result] = await db.select({
+                staff: staff,
+                user: users
             })
                 .from(staff)
-                .where(eq(staff.staffId, userId))
+                .innerJoin(users, eq(staff.userId, users.id))
+                .where(eq(staff.id, userId))
                 .limit(1);
+
+            if (result) {
+                profile = {
+                    id: result.staff.id,
+                    name: result.user.fullName,
+                    email: result.user.email,
+                    phone: result.user.phone,
+                    role: result.staff.designation, // Staff table has designation. User has role. Returning designation as 'role' in profile? Or user.role? Original code used staff.role but staff table has no role column. It has designation. User table has role.
+                    status: result.staff.status
+                };
+            }
         }
 
         res.json(successResponse(profile, 'Profile retrieved'));

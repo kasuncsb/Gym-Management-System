@@ -35,7 +35,7 @@ export class SubscriptionController {
 
     // Get plan by ID
     static getPlanById = asyncHandler(async (req: Request, res: Response) => {
-        const { id } = req.params;
+        const { id } = req.params as { id: string };
         const plan = await SubscriptionService.getPlanById(id);
         res.json(successResponse(plan, 'Plan retrieved'));
     });

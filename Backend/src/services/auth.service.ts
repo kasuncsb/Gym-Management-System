@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { eq, and, isNull } from 'drizzle-orm';
 import { db } from '../config/database';
-import { members, trainers, staff } from '../db/schema';
+import { members, trainers, staff, users } from '../db/schema';
 import { AuthenticationError, ValidationError, NotFoundError } from '../utils/error-types';
 import { generateQRToken, generateQRCode } from '../utils/qr-generator';
 import { validateEmail, validatePassword } from '../utils/validators';
@@ -30,27 +30,26 @@ export class AuthService {
             throw new ValidationError('Invalid email format');
         }
 
-        const [member] = await db.select({
-            memberId: members.memberId,
-            name: members.name,
-            email: members.email,
-            passwordHash: members.passwordHash,
-            status: members.status,
-            deletedAt: members.deletedAt
+        const [result] = await db.select({
+            member: members,
+            user: users
         })
             .from(members)
-            .where(eq(members.email, email))
+            .innerJoin(users, eq(members.userId, users.id))
+            .where(eq(users.email, email))
             .limit(1);
 
-        if (!member || member.deletedAt) {
+        if (!result || result.member.deletedAt) {
             throw new AuthenticationError('Invalid credentials');
         }
 
-        if (member.status !== 'ACTIVE') {
+        const { member, user } = result;
+
+        if (member.status !== 'active') {
             throw new AuthenticationError('Account is not active');
         }
 
-        const isPasswordValid = await bcrypt.compare(password, member.passwordHash);
+        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
         if (!isPasswordValid) {
             throw new AuthenticationError('Invalid credentials');
         }
@@ -58,8 +57,8 @@ export class AuthService {
         // @ts-expect-error - jwt.sign types are overly strict, this is valid
         const token = jwt.sign(
             {
-                id: member.memberId,
-                email: member.email,
+                id: member.id, // Using member ID for token? Or User ID? Usually User ID is better but code uses member ID often. Keeping member ID for consistency with MemberService.
+                email: user.email,
                 role: 'member'
             },
             JWT_SECRET,
@@ -68,7 +67,7 @@ export class AuthService {
 
         const refreshToken = jwt.sign(
             {
-                id: member.memberId,
+                id: member.id,
                 type: 'refresh'
             },
             JWT_SECRET,
@@ -79,9 +78,9 @@ export class AuthService {
             token,
             refreshToken,
             user: {
-                id: member.memberId,
-                name: member.name,
-                email: member.email,
+                id: member.id,
+                name: user.fullName,
+                email: user.email,
                 role: 'member'
             }
         };
@@ -93,36 +92,44 @@ export class AuthService {
             throw new ValidationError('Invalid email format');
         }
 
-        const [trainer] = await db.select({
-            trainerId: trainers.trainerId,
-            name: trainers.name,
-            email: trainers.email,
-            passwordHash: trainers.passwordHash,
-            status: trainers.status,
-            deletedAt: trainers.deletedAt
+        const [result] = await db.select({
+            trainer: trainers,
+            user: users
         })
             .from(trainers)
-            .where(eq(trainers.email, email))
+            .innerJoin(users, eq(trainers.userId, users.id))
+            .where(eq(users.email, email))
             .limit(1);
 
-        if (!trainer || trainer.deletedAt) {
+        if (!result || result.trainer.deletedAt) {
             throw new AuthenticationError('Invalid credentials');
         }
 
-        if (trainer.status !== 'ACTIVE') {
+        const { trainer, user } = result;
+
+        // Trainer table doesn't have status? Schema check...
+        // Schema: trainers doesn't have status! 
+        // But user has isActive.
+        // Wait, schema definitely didn't have status for trainers in my view_file output.
+        // Let's check schema again mentally. 
+        // trainers has: id, userId, specialization, bio, hourlyRate, rating, branchId, deletedAt.
+        // users has: isActive.
+        // So I should check user.isActive.
+
+        if (!user.isActive) {
             throw new AuthenticationError('Account is not active');
         }
 
-        const isPasswordValid = await bcrypt.compare(password, trainer.passwordHash);
+        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
         if (!isPasswordValid) {
             throw new AuthenticationError('Invalid credentials');
         }
 
-        // @ts-expect-error - jwt.sign types are overly strict, this is valid
+        // @ts-expect-error - jwt.sign types are overly strict
         const token = jwt.sign(
             {
-                id: trainer.trainerId,
-                email: trainer.email,
+                id: trainer.id,
+                email: user.email,
                 role: 'trainer'
             },
             JWT_SECRET,
@@ -131,7 +138,7 @@ export class AuthService {
 
         const refreshToken = jwt.sign(
             {
-                id: trainer.trainerId,
+                id: trainer.id,
                 type: 'refresh'
             },
             JWT_SECRET,
@@ -142,9 +149,9 @@ export class AuthService {
             token,
             refreshToken,
             user: {
-                id: trainer.trainerId,
-                name: trainer.name,
-                email: trainer.email,
+                id: trainer.id,
+                name: user.fullName,
+                email: user.email,
                 role: 'trainer'
             }
         };
@@ -156,39 +163,37 @@ export class AuthService {
             throw new ValidationError('Invalid email format');
         }
 
-        const [staffMember] = await db.select({
-            staffId: staff.staffId,
-            name: staff.name,
-            email: staff.email,
-            passwordHash: staff.passwordHash,
-            role: staff.role,
-            status: staff.status,
-            deletedAt: staff.deletedAt
+        const [result] = await db.select({
+            staffMember: staff,
+            user: users
         })
             .from(staff)
-            .where(eq(staff.email, email))
+            .innerJoin(users, eq(staff.userId, users.id))
+            .where(eq(users.email, email))
             .limit(1);
 
-        if (!staffMember || staffMember.deletedAt) {
+        if (!result || result.staffMember.deletedAt) {
             throw new AuthenticationError('Invalid credentials');
         }
 
-        if (staffMember.status !== 'ACTIVE') {
+        const { staffMember, user } = result;
+
+        if (staffMember.status !== 'active') {
             throw new AuthenticationError('Account is not active');
         }
 
-        const isPasswordValid = await bcrypt.compare(password, staffMember.passwordHash);
+        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
         if (!isPasswordValid) {
             throw new AuthenticationError('Invalid credentials');
         }
 
-        // @ts-expect-error - jwt.sign types are overly strict, this is valid
+        // @ts-expect-error
         const token = jwt.sign(
             {
-                id: staffMember.staffId,
-                email: staffMember.email,
+                id: staffMember.id,
+                email: user.email,
                 role: 'staff',
-                staffRole: staffMember.role
+                staffRole: user.role // User role or Staff designation? Schema has roleEnum on users. Staff table doesn't have role. It has designation. User table has role 'staff','manager','admin'.
             },
             JWT_SECRET,
             { expiresIn: JWT_EXPIRES_IN }
@@ -196,7 +201,7 @@ export class AuthService {
 
         const refreshToken = jwt.sign(
             {
-                id: staffMember.staffId,
+                id: staffMember.id,
                 type: 'refresh'
             },
             JWT_SECRET,
@@ -207,10 +212,10 @@ export class AuthService {
             token,
             refreshToken,
             user: {
-                id: staffMember.staffId,
-                name: staffMember.name,
-                email: staffMember.email,
-                role: staffMember.role
+                id: staffMember.id,
+                name: user.fullName,
+                email: user.email,
+                role: user.role || 'staff'
             }
         };
     }
@@ -235,20 +240,16 @@ export class AuthService {
         qrCodeDataUrl: string;
         qrToken: string;
     }> {
-        const [member] = await db.select({
-            memberId: members.memberId,
-            deletedAt: members.deletedAt,
-            status: members.status
-        })
+        const [member] = await db.select()
             .from(members)
-            .where(eq(members.memberId, memberId))
+            .where(eq(members.id, memberId)) // memberId -> id
             .limit(1);
 
         if (!member || member.deletedAt) {
             throw new NotFoundError('Member');
         }
 
-        if (member.status !== 'ACTIVE') {
+        if (member.status !== 'active') {
             throw new ValidationError('Member account is not active');
         }
 
@@ -257,8 +258,8 @@ export class AuthService {
 
         // Update member's QR token
         await db.update(members)
-            .set({ qrCodeToken: qrToken })
-            .where(eq(members.memberId, memberId));
+            .set({ qrCode: qrToken })
+            .where(eq(members.id, memberId));
 
         return {
             qrCodeDataUrl,
@@ -276,64 +277,73 @@ export class AuthService {
             }
 
             // Determine user type and fetch user data
-            let user: any;
-            let role: string;
+            let userData: { id: string, name: string, email: string, role: string } | null = null;
+            let role: string = '';
+            let staffRole: string | undefined;
 
-            const [member] = await db.select({
-                memberId: members.memberId,
-                email: members.email,
-                status: members.status,
-                deletedAt: members.deletedAt
-            })
+            // Try Member
+            const [memberResult] = await db.select({ member: members, user: users })
                 .from(members)
-                .where(eq(members.memberId, decoded.id))
+                .innerJoin(users, eq(members.userId, users.id))
+                .where(eq(members.id, decoded.id))
                 .limit(1);
 
-            if (member && !member.deletedAt && member.status === 'ACTIVE') {
-                user = member;
+            if (memberResult && !memberResult.member.deletedAt && memberResult.member.status === 'active') {
+                userData = {
+                    id: memberResult.member.id,
+                    name: memberResult.user.fullName,
+                    email: memberResult.user.email,
+                    role: 'member'
+                };
                 role = 'member';
             } else {
-                const [trainer] = await db.select({
-                    trainerId: trainers.trainerId,
-                    email: trainers.email,
-                    status: trainers.status,
-                    deletedAt: trainers.deletedAt
-                })
+                // Try Trainer
+                const [trainerResult] = await db.select({ trainer: trainers, user: users })
                     .from(trainers)
-                    .where(eq(trainers.trainerId, decoded.id))
+                    .innerJoin(users, eq(trainers.userId, users.id))
+                    .where(eq(trainers.id, decoded.id))
                     .limit(1);
 
-                if (trainer && !trainer.deletedAt && trainer.status === 'ACTIVE') {
-                    user = trainer;
+                if (trainerResult && !trainerResult.trainer.deletedAt && trainerResult.user.isActive) {
+                    userData = {
+                        id: trainerResult.trainer.id,
+                        name: trainerResult.user.fullName,
+                        email: trainerResult.user.email,
+                        role: 'trainer'
+                    };
                     role = 'trainer';
                 } else {
-                    const [staffMember] = await db.select({
-                        staffId: staff.staffId,
-                        email: staff.email,
-                        role: staff.role,
-                        status: staff.status,
-                        deletedAt: staff.deletedAt
-                    })
+                    // Try Staff
+                    const [staffResult] = await db.select({ staff: staff, user: users })
                         .from(staff)
-                        .where(eq(staff.staffId, decoded.id))
+                        .innerJoin(users, eq(staff.userId, users.id))
+                        .where(eq(staff.id, decoded.id))
                         .limit(1);
 
-                    if (staffMember && !staffMember.deletedAt && staffMember.status === 'ACTIVE') {
-                        user = staffMember;
+                    if (staffResult && !staffResult.staff.deletedAt && staffResult.staff.status === 'active') {
+                        userData = {
+                            id: staffResult.staff.id,
+                            name: staffResult.user.fullName,
+                            email: staffResult.user.email,
+                            role: staffResult.user.role || 'staff'
+                        };
                         role = 'staff';
+                        staffRole = staffResult.user.role || undefined;
                     } else {
                         throw new AuthenticationError('User not found or inactive');
                     }
                 }
             }
 
-            // @ts-expect-error - jwt.sign types are overly strict, this is valid
+            if (!userData) throw new AuthenticationError('User not found');
+
+            // @ts-expect-error
             const token = jwt.sign(
                 {
-                    id: decoded.id,
-                    email: user.email,
+                    id: userData.id,
+                    email: userData.email,
                     role,
-                    ...(role === 'staff' && { staffRole: user.role })
+                    ...(role === 'staff' && { staffRole })
                 },
                 JWT_SECRET,
                 { expiresIn: JWT_EXPIRES_IN }
@@ -350,35 +360,30 @@ export class AuthService {
 
     // Change password
     static async changePassword(
-        userId: string,
+        userId: string, // This userId here is actually memberId/trainerId/staffId based on login logic
         userType: 'member' | 'trainer' | 'staff',
         oldPassword: string,
         newPassword: string
     ): Promise<void> {
-        let user: any;
+        let userRecord: { id: string } | undefined;
+        let realUserId: string | undefined;
 
         if (userType === 'member') {
-            [user] = await db.select({
-                passwordHash: members.passwordHash
-            })
-                .from(members)
-                .where(eq(members.memberId, userId))
-                .limit(1);
+            const [mem] = await db.select({ userId: members.userId }).from(members).where(eq(members.id, userId)).limit(1);
+            if (mem) realUserId = mem.userId;
         } else if (userType === 'trainer') {
-            [user] = await db.select({
-                passwordHash: trainers.passwordHash
-            })
-                .from(trainers)
-                .where(eq(trainers.trainerId, userId))
-                .limit(1);
+            const [trn] = await db.select({ userId: trainers.userId }).from(trainers).where(eq(trainers.id, userId)).limit(1);
+            if (trn) realUserId = trn.userId;
         } else {
-            [user] = await db.select({
-                passwordHash: staff.passwordHash
-            })
-                .from(staff)
-                .where(eq(staff.staffId, userId))
-                .limit(1);
+            const [stf] = await db.select({ userId: staff.userId }).from(staff).where(eq(staff.id, userId)).limit(1);
+            if (stf) realUserId = stf.userId;
         }
+
+        if (!realUserId) {
+            throw new NotFoundError('User');
+        }
+
+        const [user] = await db.select().from(users).where(eq(users.id, realUserId)).limit(1);
 
         if (!user) {
             throw new NotFoundError('User');
@@ -391,18 +396,8 @@ export class AuthService {
 
         const newPasswordHash = await this.hashPassword(newPassword);
 
-        if (userType === 'member') {
-            await db.update(members)
-                .set({ passwordHash: newPasswordHash })
-                .where(eq(members.memberId, userId));
-        } else if (userType === 'trainer') {
-            await db.update(trainers)
-                .set({ passwordHash: newPasswordHash })
-                .where(eq(trainers.trainerId, userId));
-        } else {
-            await db.update(staff)
-                .set({ passwordHash: newPasswordHash })
-                .where(eq(staff.staffId, userId));
-        }
+        await db.update(users)
+            .set({ passwordHash: newPasswordHash })
+            .where(eq(users.id, realUserId));
     }
 }

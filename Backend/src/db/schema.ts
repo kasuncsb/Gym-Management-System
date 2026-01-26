@@ -21,6 +21,7 @@ export const users = mysqlTable('users', {
     isActive: boolean('is_active').default(true),
     createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
     updatedAt: timestamp('updated_at').onUpdateNow(),
+    deletedAt: timestamp('deleted_at'),
 });
 
 export const permissions = mysqlTable('permissions', {
@@ -61,6 +62,7 @@ export const members = mysqlTable('members', {
     joinDate: date('join_date').notNull(),
     status: statusEnum.default('active'),
     qrCode: varchar('qr_code', { length: 100 }).unique(),
+    deletedAt: timestamp('deleted_at'),
 });
 
 export const staff = mysqlTable('staff', {
@@ -72,6 +74,7 @@ export const staff = mysqlTable('staff', {
     hireDate: date('hire_date').notNull(),
     baseSalary: decimal('base_salary', { precision: 10, scale: 2 }),
     status: statusEnum.default('active'),
+    deletedAt: timestamp('deleted_at'),
 });
 
 export const trainers = mysqlTable('trainers', {
@@ -82,6 +85,7 @@ export const trainers = mysqlTable('trainers', {
     hourlyRate: decimal('hourly_rate', { precision: 8, scale: 2 }),
     rating: decimal('rating', { precision: 3, scale: 2 }).default('5.0'),
     branchId: varchar('branch_id', { length: 36 }).references(() => branches.id),
+    deletedAt: timestamp('deleted_at'),
 });
 
 
@@ -124,6 +128,7 @@ export const subscriptionPlans = mysqlTable('subscription_plans', {
     durationDays: int('duration_days').notNull(), // 30, 90, 365
     features: json('features'), // Access to Pool, Spa etc.
     isActive: boolean('is_active').default(true),
+    deletedAt: timestamp('deleted_at'),
 });
 
 export const subscriptions = mysqlTable('subscriptions', {
@@ -135,6 +140,7 @@ export const subscriptions = mysqlTable('subscriptions', {
     status: statusEnum.default('active'),
     autoRenew: boolean('auto_renew').default(true),
     notes: text('notes'),
+    deletedAt: timestamp('deleted_at'),
 });
 
 export const invoices = mysqlTable('invoices', {

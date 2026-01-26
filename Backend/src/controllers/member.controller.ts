@@ -64,16 +64,16 @@ export class MemberController {
 
     // Update member status (admin only)
     static updateStatus = asyncHandler(async (req: Request, res: Response) => {
-        const { id } = req.params;
+        const { id } = req.params as { id: string };
         const { status } = req.body;
 
-        const member = await MemberService.updateMemberStatus(id, status);
+        const member = await MemberService.updateMemberStatus(id, status as any);
         res.json(successResponse(member, 'Status updated'));
     });
 
     // Delete member (admin only)
     static deleteMember = asyncHandler(async (req: Request, res: Response) => {
-        const { id } = req.params;
+        const { id } = req.params as { id: string };
         await MemberService.deleteMember(id);
         res.json(successResponse(null, 'Member deleted'));
     });

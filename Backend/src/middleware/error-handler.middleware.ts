@@ -4,7 +4,7 @@ import { AppError } from '../utils/error-types';
 import logger from '../config/logger';
 
 export const errorHandler = (
-    err: Error | AppError,
+    err: any,
     req: Request,
     res: Response,
     _next: NextFunction
@@ -29,28 +29,7 @@ export const errorHandler = (
         });
     }
 
-    // Handle Prisma errors
-    if (err.name === 'PrismaClientKnownRequestError') {
-        const prismaError = err as any;
-        if (prismaError.code === 'P2002') {
-            return res.status(409).json({
-                success: false,
-                error: {
-                    code: 'DUPLICATE_ENTRY',
-                    message: 'A record with this value already exists'
-                }
-            });
-        }
-        if (prismaError.code === 'P2025') {
-            return res.status(404).json({
-                success: false,
-                error: {
-                    code: 'NOT_FOUND',
-                    message: 'Record not found'
-                }
-            });
-        }
-    }
+
 
     // Handle validation errors
     if (err.name === 'ValidationError') {
@@ -91,7 +70,7 @@ export const errorHandler = (
             ? 'Internal server error'
             : err.message;
 
-    res.status(statusCode).json({
+    return res.status(statusCode).json({
         success: false,
         error: {
             code: 'INTERNAL_ERROR',

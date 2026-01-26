@@ -3,7 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { eq } from 'drizzle-orm';
 import { db } from '../config/database';
-import { members, trainers, staff } from '../db/schema';
+import { members, trainers, staff, users } from '../db/schema';
 import { AuthenticationError, AuthorizationError } from '../utils/error-types';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -47,24 +47,29 @@ export const authenticate = async (
 
         // Verify user still exists and is active
         let userExists = false;
+
         if (decoded.role === 'member') {
             const [member] = await db.select({ status: members.status, deletedAt: members.deletedAt })
                 .from(members)
-                .where(eq(members.memberId, decoded.id))
+                .where(eq(members.id, decoded.id))
                 .limit(1);
-            userExists = member !== null && member.deletedAt === null && member.status === 'ACTIVE';
+            userExists = member !== undefined && member.deletedAt === null && member.status === 'active';
         } else if (decoded.role === 'trainer') {
-            const [trainer] = await db.select({ status: trainers.status, deletedAt: trainers.deletedAt })
+            const [result] = await db.select({
+                isActive: users.isActive,
+                deletedAt: trainers.deletedAt
+            })
                 .from(trainers)
-                .where(eq(trainers.trainerId, decoded.id))
+                .innerJoin(users, eq(trainers.userId, users.id))
+                .where(eq(trainers.id, decoded.id))
                 .limit(1);
-            userExists = trainer !== null && trainer.deletedAt === null && trainer.status === 'ACTIVE';
+            userExists = result !== undefined && result.deletedAt === null && result.isActive === true;
         } else if (decoded.role === 'staff') {
             const [staffMember] = await db.select({ status: staff.status, deletedAt: staff.deletedAt })
                 .from(staff)
-                .where(eq(staff.staffId, decoded.id))
+                .where(eq(staff.id, decoded.id))
                 .limit(1);
-            userExists = staffMember !== null && staffMember.deletedAt === null && staffMember.status === 'ACTIVE';
+            userExists = staffMember !== undefined && staffMember.deletedAt === null && staffMember.status === 'active';
         }
 
         if (!userExists) {

@@ -39,27 +39,7 @@ if [ ! -f .env ]; then
     read
 fi
 
-# Generate Prisma client
-echo "🔧 Generating Prisma client..."
-npm run prisma:generate
-if [ $? -ne 0 ]; then
-    echo "❌ Failed to generate Prisma client"
-    exit 1
-fi
-echo "✅ Prisma client generated"
-echo ""
 
-# Database migrations
-echo "🗄️  Running database migrations..."
-echo "This will create all database tables."
-npm run prisma:migrate
-if [ $? -ne 0 ]; then
-    echo "❌ Failed to run migrations"
-    echo "💡 Make sure your DATABASE_URL is correct and MySQL is running"
-    exit 1
-fi
-echo "✅ Database migrations complete"
-echo ""
 
 # Create sample subscription plans
 echo "📋 Would you like to create sample subscription plans? (y/n)"
@@ -67,7 +47,7 @@ read create_plans
 
 if [ "$create_plans" = "y" ]; then
     echo "Creating sample plans..."
-    # TODO: Add Prisma seed script
+    # TODO: Add seed script
     echo "✅ Sample plans created"
 fi
 

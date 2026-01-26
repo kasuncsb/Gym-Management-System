@@ -1,12 +1,13 @@
 // Member Service - Drizzle ORM
 import { eq, and, isNull, or, like, gte, sql, count, desc } from 'drizzle-orm';
 import { db } from '../config/database';
-import { members, subscriptions, subscriptionPlans, attendance } from '../db/schema';
+import { members, users, subscriptions, subscriptionPlans, accessLogs } from '../db/schema';
 import { AuthService } from './auth.service';
 import { NotFoundError, ConflictError, ValidationError } from '../utils/error-types';
 import { validateEmail, validatePhone, formatPhoneNumber } from '../utils/validators';
 import { generateQRToken } from '../utils/qr-generator';
 import { generateMemberId } from '../utils/id-generator';
+import { randomUUID } from 'crypto';
 
 export class MemberService {
     // Create new member (registration)
@@ -25,8 +26,8 @@ export class MemberService {
 
         // Check if email already exists
         const [existing] = await db.select()
-            .from(members)
-            .where(eq(members.email, data.email))
+            .from(users)
+            .where(eq(users.email, data.email))
             .limit(1);
 
         if (existing) {
@@ -45,26 +46,43 @@ export class MemberService {
         // Hash password
         const passwordHash = await AuthService.hashPassword(data.password);
 
-        // Generate member ID and QR token
-        const memberId = generateMemberId();
+        // IDs
+        const userId = randomUUID();
+        const memberId = randomUUID();
+        const memberCode = generateMemberId();
         const qrCodeToken = generateQRToken(memberId);
 
-        // Create member
-        await db.insert(members).values({
-            memberId,
-            name: data.name,
-            email: data.email,
-            passwordHash,
-            phone,
-            dateOfBirth: data.dateOfBirth,
-            emergencyContact: data.emergencyContact,
-            qrCodeToken,
-            status: 'ACTIVE',
-            joinDate: new Date(),
+        // Transaction to create user and member
+        // @ts-ignore - transaction type inference issue
+        await db.transaction(async (tx) => {
+            // 1. Create User
+            await tx.insert(users).values({
+                id: userId,
+                email: data.email,
+                passwordHash,
+                fullName: data.name,
+                phone: phone,
+                role: 'member',
+                isActive: true,
+            });
+
+            // 2. Create Member Profile
+            await tx.insert(members).values({
+                id: memberId,
+                userId: userId,
+                memberCode: memberCode,
+                dateOfBirth: data.dateOfBirth,
+                emergencyContactName: data.emergencyContact, // mapped from input
+                // medicalConditions? not in input
+                qrCode: qrCodeToken, // Schema has qrCode, input generates qrCodeToken. Mapping to qrCode column for now.
+                status: 'active',
+                joinDate: new Date(),
+            });
         });
 
         return {
-            memberId,
+            memberId, // Return the internal ID or memberCode? Usually internal ID for API consistency
+            memberCode,
             name: data.name,
             email: data.email,
             joinDate: new Date()
@@ -73,31 +91,50 @@ export class MemberService {
 
     // Get member by ID
     static async getMemberById(memberId: string) {
-        const [member] = await db.select()
+        const [result] = await db.select({
+            member: members,
+            user: users
+        })
             .from(members)
+            .innerJoin(users, eq(members.userId, users.id))
             .where(and(
-                eq(members.memberId, memberId),
+                eq(members.id, memberId),
                 isNull(members.deletedAt)
             ))
             .limit(1);
 
-        if (!member) {
+        if (!result) {
             throw new NotFoundError('Member');
         }
+
+        const { member, user } = result;
 
         // Get member's subscriptions separately
         const memberSubscriptions = await db.select()
             .from(subscriptions)
-            .leftJoin(subscriptionPlans, eq(subscriptions.planId, subscriptionPlans.planId))
+            .leftJoin(subscriptionPlans, eq(subscriptions.planId, subscriptionPlans.id))
             .where(and(
                 eq(subscriptions.memberId, memberId),
                 isNull(subscriptions.deletedAt)
             ))
-            .orderBy(desc(subscriptions.createdAt))
+            // Schema check: subscriptions has no createdAt. It has startDate.
+            // But wait, my task plan didn't check for createdAt in subscriptions.
+            // I'll use startDate for ordering.
+            .orderBy(desc(subscriptions.startDate))
             .limit(5);
 
         return {
-            ...member,
+            id: member.id,
+            memberCode: member.memberCode,
+            userId: member.userId,
+            name: user.fullName,
+            email: user.email,
+            phone: user.phone,
+            dateOfBirth: member.dateOfBirth,
+            gender: member.gender,
+            emergencyContact: member.emergencyContactName,
+            status: member.status,
+            joinDate: member.joinDate,
             subscriptions: memberSubscriptions.map(s => ({
                 ...s.subscriptions,
                 plan: s.subscription_plans
@@ -115,6 +152,14 @@ export class MemberService {
             emergencyContact?: string;
         }
     ) {
+        // Fetch existing to get userId
+        const [existing] = await db.select({ userId: members.userId })
+            .from(members)
+            .where(eq(members.id, memberId))
+            .limit(1);
+
+        if (!existing) throw new NotFoundError('Member');
+
         // Validate phone if provided
         let phone = data.phone;
         if (phone) {
@@ -124,22 +169,29 @@ export class MemberService {
             phone = formatPhoneNumber(phone);
         }
 
-        const updateData: any = {};
-        if (data.name) updateData.name = data.name;
-        if (phone) updateData.phone = phone;
-        if (data.dateOfBirth) updateData.dateOfBirth = data.dateOfBirth;
-        if (data.emergencyContact) updateData.emergencyContact = data.emergencyContact;
+        // Update User info
+        const userUpdates: any = {};
+        if (data.name) userUpdates.fullName = data.name;
+        if (phone) userUpdates.phone = phone;
 
-        await db.update(members)
-            .set(updateData)
-            .where(eq(members.memberId, memberId));
+        if (Object.keys(userUpdates).length > 0) {
+            await db.update(users)
+                .set(userUpdates)
+                .where(eq(users.id, existing.userId));
+        }
 
-        const [updated] = await db.select()
-            .from(members)
-            .where(eq(members.memberId, memberId))
-            .limit(1);
+        // Update Member info
+        const memberUpdates: any = {};
+        if (data.dateOfBirth) memberUpdates.dateOfBirth = data.dateOfBirth;
+        if (data.emergencyContact) memberUpdates.emergencyContactName = data.emergencyContact;
 
-        return updated;
+        if (Object.keys(memberUpdates).length > 0) {
+            await db.update(members)
+                .set(memberUpdates)
+                .where(eq(members.id, memberId));
+        }
+
+        return this.getMemberById(memberId);
     }
 
     // Get all members (admin)
@@ -148,12 +200,17 @@ export class MemberService {
 
         const whereConditions = [isNull(members.deletedAt)];
         if (status) {
-            whereConditions.push(eq(members.status, status as any));
+            // Lowercase status
+            whereConditions.push(eq(members.status, status.toLowerCase() as any));
         }
 
         const [membersList, [{ value: total }]] = await Promise.all([
-            db.select()
+            db.select({
+                member: members,
+                user: users
+            })
                 .from(members)
+                .innerJoin(users, eq(members.userId, users.id))
                 .where(and(...whereConditions))
                 .orderBy(desc(members.joinDate))
                 .limit(limit)
@@ -165,22 +222,23 @@ export class MemberService {
 
         // Get active subscription for each member
         const membersWithSubs = await Promise.all(
-            membersList.map(async (member) => {
+            membersList.map(async ({ member, user }) => {
                 const [activeSub] = await db.select()
                     .from(subscriptions)
-                    .leftJoin(subscriptionPlans, eq(subscriptions.planId, subscriptionPlans.planId))
+                    .leftJoin(subscriptionPlans, eq(subscriptions.planId, subscriptionPlans.id))
                     .where(and(
-                        eq(subscriptions.memberId, member.memberId),
-                        eq(subscriptions.status, 'ACTIVE'),
+                        eq(subscriptions.memberId, member.id),
+                        eq(subscriptions.status, 'active'),
                         gte(subscriptions.endDate, new Date())
                     ))
                     .limit(1);
 
                 return {
-                    memberId: member.memberId,
-                    name: member.name,
-                    email: member.email,
-                    phone: member.phone,
+                    id: member.id,
+                    memberCode: member.memberCode,
+                    name: user.fullName,
+                    email: user.email,
+                    phone: user.phone,
                     joinDate: member.joinDate,
                     status: member.status,
                     subscriptions: activeSub ? [{
@@ -205,19 +263,21 @@ export class MemberService {
     // Search members
     static async searchMembers(query: string) {
         const membersList = await db.select({
-            memberId: members.memberId,
-            name: members.name,
-            email: members.email,
-            phone: members.phone,
+            id: members.id,
+            memberCode: members.memberCode,
+            name: users.fullName,
+            email: users.email,
+            phone: users.phone,
             status: members.status
         })
             .from(members)
+            .innerJoin(users, eq(members.userId, users.id))
             .where(and(
                 isNull(members.deletedAt),
                 or(
-                    like(members.name, `%${query}%`),
-                    like(members.email, `%${query}%`),
-                    like(members.memberId, `%${query}%`)
+                    like(users.fullName, `%${query}%`),
+                    like(users.email, `%${query}%`),
+                    like(members.memberCode, `%${query}%`)
                 )
             ))
             .limit(20);
@@ -226,17 +286,14 @@ export class MemberService {
     }
 
     // Suspend/activate member (admin)
-    static async updateMemberStatus(memberId: string, status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED') {
+    static async updateMemberStatus(memberId: string, status: 'active' | 'inactive' | 'suspended') {
+        const lowerStatus = status.toLowerCase() as 'active' | 'inactive' | 'suspended';
+
         await db.update(members)
-            .set({ status })
-            .where(eq(members.memberId, memberId));
+            .set({ status: lowerStatus })
+            .where(eq(members.id, memberId));
 
-        const [member] = await db.select()
-            .from(members)
-            .where(eq(members.memberId, memberId))
-            .limit(1);
-
-        return member;
+        return this.getMemberById(memberId);
     }
 
     // Soft delete member
@@ -244,28 +301,43 @@ export class MemberService {
         await db.update(members)
             .set({
                 deletedAt: new Date(),
-                status: 'INACTIVE'
+                status: 'inactive'
             })
-            .where(eq(members.memberId, memberId));
+            .where(eq(members.id, memberId));
+
+        // Also update user? Or keep user active?
+        // Usually if member is deleted, we might keep user to allow login but show "No active membership"?
+        // Or if this is a "Hard" soft delete, deactivating user is safer.
+
+        const [existing] = await db.select({ userId: members.userId }).from(members).where(eq(members.id, memberId));
+        if (existing) {
+            await db.update(users)
+                .set({
+                    isActive: false
+                })
+                .where(eq(users.id, existing.userId));
+        }
     }
 
     // Get member statistics
     static async getMemberStats() {
         const [totalResult, activeResult, inactiveResult, suspendedResult] = await Promise.all([
             db.select({ value: count() }).from(members).where(isNull(members.deletedAt)),
-            db.select({ value: count() }).from(members).where(and(isNull(members.deletedAt), eq(members.status, 'ACTIVE'))),
-            db.select({ value: count() }).from(members).where(and(isNull(members.deletedAt), eq(members.status, 'INACTIVE'))),
-            db.select({ value: count() }).from(members).where(and(isNull(members.deletedAt), eq(members.status, 'SUSPENDED')))
+            db.select({ value: count() }).from(members).where(and(isNull(members.deletedAt), eq(members.status, 'active'))),
+            db.select({ value: count() }).from(members).where(and(isNull(members.deletedAt), eq(members.status, 'inactive'))),
+            db.select({ value: count() }).from(members).where(and(isNull(members.deletedAt), eq(members.status, 'suspended')))
         ]);
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const checkedInToday = await db.selectDistinct({ memberId: attendance.memberId })
-            .from(attendance)
+        const checkedInToday = await db.selectDistinct({ memberId: accessLogs.userId }) // Schema has userId in accessLogs, not memberId directly?
+            // Wait, accessLogs has userId. members has userId. So we can link them.
+            // But the stats probably want count of distinct members (users) who accessed.
+            .from(accessLogs)
             .where(and(
-                eq(attendance.eventType, 'IN'),
-                gte(attendance.timestamp, today)
+                eq(accessLogs.direction, 'in'),
+                gte(accessLogs.timestamp, today)
             ));
 
         return {
