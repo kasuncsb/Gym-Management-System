@@ -1,0 +1,399 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            
+    <meta name="theme-color" content="#ffffff">
+<title>Staff Dashboard - PowerWorld Fitness</title>
+    <meta name="description" content="Staff dashboard for PowerWorld Fitness">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="icon" href="images/logo.png">
+</head>
+<body>
+    <div class="min-h-screen bg-secondary flex flex-col">
+        <!-- Navigation Header -->
+        <nav class="bg-primary text-primary py-4 px-6 relative z-10 border-b border-primary shadow-sm">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <a href="index.html" class="flex items-center space-x-3 group">
+                        <img src="images/logo.png" alt="PowerWorld Fitness Logo" width="50" height="50" class="transition-transform group-hover:scale-105">
+                        <span class="text-xl font-bold text-primary group-hover:text-red-500 transition-colors">
+                            PowerWorld
+                        </span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <div class="text-sm text-tertiary">Staff Panel</div>
+                        <div class="text-primary font-semibold">Staff Member</div>
+                    </div>
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">ST</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="flex-1 px-6 py-8">
+            <div class="max-w-7xl mx-auto">
+                <!-- Header -->
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-primary mb-2">Staff Operations Dashboard</h1>
+                    <p class="text-secondary" id="staffDashboardTimestamp">Friday, January 12, 2025 • 09:30 AM</p>
+                </div>
+
+                <!-- Staff Status -->
+                <div class="mb-8" id="staffStatus"></div>
+
+                <!-- Quick Stats -->
+                <div id="staffQuickStats" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"></div>
+
+                <!-- Quick Actions -->
+                <div id="staffQuickActions" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"></div>
+
+                <!-- Recent Check-ins & Tasks -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                    <div class="lg:col-span-2 bg-primary border border-primary rounded-lg p-6 shadow-sm">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-xl font-semibold text-primary">Recent Check-ins</h3>
+                            <a href="staff/checkin/page.html" class="text-red-500 hover:text-red-600 text-sm font-medium transition-colors">View All</a>
+                        </div>
+                        <div id="staffRecentCheckins" class="space-y-4"></div>
+                    </div>
+
+                    <div class="bg-primary border border-primary rounded-lg p-6 shadow-sm">
+                        <h3 class="text-xl font-semibold text-primary mb-6">Pending Tasks</h3>
+                        <div id="staffPendingTasks" class="space-y-4"></div>
+                    </div>
+                </div>
+
+                <!-- Equipment & Requests -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-primary border border-primary rounded-lg p-6 shadow-sm">
+                        <h3 class="text-xl font-semibold text-primary mb-6">Equipment Status</h3>
+                        <div id="staffEquipmentStatus" class="space-y-4"></div>
+                    </div>
+
+                    <div class="bg-primary border border-primary rounded-lg p-6 shadow-sm">
+                        <h3 class="text-xl font-semibold text-primary mb-6">Member Requests</h3>
+                        <div id="staffMemberRequests" class="space-y-4"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const timestampEl = document.getElementById('staffDashboardTimestamp');
+            const statusContainer = document.getElementById('staffStatus');
+            const statsContainer = document.getElementById('staffQuickStats');
+            const actionsContainer = document.getElementById('staffQuickActions');
+            const checkinsContainer = document.getElementById('staffRecentCheckins');
+            const tasksContainer = document.getElementById('staffPendingTasks');
+            const equipmentContainer = document.getElementById('staffEquipmentStatus');
+            const requestsContainer = document.getElementById('staffMemberRequests');
+
+            const staffData = {
+                isCheckedIn: false,
+                stats: [
+                    {
+                        title: 'Members Assisted',
+                        value: '23',
+                        detail: 'Today',
+                        color: 'blue',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />'
+                    },
+                    {
+                        title: 'Check-ins Today',
+                        value: '45',
+                        detail: 'Total processed',
+                        color: 'green',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />'
+                    },
+                    {
+                        title: 'Equipment Issues',
+                        value: '2',
+                        detail: 'Require attention',
+                        color: 'red',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />'
+                    }
+                ],
+                actions: [
+                    {
+                        title: 'Member Check-in',
+                        description: 'Process member entry',
+                        href: 'staff/checkin/page.html',
+                        color: 'blue',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />'
+                    },
+                    {
+                        title: 'Equipment Status',
+                        description: 'Monitor equipment',
+                        href: 'staff/equipment/page.html',
+                        color: 'green',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />'
+                    },
+                    {
+                        title: 'Member Assistance',
+                        description: 'Help members',
+                        href: 'staff/assistance/page.html',
+                        color: 'purple',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />'
+                    },
+                    {
+                        title: 'Daily Tasks',
+                        description: 'View assignments',
+                        href: 'staff/tasks/page.html',
+                        color: 'orange',
+                        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />'
+                    }
+                ],
+                checkins: [
+                    { member: 'Kasun Perera', time: '2 min ago', type: 'check-in', status: 'completed' },
+                    { member: 'Nimali Fernando', time: '5 min ago', type: 'check-out', status: 'completed' },
+                    { member: 'Chamara Jayasinghe', time: '8 min ago', type: 'check-in', status: 'completed' },
+                    { member: 'Dilini Dissanayake', time: '12 min ago', type: 'assistance', status: 'completed' },
+                    { member: 'Ravindu Bandara', time: '15 min ago', type: 'check-in', status: 'completed' }
+                ],
+                tasks: [
+                    { task: 'Clean cardio equipment', priority: 'high', time: '30 min', status: 'pending' },
+                    { task: 'Restock towels', priority: 'medium', time: '15 min', status: 'pending' },
+                    { task: 'Check equipment maintenance', priority: 'low', time: '45 min', status: 'pending' }
+                ],
+                equipment: [
+                    { name: 'Treadmill #1', status: 'operational', lastMaintenance: 'Jan 10, 2025' },
+                    { name: 'Treadmill #2', status: 'maintenance', lastMaintenance: 'Jan 15, 2025' },
+                    { name: 'Elliptical #1', status: 'operational', lastMaintenance: 'Jan 12, 2025' },
+                    { name: 'Rowing Machine', status: 'out_of_order', lastMaintenance: 'Jan 14, 2025' }
+                ],
+                requests: [
+                    { member: 'Ishara Wijesinghe', request: 'Need help with bench press form', time: '5 min ago', priority: 'medium' },
+                    { member: 'Ashan Bandara', request: 'Equipment not working properly', time: '12 min ago', priority: 'high' },
+                    { member: 'Malsha Gunawardena', request: 'Looking for workout recommendations', time: '18 min ago', priority: 'low' }
+                ]
+            };
+
+            const colorTokens = {
+                blue: {
+                    border: 'border-blue-500',
+                    bgSoft: 'bg-blue-500/10',
+                    bgHover: 'hover:bg-blue-500/20',
+                    text: 'text-blue-400',
+                    icon: 'text-blue-500',
+                    gradient: 'from-blue-500 to-blue-600'
+                },
+                green: {
+                    border: 'border-green-500',
+                    bgSoft: 'bg-green-500/10',
+                    bgHover: 'hover:bg-green-500/20',
+                    text: 'text-green-400',
+                    icon: 'text-green-500',
+                    gradient: 'from-green-500 to-green-600'
+                },
+                purple: {
+                    border: 'border-purple-500',
+                    bgSoft: 'bg-purple-500/10',
+                    bgHover: 'hover:bg-purple-500/20',
+                    text: 'text-purple-400',
+                    icon: 'text-purple-500',
+                    gradient: 'from-purple-500 to-purple-600'
+                },
+                red: {
+                    border: 'border-red-500',
+                    bgSoft: 'bg-red-500/10',
+                    bgHover: 'hover:bg-red-500/20',
+                    text: 'text-red-400',
+                    icon: 'text-red-500',
+                    gradient: 'from-red-500 to-red-600'
+                },
+                orange: {
+                    border: 'border-orange-500',
+                    bgSoft: 'bg-orange-500/10',
+                    bgHover: 'hover:bg-orange-500/20',
+                    text: 'text-orange-400',
+                    icon: 'text-orange-500',
+                    gradient: 'from-orange-500 to-orange-600'
+                }
+            };
+
+            const statusTokens = {
+                operational: 'text-green-400 bg-green-500/20',
+                maintenance: 'text-yellow-400 bg-yellow-500/20',
+                out_of_order: 'text-red-400 bg-red-500/20'
+            };
+
+            const priorityTokens = {
+                high: 'text-red-400 bg-red-500/20',
+                medium: 'text-yellow-400 bg-yellow-500/20',
+                low: 'text-blue-400 bg-blue-500/20'
+            };
+
+            function getCheckinIcon(type) {
+                if (type === 'check-in') {
+                    return '<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>';
+                }
+                if (type === 'check-out') {
+                    return '<svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>';
+                }
+                return '<svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
+            }
+
+            function updateTimestamp() {
+                const now = new Date();
+                const formattedDate = now.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                const formattedTime = now.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                });
+                timestampEl.textContent = `${formattedDate} • ${formattedTime}`;
+            }
+
+            function renderStatusCard() {
+                statusContainer.innerHTML = `
+                    <div class="bg-primary border border-primary rounded-lg p-6 shadow-sm flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-semibold text-primary mb-2">Staff Status</h2>
+                            <p class="text-secondary">${staffData.isCheckedIn ? 'You are currently checked in' : 'You are currently checked out'}</p>
+                        </div>
+                        <button id="staffStatusToggle" class="px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${staffData.isCheckedIn ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}">
+                            ${staffData.isCheckedIn ? 'Check Out' : 'Check In'}
+                        </button>
+                    </div>
+                `;
+
+                const toggle = document.getElementById('staffStatusToggle');
+                toggle.addEventListener('click', () => {
+                    staffData.isCheckedIn = !staffData.isCheckedIn;
+                    renderStatusCard();
+                });
+            }
+
+            function renderStats() {
+                statsContainer.innerHTML = staffData.stats.map(stat => {
+                    const tokens = colorTokens[stat.color] || colorTokens.blue;
+                    return `
+                        <div class="bg-primary border border-primary rounded-lg p-6 shadow-sm">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-primary">${stat.title}</h3>
+                                <div class="w-8 h-8 bg-gradient-to-br ${tokens.gradient} rounded-full flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">${stat.icon}</svg>
+                                </div>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="text-3xl font-bold text-primary">${stat.value}</div>
+                                <div class="text-sm text-secondary">${stat.detail}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            function renderActions() {
+                actionsContainer.innerHTML = staffData.actions.map(action => {
+                    const tokens = colorTokens[action.color] || colorTokens.blue;
+                    return `
+                        <a href="${action.href}" class="p-6 rounded-lg border-2 ${tokens.border} ${tokens.bgSoft} ${tokens.text} ${tokens.bgHover} transition-all duration-300 transform hover:scale-105">
+                            <div class="flex items-center justify-center mb-3">
+                                <span class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${tokens.gradient} text-white">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">${action.icon}</svg>
+                                </span>
+                            </div>
+                            <h3 class="font-semibold text-lg mb-1 text-primary">${action.title}</h3>
+                            <p class="text-sm opacity-75">${action.description}</p>
+                        </a>
+                    `;
+                }).join('');
+            }
+
+            function renderCheckins() {
+                checkinsContainer.innerHTML = staffData.checkins.map(entry => `
+                    <div class="flex items-center justify-between p-4 bg-secondary rounded-lg">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-10 h-10 bg-tertiary rounded-full flex items-center justify-center">
+                                ${getCheckinIcon(entry.type)}
+                            </div>
+                            <div>
+                                <h4 class="text-primary font-semibold">${entry.member}</h4>
+                                <p class="text-secondary text-sm capitalize">${entry.type}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-primary font-semibold text-sm">${entry.time}</p>
+                            <span class="text-green-500 text-xs">${entry.status}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            function renderTasks() {
+                tasksContainer.innerHTML = staffData.tasks.map(task => {
+                    const priorityClass = priorityTokens[task.priority] || priorityTokens.low;
+                    return `
+                        <div class="p-4 bg-secondary rounded-lg">
+                            <div class="flex items-start justify-between mb-2">
+                                <h4 class="text-primary font-semibold text-sm">${task.task}</h4>
+                                <span class="px-2 py-1 rounded-full text-xs font-semibold ${priorityClass}">${task.priority}</span>
+                            </div>
+                            <div class="space-y-1 text-xs text-secondary">
+                                <div class="flex justify-between"><span>Time:</span><span class="text-primary">${task.time}</span></div>
+                                <div class="flex justify-between"><span>Status:</span><span class="text-yellow-500">${task.status}</span></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            function renderEquipment() {
+                equipmentContainer.innerHTML = staffData.equipment.map(item => {
+                    const statusClass = statusTokens[item.status] || statusTokens.operational;
+                    return `
+                        <div class="flex items-center justify-between p-4 bg-secondary rounded-lg">
+                            <div>
+                                <h4 class="text-primary font-semibold">${item.name}</h4>
+                                <p class="text-secondary text-sm">Last maintenance: ${item.lastMaintenance}</p>
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-xs font-semibold ${statusClass}">${item.status.replace(/_/g, ' ')}</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            function renderRequests() {
+                requestsContainer.innerHTML = staffData.requests.map(request => {
+                    const priorityClass = priorityTokens[request.priority] || priorityTokens.low;
+                    return `
+                        <div class="p-4 bg-secondary rounded-lg">
+                            <div class="flex items-start justify-between mb-2">
+                                <h4 class="text-primary font-semibold text-sm">${request.member}</h4>
+                                <span class="px-2 py-1 rounded-full text-xs font-semibold ${priorityClass}">${request.priority}</span>
+                            </div>
+                            <p class="text-secondary text-sm mb-2">${request.request}</p>
+                            <div class="text-xs text-tertiary">${request.time}</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            updateTimestamp();
+            setInterval(updateTimestamp, 60000);
+            renderStatusCard();
+            renderStats();
+            renderActions();
+            renderCheckins();
+            renderTasks();
+            renderEquipment();
+            renderRequests();
+        });
+    </script>
+</body>
+</html>

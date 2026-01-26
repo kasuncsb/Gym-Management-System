@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            
+    <meta name="theme-color" content="#ffffff">
+<title>Manager Insights & Analytics</title>
+    <meta name="description" content="AI-powered analytics and insights for gym management">
+    <link rel="stylesheet" href="../../css/styles.css">
+    <link rel="icon" href="../../images/logo.png">
+</head>
+<body>
+    <div class="min-h-screen bg-secondary flex flex-col">
+        <nav class="bg-primary text-primary py-4 px-6 relative z-10 border-b border-primary shadow-sm">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <a href="../../manager-dashboard.html" class="flex items-center space-x-3 group">
+                        <img src="../../images/logo.png" alt="PowerWorld Fitness Logo" width="48" height="48" class="transition-transform group-hover:scale-105">
+                        <span class="text-xl font-bold text-primary group-hover:text-red-500 transition-colors">
+                            PowerWorld Manager
+                        </span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <div class="text-sm text-tertiary">Gym Manager</div>
+                        <div class="text-primary font-semibold">Insights &amp; Analytics</div>
+                    </div>
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                        <span class="text-white font-semibold">M</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="flex-1 px-6 py-8">
+            <div class="max-w-7xl mx-auto">
+                <header class="mb-8">
+                    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                        <div>
+                            <h1 class="text-3xl font-bold text-primary mb-2">Insights &amp; Analytics</h1>
+                            <p class="text-secondary" id="insights-subtitle">AI-powered insights and recommendations for gym optimization</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <select id="insights-timeframe" class="px-4 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"></select>
+                            <button id="refresh-insights" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                                Refresh Insights
+                            </button>
+                        </div>
+                    </div>
+                </header>
+
+                <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10" id="kpi-grid"></section>
+
+                <section class="mb-10">
+                    <h2 class="text-2xl font-bold text-primary mb-6">Key Insights</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="insights-grid"></div>
+                </section>
+
+                <section class="mb-10">
+                    <h2 class="text-2xl font-bold text-primary mb-6">Actionable Recommendations</h2>
+                    <div class="space-y-4" id="recommendations-list"></div>
+                </section>
+
+                <section class="bg-primary p-6 rounded-lg shadow-sm border border-primary">
+                    <h2 class="text-lg font-semibold text-primary mb-4">Quick Actions</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="quick-actions"></div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="../../js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const data = {
+                selectedTimeframe: 'week',
+                timeframes: [
+                    { value: 'week', label: 'This Week' },
+                    { value: 'month', label: 'This Month' },
+                    { value: 'quarter', label: 'This Quarter' },
+                    { value: 'year', label: 'This Year' }
+                ],
+                kpis: [
+                    { title: 'Member Retention', value: '87.5%', delta: '+2.1% from last month', icon: '👥', accent: 'from-green-500 to-green-600' },
+                    { title: 'Monthly Revenue', value: 'Rs. 45,680', delta: '+12.5% from last month', icon: '💰', accent: 'from-blue-500 to-blue-600' },
+                    { title: 'Member Satisfaction', value: '4.6/5', delta: '+0.2 from last month', icon: '⭐', accent: 'from-yellow-500 to-yellow-600' },
+                    { title: 'Equipment Utilization', value: '78.3%', delta: '+5.2% from last month', icon: '🏃', accent: 'from-purple-500 to-purple-600' },
+                    { title: 'Staff Productivity', value: '92.1%', delta: '+8.3% from last month', icon: '⚡', accent: 'from-indigo-500 to-indigo-600' },
+                    { title: 'Peak Hour Capacity', value: '85%', delta: '+3.1% from last month', icon: '📊', accent: 'from-red-500 to-red-600' }
+                ],
+                insights: [
+                    { id: 1, title: 'Peak Hours Analysis', description: 'Gym is busiest between 6-8 PM on weekdays', impact: 'high', recommendation: 'Add more staff during peak hours', trend: 'increasing', value: '+15%', icon: '📈' },
+                    { id: 2, title: 'Revenue Growth', description: 'Monthly revenue increased by 12% compared to last month', impact: 'positive', recommendation: 'Continue current marketing strategies', trend: 'increasing', value: '+12%', icon: '💰' },
+                    { id: 3, title: 'Member Retention', description: 'Retention rate dropped by 3% this month', impact: 'medium', recommendation: 'Launch member engagement initiatives', trend: 'decreasing', value: '-3%', icon: '👥' },
+                    { id: 4, title: 'Equipment Usage', description: 'Cardio equipment usage is 15% higher than strength training', impact: 'low', recommendation: 'Expand the cardio section', trend: 'stable', value: '+15%', icon: '🏃' },
+                    { id: 5, title: 'Staff Productivity', description: 'Staff response time improved by 20% this week', impact: 'positive', recommendation: 'Maintain current training programs', trend: 'increasing', value: '+20%', icon: '⚡' },
+                    { id: 6, title: 'Member Satisfaction', description: 'Satisfaction scores increased to 4.6/5 this month', impact: 'positive', recommendation: 'Keep focusing on member experience', trend: 'increasing', value: '4.6/5', icon: '⭐' }
+                ],
+                recommendations: [
+                    { id: 1, priority: 'high', category: 'Operations', title: 'Optimize Peak Hour Staffing', description: 'Add 2 additional staff members during 6-8 PM to handle increased demand', impact: 'High member satisfaction improvement', effort: 'Medium', timeline: '2 weeks' },
+                    { id: 2, priority: 'medium', category: 'Revenue', title: 'Introduce Off-Peak Discounts', description: 'Offer 20% discount for members who visit during 10 AM - 2 PM', impact: 'Better equipment utilization and revenue diversification', effort: 'Low', timeline: '1 week' },
+                    { id: 3, priority: 'high', category: 'Retention', title: 'Launch Member Engagement Program', description: 'Create monthly challenges and rewards to increase member retention', impact: 'Expected 5% improvement in retention rate', effort: 'High', timeline: '1 month' },
+                    { id: 4, priority: 'low', category: 'Equipment', title: 'Expand Cardio Section', description: 'Add 3 more treadmills and 2 ellipticals to meet demand', impact: 'Reduced wait times and improved experience', effort: 'High', timeline: '2 months' }
+                ],
+                quickActions: [
+                    { icon: '📊', title: 'Generate Custom Report', description: 'Create detailed analytics' },
+                    { icon: '🎯', title: 'Set Goals', description: 'Define performance targets' },
+                    { icon: '📈', title: 'View Trends', description: 'Analyze historical data' },
+                    { icon: '🔔', title: 'Set Alerts', description: 'Monitor key metrics' }
+                ]
+            };
+
+            const timeframeSelect = document.getElementById('insights-timeframe');
+            const subtitle = document.getElementById('insights-subtitle');
+            const kpiGrid = document.getElementById('kpi-grid');
+            const insightsGrid = document.getElementById('insights-grid');
+            const recommendationsList = document.getElementById('recommendations-list');
+            const quickActions = document.getElementById('quick-actions');
+
+            function getImpactClass(impact) {
+                switch (impact) {
+                    case 'high':
+                        return 'text-red-500 bg-red-50';
+                    case 'medium':
+                        return 'text-yellow-500 bg-yellow-50';
+                    case 'low':
+                        return 'text-blue-500 bg-blue-50';
+                    case 'positive':
+                        return 'text-green-500 bg-green-50';
+                    default:
+                        return 'text-tertiary bg-tertiary';
+                }
+            }
+
+            function getTrendIcon(trend) {
+                if (trend === 'increasing') return '📈';
+                if (trend === 'decreasing') return '📉';
+                return '➡️';
+            }
+
+            function getPriorityClass(priority) {
+                if (priority === 'high') return 'text-red-500 bg-red-50';
+                if (priority === 'medium') return 'text-yellow-500 bg-yellow-50';
+                return 'text-blue-500 bg-blue-50';
+            }
+
+            function renderTimeframes() {
+                timeframeSelect.innerHTML = data.timeframes
+                    .map(function(option) {
+                        const selected = option.value === data.selectedTimeframe ? 'selected' : '';
+                        return '<option value="' + option.value + '" ' + selected + '>' + option.label + '</option>';
+                    })
+                    .join('');
+            }
+
+            function renderKpis() {
+                kpiGrid.innerHTML = data.kpis
+                    .map(function(card) {
+                        return (
+                            '<div class="bg-primary p-6 rounded-lg shadow-sm border border-primary">' +
+                                '<div class="flex items-center justify-between mb-4">' +
+                                    '<h3 class="text-lg font-semibold text-primary">' + card.title + '</h3>' +
+                                    '<div class="w-10 h-10 rounded-full bg-gradient-to-br ' + card.accent + ' flex items-center justify-center text-white">' + card.icon + '</div>' +
+                                '</div>' +
+                                '<div class="space-y-2">' +
+                                    '<div class="text-3xl font-bold text-primary">' + card.value + '</div>' +
+                                    '<div class="text-sm text-secondary">' + card.delta + '</div>' +
+                                '</div>' +
+                            '</div>'
+                        );
+                    })
+                    .join('');
+            }
+
+            function renderInsights() {
+                insightsGrid.innerHTML = data.insights
+                    .map(function(item) {
+                        return (
+                            '<div class="bg-primary p-6 rounded-lg shadow-sm border border-primary hover:shadow-md transition-shadow">' +
+                                '<div class="flex items-center space-x-3 mb-4">' +
+                                    '<span class="text-2xl">' + item.icon + '</span>' +
+                                    '<div>' +
+                                        '<h3 class="text-lg font-semibold text-primary">' + item.title + '</h3>' +
+                                        '<div class="flex items-center space-x-2 mt-1">' +
+                                            '<span class="px-2 py-1 rounded-full text-xs font-semibold ' + getImpactClass(item.impact) + '">' + item.impact + '</span>' +
+                                            '<span class="text-sm text-tertiary">' + getTrendIcon(item.trend) + ' ' + item.value + '</span>' +
+                                        '</div>' +
+                                    '</div>' +
+                                '</div>' +
+                                '<p class="text-secondary text-sm mb-4">' + item.description + '</p>' +
+                                '<div class="bg-secondary p-3 rounded-lg text-sm text-secondary">' +
+                                    '<span class="font-medium">Recommendation:</span> ' + item.recommendation +
+                                '</div>' +
+                            '</div>'
+                        );
+                    })
+                    .join('');
+            }
+
+            function renderRecommendations() {
+                recommendationsList.innerHTML = data.recommendations
+                    .map(function(rec) {
+                        return (
+                            '<div class="bg-primary p-6 rounded-lg shadow-sm border border-primary">' +
+                                '<div class="flex items-start justify-between mb-4">' +
+                                    '<div class="flex items-center space-x-3">' +
+                                        '<span class="px-2 py-1 rounded-full text-xs font-semibold ' + getPriorityClass(rec.priority) + '">' + rec.priority + ' priority</span>' +
+                                        '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-tertiary text-secondary">' + rec.category + '</span>' +
+                                    '</div>' +
+                                    '<div class="text-right text-sm text-tertiary">' +
+                                        '<div>Effort: ' + rec.effort + '</div>' +
+                                        '<div>Timeline: ' + rec.timeline + '</div>' +
+                                    '</div>' +
+                                '</div>' +
+                                '<h3 class="text-lg font-semibold text-primary mb-2">' + rec.title + '</h3>' +
+                                '<p class="text-secondary mb-3">' + rec.description + '</p>' +
+                                '<div class="bg-blue-50 p-3 rounded-lg text-sm text-blue-800">' +
+                                    '<span class="font-medium">Expected Impact:</span> ' + rec.impact +
+                                '</div>' +
+                                '<div class="flex justify-end space-x-3 mt-4">' +
+                                    '<button class="px-4 py-2 bg-tertiary text-secondary rounded-lg hover:bg-gray-300 transition-colors">Dismiss</button>' +
+                                    '<button class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Implement</button>' +
+                                '</div>' +
+                            '</div>'
+                        );
+                    })
+                    .join('');
+            }
+
+            function renderQuickActions() {
+                quickActions.innerHTML = data.quickActions
+                    .map(function(action) {
+                        return (
+                            '<button class="p-4 text-left border-2 border-primary rounded-lg hover:border-red-500 hover:bg-red-50 transition-all">' +
+                                '<div class="text-2xl mb-2">' + action.icon + '</div>' +
+                                '<h3 class="font-semibold text-primary">' + action.title + '</h3>' +
+                                '<p class="text-sm text-secondary">' + action.description + '</p>' +
+                            '</button>'
+                        );
+                    })
+                    .join('');
+            }
+
+            timeframeSelect.addEventListener('change', function(event) {
+                data.selectedTimeframe = event.target.value;
+                const label = data.timeframes.find(function(option) {
+                    return option.value === data.selectedTimeframe;
+                });
+                if (label) {
+                    subtitle.textContent = 'AI-powered insights for ' + label.label.toLowerCase();
+                    showNotification('Insights updated for ' + label.label, 'success');
+                }
+                // Simulate data refresh
+                renderKpis();
+                renderInsights();
+            });
+
+            document.getElementById('refresh-insights').addEventListener('click', function() {
+                const currentLabel = data.timeframes.find(function(option) {
+                    return option.value === data.selectedTimeframe;
+                });
+                subtitle.textContent = 'Refreshing insights...';
+                
+                setTimeout(function() {
+                    subtitle.textContent = 'AI-powered insights and recommendations for gym optimization';
+                    showNotification('Insights refreshed successfully', 'success');
+                }, 1000);
+            });
+
+            // Add click handlers for quick actions
+            quickActions.addEventListener('click', function(event) {
+                const button = event.target.closest('button');
+                if (button) {
+                    const title = button.querySelector('h3');
+                    if (title) {
+                        showNotification('Opening ' + title.textContent + '...', 'info');
+                    }
+                }
+            });
+
+            // Add click handlers for recommendations
+            recommendationsList.addEventListener('click', function(event) {
+                const button = event.target.closest('button');
+                if (button) {
+                    const action = button.textContent.trim();
+                    const recCard = button.closest('.bg-primary');
+                    const recTitle = recCard ? recCard.querySelector('h3').textContent : 'recommendation';
+                    
+                    if (action === 'Implement') {
+                        showNotification('Implementation started for: ' + recTitle, 'success');
+                    } else if (action === 'Dismiss') {
+                        recCard.style.transition = 'opacity 0.3s';
+                        recCard.style.opacity = '0.5';
+                        showNotification('Recommendation dismissed', 'info');
+                        setTimeout(function() {
+                            if (recCard && recCard.parentNode) {
+                                recCard.remove();
+                            }
+                        }, 1000);
+                    }
+                }
+            });
+
+            renderTimeframes();
+            renderKpis();
+            renderInsights();
+            renderRecommendations();
+            renderQuickActions();
+        });
+    </script>
+</body>
+</html>

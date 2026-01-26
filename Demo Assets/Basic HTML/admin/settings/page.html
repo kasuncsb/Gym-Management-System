@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            
+    <meta name="theme-color" content="#ffffff">
+<title>System Settings - PowerWorld Admin</title>
+    <meta name="description" content="Configure PowerWorld Fitness system preferences, billing options and security policies.">
+    <link rel="stylesheet" href="../../css/styles.css">
+    <link rel="icon" href="../../images/logo.png">
+</head>
+<body>
+    <div class="min-h-screen bg-secondary flex flex-col">
+        <nav class="bg-primary text-primary py-4 px-6 relative z-10 border-b border-primary shadow-sm">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <a href="../../admin-dashboard.html" class="flex items-center space-x-3 group">
+                        <img src="../../images/logo.png" alt="PowerWorld Fitness Logo" width="50" height="50" class="transition-transform group-hover:scale-105">
+                        <span class="text-xl font-bold text-primary group-hover:text-red-500 transition-colors">PowerWorld Admin</span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <div class="text-sm text-tertiary">System Administrator</div>
+                        <div class="text-primary font-semibold">Settings</div>
+                    </div>
+                    <div class="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">A</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="flex-1 px-6 py-8">
+            <div class="max-w-7xl mx-auto">
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+                    <div>
+                        <h1 class="text-3xl font-bold text-primary mb-2">System Settings</h1>
+                        <p class="text-secondary">Update organization details, access policies, billing rules and notification preferences.</p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button type="button" class="px-4 py-2 bg-tertiary text-secondary rounded-lg hover:bg-gray-300 transition-colors">Cancel</button>
+                        <button type="button" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Save Changes</button>
+                    </div>
+                </div>
+
+                <div class="bg-primary rounded-lg shadow-sm border border-primary p-4 mb-6">
+                    <nav class="grid grid-cols-1 md:grid-cols-5 gap-2">
+                        <button type="button" class="px-3 py-2 border-2 border-red-500 bg-red-50 rounded-lg flex items-center space-x-2 justify-center md:justify-start">
+                            <span>⚙️</span>
+                            <span class="text-sm font-semibold text-primary">General</span>
+                        </button>
+                        <button type="button" class="px-3 py-2 border-2 border-primary rounded-lg flex items-center space-x-2 justify-center md:justify-start hover:border-secondary">
+                            <span>🔐</span>
+                            <span class="text-sm font-semibold text-secondary">Access Control</span>
+                        </button>
+                        <button type="button" class="px-3 py-2 border-2 border-primary rounded-lg flex items-center space-x-2 justify-center md:justify-start hover:border-secondary">
+                            <span>💳</span>
+                            <span class="text-sm font-semibold text-secondary">Billing</span>
+                        </button>
+                        <button type="button" class="px-3 py-2 border-2 border-primary rounded-lg flex items-center space-x-2 justify-center md:justify-start hover:border-secondary">
+                            <span>🔔</span>
+                            <span class="text-sm font-semibold text-secondary">Notifications</span>
+                        </button>
+                        <button type="button" class="px-3 py-2 border-2 border-primary rounded-lg flex items-center space-x-2 justify-center md:justify-start hover:border-secondary">
+                            <span>🛡️</span>
+                            <span class="text-sm font-semibold text-secondary">Security</span>
+                        </button>
+                    </nav>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="lg:col-span-2 bg-primary rounded-lg shadow-sm border border-primary p-6">
+                        <h2 class="text-lg font-semibold text-primary mb-4">Organization Profile</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <label class="block text-sm font-medium text-secondary mb-2">Gym Name</label>
+                                <input type="text" value="PowerWorld Fitness" class="w-full px-3 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-secondary mb-2">Contact Number</label>
+                                <input type="text" value="+94 11 234 5678" class="w-full px-3 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                            </div>
+                        </div>
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-secondary mb-2">Registered Address</label>
+                            <textarea rows="3" class="w-full px-3 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">311 Kandy Rd, Kiribathgoda, Sri Lanka</textarea>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-secondary mb-2">Timezone</label>
+                                <select class="w-full px-3 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                                    <option>Asia/Colombo</option>
+                                    <option>UTC</option>
+                                    <option>Asia/Singapore</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-secondary mb-2">Currency</label>
+                                <select class="w-full px-3 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                                    <option>LKR</option>
+                                    <option>USD</option>
+                                    <option>EUR</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-secondary mb-2">Language</label>
+                                <select class="w-full px-3 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                                    <option>English</option>
+                                    <option>Sinhala</option>
+                                    <option>Tamil</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-primary rounded-lg shadow-sm border border-primary p-6">
+                        <h2 class="text-lg font-semibold text-primary mb-4">Support Contacts</h2>
+                        <ul class="space-y-3 text-sm text-secondary">
+                            <li class="flex items-start space-x-2">
+                                <span class="text-red-500">●</span>
+                                <span>Primary: info@powerworld.lk</span>
+                            </li>
+                            <li class="flex items-start space-x-2">
+                                <span class="text-blue-500">●</span>
+                                <span>Finance: billing@powerworld.lk</span>
+                            </li>
+                            <li class="flex items-start space-x-2">
+                                <span class="text-green-500">●</span>
+                                <span>Operations: ops@powerworld.lk</span>
+                            </li>
+                            <li class="flex items-start space-x-2">
+                                <span class="text-purple-500">●</span>
+                                <span>Emergency Hotline: +94 77 123 4567</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-primary rounded-lg shadow-sm border border-primary p-6">
+                        <h2 class="text-lg font-semibold text-primary mb-4">Access Control</h2>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-primary">QR Code Expiry</p>
+                                    <p class="text-xs text-tertiary">Currently 24 hours</p>
+                                </div>
+                                <input type="number" value="24" class="w-20 px-2 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-primary">Max Failed Attempts</p>
+                                    <p class="text-xs text-tertiary">Lock account after threshold</p>
+                                </div>
+                                <input type="number" value="3" class="w-20 px-2 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-secondary">Require Two-Factor Authentication</span>
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked class="hidden">
+                                    <span class="w-10 h-5 bg-red-500 rounded-full flex items-center px-1 justify-end">
+                                        <span class="w-4 h-4 bg-primary rounded-full shadow-sm"></span>
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-secondary">Allow Guest Access</span>
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="hidden">
+                                    <span class="w-10 h-5 bg-tertiary rounded-full flex items-center px-1 justify-start">
+                                        <span class="w-4 h-4 bg-primary rounded-full shadow-sm"></span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-primary rounded-lg shadow-sm border border-primary p-6">
+                        <h2 class="text-lg font-semibold text-primary mb-4">Billing Rules</h2>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-primary">Grace Period</p>
+                                    <p class="text-xs text-tertiary">Days until suspension</p>
+                                </div>
+                                <input type="number" value="7" class="w-20 px-2 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-primary">Late Fee</p>
+                                    <p class="text-xs text-tertiary">Percentage per invoice</p>
+                                </div>
+                                <input type="number" value="5" class="w-20 px-2 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-secondary">Auto-Renewal Enabled</span>
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked class="hidden">
+                                    <span class="w-10 h-5 bg-red-500 rounded-full flex items-center px-1 justify-end">
+                                        <span class="w-4 h-4 bg-primary rounded-full shadow-sm"></span>
+                                    </span>
+                                </label>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-primary mb-2">Accepted Payment Methods</p>
+                                <div class="flex flex-wrap gap-2">
+                                    <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">Credit Card</span>
+                                    <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">Bank Transfer</span>
+                                    <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">Cash</span>
+                                    <span class="px-2 py-1 rounded-full text-xs bg-tertiary text-tertiary">PayPal</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-primary rounded-lg shadow-sm border border-primary p-6">
+                        <h2 class="text-lg font-semibold text-primary mb-4">Notification Preferences</h2>
+                        <div class="space-y-3 text-sm text-secondary">
+                            <label class="flex items-center justify-between">
+                                <span>Email Notifications</span>
+                                <input type="checkbox" checked>
+                            </label>
+                            <label class="flex items-center justify-between">
+                                <span>SMS Notifications</span>
+                                <input type="checkbox" checked>
+                            </label>
+                            <label class="flex items-center justify-between">
+                                <span>Push Notifications</span>
+                                <input type="checkbox" checked>
+                            </label>
+                            <label class="flex items-center justify-between">
+                                <span>Maintenance Alerts</span>
+                                <input type="checkbox" checked>
+                            </label>
+                            <label class="flex items-center justify-between">
+                                <span>System Alerts</span>
+                                <input type="checkbox" checked>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="bg-primary rounded-lg shadow-sm border border-primary p-6">
+                        <h2 class="text-lg font-semibold text-primary mb-4">Security Policies</h2>
+                        <div class="space-y-4 text-sm text-secondary">
+                            <div class="flex items-center justify-between">
+                                <span>Password Minimum Length</span>
+                                <input type="number" value="8" class="w-20 px-2 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span>Require Special Characters</span>
+                                <input type="checkbox" checked>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span>Session Timeout (minutes)</span>
+                                <input type="number" value="30" class="w-20 px-2 py-2 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span>Audit Logging Enabled</span>
+                                <input type="checkbox" checked>
+                            </div>
+                            <div>
+                                <p class="text-xs text-tertiary mt-2">Use the audit log viewer to monitor admin changes across the platform.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8">
+                    <a href="../../admin-dashboard.html" class="inline-flex items-center space-x-2 text-red-500 hover:text-red-600 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                        <span>Back to Admin Dashboard</span>
+                    </a>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../../js/main.js"></script>
+</body>
+</html>

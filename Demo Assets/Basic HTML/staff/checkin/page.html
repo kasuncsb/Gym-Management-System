@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            
+    <meta name="theme-color" content="#ffffff">
+<title>Member Check-in - Staff Dashboard</title>
+    <meta name="description" content="Staff member check-in management system">
+    <link rel="stylesheet" href="../../css/styles.css">
+    <link rel="icon" href="../../images/logo.png">
+</head>
+<body>
+    <div class="min-h-screen bg-secondary flex flex-col">
+        <!-- Navigation Header -->
+        <nav class="bg-primary text-primary py-4 px-6 relative z-10 border-b border-primary shadow-sm">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <a href="../../staff-dashboard.html" class="flex items-center space-x-3 group">
+                        <img src="../../images/logo.png" alt="PowerWorld Fitness Logo" width="50" height="50" class="transition-transform group-hover:scale-105">
+                        <span class="text-xl font-bold text-primary group-hover:text-red-500 transition-colors">
+                            PowerWorld Staff
+                        </span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <div class="text-sm text-tertiary">Staff Member</div>
+                        <div class="text-primary font-semibold">Member Check-in</div>
+                    </div>
+                    <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">S</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="flex-1 px-6 py-8">
+            <div class="max-w-7xl mx-auto">
+                <!-- Header -->
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-primary mb-2">Member Check-in/Check-out</h1>
+                    <p class="text-secondary">Process member entry and exit from the gym</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Member Search -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-primary rounded-lg shadow-sm border border-primary p-6">
+                            <h2 class="text-xl font-semibold text-primary mb-4">Search Member</h2>
+                            <div class="mb-6">
+                                <input
+                                    type="text"
+                                    placeholder="Search by name, email, phone, or member ID..."
+                                    id="memberSearchInput"
+                                    class="w-full px-4 py-3 border border-secondary rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-lg"
+                                />
+                            </div>
+
+                            <div class="space-y-3 max-h-96 overflow-y-auto" id="memberSearchResults">
+                                <!-- Member search results will be populated here -->
+                            </div>
+
+                            <div class="text-center py-8 hidden" id="noMembersFound">
+                                <div class="text-quaternary text-4xl mb-4">🔍</div>
+                                <h3 class="text-lg font-medium text-primary mb-2">No members found</h3>
+                                <p class="text-tertiary">Try a different search term</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Check-ins -->
+                    <div>
+                        <div class="bg-primary rounded-lg shadow-sm border border-primary p-6">
+                            <h2 class="text-xl font-semibold text-primary mb-4">Recent Activity</h2>
+                            <div class="space-y-3" id="recentActivity">
+                                <!-- Recent activity will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Member Details Modal -->
+    <div id="memberModal" class="fixed inset-0 bg-primary bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-primary rounded-lg p-6 w-full max-w-md mx-4 border border-primary shadow-xl">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-semibold text-primary">Member Details</h2>
+                <button onclick="closeMemberModal()" class="text-quaternary hover:text-secondary">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-4 mb-6" id="memberDetails">
+                <!-- Member details will be populated here -->
+            </div>
+
+            <div class="flex space-x-3" id="memberActions">
+                <!-- Action buttons will be populated here -->
+            </div>
+
+            <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg hidden" id="memberWarning">
+                <!-- Warning message will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="../../js/main.js"></script>
+    <script>
+        let searchTerm = '';
+        let selectedMember = null;
+        let isProcessing = false;
+
+        const members = [
+            { id: 'MEM001', name: 'Kasun Perera', email: 'kasun.perera@email.com', phone: '+94123456789', status: 'active', lastVisit: '2025-01-14', subscription: 'Premium Monthly' },
+            { id: 'MEM002', name: 'Nimali Fernando', email: 'nimali.fernando@email.com', phone: '+94123456788', status: 'active', lastVisit: '2025-01-15', subscription: 'Basic Monthly' },
+            { id: 'MEM003', name: 'Chamara Jayasinghe', email: 'chamara.jayasinghe@email.com', phone: '+94123456787', status: 'active', lastVisit: '2025-01-13', subscription: 'Elite Monthly' },
+            { id: 'MEM004', name: 'Dilini Dissanayake', email: 'dilini.dissanayake@email.com', phone: '+94123456786', status: 'inactive', lastVisit: '2025-01-10', subscription: 'Annual Basic' },
+            { id: 'MEM005', name: 'Ravindu Bandara', email: 'ravindu.bandara@email.com', phone: '+94123456785', status: 'active', lastVisit: '2025-01-15', subscription: 'Premium Monthly' }
+        ];
+
+        const recentCheckIns = [
+            { id: 1, member: 'Kasun Perera', memberId: 'MEM001', time: '14:30', type: 'check-in', status: 'completed' },
+            { id: 2, member: 'Nimali Fernando', memberId: 'MEM002', time: '14:25', type: 'check-out', status: 'completed' },
+            { id: 3, member: 'Chamara Jayasinghe', memberId: 'MEM003', time: '14:20', type: 'check-in', status: 'completed' },
+            { id: 4, member: 'Dilini Dissanayake', memberId: 'MEM004', time: '14:15', type: 'check-in', status: 'completed' },
+            { id: 5, member: 'Ravindu Bandara', memberId: 'MEM005', time: '14:10', type: 'check-out', status: 'completed' }
+        ];
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCheckinPage();
+        });
+
+        function initializeCheckinPage() {
+            setupEventListeners();
+            renderRecentActivity();
+        }
+
+        function setupEventListeners() {
+            const searchInput = document.getElementById('memberSearchInput');
+            
+            searchInput.addEventListener('input', function(e) {
+                searchTerm = e.target.value;
+                renderMemberResults();
+            });
+
+            // Add keyboard navigation for search results
+            searchInput.addEventListener('keydown', function(e) {
+                const results = document.querySelectorAll('#memberSearchResults > div');
+                if (results.length === 0) return;
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    results[0].focus();
+                    results[0].click();
+                } else if (e.key === 'Enter' && results.length === 1) {
+                    e.preventDefault();
+                    results[0].click();
+                }
+            });
+
+            // Add modal keyboard handlers
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    const modal = document.getElementById('memberModal');
+                    if (!modal.classList.contains('hidden')) {
+                        closeMemberModal();
+                    }
+                }
+            });
+        }
+
+        function getStatusColor(status) {
+            switch (status) {
+                case 'active':
+                    return 'text-green-400 bg-green-500/20';
+                case 'inactive':
+                    return 'text-quaternary bg-secondary0/20';
+                case 'suspended':
+                    return 'text-red-400 bg-red-500/20';
+                default:
+                    return 'text-quaternary bg-secondary0/20';
+            }
+        }
+
+        function getTypeIcon(type) {
+            switch (type) {
+                case 'check-in':
+                    return '📥';
+                case 'check-out':
+                    return '📤';
+                default:
+                    return '❓';
+            }
+        }
+
+        function filteredMembers() {
+            if (!searchTerm) return [];
+            
+            return members.filter(member => 
+                member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                member.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                member.phone.includes(searchTerm)
+            );
+        }
+
+        function renderMemberResults() {
+            const resultsContainer = document.getElementById('memberSearchResults');
+            const noMembersContainer = document.getElementById('noMembersFound');
+            const filtered = filteredMembers();
+
+            if (!searchTerm) {
+                resultsContainer.innerHTML = '';
+                noMembersContainer.classList.add('hidden');
+                return;
+            }
+
+            if (filtered.length === 0) {
+                resultsContainer.innerHTML = '';
+                noMembersContainer.classList.remove('hidden');
+                return;
+            }
+
+            noMembersContainer.classList.add('hidden');
+            resultsContainer.innerHTML = filtered.map(member => `
+                <div onclick="handleMemberSelect('${member.id}')" class="p-4 border border-primary rounded-lg hover:border-red-500 hover:bg-red-50 cursor-pointer transition-all">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-12 h-12 bg-tertiary rounded-full flex items-center justify-center">
+                                <span class="text-secondary font-semibold">
+                                    ${member.name.split(' ').map(n => n[0]).join('')}
+                                </span>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold text-primary">${member.name}</h3>
+                                <p class="text-sm text-secondary">${member.id}</p>
+                                <p class="text-sm text-tertiary">${member.email}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(member.status)}">
+                                ${member.status}
+                            </span>
+                            <p class="text-sm text-tertiary mt-1">Last visit: ${member.lastVisit}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderRecentActivity() {
+            const activityContainer = document.getElementById('recentActivity');
+            
+            if (recentCheckIns.length === 0) {
+                activityContainer.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="text-quaternary text-2xl mb-2">📋</div>
+                        <p class="text-tertiary text-sm">No recent activity</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            activityContainer.innerHTML = recentCheckIns.map(checkIn => `
+                <div class="flex items-center justify-between p-3 bg-secondary rounded-lg">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-tertiary rounded-full flex items-center justify-center">
+                            <span class="text-sm">${getTypeIcon(checkIn.type)}</span>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-semibold text-primary">${checkIn.member}</h4>
+                            <p class="text-xs text-secondary">${checkIn.memberId}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-semibold text-primary">${checkIn.time}</p>
+                        <span class="text-green-500 text-xs">${checkIn.status}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function handleMemberSelect(memberId) {
+            const member = members.find(m => m.id === memberId);
+            if (member) {
+                selectedMember = member;
+                openMemberModal();
+            }
+        }
+
+        function openMemberModal() {
+            if (!selectedMember) return;
+
+            const modal = document.getElementById('memberModal');
+            const detailsContainer = document.getElementById('memberDetails');
+            const actionsContainer = document.getElementById('memberActions');
+            const warningContainer = document.getElementById('memberWarning');
+
+            // Populate member details
+            detailsContainer.innerHTML = `
+                <div class="flex items-center space-x-4">
+                    <div class="w-16 h-16 bg-tertiary rounded-full flex items-center justify-center">
+                        <span class="text-secondary font-semibold text-xl">
+                            ${selectedMember.name.split(' ').map(n => n[0]).join('')}
+                        </span>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-primary">${selectedMember.name}</h3>
+                        <p class="text-sm text-secondary">${selectedMember.id}</p>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-sm text-secondary">Email:</span>
+                        <span class="text-sm text-primary">${selectedMember.email}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-secondary">Phone:</span>
+                        <span class="text-sm text-primary">${selectedMember.phone}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-secondary">Status:</span>
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(selectedMember.status)}">
+                            ${selectedMember.status}
+                        </span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-secondary">Subscription:</span>
+                        <span class="text-sm text-primary">${selectedMember.subscription}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-secondary">Last Visit:</span>
+                        <span class="text-sm text-primary">${selectedMember.lastVisit}</span>
+                    </div>
+                </div>
+            `;
+
+            // Populate action buttons
+            const isDisabled = isProcessing || selectedMember.status !== 'active';
+            actionsContainer.innerHTML = `
+                <button onclick="handleCheckIn()" ${isDisabled ? 'disabled' : ''} 
+                        class="flex-1 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}">
+                    ${isProcessing ? 'Processing...' : 'Check In'}
+                </button>
+                <button onclick="handleCheckOut()" ${isProcessing ? 'disabled' : ''} 
+                        class="flex-1 px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}">
+                    ${isProcessing ? 'Processing...' : 'Check Out'}
+                </button>
+            `;
+
+            // Show warning if member is not active
+            if (selectedMember.status !== 'active') {
+                warningContainer.innerHTML = `
+                    <p class="text-sm text-yellow-800">
+                        ⚠️ This member's account is ${selectedMember.status}. Please verify their subscription status before allowing access.
+                    </p>
+                `;
+                warningContainer.classList.remove('hidden');
+            } else {
+                warningContainer.classList.add('hidden');
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeMemberModal() {
+            const modal = document.getElementById('memberModal');
+            modal.classList.add('hidden');
+            selectedMember = null;
+        }
+
+        async function handleCheckIn() {
+            if (!selectedMember || isProcessing) return;
+            
+            isProcessing = true;
+            updateModalActions();
+            
+            try {
+                // Simulate API call
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Add to recent activity
+                const newActivity = {
+                    id: Date.now(),
+                    member: selectedMember.name,
+                    memberId: selectedMember.id,
+                    time: new Date().toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        hour12: false 
+                    }),
+                    type: 'check-in',
+                    status: 'completed'
+                };
+                
+                recentCheckIns.unshift(newActivity);
+                if (recentCheckIns.length > 10) recentCheckIns.pop();
+                
+                renderRecentActivity();
+                closeMemberModal();
+                showNotification(`${selectedMember.name} checked in successfully!`, 'success');
+                
+            } catch (error) {
+                showNotification('Check-in failed. Please try again.', 'error');
+            } finally {
+                isProcessing = false;
+            }
+        }
+
+        async function handleCheckOut() {
+            if (!selectedMember || isProcessing) return;
+            
+            isProcessing = true;
+            updateModalActions();
+            
+            try {
+                // Simulate API call
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Add to recent activity
+                const newActivity = {
+                    id: Date.now(),
+                    member: selectedMember.name,
+                    memberId: selectedMember.id,
+                    time: new Date().toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        hour12: false 
+                    }),
+                    type: 'check-out',
+                    status: 'completed'
+                };
+                
+                recentCheckIns.unshift(newActivity);
+                if (recentCheckIns.length > 10) recentCheckIns.pop();
+                
+                renderRecentActivity();
+                closeMemberModal();
+                showNotification(`${selectedMember.name} checked out successfully!`, 'success');
+                
+            } catch (error) {
+                showNotification('Check-out failed. Please try again.', 'error');
+            } finally {
+                isProcessing = false;
+            }
+        }
+
+        function updateModalActions() {
+            if (!selectedMember) return;
+            
+            const actionsContainer = document.getElementById('memberActions');
+            const isDisabled = isProcessing || selectedMember.status !== 'active';
+            
+            actionsContainer.innerHTML = `
+                <button onclick="handleCheckIn()" ${isDisabled ? 'disabled' : ''} 
+                        class="flex-1 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}">
+                    ${isProcessing ? 'Processing...' : 'Check In'}
+                </button>
+                <button onclick="handleCheckOut()" ${isProcessing ? 'disabled' : ''} 
+                        class="flex-1 px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}">
+                    ${isProcessing ? 'Processing...' : 'Check Out'}
+                </button>
+            `;
+        }
+    </script>
+</body>
+</html>
