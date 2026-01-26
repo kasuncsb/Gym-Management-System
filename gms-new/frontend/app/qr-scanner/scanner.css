@@ -1,0 +1,238 @@
+/* QR Scanner Kiosk Interface */
+
+.scanner-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-6);
+}
+
+.scanner-container {
+    width: 100%;
+    max-width: 600px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border-radius: var(--radius-xl);
+    padding: var(--space-8);
+    box-shadow: var(--shadow-2xl);
+    border: 1px solid var(--glass-border);
+}
+
+.scanner-header {
+    text-align: center;
+    margin-bottom: var(--space-8);
+}
+
+.scanner-header .logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+.scanner-header .logo-icon {
+    font-size: 3rem;
+}
+
+.scanner-header h1 {
+    font-size: 2rem;
+    color: white;
+    margin: 0;
+}
+
+.location-badge {
+    display: inline-block;
+    padding: var(--space-2) var(--space-4);
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-full);
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.scanner-content {
+    min-height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.scanner-input-area {
+    text-align: center;
+    width: 100%;
+}
+
+.scan-icon {
+    font-size: 5rem;
+    margin-bottom: var(--space-6);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.scanner-input-area h2 {
+    font-size: 1.75rem;
+    color: white;
+    margin-bottom: var(--space-3);
+}
+
+.scanner-input-area p {
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: var(--space-8);
+    font-size: 1.125rem;
+}
+
+.scanner-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.scanner-input {
+    width: 100%;
+    padding: var(--space-4);
+    font-size: 1.125rem;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid transparent;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-base);
+}
+
+.scanner-input:focus {
+    outline: none;
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 4px rgba(0, 188, 212, 0.2);
+}
+
+.scan-result {
+    text-align: center;
+    padding: var(--space-8);
+    border-radius: var(--radius-lg);
+    animation: slideInUp var(--transition-base);
+}
+
+.scan-result.success {
+    background: linear-gradient(135deg, var(--success), var(--success-light));
+}
+
+.scan-result.denied {
+    background: linear-gradient(135deg, var(--error), var(--error-light));
+}
+
+.result-icon {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto var(--space-6);
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+    color: white;
+    animation: scaleIn 0.5s ease-out;
+}
+
+@keyframes scaleIn {
+    from {
+        transform: scale(0);
+    }
+
+    to {
+        transform: scale(1);
+    }
+}
+
+.scan-result h2 {
+    font-size: 2rem;
+    color: white;
+    margin-bottom: var(--space-3);
+}
+
+.member-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: var(--space-2);
+}
+
+.result-message {
+    font-size: 1.125rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: var(--space-6);
+}
+
+.welcome-animation {
+    margin-top: var(--space-6);
+}
+
+.door-opening {
+    width: 100px;
+    height: 4px;
+    background: white;
+    margin: 0 auto;
+    border-radius: var(--radius-full);
+    animation: doorOpen 1s ease-out;
+}
+
+@keyframes doorOpen {
+    from {
+        width: 0;
+    }
+
+    to {
+        width: 100px;
+    }
+}
+
+.scanner-footer {
+    margin-top: var(--space-8);
+    padding-top: var(--space-6);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.875rem;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--gray-500);
+}
+
+.status-dot.active {
+    background: var(--success);
+    box-shadow: 0 0 10px var(--success);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.footer-text {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .scanner-container {
+        padding: var(--space-6);
+    }
+
+    .scan-icon {
+        font-size: 4rem;
+    }
+
+    .scanner-input-area h2 {
+        font-size: 1.5rem;
+    }
+}

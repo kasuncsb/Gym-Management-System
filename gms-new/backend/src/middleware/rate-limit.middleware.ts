@@ -1,0 +1,78 @@
+// Rate limiting middleware
+import { Request, Response, NextFunction } from 'express';
+import { RateLimitError } from '../utils/error-types';
+
+interface RateLimitStore {
+    [key: string]: {
+        count: number;
+        resetTime: number;
+    };
+}
+
+const store: RateLimitStore = {};
+
+// Clean up old entries every 10 minutes
+setInterval(() => {
+    const now = Date.now();
+    Object.keys(store).forEach(key => {
+        if (store[key].resetTime < now) {
+            delete store[key];
+        }
+    });
+}, 600000);
+
+export function rateLimit(options: {
+    windowMs: number;
+    max: number;
+    keyGenerator?: (req: Request) => string;
+    message?: string;
+}) {
+    const {
+        windowMs,
+        max,
+        keyGenerator = (req) => req.ip || 'unknown',
+        message = 'Too many requests, please try again later'
+    } = options;
+
+    return (req: Request, res: Response, next: NextFunction) => {
+        const key = keyGenerator(req);
+        const now = Date.now();
+
+        if (!store[key] || store[key].resetTime < now) {
+            store[key] = {
+                count: 1,
+                resetTime: now + windowMs
+            };
+            return next();
+        }
+
+        store[key].count++;
+
+        if (store[key].count > max) {
+            throw new RateLimitError(message);
+        }
+
+        next();
+    };
+}
+
+// QR scan rate limiting - prevent rapid scanning attempts
+export const qrScanRateLimit = rateLimit({
+    windowMs: 60000, // 1 minute
+    max: parseInt(process.env.QR_SCAN_RATE_LIMIT || '10', 10),
+    message: 'Too many scan attempts. Please wait before trying again.'
+});
+
+// API rate limiting
+export const apiRateLimit = rateLimit({
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10)
+});
+
+// Login rate limiting
+export const loginRateLimit = rateLimit({
+    windowMs: 900000, // 15 minutes
+    max: 5,
+    keyGenerator: (req) => req.body?.email || req.ip || 'unknown',
+    message: 'Too many login attempts. Please try again after 15 minutes.'
+});
