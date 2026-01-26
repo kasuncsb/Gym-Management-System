@@ -1,127 +1,170 @@
 'use client';
 
 import Link from "next/link";
+import { Navbar } from "@/components/ui/Navbar";
+import { ArrowRight, Check, Zap, Users, Trophy } from "lucide-react";
 import Image from "next/image";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Navigation Header */}
-      <nav className="bg-white text-gray-900 py-4 px-6 relative z-10 shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center space-x-3">
-            <Link href="/" className="flex items-center space-x-3 group">
-              <Image
-                src="/logo.png"
-                alt="PowerWorld Fitness Logo"
-                width={50}
-                height={50}
-                className="transition-transform group-hover:scale-105"
-                priority
-              />
-              <span className="text-xl font-bold text-gray-900 group-hover:text-red-500 transition-colors">
-                PowerWorld
-              </span>
-            </Link>
+    <div className="min-h-screen bg-black text-white selection:bg-indigo-500/30">
+      <Navbar />
+
+      {/* Hero Section */}
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+        {/* Abstract Background */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600/20 rounded-full blur-[128px]" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[128px]" />
+          {/* Grid Pattern Overlay */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+        </div>
+
+        <div className="container relative z-10 px-6 mx-auto text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-900/50 border border-zinc-800 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+            <span className="text-sm font-medium text-zinc-300">New Location Open in Colombo 7</span>
           </div>
-          <div className="hidden md:flex space-x-8">
-            <Link href="/" className="flex items-center space-x-2 text-gray-700 hover:text-red-500 transition-colors group">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-              </svg>
-              <span>Home</span>
-            </Link>
-            <Link href="/about" className="flex items-center space-x-2 text-gray-700 hover:text-red-500 transition-colors group">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>About</span>
-            </Link>
-            <Link href="/contact" className="flex items-center space-x-2 text-gray-700 hover:text-red-500 transition-colors group">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              <span>Contact</span>
-            </Link>
-          </div>
-          <div className="flex space-x-3">
-            <Link
-              href="/login"
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 font-medium transition-all duration-300 transform hover:scale-105 hover:shadow-lg flex items-center space-x-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-              </svg>
-              <span>Login</span>
-            </Link>
+
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+            Forging <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-blue-500">Elite</span>
+            <br />
+            Fitness in Sri Lanka
+          </h1>
+
+          <p className="text-xl text-zinc-400 max-w-2xl mx-auto mb-12 leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
+            Experience the next evolution of fitness. State-of-the-art equipment, world-class trainers,
+            and a community that pushes you to exceed your limits.
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
             <Link
               href="/register"
-              className="border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white px-6 py-2.5 font-medium transition-all duration-300 transform hover:scale-105 hover:shadow-lg flex items-center space-x-2"
+              className="w-full sm:w-auto px-8 py-4 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-all transform hover:scale-105 flex items-center justify-center gap-2"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-              </svg>
-              <span>Register</span>
+              Start Free Trial <ArrowRight size={20} />
+            </Link>
+            <Link
+              href="/login"
+              className="w-full sm:w-auto px-8 py-4 bg-zinc-900 text-white font-bold rounded-xl hover:bg-zinc-800 border border-zinc-800 transition-all flex items-center justify-center"
+            >
+              Member Login
             </Link>
           </div>
         </div>
-      </nav>
+      </section>
 
-      {/* Hero Section with Background Image */}
-      <main className="flex-1 relative overflow-hidden">
-        {/* Background Image with Overlay */}
-        <div className="absolute inset-0 z-0">
-          <Image
-            src="/hero-section.jpg"
-            alt="PowerWorld Fitness Centre"
-            fill
-            className="object-cover"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/20"></div>
-        </div>
-
-        {/* Content */}
-        <div className="relative z-10 flex items-center justify-center min-h-full py-20">
-          <div className="text-center max-w-5xl mx-auto px-6">
-            <h1 className="text-6xl md:text-8xl font-bold text-white mb-6 drop-shadow-lg">
-              Welcome to <span className="text-red-500">PowerWorld!</span>
-            </h1>
-            <p className="text-xl md:text-2xl text-gray-100 mb-12 max-w-3xl mx-auto font-medium drop-shadow-md">
-              Join Sri Lanka&apos;s #1 gym network – Your Fitness Journey Starts Here.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-6 justify-center">
-              <Link
-                href="/register"
-                className="group bg-red-600 hover:bg-red-700 text-white px-10 py-5 text-lg font-bold transition-all duration-300 transform hover:scale-105 hover:shadow-2xl flex items-center justify-center space-x-3 shadow-lg"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <span>JOIN WITH US</span>
-                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
-              </Link>
-            </div>
+      {/* Stats Section */}
+      <section className="py-20 border-y border-zinc-900 bg-zinc-950/50">
+        <div className="container px-6 mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
+            {[
+              { label: "Active Members", value: "25k+" },
+              { label: "Locations", value: "24" },
+              { label: "Expert Trainers", value: "150+" },
+              { label: "Classes Weekly", value: "500+" },
+            ].map((stat, i) => (
+              <div key={i} className="text-center">
+                <h3 className="text-4xl md:text-5xl font-bold text-white mb-2">{stat.value}</h3>
+                <p className="text-zinc-500 font-medium uppercase tracking-wider text-sm">{stat.label}</p>
+              </div>
+            ))}
           </div>
         </div>
-      </main>
+      </section>
+
+      {/* Features Section */}
+      <section id="features" className="py-32 relative">
+        <div className="container px-6 mx-auto">
+          <div className="text-center mb-24">
+            <h2 className="text-3xl md:text-5xl font-bold mb-6">Built for <span className="text-indigo-500">Performance</span></h2>
+            <p className="text-zinc-400 max-w-2xl mx-auto text-lg">Everything you need to crush your fitness goals, all in one premium ecosystem.</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { title: "Premium Equipment", icon: Zap, desc: "Latest TechnoGym & LifeFitness machines maintained daily." },
+              { title: "Expert Coaching", icon: Users, desc: "Certified personal trainers to guide your transformation." },
+              { title: "Smart Tracking", icon: Trophy, desc: "Track workouts and progress with our dedicated mobile app." },
+            ].map((feature, i) => (
+              <div key={i} className="p-8 rounded-2xl bg-zinc-900/50 border border-zinc-800 hover:border-indigo-500/50 hover:bg-zinc-900 transition-all group">
+                <div className="w-14 h-14 rounded-xl bg-zinc-800 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                  <feature.icon className="text-indigo-400" size={28} />
+                </div>
+                <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
+                <p className="text-zinc-400 leading-relaxed">{feature.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="py-32 bg-zinc-900/20 border-t border-zinc-900">
+        <div className="container px-6 mx-auto">
+          <div className="text-center mb-24">
+            <h2 className="text-3xl md:text-5xl font-bold mb-6">Simple, Transparent <span className="text-indigo-500">Pricing</span></h2>
+            <p className="text-zinc-400">No hidden fees. Cancel anytime.</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {[
+              { name: "Monthly", price: "5,500", period: "/mo", features: ["Access to home club", "Basic fitness app", "1 Intro session"] },
+              { name: "Annual Gold", price: "48,000", period: "/yr", popular: true, features: ["Access to ALL locations", "Advanced tracking", "Unlimited classes", "Guest passes"] },
+              { name: "Quarterly", price: "14,500", period: "/3mo", features: ["Access to home club", "Group classes included", "Nutritional guide"] },
+            ].map((plan, i) => (
+              <div
+                key={i}
+                className={`relative p-8 rounded-3xl border flex flex-col ${plan.popular
+                    ? "bg-zinc-900/80 border-indigo-500 shadow-2xl shadow-indigo-500/10 scale-105 z-10"
+                    : "bg-black border-zinc-800 hover:border-zinc-700"
+                  }`}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-indigo-600 text-white text-xs font-bold uppercase tracking-wide rounded-full">
+                    Most Popular
+                  </div>
+                )}
+                <div className="mb-8">
+                  <h3 className="text-xl font-medium text-zinc-300 mb-2">{plan.name}</h3>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-sm font-semibold text-zinc-500">LKR</span>
+                    <span className="text-5xl font-bold text-white tracking-tight">{plan.price}</span>
+                    <span className="text-zinc-500">{plan.period}</span>
+                  </div>
+                </div>
+
+                <div className="flex-1 space-y-4 mb-8">
+                  {plan.features.map((feat, j) => (
+                    <div key={j} className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
+                        <Check size={12} className="text-indigo-400" />
+                      </div>
+                      <span className="text-zinc-300 text-sm">{feat}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <button className={`w-full py-4 rounded-xl font-bold transition-all ${plan.popular
+                    ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25"
+                    : "bg-zinc-100 hover:bg-white text-black"
+                  }`}>
+                  Choose Plan
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* Footer */}
-      <footer className="bg-gray-100 text-gray-700 py-8 px-6 border-t border-gray-200">
-        <div className="max-w-7xl mx-auto text-center">
-          <p className="text-gray-600 mb-4">© 2025 Gym Management System. All rights reserved.</p>
-          <div className="flex justify-center space-x-6">
-            <Link href="/privacy" className="text-gray-600 hover:text-gray-900 transition-colors">
-              Privacy Policy
-            </Link>
-            <Link href="/terms" className="text-gray-600 hover:text-gray-900 transition-colors">
-              Terms of Service
-            </Link>
-            <Link href="/contact" className="text-gray-600 hover:text-gray-900 transition-colors">
-              Contact Us
-            </Link>
+      <footer className="py-12 border-t border-zinc-900 bg-black">
+        <div className="container px-6 mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+          <p className="text-zinc-500 text-sm">© 2025 PowerWorld Gyms. All rights reserved.</p>
+          <div className="flex gap-8">
+            <Link href="#" className="text-zinc-500 hover:text-white text-sm transition-colors">Privacy</Link>
+            <Link href="#" className="text-zinc-500 hover:text-white text-sm transition-colors">Terms</Link>
+            <Link href="#" className="text-zinc-500 hover:text-white text-sm transition-colors">Contact</Link>
           </div>
         </div>
       </footer>
