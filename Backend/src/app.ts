@@ -16,6 +16,9 @@ import memberRoutes from './routes/member.routes';
 import qrRoutes from './routes/qr.routes';
 import subscriptionRoutes from './routes/subscription.routes';
 import appointmentRoutes from './routes/appointment.routes';
+import inventoryRoutes from './routes/inventory.routes';
+import equipmentRoutes from './routes/equipment.routes';
+import leadRoutes from './routes/lead.routes';
 
 const app: Application = express();
 
@@ -55,6 +58,9 @@ app.use('/api/qr', qrRoutes);
 app.use('/api/qr', qrRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/equipment', equipmentRoutes);
+app.use('/api/leads', leadRoutes);
 
 // 404 handler
 app.use((req, res) => {
