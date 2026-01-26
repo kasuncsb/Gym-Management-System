@@ -1,37 +1,37 @@
 @import "tailwindcss";
 
 :root {
-  /* Deep dark heavy slate background */
-  --background: #0f172a; 
-  --foreground: #f8fafc;
-  
-  /* Primary Accent - Electric Blue/Violet */
+  /* Pure Black Theme */
+  --background: #000000;
+  --foreground: #ffffff;
+
+  /* Primary Accent - Keep Electric Blue or switch to white/zinc? Keeping Blue for contrast */
   --primary: #6366f1;
   --primary-foreground: #ffffff;
 
-  /* Secondary / Card Backgrounds */
-  --card: #1e293b;
-  --card-foreground: #f1f5f9;
+  /* Secondary / Card Backgrounds - very dark zinc */
+  --card: #09090b;
+  --card-foreground: #fafafa;
 
   /* Muted / Border */
-  --muted: #334155;
-  --muted-foreground: #94a3b8;
-  
-  --border: #334155;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+
+  --border: #27272a;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', sans-serif; /* Prefer Inter if available, otherwise fonts will fallback */
+  font-family: 'Inter', sans-serif;
 }
 
-/* Glassmorphism Utilities (can be used as .glass) */
+/* Glassmorphism Utilities - darker tint */
 .glass {
-  background: rgba(30, 41, 59, 0.7);
+  background: rgba(9, 9, 11, 0.7);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* Custom Scrollbar for Dark Theme */
@@ -40,14 +40,14 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0f172a; 
+  background: #0f172a;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #334155; 
+  background: #334155;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569; 
+  background: #475569;
 }

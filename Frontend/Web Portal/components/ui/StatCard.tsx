@@ -24,10 +24,10 @@ const colorStyles = {
 
 export function StatCard({ title, value, trend, trendUp, icon: Icon, color = "blue" }: StatCardProps) {
     return (
-        <div className="p-6 rounded-2xl bg-slate-800/50 border border-slate-700 backdrop-blur-sm hover:-translate-y-1 transition-transform duration-300">
+        <div className="p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 backdrop-blur-sm hover:-translate-y-1 hover:bg-zinc-800/80 hover:border-zinc-700 hover:shadow-lg hover:shadow-indigo-500/10 transition-all duration-300">
             <div className="flex items-start justify-between">
                 <div>
-                    <p className="text-sm font-medium text-slate-400">{title}</p>
+                    <p className="text-sm font-medium text-zinc-400">{title}</p>
                     <h3 className="text-2xl font-bold text-white mt-2">{value}</h3>
                     {trend && (
                         <p className={cn("text-xs font-medium mt-1", trendUp ? "text-green-400" : "text-red-400")}>

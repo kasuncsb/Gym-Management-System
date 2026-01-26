@@ -9,10 +9,10 @@ export default function DashboardPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-3xl font-bold text-white">Dashboard</h2>
-                    <p className="text-slate-400 mt-1">Welcome back, Admin</p>
+                    <p className="text-zinc-400 mt-1">Welcome back, Admin</p>
                 </div>
                 <div className="flex gap-3">
-                    <button className="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition">
+                    <button className="px-4 py-2 bg-zinc-900 border border-zinc-800 text-white rounded-lg hover:bg-zinc-800 transition">
                         Download Report
                     </button>
                     <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition">
@@ -64,19 +64,19 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Recent Activity / Side Widget */}
-                <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700 backdrop-blur-sm">
+                <div className="bg-zinc-900/50 p-6 rounded-2xl border border-zinc-800 backdrop-blur-sm">
                     <h3 className="text-lg font-semibold text-white mb-4">Recent Signups</h3>
                     <div className="space-y-4">
                         {[1, 2, 3, 4, 5].map((i) => (
-                            <div key={i} className="flex items-center gap-4 p-3 hover:bg-slate-800/80 rounded-xl transition cursor-pointer">
-                                <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold text-slate-300">
+                            <div key={i} className="flex items-center gap-4 p-3 hover:bg-zinc-800 rounded-xl transition cursor-pointer group">
+                                <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-sm font-bold text-zinc-300">
                                     {["JD", "AS", "MK", "PL", "RT"][i - 1]}
                                 </div>
                                 <div className="flex-1">
                                     <h4 className="text-sm font-medium text-white">{["John Doe", "Alex Smith", "Mike K.", "Sarah L.", "Rob T."][i - 1]}</h4>
-                                    <p className="text-xs text-slate-400">Premium Plan</p>
+                                    <p className="text-xs text-zinc-400">Premium Plan</p>
                                 </div>
-                                <span className="text-xs text-slate-500">2m ago</span>
+                                <span className="text-xs text-zinc-500">2m ago</span>
                             </div>
                         ))}
                     </div>

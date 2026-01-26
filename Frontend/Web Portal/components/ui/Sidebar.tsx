@@ -40,7 +40,7 @@ export function Sidebar() {
             {/* Mobile Toggle Button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="fixed top-4 left-4 z-50 p-2 rounded-lg bg-slate-800 text-white md:hidden"
+                className="fixed top-4 left-4 z-50 p-2 rounded-lg bg-zinc-900 text-white md:hidden border border-zinc-800"
             >
                 {isOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -48,15 +48,15 @@ export function Sidebar() {
             {/* Sidebar Container */}
             <aside
                 className={cn(
-                    "fixed top-0 left-0 z-40 h-screen w-64 transform transition-transform duration-300 ease-in-out bg-slate-900/95 border-r border-slate-800",
+                    "fixed top-0 left-0 z-40 h-screen w-64 transform transition-transform duration-300 ease-in-out bg-black border-r border-zinc-800",
                     isOpen ? "translate-x-0" : "-translate-x-full",
                     "md:translate-x-0" // Always visible on desktop
                 )}
             >
                 <div className="flex flex-col h-full">
                     {/* Logo Section */}
-                    <div className="h-20 flex items-center px-8 border-b border-slate-800">
-                        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">
+                    <div className="h-20 flex items-center px-8 border-b border-zinc-800">
+                        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent">
                             FitPulse
                         </h1>
                     </div>
@@ -72,15 +72,15 @@ export function Sidebar() {
                                     className={cn(
                                         "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
                                         isActive
-                                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
-                                            : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                                            ? "bg-zinc-900 text-white border border-zinc-800"
+                                            : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
                                     )}
                                 >
                                     <item.icon
                                         size={20}
                                         className={cn(
                                             "transition-transform duration-200 group-hover:scale-110",
-                                            isActive ? "text-white" : "text-slate-400 group-hover:text-white"
+                                            isActive ? "text-white" : "text-zinc-400 group-hover:text-white"
                                         )}
                                     />
                                     <span className="font-medium">{item.name}</span>
@@ -90,8 +90,8 @@ export function Sidebar() {
                     </nav>
 
                     {/* User Section / Logout */}
-                    <div className="p-4 border-t border-slate-800">
-                        <button className="flex items-center gap-3 w-full px-4 py-3 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors">
+                    <div className="p-4 border-t border-zinc-800">
+                        <button className="flex items-center gap-3 w-full px-4 py-3 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors">
                             <LogOut size={20} />
                             <span className="font-medium">Sign Out</span>
                         </button>

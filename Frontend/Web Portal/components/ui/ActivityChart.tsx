@@ -22,13 +22,13 @@ const data = [
 
 export function ActivityChart() {
     return (
-        <div className="w-full h-[300px] p-4 bg-slate-800/50 rounded-2xl border border-slate-700 backdrop-blur-sm">
+        <div className="w-full h-[300px] p-4 bg-zinc-900/50 rounded-2xl border border-zinc-800 backdrop-blur-sm">
             <div className="mb-6 flex items-center justify-between">
                 <div>
                     <h3 className="text-lg font-semibold text-white">Weekly Activity</h3>
-                    <p className="text-sm text-slate-400">Gym visits over time</p>
+                    <p className="text-sm text-zinc-400">Gym visits over time</p>
                 </div>
-                <select className="bg-slate-700 text-slate-200 text-sm rounded-lg px-3 py-1 border border-slate-600 outline-none">
+                <select className="bg-zinc-800 text-zinc-200 text-sm rounded-lg px-3 py-1 border border-zinc-700 outline-none">
                     <option>This Week</option>
                     <option>Last Week</option>
                 </select>
@@ -46,21 +46,21 @@ export function ActivityChart() {
                             <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                         </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
                     <XAxis
                         dataKey="name"
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fill: '#94a3b8', fontSize: 12 }}
+                        tick={{ fill: '#a1a1aa', fontSize: 12 }}
                         dy={10}
                     />
                     <YAxis
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fill: '#94a3b8', fontSize: 12 }}
+                        tick={{ fill: '#a1a1aa', fontSize: 12 }}
                     />
                     <Tooltip
-                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc' }}
+                        contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', borderRadius: '8px', color: '#fafafa' }}
                     />
                     <Area
                         type="monotone"

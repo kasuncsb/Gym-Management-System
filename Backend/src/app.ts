@@ -15,6 +15,7 @@ import authRoutes from './routes/auth.routes';
 import memberRoutes from './routes/member.routes';
 import qrRoutes from './routes/qr.routes';
 import subscriptionRoutes from './routes/subscription.routes';
+import appointmentRoutes from './routes/appointment.routes';
 
 const app: Application = express();
 
@@ -51,7 +52,9 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/members', memberRoutes);
 app.use('/api/qr', qrRoutes);
+app.use('/api/qr', qrRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/appointments', appointmentRoutes);
 
 // 404 handler
 app.use((req, res) => {
