@@ -14,7 +14,7 @@ export default function QRCodePage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [copied, setCopied] = useState(false);
-    const intervalRef = useRef<NodeJS.Timeout>();
+    const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         if (!user || user.role !== 'member') {
