@@ -21,12 +21,23 @@ export default function AdminActivitiesPage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [metricsRes, logsRes] = await Promise.all([
+                const [metricsRes, logsRes] = await Promise.allSettled([
                     adminAPI.getMetrics(),
                     qrAPI.getAccessLogs(undefined, undefined, undefined, 50),
                 ]);
-                setMetrics(metricsRes.data.data);
-                setLogs(logsRes.data.data || []);
+
+                if (metricsRes.status === "fulfilled") {
+                    setMetrics(metricsRes.value.data.data);
+                } else {
+                    console.error("Failed to load admin metrics:", metricsRes.reason);
+                }
+
+                if (logsRes.status === "fulfilled") {
+                    setLogs(logsRes.value.data.data || []);
+                } else {
+                    console.error("Failed to load access logs:", logsRes.reason);
+                    setLogs([]);
+                }
             } catch (error) {
                 console.error("Failed to load admin activity data:", error);
             } finally {

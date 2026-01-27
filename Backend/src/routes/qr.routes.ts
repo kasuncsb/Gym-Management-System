@@ -25,6 +25,6 @@ router.post('/scan', qrScanRateLimit, validate(scanQRSchema), QRScanController.s
 router.get('/attendance/history', authenticate, QRScanController.getAttendanceHistory);
 
 // Access logs (admin only)
-router.get('/access-logs', authenticate, requireRole('ADMIN', 'MANAGER'), QRScanController.getAccessLogs);
+router.get('/access-logs', authenticate, requireRole('admin', 'manager'), QRScanController.getAccessLogs);
 
 export default router;
