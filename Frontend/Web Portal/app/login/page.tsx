@@ -57,10 +57,11 @@ export default function Login() {
     return (
         <div className="min-h-screen bg-black text-white flex relative overflow-hidden selection:bg-red-600/30">
             {/* Background Effects */}
+            {/* Background Effects */}
             <div className="absolute inset-0 z-0">
-                <div className="absolute top-0 left-[-10%] w-[500px] h-[500px] bg-red-700/20 rounded-full blur-[128px]" />
-                <div className="absolute bottom-0 right-[-10%] w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[128px]" />
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+                <div className="absolute top-0 left-[-10%] w-[500px] h-[500px] bg-red-700/30 rounded-full blur-[128px]" />
+                <div className="absolute bottom-0 right-[-10%] w-[500px] h-[500px] bg-red-600/20 rounded-full blur-[128px]" />
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808024_1px,transparent_1px),linear-gradient(to_bottom,#80808024_1px,transparent_1px)] bg-[size:24px_24px]" />
             </div>
 
             {/* Left Side - Visual */}

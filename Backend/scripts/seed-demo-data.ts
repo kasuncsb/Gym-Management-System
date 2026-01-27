@@ -134,6 +134,15 @@ async function seedData() {
         isActive: true,
         isEmailVerified: true,
     });
+    await db.insert(staff).values({
+        id: nanoid(),
+        userId: adminUserId,
+        branchId, // Affiliaite with the same branch for now
+        employeeCode: 'ADMIN001',
+        designation: 'System Administrator',
+        status: 'active',
+        hireDate: new Date('2023-01-01'),
+    });
 
     // 4. Create Manager
     console.log('👤 Creating manager...');

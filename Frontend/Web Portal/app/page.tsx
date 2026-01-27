@@ -70,10 +70,10 @@ export default function Home() {
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
         {/* Abstract Background */}
         <div className="absolute inset-0 z-0">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-red-700/20 rounded-full blur-[128px]" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-red-600/10 rounded-full blur-[128px]" />
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-red-700/30 rounded-full blur-[128px]" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-red-600/20 rounded-full blur-[128px]" />
           {/* Grid Pattern Overlay */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808024_1px,transparent_1px),linear-gradient(to_bottom,#80808024_1px,transparent_1px)] bg-[size:24px_24px]" />
         </div>
 
         <div className="container relative z-10 px-6 mx-auto text-center">

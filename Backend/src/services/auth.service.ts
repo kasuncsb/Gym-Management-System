@@ -60,8 +60,10 @@ export class AuthService {
 
         const { member, user } = result;
 
-        if (member.status !== 'active') {
-            throw new AuthenticationError('Invalid credentials');
+        // Allow 'active' and 'pending' members to log in. 
+        // 'pending' status is needed so they can upload verification documents.
+        if (member.status === 'inactive' || member.status === 'suspended') {
+            throw new AuthenticationError('Account is ' + member.status);
         }
 
         if (!user.isEmailVerified) {
@@ -206,27 +208,30 @@ export class AuthService {
             throw new ValidationError('Invalid email format');
         }
 
-        const [result] = await db.select({
-            staffMember: staff,
-            user: users
-        })
-            .from(staff)
-            .innerJoin(users, eq(staff.userId, users.id))
+        const [user] = await db.select()
+            .from(users)
             .where(eq(users.email, email))
             .limit(1);
 
-        if (!result || result.staffMember.deletedAt) {
+        if (!user || user.deletedAt) {
             throw new AuthenticationError('Invalid credentials');
         }
 
-        const { staffMember, user } = result;
+        const [staffMember] = await db.select()
+            .from(staff)
+            .where(eq(staff.userId, user.id))
+            .limit(1);
 
-        if (staffMember.status !== 'active') {
-            throw new AuthenticationError('Invalid credentials');
+        // System Admins can log in even without a staff record.
+        // Managers and other Staff MUST have an active staff record attached to a branch.
+        if (user.role !== 'admin') {
+            if (!staffMember || staffMember.status !== 'active' || staffMember.deletedAt) {
+                throw new AuthenticationError('Invalid credentials');
+            }
         }
 
         if (!user.isEmailVerified) {
-            throw new AuthenticationError('Invalid credentials');
+            throw new AuthenticationError('Please verify your email first');
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
@@ -237,10 +242,10 @@ export class AuthService {
         // @ts-expect-error
         const token = jwt.sign(
             {
-                id: staffMember.id,
+                id: staffMember?.id || user.id, // Fallback to user ID for admin if staff ID is missing
                 email: user.email,
-                role: 'staff',
-                staffRole: user.role // User role or Staff designation? Schema has roleEnum on users. Staff table doesn't have role. It has designation. User table has role 'staff','manager','admin'.
+                role: user.role === 'admin' ? 'admin' : 'staff',
+                staffRole: user.role
             },
             JWT_SECRET,
             { expiresIn: JWT_EXPIRES_IN }
