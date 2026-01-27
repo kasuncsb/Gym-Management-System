@@ -71,32 +71,6 @@ export default function AdminDashboard() {
 
     return (
         <div className="min-h-screen bg-black text-white">
-            {/* Navigation Header */}
-            <nav className="bg-zinc-900/50 backdrop-blur-xl border-b border-zinc-800 py-4 px-6 sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto flex justify-between items-center">
-                    <div className="flex items-center space-x-3">
-                        <Link href="/" className="flex items-center space-x-3 group">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-700 to-red-900 flex items-center justify-center">
-                                <Dumbbell className="text-white" size={20} />
-                            </div>
-                            <span className="text-xl font-bold text-white group-hover:text-red-500 transition-colors">PowerWorld Admin</span>
-                        </Link>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                        <div className="text-right">
-                            <div className="text-sm text-zinc-500">Administrator</div>
-                            <div className="text-white font-semibold">{profile.name}</div>
-                        </div>
-                        <button
-                            onClick={() => { localStorage.removeItem('token'); router.push('/login'); }}
-                            className="p-2 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
-                        >
-                            <LogOut size={20} />
-                        </button>
-                    </div>
-                </div>
-            </nav>
-
             {/* Main Dashboard Content */}
             <main className="px-6 py-8">
                 <div className="max-w-7xl mx-auto">
@@ -171,7 +145,7 @@ export default function AdminDashboard() {
                             </div>
                             <p className="text-zinc-500">Manage all system users and roles.</p>
                         </Link>
-                        <Link href="/dashboard/settings" className="p-6 bg-zinc-900/50 backdrop-blur-md rounded-2xl border border-zinc-800 hover:border-purple-500/50 transition-all group cursor-pointer">
+                        <Link href="/admin-dashboard/settings" className="p-6 bg-zinc-900/50 backdrop-blur-md rounded-2xl border border-zinc-800 hover:border-purple-500/50 transition-all group cursor-pointer">
                             <div className="flex items-center gap-3 mb-2">
                                 <Settings className="text-purple-400" size={24} />
                                 <h3 className="text-xl font-semibold text-purple-400 group-hover:text-purple-300">System Settings</h3>

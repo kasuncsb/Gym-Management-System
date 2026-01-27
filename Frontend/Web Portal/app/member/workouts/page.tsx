@@ -115,7 +115,7 @@ export default function WorkoutsPage() {
                                 </div>
 
                                 <Link
-                                    href="/dashboard/schedule"
+                                    href="/member/schedule"
                                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 py-3 font-semibold text-white backdrop-blur-md transition-colors hover:bg-white/20 group-hover:bg-red-700 group-hover:shadow-lg group-hover:shadow-red-600/20"
                                 >
                                     View Schedule

@@ -41,7 +41,7 @@ export default function DocumentUploadPage() {
             if (response.data.success) {
                 setSuccess(true);
                 setTimeout(() => {
-                    router.push('/dashboard');
+                    router.push('/member');
                 }, 2000);
             } else {
                 setError(response.data.message || 'Upload failed');
@@ -71,7 +71,7 @@ export default function DocumentUploadPage() {
     return (
         <div className="min-h-screen bg-black text-white p-6">
             <div className="max-w-md mx-auto mt-10">
-                <Link href="/dashboard" className="inline-flex items-center text-gray-400 hover:text-white mb-8 transition-colors">
+                <Link href="/member" className="inline-flex items-center text-gray-400 hover:text-white mb-8 transition-colors">
                     <ArrowLeft size={20} className="mr-2" />
                     Back to Dashboard
                 </Link>

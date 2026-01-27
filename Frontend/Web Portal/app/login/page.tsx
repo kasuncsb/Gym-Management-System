@@ -44,7 +44,7 @@ export default function Login() {
             } else if (userType === 'trainer') {
                 router.push('/staff-dashboard');
             } else {
-                router.push('/dashboard');
+                router.push('/member');
             }
 
         } catch (err: any) {

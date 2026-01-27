@@ -89,6 +89,22 @@ export class AuthController {
                     status: result.user.isActive ? 'active' : 'inactive' // Trainer has no status column, use user.isActive
                 };
             }
+        } else if (userRole === 'admin') {
+            const [result] = await db.select()
+                .from(users)
+                .where(eq(users.id, userId))
+                .limit(1);
+
+            if (result) {
+                profile = {
+                    id: result.id,
+                    name: result.fullName,
+                    email: result.email,
+                    phone: result.phone,
+                    role: 'admin',
+                    status: result.isActive ? 'active' : 'inactive'
+                };
+            }
         } else {
             const [result] = await db.select({
                 staff: staff,

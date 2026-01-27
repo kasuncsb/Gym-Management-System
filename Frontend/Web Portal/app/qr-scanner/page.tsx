@@ -104,11 +104,11 @@ export default function QRScannerPage() {
     };
 
     const getBackLink = () => {
-        if (!profile) return '/dashboard';
+        if (!profile) return '/member';
         if (profile.role === 'admin' || profile.staffRole === 'admin') return '/admin-dashboard';
         if (profile.role === 'manager' || profile.staffRole === 'manager') return '/manager-dashboard';
         if (profile.role === 'staff') return '/staff-dashboard';
-        return '/dashboard';
+        return '/member';
     };
 
     return (
@@ -211,8 +211,8 @@ export default function QRScannerPage() {
                         {/* Result Display */}
                         {scanResult && !showDoorAnimation && (
                             <div className={`mt-6 p-4 rounded-xl border ${scanResult.success
-                                    ? 'bg-green-500/10 border-green-500/30 text-green-400'
-                                    : 'bg-red-500/10 border-red-500/30 text-red-400'
+                                ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                                : 'bg-red-500/10 border-red-500/30 text-red-400'
                                 }`}>
                                 <div className="flex items-center gap-3">
                                     {scanResult.success ? (

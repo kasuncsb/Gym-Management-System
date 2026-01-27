@@ -104,7 +104,7 @@ export default function ClassesPage() {
                                 </div>
 
                                 <Link
-                                    href="/dashboard/schedule"
+                                    href="/member/schedule"
                                     className="w-full py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-white font-medium hover:bg-red-700 hover:border-red-600 transition-all flex items-center justify-center gap-2 group-hover:translate-x-1"
                                 >
                                     View Schedule <ArrowRight size={16} />

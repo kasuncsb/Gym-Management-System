@@ -35,40 +35,34 @@ export function Sidebar() {
 
     // Navigation items based on role
     const getNavItems = () => {
-        const commonItems = [
-            { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-        ];
-
+        // Role specific items
         const adminItems = [
-            ...commonItems,
-            { name: "Members", href: "/dashboard/members", icon: Users },
-            { name: "Workouts", href: "/dashboard/workouts", icon: Dumbbell },
-            { name: "Schedule", href: "/dashboard/schedule", icon: CalendarDays },
-            { name: "Billing", href: "/dashboard/billing", icon: CreditCard },
-            { name: "Settings", href: "/dashboard/settings", icon: Settings },
+            { name: "Dashboard", href: "/admin-dashboard", icon: LayoutDashboard },
+            { name: "Members", href: "/admin-dashboard/members", icon: Users },
+            { name: "Billing", href: "/admin-dashboard/billing", icon: CreditCard },
+            { name: "Settings", href: "/admin-dashboard/settings", icon: Settings },
         ];
 
         const staffItems = [
-            ...commonItems,
-            { name: "Members", href: "/dashboard/members", icon: Users },
-            { name: "Schedule", href: "/dashboard/schedule", icon: CalendarDays },
-            { name: "Check-in", href: "/dashboard/check-in", icon: Dumbbell }, // For QR scanning maybe
+            { name: "Dashboard", href: "/staff-dashboard", icon: LayoutDashboard },
+            { name: "Members", href: "/admin-dashboard/members", icon: Users }, // Accessing member management
+            { name: "Check-in", href: "/staff-dashboard/check-in", icon: Dumbbell },
         ];
 
         const memberItems = [
-            ...commonItems,
-            { name: "My Plan", href: "/dashboard/subscription", icon: CreditCard },
-            { name: "Access Pass", href: "/dashboard/qr-code", icon: QrCode },
-            { name: "Classes", href: "/dashboard/classes", icon: CalendarDays },
-            { name: "Workouts", href: "/dashboard/workouts", icon: Dumbbell },
-            { name: "Profile", href: "/dashboard/profile", icon: Settings },
+            { name: "Dashboard", href: "/member", icon: LayoutDashboard },
+            { name: "My Plan", href: "/member/subscription", icon: CreditCard },
+            { name: "Access Pass", href: "/member/qr-code", icon: QrCode },
+            { name: "Classes", href: "/member/classes", icon: CalendarDays },
+            { name: "Workouts", href: "/member/workouts", icon: Dumbbell },
+            { name: "Profile", href: "/member/profile", icon: Settings },
         ];
 
         switch (user?.role) {
             case 'admin': return adminItems;
             case 'staff': return staffItems;
             case 'member': return memberItems;
-            default: return commonItems; // Fallback or guest
+            default: return [{ name: "Dashboard", href: "/member", icon: LayoutDashboard }];
         }
     };
 
