@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { QrCode, Search, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { QrCode, Search, CheckCircle, XCircle, Loader2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { qrAPI, memberAPI } from "@/lib/api";
 
@@ -81,16 +82,6 @@ export default function CheckInPage() {
         }
     };
 
-    const simulateScan = () => {
-        // In real implementation, this would activate camera and read QR
-        // For now, show scanning state
-        setScanState('scanning');
-        setTimeout(() => {
-            setScanState('idle');
-            setError('Camera not available. Use manual entry below.');
-        }, 2000);
-    };
-
     const resetState = () => {
         setScanState('idle');
         setLastScan(null);
@@ -154,16 +145,16 @@ export default function CheckInPage() {
                             Position the member's QR code within the frame.
                         </p>
 
-                        <button
-                            onClick={simulateScan}
-                            disabled={scanState === 'scanning'}
+                        <Link
+                            href="/qr-scanner"
                             className={cn(
-                                "px-8 py-3 bg-red-700 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-600/20",
-                                scanState === 'scanning' && "opacity-50 cursor-not-allowed"
+                                "px-8 py-3 bg-red-700 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-600/20 inline-flex items-center gap-2",
+                                scanState === 'scanning' && "opacity-50 pointer-events-none"
                             )}
                         >
-                            {scanState === 'scanning' ? "Scanning..." : "Activate Camera"}
-                        </button>
+                            <ExternalLink size={18} />
+                            Open QR Scanner
+                        </Link>
                     </>
                 )}
             </div>

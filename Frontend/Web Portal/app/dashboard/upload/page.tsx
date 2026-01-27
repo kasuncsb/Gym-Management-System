@@ -3,13 +3,14 @@
 import { useState } from 'react';
 import { memberAPI } from '@/lib/api';
 import { useRouter } from 'next/navigation';
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, Loader2, ArrowLeft, Link as LinkIcon } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DocumentUploadPage() {
     const router = useRouter();
     const [file, setFile] = useState<File | null>(null);
     const [type, setType] = useState('nic');
+    const [fileUrl, setFileUrl] = useState('');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
@@ -23,8 +24,8 @@ export default function DocumentUploadPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!file) {
-            setError('Please select a file');
+        if (!fileUrl.trim()) {
+            setError('Please provide a public file URL');
             return;
         }
 
@@ -32,23 +33,15 @@ export default function DocumentUploadPage() {
         setError('');
 
         try {
-            // Simulate file upload to storage simulation (since we don't have Oracle setup)
-            // In a real app, we'd upload 'file' to storage and get a public URL
-
-            // Mock delay
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            const mockFileUrl = `https://storage.oracle.com/gym-docs/${Date.now()}-${file.name}`; // Simulation URL
-
             const response = await memberAPI.uploadDocument({
                 type,
-                fileUrl: mockFileUrl
+                fileUrl: fileUrl.trim()
             });
 
             if (response.data.success) {
                 setSuccess(true);
                 setTimeout(() => {
-                    router.push('/member'); // Redirect to member dashboard
+                    router.push('/dashboard');
                 }, 2000);
             } else {
                 setError(response.data.message || 'Upload failed');
@@ -78,7 +71,7 @@ export default function DocumentUploadPage() {
     return (
         <div className="min-h-screen bg-black text-white p-6">
             <div className="max-w-md mx-auto mt-10">
-                <Link href="/member" className="inline-flex items-center text-gray-400 hover:text-white mb-8 transition-colors">
+                <Link href="/dashboard" className="inline-flex items-center text-gray-400 hover:text-white mb-8 transition-colors">
                     <ArrowLeft size={20} className="mr-2" />
                     Back to Dashboard
                 </Link>
@@ -136,6 +129,23 @@ export default function DocumentUploadPage() {
                                     </div>
                                 )}
                             </div>
+                            <p className="text-xs text-gray-500 mt-3">
+                                Upload your file to a public storage provider and paste the link below.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-400 mb-2">Public File URL</label>
+                            <div className="relative">
+                                <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                                <input
+                                    type="url"
+                                    value={fileUrl}
+                                    onChange={(e) => setFileUrl(e.target.value)}
+                                    placeholder="https://..."
+                                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 pl-9 text-white focus:outline-none focus:border-red-500/50 transition-colors"
+                                />
+                            </div>
                         </div>
 
                         {error && (
@@ -147,7 +157,7 @@ export default function DocumentUploadPage() {
 
                         <button
                             type="submit"
-                            disabled={loading || !file}
+                            disabled={loading || !fileUrl.trim()}
                             className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-600/20"
                         >
                             {loading ? (

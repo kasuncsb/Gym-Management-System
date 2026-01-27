@@ -136,9 +136,7 @@ export default function AdminDocumentsPage() {
                                     <Calendar size={14} />
                                     <span>Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()}</span>
                                 </div>
-                                {/* Placeholder for document preview if URL is image */}
                                 <div className="aspect-video bg-neutral-800 rounded-lg flex items-center justify-center text-gray-500 text-xs mt-2 relative overflow-hidden group">
-                                    {/* Since we don't have real file upload yet, showing placeholder logic */}
                                     {doc.documentUrl ? (
                                         <img src={doc.documentUrl} alt="Document" className="object-cover w-full h-full opacity-80 group-hover:opacity-100 transition-opacity" />
                                     ) : (

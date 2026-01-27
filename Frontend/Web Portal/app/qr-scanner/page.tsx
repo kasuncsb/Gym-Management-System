@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { qrAPI, authAPI } from "@/lib/api";
-import { Dumbbell, ScanLine, CheckCircle, XCircle, Loader2, DoorOpen, ArrowLeft } from "lucide-react";
+import { Dumbbell, ScanLine, CheckCircle, XCircle, Loader2, DoorOpen, ArrowLeft, Hash } from "lucide-react";
 
 interface ScanResult {
     success: boolean;
@@ -19,6 +19,7 @@ export default function QRScannerPage() {
     const [loading, setLoading] = useState(false);
     const [showDoorAnimation, setShowDoorAnimation] = useState(false);
     const [profile, setProfile] = useState<any>(null);
+    const [manualCode, setManualCode] = useState('');
     const videoRef = useRef<HTMLVideoElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const router = useRouter();
@@ -102,12 +103,6 @@ export default function QRScannerPage() {
         }
     };
 
-    const simulateScan = () => {
-        // In production, this would come from the camera decoder
-        const mockQRData = 'MEMBER-' + Date.now();
-        handleScan(mockQRData);
-    };
-
     const getBackLink = () => {
         if (!profile) return '/dashboard';
         if (profile.role === 'admin' || profile.staffRole === 'admin') return '/admin-dashboard';
@@ -186,13 +181,6 @@ export default function QRScannerPage() {
                                     >
                                         Start Camera
                                     </button>
-                                    <button
-                                        onClick={simulateScan}
-                                        disabled={loading}
-                                        className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-8 py-3 rounded-xl font-semibold transition-colors"
-                                    >
-                                        {loading ? <Loader2 className="animate-spin" size={20} /> : 'Simulate Scan'}
-                                    </button>
                                 </div>
                             </div>
                         ) : (
@@ -215,13 +203,6 @@ export default function QRScannerPage() {
                                         className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-8 py-3 rounded-xl font-semibold transition-colors"
                                     >
                                         Stop Camera
-                                    </button>
-                                    <button
-                                        onClick={simulateScan}
-                                        disabled={loading}
-                                        className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-3 rounded-xl font-semibold transition-all"
-                                    >
-                                        {loading ? <Loader2 className="animate-spin" size={20} /> : 'Test Scan'}
                                     </button>
                                 </div>
                             </div>
@@ -248,6 +229,29 @@ export default function QRScannerPage() {
                                 </div>
                             </div>
                         )}
+                    </div>
+
+                    <div className="mt-6 rounded-2xl border border-zinc-800 bg-black/40 p-4">
+                        <div className="flex items-center gap-2 text-sm text-zinc-400 mb-3">
+                            <Hash size={16} className="text-zinc-500" />
+                            Manual QR entry (for desk scanners)
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <input
+                                type="text"
+                                value={manualCode}
+                                onChange={(event) => setManualCode(event.target.value)}
+                                placeholder="Enter QR code or member token"
+                                className="flex-1 rounded-xl border border-zinc-800 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-red-500 focus:outline-none"
+                            />
+                            <button
+                                onClick={() => manualCode.trim() && handleScan(manualCode.trim())}
+                                disabled={loading || !manualCode.trim()}
+                                className="rounded-xl bg-red-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {loading ? <Loader2 className="animate-spin" size={18} /> : 'Validate'}
+                            </button>
+                        </div>
                     </div>
 
                     {/* Instructions */}
