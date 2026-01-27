@@ -60,7 +60,9 @@ export function Sidebar() {
 
         switch (user?.role) {
             case 'admin': return adminItems;
+            case 'manager': return staffItems; // Managers use staff dashboard + extra permissions
             case 'staff': return staffItems;
+            case 'trainer': return staffItems; // Trainers share staff dashboard for now
             case 'member': return memberItems;
             default: return [{ name: "Dashboard", href: "/member", icon: LayoutDashboard }];
         }

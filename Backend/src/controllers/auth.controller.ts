@@ -90,19 +90,37 @@ export class AuthController {
                 };
             }
         } else if (userRole === 'admin') {
-            const [result] = await db.select()
+            // Admin ID in token might be User ID OR Staff ID (if they are also staff)
+            // First retry finding as direct User ID
+            let result = await db.select()
                 .from(users)
                 .where(eq(users.id, userId))
                 .limit(1);
 
-            if (result) {
+            // If not found, try to resolve via Staff table (if token has staff ID)
+            if (result.length === 0) {
+                const [staffMember] = await db.select({ userId: staff.userId })
+                    .from(staff)
+                    .where(eq(staff.id, userId))
+                    .limit(1);
+
+                if (staffMember) {
+                    result = await db.select()
+                        .from(users)
+                        .where(eq(users.id, staffMember.userId))
+                        .limit(1);
+                }
+            }
+
+            if (result.length > 0) {
+                const user = result[0];
                 profile = {
-                    id: result.id,
-                    name: result.fullName,
-                    email: result.email,
-                    phone: result.phone,
+                    id: user.id,
+                    name: user.fullName,
+                    email: user.email,
+                    phone: user.phone,
                     role: 'admin',
-                    status: result.isActive ? 'active' : 'inactive'
+                    status: user.isActive ? 'active' : 'inactive'
                 };
             }
         } else {
