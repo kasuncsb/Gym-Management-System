@@ -15,11 +15,11 @@ export class AuthController {
 
         let result;
         if (userType === 'trainer') {
-            result = await AuthService.loginTrainer(email, password);
+            result = await AuthService.loginTrainer(email, password, req);
         } else if (userType === 'staff') {
-            result = await AuthService.loginStaff(email, password);
+            result = await AuthService.loginStaff(email, password, req);
         } else {
-            result = await AuthService.loginMember(email, password);
+            result = await AuthService.loginMember(email, password, req);
         }
 
         res.json(successResponse(result, 'Login successful'));

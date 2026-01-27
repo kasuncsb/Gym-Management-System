@@ -67,6 +67,7 @@ export class MemberService {
                 isActive: true, // Account active, but email not verified
                 isEmailVerified: false,
                 emailVerificationToken: emailVerificationToken,
+                emailVerificationTokenExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
             });
 
             // 2. Create Member Profile

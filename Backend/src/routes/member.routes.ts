@@ -1,21 +1,24 @@
-// Member Routes
 import { Router } from 'express';
 import Joi from 'joi';
 import { MemberController } from '../controllers/member.controller';
 import { authenticate, requireRole } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validation.middleware';
+import { registrationRateLimit } from '../middleware/rate-limit.middleware';
 
 const router = Router();
 
 // Validation schemas
 const registerSchema = {
     body: Joi.object({
-        name: Joi.string().min(2).max(100).required(),
-        email: Joi.string().email().required(),
-        password: Joi.string().min(8).required(),
-        phone: Joi.string().optional(),
-        dateOfBirth: Joi.date().optional(),
-        emergencyContact: Joi.string().max(200).optional()
+        name: Joi.string().min(2).max(100).trim().required(),
+        email: Joi.string().email().lowercase().trim().required(),
+        password: Joi.string().min(8)
+            .pattern(/^(?=.*[A-Z])(?=.*[0-9])/)
+            .message('Password must contain at least one uppercase letter and one number')
+            .required(),
+        phone: Joi.string().trim().max(20).optional().allow(''),
+        dateOfBirth: Joi.date().max('now').optional(),
+        emergencyContact: Joi.string().trim().max(200).optional().allow('')
     })
 };
 
@@ -35,7 +38,7 @@ const updateStatusSchema = {
 };
 
 // Public routes
-router.post('/register', validate(registerSchema), MemberController.register);
+router.post('/register', registrationRateLimit, validate(registerSchema), MemberController.register);
 
 // Member routes (self)
 router.get('/profile', authenticate, MemberController.getProfile);

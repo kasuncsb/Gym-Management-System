@@ -4,7 +4,7 @@ import { useState, Suspense } from 'react';
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authAPI, getErrorMessage } from "@/lib/api";
-import { Dumbbell, Lock, Loader2, ArrowRight, CheckCircle } from "lucide-react";
+import { Dumbbell, Lock, Loader2, ArrowRight, CheckCircle, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function ResetPasswordContent() {
@@ -12,30 +12,38 @@ function ResetPasswordContent() {
     const token = searchParams.get('token');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [passwordFocused, setPasswordFocused] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [isSuccess, setIsSuccess] = useState(false);
     const router = useRouter();
 
+    const validatePassword = (pwd: string): boolean => {
+        return pwd.length >= 8 && /[A-Z]/.test(pwd) && /[0-9]/.test(pwd);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsLoading(true);
         setError('');
 
-        if (password !== confirmPassword) {
-            setError('Passwords do not match');
-            return;
-        }
-
-        if (password.length < 8) {
-            setError('Password must be at least 8 characters');
-            return;
-        }
-
         if (!token) {
-            setError('Invalid reset token');
+            setError('Invalid reset token. Please request a new password reset link.');
             return;
         }
+
+        if (!validatePassword(password)) {
+            setError('Password must be at least 8 characters with one uppercase letter and one number.');
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            setError('Passwords do not match.');
+            return;
+        }
+
+        setIsLoading(true);
 
         try {
             await authAPI.resetPassword(token, password);
@@ -80,7 +88,7 @@ function ResetPasswordContent() {
                     <span className="text-lg font-bold">PowerWorld</span>
                 </Link>
                 <h2 className="text-2xl font-bold mb-2">Set New Password</h2>
-                <p className="text-zinc-400">Please enter your new password below.</p>
+                <p className="text-zinc-400">Create a strong password for your account.</p>
             </div>
 
             {error && (
@@ -91,19 +99,55 @@ function ResetPasswordContent() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
+                <div className="space-y-2 relative">
                     <label className="text-sm font-medium text-zinc-300">New Password</label>
                     <div className="relative group">
                         <Lock className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
                         <input
-                            type="password"
+                            type={showPassword ? "text" : "password"}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                            placeholder="Min 8 characters"
+                            onFocus={() => setPasswordFocused(true)}
+                            onBlur={() => setPasswordFocused(false)}
+                            className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-12 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                            placeholder="Create password"
                             required
                         />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-4 top-3.5 text-zinc-500 hover:text-white transition-colors"
+                        >
+                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
                     </div>
+
+                    {/* Password Requirements Tooltip */}
+                    {passwordFocused && (
+                        <div className="absolute top-full left-0 mt-4 w-full lg:top-1/2 lg:-translate-y-1/2 lg:left-full lg:ml-6 lg:mt-0 lg:w-72 p-4 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-50 animate-in fade-in slide-in-from-top-2 lg:slide-in-from-left-2 transition-all">
+                            {/* Tooltip Arrow/Tail */}
+                            <div className="absolute w-3 h-3 bg-zinc-900 border-zinc-800 transform rotate-45 
+                                top-[-7px] left-1/2 -translate-x-1/2 border-t border-l
+                                lg:top-1/2 lg:left-[-7px] lg:-translate-y-1/2 lg:translate-x-0 lg:border-t-0 lg:border-l lg:border-b"
+                            />
+
+                            <h4 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+                                <AlertCircle size={14} className="text-indigo-400" /> Password Requirements
+                            </h4>
+                            <ul className="space-y-1">
+                                {[
+                                    { label: "At least 8 characters", valid: password.length >= 8 },
+                                    { label: "One uppercase letter", valid: /[A-Z]/.test(password) },
+                                    { label: "One number", valid: /[0-9]/.test(password) },
+                                ].map((req, i) => (
+                                    <li key={i} className={cn("text-xs flex items-center gap-2", req.valid ? "text-green-400" : "text-zinc-500")}>
+                                        <div className={cn("w-1.5 h-1.5 rounded-full", req.valid ? "bg-green-400" : "bg-zinc-700")} />
+                                        {req.label}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                 </div>
 
                 <div className="space-y-2">
@@ -111,13 +155,20 @@ function ResetPasswordContent() {
                     <div className="relative group">
                         <Lock className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
                         <input
-                            type="password"
+                            type={showConfirmPassword ? "text" : "password"}
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                            className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-12 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                             placeholder="Confirm new password"
                             required
                         />
+                        <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-4 top-3.5 text-zinc-500 hover:text-white transition-colors"
+                        >
+                            {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
                     </div>
                 </div>
 

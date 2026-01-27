@@ -23,6 +23,7 @@ const refreshTokenSchema = {
     })
 };
 
+
 const changePasswordSchema = {
     body: Joi.object({
         oldPassword: Joi.string().required(),
@@ -30,9 +31,31 @@ const changePasswordSchema = {
     })
 };
 
+const verifyEmailSchema = {
+    body: Joi.object({
+        token: Joi.string().required()
+    })
+};
+
+const forgotPasswordSchema = {
+    body: Joi.object({
+        email: Joi.string().email().required()
+    })
+};
+
+const resetPasswordSchema = {
+    body: Joi.object({
+        token: Joi.string().required(),
+        newPassword: Joi.string().min(8).required()
+    })
+};
+
 // Public routes
 router.post('/login', loginRateLimit, validate(loginSchema), AuthController.login);
 router.post('/refresh', validate(refreshTokenSchema), AuthController.refreshToken);
+router.post('/verify-email', validate(verifyEmailSchema), AuthController.verifyEmail);
+router.post('/forgot-password', loginRateLimit, validate(forgotPasswordSchema), AuthController.forgotPassword);
+router.post('/reset-password', validate(resetPasswordSchema), AuthController.resetPassword);
 
 // Protected routes
 router.get('/profile', authenticate, AuthController.getProfile);
@@ -40,3 +63,4 @@ router.post('/change-password', authenticate, validate(changePasswordSchema), Au
 router.get('/qr-code', authenticate, AuthController.generateQR);
 
 export default router;
+

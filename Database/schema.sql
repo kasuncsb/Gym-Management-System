@@ -18,6 +18,7 @@ CREATE TABLE `users` (
   `is_active` boolean DEFAULT true,
   `is_email_verified` boolean DEFAULT false,
   `email_verification_token` varchar(255) DEFAULT NULL,
+  `email_verification_token_expires` timestamp DEFAULT NULL,
   `password_reset_token` varchar(255) DEFAULT NULL,
   `password_reset_expires` timestamp DEFAULT NULL,
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,

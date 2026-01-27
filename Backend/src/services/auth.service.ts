@@ -1,4 +1,5 @@
 // Authentication Service - Drizzle ORM
+import { Request } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { eq, and, isNull, gt } from 'drizzle-orm';
@@ -11,7 +12,18 @@ import { EmailService } from './email.service';
 import { AuditService, AuditAction } from './audit.service';
 import { randomUUID } from 'crypto';
 
-const JWT_SECRET: string = process.env.JWT_SECRET || 'default-secret-change-this';
+
+const JWT_SECRET: string = (() => {
+    const secret = process.env.JWT_SECRET;
+    if (!secret || secret === 'default-secret-change-this') {
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error('FATAL: JWT_SECRET must be set in production environment');
+        }
+        console.warn('WARNING: Using unsafe JWT secret. Set JWT_SECRET environment variable.');
+        return 'development-secret-unsafe-for-production';
+    }
+    return secret;
+})();
 const JWT_EXPIRES_IN: string = process.env.JWT_EXPIRES_IN || '7d';
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '12', 10);
 
@@ -28,7 +40,7 @@ interface LoginResult {
 
 export class AuthService {
     // Member Authentication
-    static async loginMember(email: string, password: string): Promise<LoginResult> {
+    static async loginMember(email: string, password: string, req?: Request): Promise<LoginResult> {
         if (!validateEmail(email)) {
             throw new ValidationError('Invalid email format');
         }
@@ -49,11 +61,11 @@ export class AuthService {
         const { member, user } = result;
 
         if (member.status !== 'active') {
-            throw new AuthenticationError('Account is not active');
+            throw new AuthenticationError('Invalid credentials');
         }
 
         if (!user.isEmailVerified) {
-            throw new AuthenticationError('Email not verified. Please check your inbox.');
+            throw new AuthenticationError('Invalid credentials');
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
@@ -87,7 +99,8 @@ export class AuthService {
             'members',
             member.id,
             user.id,
-            { email: user.email, role: 'member' }
+            { email: user.email, role: 'member' },
+            req
         );
 
         return {
@@ -103,7 +116,7 @@ export class AuthService {
     }
 
     // Trainer Authentication
-    static async loginTrainer(email: string, password: string): Promise<LoginResult> {
+    static async loginTrainer(email: string, password: string, req?: Request): Promise<LoginResult> {
         if (!validateEmail(email)) {
             throw new ValidationError('Invalid email format');
         }
@@ -133,11 +146,11 @@ export class AuthService {
         // So I should check user.isActive.
 
         if (!user.isActive) {
-            throw new AuthenticationError('Account is not active');
+            throw new AuthenticationError('Invalid credentials');
         }
 
         if (!user.isEmailVerified) {
-            throw new AuthenticationError('Email not verified. Please check your inbox.');
+            throw new AuthenticationError('Invalid credentials');
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
@@ -171,7 +184,8 @@ export class AuthService {
             'trainers',
             trainer.id,
             user.id,
-            { email: user.email, role: 'trainer' }
+            { email: user.email, role: 'trainer' },
+            req
         );
 
         return {
@@ -187,7 +201,7 @@ export class AuthService {
     }
 
     // Staff Authentication
-    static async loginStaff(email: string, password: string): Promise<LoginResult> {
+    static async loginStaff(email: string, password: string, req?: Request): Promise<LoginResult> {
         if (!validateEmail(email)) {
             throw new ValidationError('Invalid email format');
         }
@@ -208,11 +222,11 @@ export class AuthService {
         const { staffMember, user } = result;
 
         if (staffMember.status !== 'active') {
-            throw new AuthenticationError('Account is not active');
+            throw new AuthenticationError('Invalid credentials');
         }
 
         if (!user.isEmailVerified) {
-            throw new AuthenticationError('Email not verified. Please check your inbox.');
+            throw new AuthenticationError('Invalid credentials');
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
@@ -247,7 +261,8 @@ export class AuthService {
             'staff',
             staffMember.id,
             user.id,
-            { email: user.email, role: user.role, designation: staffMember.designation }
+            { email: user.email, role: user.role, designation: staffMember.designation },
+            req
         );
 
         return {
@@ -454,12 +469,34 @@ export class AuthService {
     // Verify Email
     static async verifyEmail(token: string): Promise<boolean> {
         const [user] = await db.select().from(users).where(eq(users.emailVerificationToken, token)).limit(1);
-        if (!user) throw new NotFoundError('Invalid verification token');
+
+        if (!user) {
+            throw new ValidationError('Invalid or expired verification link');
+        }
+
+        // Check if already verified
+        if (user.isEmailVerified) {
+            throw new ValidationError('Email already verified');
+        }
+
+        // Check token expiration
+        if (user.emailVerificationTokenExpires && user.emailVerificationTokenExpires < new Date()) {
+            // Clear expired token
+            await db.update(users)
+                .set({
+                    emailVerificationToken: null,
+                    emailVerificationTokenExpires: null
+                })
+                .where(eq(users.id, user.id));
+
+            throw new ValidationError('Verification link has expired. Please request a new one');
+        }
 
         await db.update(users)
             .set({
                 isEmailVerified: true,
                 emailVerificationToken: null,
+                emailVerificationTokenExpires: null,
                 isActive: true
             })
             .where(eq(users.id, user.id));
@@ -477,27 +514,39 @@ export class AuthService {
     // Forgot Password
     static async forgotPassword(email: string): Promise<void> {
         const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-        if (!user) return;
 
+        // Always perform work to prevent timing attacks that reveal if email exists
         const token = randomUUID();
         const expires = new Date(Date.now() + 3600000); // 1 hour
 
-        await db.update(users)
-            .set({
-                passwordResetToken: token,
-                passwordResetExpires: expires
-            })
-            .where(eq(users.id, user.id));
+        if (user) {
+            await db.update(users)
+                .set({
+                    passwordResetToken: token,
+                    passwordResetExpires: expires
+                })
+                .where(eq(users.id, user.id));
 
-        try {
-            await EmailService.sendPasswordResetEmail(user.email, token);
-        } catch (error) {
-            console.error('Failed to send reset email:', error);
+            try {
+                await EmailService.sendPasswordResetEmail(user.email, token);
+            } catch (error) {
+                console.error('Failed to send reset email:', error);
+            }
+        } else {
+            // Simulate delay to prevent timing attack
+            await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 50));
         }
+
+        // Always return successfully (don't reveal if email exists or not)
     }
 
     // Reset Password
     static async resetPassword(token: string, newPassword: string): Promise<void> {
+        // Validate password strength first
+        if (!validatePassword(newPassword)) {
+            throw new ValidationError('Password must be at least 8 characters with one uppercase letter and one number');
+        }
+
         const [user] = await db.select().from(users)
             .where(and(
                 eq(users.passwordResetToken, token),
@@ -505,7 +554,7 @@ export class AuthService {
             ))
             .limit(1);
 
-        if (!user) throw new AuthenticationError('Invalid or expired reset token');
+        if (!user) throw new ValidationError('Invalid or expired reset link');
 
         const passwordHash = await this.hashPassword(newPassword);
 

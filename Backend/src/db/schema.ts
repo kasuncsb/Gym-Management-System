@@ -25,6 +25,7 @@ export const users = mysqlTable('users', {
     isActive: boolean('is_active').default(true),
     isEmailVerified: boolean('is_email_verified').default(false),
     emailVerificationToken: varchar('email_verification_token', { length: 255 }),
+    emailVerificationTokenExpires: timestamp('email_verification_token_expires'),
     passwordResetToken: varchar('password_reset_token', { length: 255 }),
     passwordResetExpires: timestamp('password_reset_expires'),
     createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),

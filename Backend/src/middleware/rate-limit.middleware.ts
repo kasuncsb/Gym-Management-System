@@ -76,3 +76,10 @@ export const loginRateLimit = rateLimit({
     keyGenerator: (req) => req.body?.email || req.ip || 'unknown',
     message: 'Too many login attempts. Please try again after 15 minutes.'
 });
+
+// Registration rate limiting (stricter: 3 attempts per hour per IP)
+export const registrationRateLimit = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 3,
+    message: 'Too many registration attempts from this IP, please try again after an hour'
+});
