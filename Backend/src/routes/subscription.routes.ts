@@ -15,8 +15,8 @@ router.get('/plans', SubscriptionController.getAllPlans);
 router.get('/plans/:id', SubscriptionController.getPlanById);
 
 // Admin routes
-router.get('/member/:memberId/validate', authenticate, requireRole('ADMIN', 'MANAGER', 'RECEPTIONIST'), SubscriptionController.validateSubscription);
-router.get('/member/:memberId', authenticate, requireRole('ADMIN', 'MANAGER'), SubscriptionController.getMemberSubscriptions);
-router.get('/renewals/upcoming', authenticate, requireRole('ADMIN', 'MANAGER'), SubscriptionController.getUpcomingRenewals);
+router.get('/member/:memberId/validate', authenticate, requireRole('admin', 'manager'), SubscriptionController.validateSubscription);
+router.get('/member/:memberId', authenticate, requireRole('admin', 'manager'), SubscriptionController.getMemberSubscriptions);
+router.get('/renewals/upcoming', authenticate, requireRole('admin', 'manager'), SubscriptionController.getUpcomingRenewals);
 
 export default router;

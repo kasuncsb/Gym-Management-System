@@ -42,12 +42,12 @@ router.get('/profile', authenticate, MemberController.getProfile);
 router.put('/profile', authenticate, validate(updateProfileSchema), MemberController.updateProfile);
 
 // Admin routes
-router.get('/', authenticate, requireRole('ADMIN', 'MANAGER', 'RECEPTIONIST'), MemberController.getAllMembers);
-router.get('/search', authenticate, requireRole('ADMIN', 'MANAGER', 'RECEPTIONIST'), MemberController.searchMembers);
-router.get('/stats', authenticate, requireRole('ADMIN', 'MANAGER'), MemberController.getStats);
-router.get('/:id', authenticate, requireRole('ADMIN', 'MANAGER', 'RECEPTIONIST'), MemberController.getProfile);
-router.put('/:id', authenticate, requireRole('ADMIN', 'MANAGER'), validate(updateProfileSchema), MemberController.updateProfile);
-router.put('/:id/status', authenticate, requireRole('ADMIN'), validate(updateStatusSchema), MemberController.updateStatus);
-router.delete('/:id', authenticate, requireRole('ADMIN'), MemberController.deleteMember);
+router.get('/', authenticate, requireRole('admin', 'manager'), MemberController.getAllMembers);
+router.get('/search', authenticate, requireRole('admin', 'manager'), MemberController.searchMembers);
+router.get('/stats', authenticate, requireRole('admin', 'manager'), MemberController.getStats);
+router.get('/:id', authenticate, requireRole('admin', 'manager'), MemberController.getProfile);
+router.put('/:id', authenticate, requireRole('admin', 'manager'), validate(updateProfileSchema), MemberController.updateProfile);
+router.put('/:id/status', authenticate, requireRole('admin'), validate(updateStatusSchema), MemberController.updateStatus);
+router.delete('/:id', authenticate, requireRole('admin'), MemberController.deleteMember);
 
 export default router;
