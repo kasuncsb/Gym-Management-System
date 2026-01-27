@@ -19,6 +19,8 @@ import appointmentRoutes from './routes/appointment.routes';
 import inventoryRoutes from './routes/inventory.routes';
 import equipmentRoutes from './routes/equipment.routes';
 import leadRoutes from './routes/lead.routes';
+import publicRoutes from './routes/public.routes';
+import dashboardRoutes from './routes/dashboard.routes';
 
 const app: Application = express();
 
@@ -61,6 +63,8 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/equipment', equipmentRoutes);
 app.use('/api/leads', leadRoutes);
+app.use('/api/public', publicRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // 404 handler
 app.use((req, res) => {

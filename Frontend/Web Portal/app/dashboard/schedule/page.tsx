@@ -1,72 +1,83 @@
 "use client";
 
-import { useState } from "react";
-import { CalendarDays, Clock, MapPin, User, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { CalendarDays, Clock, MapPin, User, ChevronLeft, ChevronRight, Plus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { publicService, ClassType } from "@/lib/api/public.service";
 
-// Mock data for schedule
-const classes = [
-    {
-        id: 1,
-        title: "Morning Yoga",
-        time: "07:00 AM - 08:00 AM",
-        instructor: "Sarah Jen",
-        location: "Studio A",
-        date: 27, // Day of month
-        category: "Yoga"
-    },
-    {
-        id: 2,
-        title: "CrossFit Mayhem",
-        time: "05:30 PM - 06:30 PM",
-        instructor: "Mike Ross",
-        location: "Main Gym",
-        date: 27,
-        category: "CrossFit"
-    },
-    {
-        id: 3,
-        title: "Spin Class",
-        time: "08:00 AM - 09:00 AM",
-        instructor: "Jessica Suits",
-        location: "Cycle Room",
-        date: 28,
-        category: "Cardio"
-    },
-    {
-        id: 4,
-        title: "Power Lifting",
-        time: "06:00 PM - 07:30 PM",
-        instructor: "Big John",
-        location: "Free Weights",
-        date: 28,
-        category: "Strength"
-    },
-    {
-        id: 5,
-        title: "Zumba Dance",
-        time: "10:00 AM - 11:00 AM",
-        instructor: "Maria C.",
-        location: "Studio B",
-        date: 29,
-        category: "Dance"
+// Generate dynamic week days based on current date
+const getWeekDays = () => {
+    const today = new Date();
+    const days = [];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    // Start from today
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        days.push({
+            name: dayNames[date.getDay()],
+            date: date.getDate(),
+            fullDate: date,
+            active: i === 0
+        });
     }
-];
+    return days;
+};
 
-const days = [
-    { name: "Mon", date: 27, active: true },
-    { name: "Tue", date: 28, active: false },
-    { name: "Wed", date: 29, active: false },
-    { name: "Thu", date: 30, active: false },
-    { name: "Fri", date: 31, active: false },
-    { name: "Sat", date: 1, active: false },
-    { name: "Sun", date: 2, active: false },
-];
+const getCurrentMonth = () => {
+    const now = new Date();
+    return now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+};
 
 export default function SchedulePage() {
-    const [selectedDate, setSelectedDate] = useState(27);
+    const [selectedDate, setSelectedDate] = useState(new Date().getDate());
+    const [classes, setClasses] = useState<ClassType[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const filteredClasses = classes.filter(c => c.date === selectedDate);
+    const days = useMemo(() => getWeekDays(), []);
+    const currentMonth = getCurrentMonth();
+
+    useEffect(() => {
+        const fetchClasses = async () => {
+            try {
+                const data = await publicService.getClasses();
+                setClasses(data || []);
+            } catch (error) {
+                console.error('Failed to fetch classes:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchClasses();
+    }, []);
+
+    // Generate mock schedule from real classes
+    const generateSchedule = (date: number) => {
+        const times = ['07:00 AM', '10:00 AM', '05:30 PM', '08:00 PM'];
+        const locations = ['Studio A', 'Main Gym', 'Cycle Room', 'Free Weights Area'];
+
+        // Use classes to generate schedule entries
+        return classes.slice(0, 3).map((cls, idx) => ({
+            id: cls.id,
+            title: cls.name,
+            time: `${times[idx % times.length]} - ${times[(idx + 1) % times.length]}`,
+            instructor: 'Trainer',
+            location: locations[idx % locations.length],
+            date: date,
+            category: cls.type || 'Group'
+        }));
+    };
+
+    const filteredClasses = generateSchedule(selectedDate);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="animate-spin text-indigo-400" size={32} />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -78,7 +89,7 @@ export default function SchedulePage() {
                 </div>
                 <div className="flex items-center gap-2 text-zinc-400 bg-zinc-900/50 p-1.5 rounded-lg border border-zinc-800">
                     <button className="p-1.5 hover:text-white rounded-md transition-colors"><ChevronLeft size={20} /></button>
-                    <span className="text-sm font-medium px-2 text-white">January 2025</span>
+                    <span className="text-sm font-medium px-2 text-white">{currentMonth}</span>
                     <button className="p-1.5 hover:text-white rounded-md transition-colors"><ChevronRight size={20} /></button>
                 </div>
             </div>

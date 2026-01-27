@@ -1,11 +1,67 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from "next/link";
 import { Navbar } from "@/components/ui/Navbar";
 import { ArrowRight, Check, Zap, Users, Trophy } from "lucide-react";
-import Image from "next/image";
+import { publicService, Plan, Branch, Stats, Trainer, ClassType } from "@/lib/api/public.service";
 
 export default function Home() {
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [activeTab, setActiveTab] = useState('monthly');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [plansData, branchesData, statsData] = await Promise.all([
+          publicService.getSubscriptionPlans(),
+          publicService.getBranches(),
+          publicService.getStats()
+        ]);
+
+        // Parse features JSON if it's a string
+        const parsedPlans = plansData.map((plan: Plan) => ({
+          ...plan,
+          features: typeof plan.features === 'string' ? JSON.parse(plan.features) : plan.features
+        }));
+
+        setPlans(parsedPlans);
+        setBranches(branchesData);
+        setStats(statsData);
+      } catch (error) {
+        console.error('Failed to fetch public data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Format currency
+  const formatCurrency = (amount: string | number) => {
+    return new Intl.NumberFormat('en-LK', {
+      style: 'currency',
+      currency: 'LKR',
+      maximumFractionDigits: 0
+    }).format(Number(amount)).replace('LKR', 'Rs.');
+  };
+
+  // Helper to get benefits list from plan features
+  const getPlanBenefits = (plan: Plan) => {
+    const benefits = [];
+    if (plan.features?.gym) benefits.push("Full Gym Access");
+    if (plan.features?.pool) benefits.push("Swimming Pool Access");
+    if (plan.features?.classes) benefits.push("Group Classes Included");
+    if (plan.features?.personal_training) benefits.push("Personal Training Sessions");
+    if (plan.features?.guest_passes > 0) benefits.push(`${plan.features.guest_passes} Guest Passes`);
+    if (plan.features?.ladies_only) benefits.push("Ladies Only Section Access");
+    return benefits;
+  };
+
   return (
     <div className="min-h-screen bg-black text-white selection:bg-indigo-500/30">
       <Navbar />
@@ -21,10 +77,14 @@ export default function Home() {
         </div>
 
         <div className="container relative z-10 px-6 mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-900/50 border border-zinc-800 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-            <span className="text-sm font-medium text-zinc-300">New Location Open in Colombo 7</span>
-          </div>
+          {branches.length > 0 && (
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-900/50 border border-zinc-800 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+              <span className="text-sm font-medium text-zinc-300">
+                New Location Open in {branches[branches.length - 1].name.replace('Power World ', '')}
+              </span>
+            </div>
+          )}
 
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
             Forging <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-blue-500">Elite</span>
@@ -42,7 +102,7 @@ export default function Home() {
               href="/register"
               className="w-full sm:w-auto px-8 py-4 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-all transform hover:scale-105 flex items-center justify-center gap-2"
             >
-              Create Account <ArrowRight size={20} />
+              Start Your Journey <ArrowRight size={20} />
             </Link>
             <Link
               href="/login"
@@ -59,10 +119,10 @@ export default function Home() {
         <div className="container px-6 mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
             {[
-              { label: "Active Members", value: "25k+" },
-              { label: "Locations", value: "24" },
-              { label: "Expert Trainers", value: "150+" },
-              { label: "Classes Weekly", value: "500+" },
+              { label: "Active Members", value: stats?.activeMembers ? `${(stats.activeMembers / 1000).toFixed(1)}k+` : "25k+" },
+              { label: "Locations", value: stats?.locations || "24+" },
+              { label: "Expert Trainers", value: stats?.expertTrainers || "150+" },
+              { label: "Classes Weekly", value: stats?.classesWeekly || "500+" },
             ].map((stat, i) => (
               <div key={i} className="text-center">
                 <h3 className="text-4xl md:text-5xl font-bold text-white mb-2">{stat.value}</h3>
@@ -104,67 +164,69 @@ export default function Home() {
         <div className="container px-6 mx-auto">
           <div className="text-center mb-24">
             <h2 className="text-3xl md:text-5xl font-bold mb-6">Simple, Transparent <span className="text-indigo-500">Pricing</span></h2>
-            <p className="text-zinc-400">No hidden fees. Cancel anytime.</p>
+            <p className="text-zinc-400">No joining fees. Cancel anytime.</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {[
-              { name: "Monthly", price: "5,500", period: "/mo", features: ["Access to home club", "Basic fitness app", "1 Intro session"] },
-              { name: "Annual Gold", price: "48,000", period: "/yr", popular: true, features: ["Access to ALL locations", "Advanced tracking", "Unlimited classes", "Guest passes"] },
-              { name: "Quarterly", price: "14,500", period: "/3mo", features: ["Access to home club", "Group classes included", "Nutritional guide"] },
-            ].map((plan, i) => (
-              <div
-                key={i}
-                className={`relative p-8 rounded-3xl border flex flex-col ${plan.popular
-                  ? "bg-zinc-900/80 border-indigo-500 shadow-2xl shadow-indigo-500/10 scale-105 z-10"
-                  : "bg-black border-zinc-800 hover:border-zinc-700"
-                  }`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-indigo-600 text-white text-xs font-bold uppercase tracking-wide rounded-full">
-                    Most Popular
-                  </div>
-                )}
-                <div className="mb-8">
-                  <h3 className="text-xl font-medium text-zinc-300 mb-2">{plan.name}</h3>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-sm font-semibold text-zinc-500">LKR</span>
-                    <span className="text-5xl font-bold text-white tracking-tight">{plan.price}</span>
-                    <span className="text-zinc-500">{plan.period}</span>
-                  </div>
-                </div>
-
-                <div className="flex-1 space-y-4 mb-8">
-                  {plan.features.map((feat, j) => (
-                    <div key={j} className="flex items-center gap-3">
-                      <div className="w-5 h-5 rounded-full bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
-                        <Check size={12} className="text-indigo-400" />
+          {loading ? (
+            <div className="flex justify-center text-zinc-500">Loading plans...</div>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+              {plans.map((plan, i) => {
+                const isPopular = plan.name.includes("Annual") || plan.name.includes("Gold");
+                return (
+                  <div
+                    key={i}
+                    className={`relative p-8 rounded-3xl border flex flex-col ${isPopular
+                      ? "bg-zinc-900/80 border-indigo-500 shadow-2xl shadow-indigo-500/10 scale-105 z-10"
+                      : "bg-black border-zinc-800 hover:border-zinc-700"
+                      }`}
+                  >
+                    {isPopular && (
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-indigo-600 text-white text-xs font-bold uppercase tracking-wide rounded-full">
+                        Best Value
                       </div>
-                      <span className="text-zinc-300 text-sm">{feat}</span>
+                    )}
+                    <div className="mb-8">
+                      <h3 className="text-xl font-medium text-zinc-300 mb-2">{plan.name}</h3>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-5xl font-bold text-white tracking-tight">{formatCurrency(plan.price).replace('.00', '')}</span>
+                        <span className="text-zinc-500">/{plan.durationDays > 30 ? 'yr' : 'mo'}</span>
+                      </div>
                     </div>
-                  ))}
-                </div>
 
-                <button className={`w-full py-4 rounded-xl font-bold transition-all ${plan.popular
-                  ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25"
-                  : "bg-zinc-100 hover:bg-white text-black"
-                  }`}>
-                  Choose Plan
-                </button>
-              </div>
-            ))}
-          </div>
+                    <div className="flex-1 space-y-4 mb-8">
+                      {getPlanBenefits(plan).map((feat, j) => (
+                        <div key={j} className="flex items-center gap-3">
+                          <div className="w-5 h-5 rounded-full bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
+                            <Check size={12} className="text-indigo-400" />
+                          </div>
+                          <span className="text-zinc-300 text-sm">{feat}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button className={`w-full py-4 rounded-xl font-bold transition-all ${isPopular
+                      ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25"
+                      : "bg-zinc-100 hover:bg-white text-black"
+                      }`}>
+                      Select {plan.name}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
       {/* Footer */}
       <footer className="py-12 border-t border-zinc-900 bg-black">
         <div className="container px-6 mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <p className="text-zinc-500 text-sm">© 2025 PowerWorld Gyms. All rights reserved.</p>
+          <p className="text-zinc-500 text-sm">© {new Date().getFullYear()} PowerWorld Gyms. All rights reserved.</p>
           <div className="flex gap-8">
-            <Link href="#" className="text-zinc-500 hover:text-white text-sm transition-colors">Privacy</Link>
-            <Link href="#" className="text-zinc-500 hover:text-white text-sm transition-colors">Terms</Link>
-            <Link href="#" className="text-zinc-500 hover:text-white text-sm transition-colors">Contact</Link>
+            <Link href="#" className="text-zinc-500 hover:text-white text-sm transition-colors">Privacy Policy</Link>
+            <Link href="#" className="text-zinc-500 hover:text-white text-sm transition-colors">Terms of Service</Link>
+            <Link href="#" className="text-zinc-500 hover:text-white text-sm transition-colors">Contact Support</Link>
           </div>
         </div>
       </footer>

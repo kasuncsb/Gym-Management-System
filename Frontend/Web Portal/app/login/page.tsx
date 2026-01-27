@@ -85,7 +85,7 @@ export default function Login() {
                 </div>
 
                 <div className="text-sm text-zinc-500">
-                    © 2025 PowerWorld Gyms. All rights reserved.
+                    © {new Date().getFullYear()} PowerWorld Gyms. All rights reserved.
                 </div>
             </div>
 

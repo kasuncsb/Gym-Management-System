@@ -116,7 +116,7 @@ export default function Register() {
                 </div>
 
                 <div className="text-sm text-zinc-500 text-right">
-                    © 2025 PowerWorld Gyms. All rights reserved.
+                    © {new Date().getFullYear()} PowerWorld Gyms. All rights reserved.
                 </div>
             </div>
 
@@ -151,7 +151,7 @@ export default function Register() {
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                                    placeholder="John Doe"
+                                    placeholder="e.g., Kasun Perera"
                                     required
                                 />
                             </div>

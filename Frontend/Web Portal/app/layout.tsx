@@ -3,8 +3,8 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "PowerWorld Gyms - Kiribathgoda",
-  description: "Modern gym management system for PowerWorld Gyms, Kiribathgoda, Sri Lanka",
+  title: "PowerWorld Gyms - Sri Lanka",
+  description: "The largest fitness network in Sri Lanka. Join PowerWorld Gyms today.",
 };
 
 export default function RootLayout({
