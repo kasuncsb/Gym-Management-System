@@ -60,7 +60,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/members', memberRoutes);
 app.use('/api/qr', qrRoutes);
-app.use('/api/qr', qrRoutes);
+
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/inventory', inventoryRoutes);

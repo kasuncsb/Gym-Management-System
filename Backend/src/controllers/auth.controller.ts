@@ -105,7 +105,8 @@ export class AuthController {
                     name: result.user.fullName,
                     email: result.user.email,
                     phone: result.user.phone,
-                    role: result.staff.designation, // Staff table has designation. User has role. Returning designation as 'role' in profile? Or user.role? Original code used staff.role but staff table has no role column. It has designation. User table has role.
+                    role: result.user.role || 'staff',
+                    designation: result.staff.designation,
                     status: result.staff.status
                 };
             }

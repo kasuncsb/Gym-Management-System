@@ -9,6 +9,8 @@ interface User {
     name: string;
     email: string;
     role: string;
+    designation?: string;
+    specialization?: string;
 }
 
 interface AuthContextType {

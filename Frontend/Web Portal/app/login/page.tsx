@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [userType, setUserType] = useState('member'); // Default to member
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const { login } = useAuth();
@@ -22,14 +23,14 @@ export default function Login() {
         setError('');
 
         try {
-            // Infer role for testing/demo purposes if backend requires it
-            let userType = 'member';
-            const emailLower = email.toLowerCase();
-            if (emailLower.includes('admin') || emailLower.includes('manager') || emailLower.includes('staff')) {
-                userType = 'staff';
-            } else if (emailLower.includes('trainer')) {
-                userType = 'trainer';
-            }
+            // Use selected userType
+            // let userType = 'member';
+            // const emailLower = email.toLowerCase();
+            // if (emailLower.includes('admin') || emailLower.includes('manager') || emailLower.includes('staff')) {
+            //     userType = 'staff';
+            // } else if (emailLower.includes('trainer')) {
+            //     userType = 'trainer';
+            // }
 
             const response = await authAPI.login(email, password, userType);
             const { token, user } = response.data.data;
@@ -110,6 +111,23 @@ export default function Login() {
                             {error}
                         </div>
                     )}
+
+                    <div className="flex p-1 bg-zinc-800/50 rounded-xl mb-6">
+                        {['member', 'trainer', 'staff'].map((type) => (
+                            <button
+                                key={type}
+                                onClick={() => setUserType(type)}
+                                className={cn(
+                                    "flex-1 py-2 text-sm font-medium rounded-lg capitalize transition-all",
+                                    userType === type
+                                        ? "bg-zinc-800 text-white shadow-lg"
+                                        : "text-zinc-400 hover:text-zinc-200"
+                                )}
+                            >
+                                {type}
+                            </button>
+                        ))}
+                    </div>
 
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div className="space-y-2">

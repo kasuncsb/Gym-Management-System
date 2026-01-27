@@ -12,7 +12,8 @@ import {
     LogOut,
     CreditCard,
     Menu,
-    X
+    X,
+    QrCode
 } from "lucide-react";
 import { useState } from "react";
 import { clsx, type ClassValue } from "clsx";
@@ -57,6 +58,7 @@ export function Sidebar() {
         const memberItems = [
             ...commonItems,
             { name: "My Plan", href: "/dashboard/subscription", icon: CreditCard },
+            { name: "Access Pass", href: "/dashboard/qr-code", icon: QrCode },
             { name: "Classes", href: "/dashboard/classes", icon: CalendarDays },
             { name: "Workouts", href: "/dashboard/workouts", icon: Dumbbell },
             { name: "Profile", href: "/dashboard/profile", icon: Settings },

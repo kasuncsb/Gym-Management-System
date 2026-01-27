@@ -1,133 +1,152 @@
-"use client";
-
-import { useState, useEffect } from "react";
-import { Users, CreditCard, Activity, TrendingUp } from "lucide-react";
-import { StatCard } from "@/components/ui/StatCard";
-import { ActivityChart } from "@/components/ui/ActivityChart";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from "@/context/AuthContext";
-import { dashboardService, DashboardStats, RecentSignup } from "@/lib/api/dashboard.service";
-
-// Format currency in LKR
-const formatCurrency = (amount: number): string => {
-    return `Rs. ${new Intl.NumberFormat('en-LK').format(amount)}`;
-};
+import {
+    Activity,
+    CalendarDays,
+    CreditCard,
+    Dumbbell,
+    QrCode,
+    Settings,
+    User as UserIcon,
+    TrendingUp,
+    Loader2
+} from "lucide-react";
+import Link from "next/link";
+import { StatCard } from "@/components/ui/StatCard";
 
 export default function DashboardPage() {
-    const { user } = useAuth();
-    const [stats, setStats] = useState<DashboardStats | null>(null);
-    const [recentSignups, setRecentSignups] = useState<RecentSignup[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { user, isLoading } = useAuth();
+    const router = useRouter();
 
     useEffect(() => {
-        const fetchDashboardData = async () => {
-            try {
-                // Only fetch admin stats if user is staff/admin
-                if (user?.role !== 'member') {
-                    const [statsData, signupsData] = await Promise.all([
-                        dashboardService.getStats(),
-                        dashboardService.getRecentSignups()
-                    ]);
-                    setStats(statsData);
-                    setRecentSignups(signupsData);
-                }
-            } catch (error) {
-                console.error('Failed to fetch dashboard data:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchDashboardData();
-    }, [user]);
+        if (!isLoading && !user) {
+            router.push('/login');
+        }
+    }, [user, isLoading, router]);
+
+    if (isLoading || !user) {
+        return (
+            <div className="flex h-[50vh] items-center justify-center">
+                <Loader2 className="animate-spin text-red-600" size={40} />
+            </div>
+        );
+    }
+
+    // For now, we'll use placeholder data for the member stats since the API service was 
+    // focused on admin stats. In a real scenario, we'd fetch member-specific stats here.
+    const memberStats = {
+        workoutsThisWeek: 3,
+        minutesActive: 145,
+        streak: 5,
+        nextClass: "HIIT Session - Tomorrow 10:00 AM"
+    };
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-3xl font-bold text-white">Dashboard</h2>
-                    <p className="text-zinc-400 mt-1">Welcome back, <span className="text-red-500 font-medium">{user?.name || 'User'}</span></p>
-                </div>
-                <div className="flex gap-3">
-                    <button className="px-4 py-2 bg-zinc-900/50 border border-zinc-800 text-white rounded-lg hover:bg-zinc-800 transition backdrop-blur-sm">
-                        Download Report
-                    </button>
-                    {user?.role !== 'member' && (
-                        <button className="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-700 shadow-lg shadow-red-600/20 transition">
-                            Add Member
-                        </button>
-                    )}
-                </div>
+            <div>
+                <h2 className="text-3xl font-bold text-white">Dashboard</h2>
+                <p className="text-zinc-400 mt-1">
+                    Welcome back, <span className="text-red-500 font-medium">{user?.name || 'Member'}</span>!
+                    Ready to crush your goals?
+                </p>
             </div>
 
-            {/* Stats Grid */}
+            {/* Quick Actions Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Link href="/dashboard/qr-code" className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl hover:bg-zinc-800 transition group flex flex-col items-center justify-center gap-3 text-center">
+                    <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <QrCode className="text-red-500" size={20} />
+                    </div>
+                    <div>
+                        <span className="block font-semibold text-white">My QR Code</span>
+                        <span className="text-xs text-zinc-500">For entry access</span>
+                    </div>
+                </Link>
+
+                <Link href="/dashboard/workouts" className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl hover:bg-zinc-800 transition group flex flex-col items-center justify-center gap-3 text-center">
+                    <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Dumbbell className="text-blue-500" size={20} />
+                    </div>
+                    <div>
+                        <span className="block font-semibold text-white">Workouts</span>
+                        <span className="text-xs text-zinc-500">Log activity</span>
+                    </div>
+                </Link>
+
+                <Link href="/dashboard/classes" className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl hover:bg-zinc-800 transition group flex flex-col items-center justify-center gap-3 text-center">
+                    <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <CalendarDays className="text-green-500" size={20} />
+                    </div>
+                    <div>
+                        <span className="block font-semibold text-white">Classes</span>
+                        <span className="text-xs text-zinc-500">Book sessions</span>
+                    </div>
+                </Link>
+
+                <Link href="/dashboard/subscription" className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl hover:bg-zinc-800 transition group flex flex-col items-center justify-center gap-3 text-center">
+                    <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <CreditCard className="text-purple-500" size={20} />
+                    </div>
+                    <div>
+                        <span className="block font-semibold text-white">Subscription</span>
+                        <span className="text-xs text-zinc-500">Manage plan</span>
+                    </div>
+                </Link>
+            </div>
+
+            {/* Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
-                    title="Total Members"
-                    value={loading ? "..." : (stats?.totalMembers?.toLocaleString() || "0")}
-                    trend={stats ? `${stats.conversionRate}% active` : "Loading..."}
+                    title="Workouts This Week"
+                    value={memberStats.workoutsThisWeek.toString()}
+                    trend="Keep it up!"
                     trendUp={true}
-                    icon={Users}
+                    icon={Dumbbell}
+                    color="red"
+                />
+                <StatCard
+                    title="Active Minutes"
+                    value={memberStats.minutesActive.toString()}
+                    trend="High intensity"
+                    trendUp={true}
+                    icon={Activity}
                     color="blue"
                 />
                 <StatCard
-                    title="Active Now"
-                    value={loading ? "..." : (stats?.activeNow?.toString() || "0")}
-                    trend="Active subscriptions"
+                    title="Streak"
+                    value={`${memberStats.streak} Days`}
+                    trend="Consistent"
                     trendUp={true}
-                    icon={Activity}
+                    icon={TrendingUp}
                     color="green"
                 />
                 <StatCard
-                    title="Monthly Revenue"
-                    value={loading ? "..." : formatCurrency(stats?.monthlyRevenue || 0)}
-                    trend="This month"
+                    title="Next Class"
+                    value={memberStats.nextClass.split(' - ')[0]}
+                    trend={memberStats.nextClass.split(' - ')[1]}
                     trendUp={true}
-                    icon={CreditCard}
+                    icon={CalendarDays}
                     color="purple"
-                />
-                <StatCard
-                    title="Conversion Rate"
-                    value={loading ? "..." : `${stats?.conversionRate || 0}%`}
-                    trend="Active / Total"
-                    trendUp={(stats?.conversionRate || 0) > 50}
-                    icon={TrendingUp}
-                    color="red"
                 />
             </div>
 
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2">
-                    <ActivityChart />
-                </div>
-
-                {/* Recent Activity / Side Widget */}
-                <div className="bg-zinc-900/50 p-6 rounded-2xl border border-zinc-800 backdrop-blur-sm">
-                    <h3 className="text-lg font-semibold text-white mb-4">Recent Signups</h3>
-                    <div className="space-y-4">
-                        {loading ? (
-                            <div className="text-zinc-400 text-sm">Loading...</div>
-                        ) : recentSignups.length === 0 ? (
-                            <div className="text-zinc-400 text-sm">No recent signups</div>
-                        ) : (
-                            recentSignups.map((signup) => (
-                                <div key={signup.id} className="flex items-center gap-4 p-3 hover:bg-zinc-800 rounded-xl transition cursor-pointer group">
-                                    <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-sm font-bold text-zinc-300">
-                                        {signup.initials}
-                                    </div>
-                                    <div className="flex-1">
-                                        <h4 className="text-sm font-medium text-white">{signup.name}</h4>
-                                        <p className="text-xs text-zinc-400">{signup.planName}</p>
-                                    </div>
-                                    <span className="text-xs text-zinc-500">{signup.timeAgo}</span>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                    <button className="w-full mt-6 py-2 text-sm text-red-500 hover:text-red-400 font-medium transition">
-                        View All Members
+            {/* Promo / Banner */}
+            <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/50 p-8">
+                <div className="relative z-10 max-w-xl">
+                    <h3 className="text-2xl font-bold text-white mb-2">Upgrade to Pro Trainer</h3>
+                    <p className="text-zinc-400 mb-6">
+                        Get personalized workout plans and 1-on-1 coaching sessions with our elite trainers.
+                    </p>
+                    <button className="px-6 py-3 bg-red-700 text-white font-semibold rounded-xl hover:bg-red-600 transition shadow-lg shadow-red-900/20">
+                        Explore Trainers
                     </button>
                 </div>
+
+                {/* Decorative BG */}
+                <div className="absolute top-0 right-0 h-full w-1/3 bg-gradient-to-l from-red-900/20 to-transparent pointer-events-none" />
+                <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-red-600/10 rounded-full blur-3xl pointer-events-none" />
             </div>
         </div>
     );
