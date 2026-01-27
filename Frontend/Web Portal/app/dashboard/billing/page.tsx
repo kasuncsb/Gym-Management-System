@@ -7,11 +7,13 @@ import { subscriptionAPI } from "@/lib/api";
 
 interface Subscription {
     id: string;
-    planName: string;
     status: string;
     startDate: string;
     endDate: string;
-    amount?: number;
+    plan?: {
+        name: string;
+        price: string;
+    };
 }
 
 // Format currency in LKR
@@ -78,7 +80,7 @@ export default function BillingPage() {
                                     <CheckCircle size={12} /> {subscription?.status || 'No Active Plan'}
                                 </div>
                                 <h3 className="text-4xl font-bold text-white mb-2">
-                                    {subscription?.planName || 'No Plan'}
+                                    {subscription?.plan?.name || 'No Plan'}
                                 </h3>
                                 <p className="text-zinc-400 max-w-md">
                                     {subscription
@@ -88,7 +90,7 @@ export default function BillingPage() {
                             </div>
                             <div className="text-right">
                                 <p className="text-3xl font-bold text-white">
-                                    {subscription?.amount ? formatCurrency(subscription.amount) : '--'}
+                                    {subscription?.plan?.price ? formatCurrency(Number(subscription.plan.price)) : '--'}
                                     <span className="text-lg text-zinc-500 font-medium">/mo</span>
                                 </p>
                                 <p className="text-sm text-zinc-500 mt-1">

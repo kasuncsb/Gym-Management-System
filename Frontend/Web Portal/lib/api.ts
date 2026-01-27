@@ -128,6 +128,9 @@ export const subscriptionAPI = {
 
     getPlan: (id: string) =>
         apiClient.get(`/subscriptions/plans/${id}`),
+
+    getUpcomingRenewals: () =>
+        apiClient.get('/subscriptions/renewals/upcoming'),
 };
 
 export const qrAPI = {
@@ -139,6 +142,25 @@ export const qrAPI = {
 
     getAccessLogs: (startDate?: string, endDate?: string, status?: string, limit: number = 100) =>
         apiClient.get('/qr/access-logs', { params: { startDate, endDate, status, limit } }),
+};
+
+export const appointmentAPI = {
+    create: (data: { trainerId: string; startTime: string; endTime: string; type?: string; notes?: string }) =>
+        apiClient.post('/appointments', data),
+
+    listMy: () =>
+        apiClient.get('/appointments/me'),
+};
+
+export const leadAPI = {
+    list: () =>
+        apiClient.get('/leads'),
+
+    create: (data: { name: string; email?: string; phone?: string; source?: string }) =>
+        apiClient.post('/leads', data),
+
+    updateStatus: (leadId: string, status: string, notes?: string) =>
+        apiClient.patch(`/leads/${leadId}/status`, { status, notes }),
 };
 
 // Role-specific APIs
@@ -185,4 +207,3 @@ export const staffAPI = {
 };
 
 export default apiClient;
-
