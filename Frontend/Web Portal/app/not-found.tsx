@@ -13,21 +13,7 @@ export default function NotFound() {
                 <div className="absolute bottom-20 right-[10%] w-[300px] h-[300px] bg-red-600/20 rounded-full blur-[100px]" />
             </div>
 
-            {/* Logo */}
-            <Link href="/" className="mb-8 group">
-                <div className="flex items-center gap-3">
-                    <Image
-                        src="/logo.svg"
-                        alt="PowerWorld"
-                        width={48}
-                        height={48}
-                        className="group-hover:scale-105 transition-transform"
-                    />
-                    <span className="text-2xl font-bold tracking-tight">
-                        Power<span className="text-red-600">World</span>
-                    </span>
-                </div>
-            </Link>
+
 
             {/* 404 Content */}
             <div className="text-center px-6">

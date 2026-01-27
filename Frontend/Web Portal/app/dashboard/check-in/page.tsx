@@ -23,26 +23,26 @@ export default function CheckInPage() {
         setScanState('scanning');
         setError(null);
         try {
-            // Call QR verify API
-            const response = await qrAPI.verify(qrData);
+            // Call QR scan API
+            const response = await qrAPI.scan(qrData, 'reception-desk', 'kiosk-01', 'main-entrance');
             const data = response.data?.data;
 
             if (data?.valid) {
                 setScanState('success');
                 setLastScan({
                     name: data.member?.name || 'Member',
-                    status: 'Active',
+                    status: data.accessGranted ? 'Active' : 'Denied',
                     plan: data.member?.planName || 'Standard',
                     memberCode: data.member?.memberCode || '',
                     time: new Date().toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit' })
                 });
             } else {
                 setScanState('error');
-                setError('Invalid or expired QR code');
+                setError(data?.message || 'Invalid or expired QR code');
             }
         } catch (err: any) {
             setScanState('error');
-            setError(err?.response?.data?.error?.message || 'Failed to verify QR code');
+            setError(err?.response?.data?.error?.message || err?.message || 'Failed to verify QR code');
         }
     };
 
@@ -60,7 +60,8 @@ export default function CheckInPage() {
             if (members.length > 0) {
                 const member = members[0];
                 // Record check-in
-                await qrAPI.recordAccess(member.id || member._id, 'check_in');
+                // Record check-in via scan simulation
+                await qrAPI.scan(member.qrCode || member.memberCode || member.id, 'reception-desk', 'manual-entry', 'main-entrance');
 
                 setScanState('success');
                 setLastScan({

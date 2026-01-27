@@ -93,11 +93,11 @@ export function Sidebar() {
                 <div className="flex flex-col h-full">
                     {/* Logo Section */}
                     <Link href="/" className="h-20 flex items-center px-6 border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors">
-                        <div className="w-10 h-10 rounded-xl overflow-hidden mr-3">
-                            <Image src="/logo.svg" alt="PowerWorld" width={40} height={40} className="object-cover" />
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-700 to-red-600 flex items-center justify-center mr-3 group-hover:scale-105 transition-transform">
+                            <Dumbbell className="text-white" size={24} />
                         </div>
-                        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-red-500">
-                            PowerWorld
+                        <h1 className="text-xl font-bold tracking-tight text-white group-hover:text-red-100 transition-colors">
+                            Power<span className="text-red-500">World</span>
                         </h1>
                     </Link>
 
