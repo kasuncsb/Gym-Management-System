@@ -12,7 +12,7 @@ export interface AuthRequest extends Request {
     user?: {
         id: string;
         email: string;
-        role: 'member' | 'trainer' | 'staff';
+        role: 'member' | 'trainer' | 'staff' | 'admin';
         staffRole?: string;
     };
     headers: any;
@@ -24,7 +24,7 @@ export interface AuthRequest extends Request {
 interface JWTPayload {
     id: string;
     email: string;
-    role: 'member' | 'trainer' | 'staff';
+    role: 'member' | 'trainer' | 'staff' | 'admin';
     staffRole?: string;
 }
 
@@ -70,6 +70,34 @@ export const authenticate = async (
                 .where(eq(staff.id, decoded.id))
                 .limit(1);
             userExists = staffMember !== undefined && staffMember.deletedAt === null && staffMember.status === 'active';
+        } else if (decoded.role === 'admin') {
+            const [adminUser] = await db.select({ isActive: users.isActive, deletedAt: users.deletedAt })
+                .from(users)
+                .where(eq(users.id, decoded.id))
+                .limit(1);
+
+            if (adminUser) {
+                userExists = adminUser.deletedAt === null && adminUser.isActive === true;
+            } else {
+                const [adminStaff] = await db.select({
+                    staffDeletedAt: staff.deletedAt,
+                    staffStatus: staff.status,
+                    userDeletedAt: users.deletedAt,
+                    userIsActive: users.isActive,
+                    userRole: users.role
+                })
+                    .from(staff)
+                    .innerJoin(users, eq(staff.userId, users.id))
+                    .where(eq(staff.id, decoded.id))
+                    .limit(1);
+
+                userExists = adminStaff !== undefined
+                    && adminStaff.userRole === 'admin'
+                    && adminStaff.userDeletedAt === null
+                    && adminStaff.userIsActive === true
+                    && adminStaff.staffDeletedAt === null
+                    && adminStaff.staffStatus === 'active';
+            }
         }
 
         if (!userExists) {
