@@ -3,7 +3,8 @@ import { eq, and, isNull, gte, lte, lt, desc, asc } from 'drizzle-orm';
 import { db } from '../config/database';
 import { members, subscriptions, subscriptionPlans, users } from '../db/schema';
 import { NotFoundError, ValidationError } from '../utils/error-types';
-
+import { AuditService, AuditAction } from './audit.service';
+import { randomUUID } from 'crypto';
 export interface ValidationResult {
     valid: boolean;
     subscription?: any;
@@ -204,6 +205,16 @@ export class SubscriptionService {
         // Drizzle return type for update?
         // It returns [MySqlResultSet] usually or similar.
         // We can just return basic confirmation.
-        return 1;
+        if (result[0].affectedRows > 0) {
+            await AuditService.log(
+                AuditAction.UPDATE,
+                'subscriptions',
+                'batch',
+                undefined, // System action
+                { action: 'expire_subscriptions', count: result[0].affectedRows }
+            );
+        }
+
+        return result[0].affectedRows;
     }
 }

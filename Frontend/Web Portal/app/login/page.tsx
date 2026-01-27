@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { authAPI } from "@/lib/api";
+import { authAPI, getErrorMessage } from "@/lib/api";
 import { Dumbbell, ArrowLeft, Mail, Lock, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -48,7 +48,7 @@ export default function Login() {
 
         } catch (err: any) {
             console.error('Login failed:', err);
-            setError(err.response?.data?.message || 'Invalid credentials. Please try again.');
+            setError(getErrorMessage(err));
         } finally {
             setIsLoading(false);
         }
@@ -129,7 +129,7 @@ export default function Login() {
                         <div className="space-y-2">
                             <div className="flex justify-between items-center">
                                 <label className="text-sm font-medium text-zinc-300">Password</label>
-                                <Link href="#" className="text-xs text-indigo-400 hover:text-indigo-300">Forgot password?</Link>
+                                <Link href="/forgot-password" className="text-xs text-indigo-400 hover:text-indigo-300">Forgot password?</Link>
                             </div>
                             <div className="relative group">
                                 <Lock className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
@@ -159,7 +159,7 @@ export default function Login() {
                     <div className="mt-8 text-center text-sm text-zinc-400">
                         Don&apos;t have an account? {' '}
                         <Link href="/register" className="text-indigo-400 hover:text-indigo-300 font-medium hover:underline">
-                            Start generic trial
+                            Create Account
                         </Link>
                     </div>
                 </div>

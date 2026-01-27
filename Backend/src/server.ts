@@ -13,7 +13,7 @@ async function startServer() {
 
         // Start Express server
         server = app.listen(PORT, () => {
-            logger.info(`🚀 PowerWorld Gym API server running on port ${PORT}`);
+            logger.info(`PowerWorld Gym API server running on port ${PORT}`);
             logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
             logger.info(`Health check: http://localhost:${PORT}/health`);
         });

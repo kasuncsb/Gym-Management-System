@@ -1,12 +1,15 @@
 // Authentication Service - Drizzle ORM
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, gt } from 'drizzle-orm';
 import { db } from '../config/database';
 import { members, trainers, staff, users } from '../db/schema';
 import { AuthenticationError, ValidationError, NotFoundError } from '../utils/error-types';
 import { generateQRToken, generateQRCode } from '../utils/qr-generator';
 import { validateEmail, validatePassword } from '../utils/validators';
+import { EmailService } from './email.service';
+import { AuditService, AuditAction } from './audit.service';
+import { randomUUID } from 'crypto';
 
 const JWT_SECRET: string = process.env.JWT_SECRET || 'default-secret-change-this';
 const JWT_EXPIRES_IN: string = process.env.JWT_EXPIRES_IN || '7d';
@@ -49,6 +52,10 @@ export class AuthService {
             throw new AuthenticationError('Account is not active');
         }
 
+        if (!user.isEmailVerified) {
+            throw new AuthenticationError('Email not verified. Please check your inbox.');
+        }
+
         const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
         if (!isPasswordValid) {
             throw new AuthenticationError('Invalid credentials');
@@ -72,6 +79,15 @@ export class AuthService {
             },
             JWT_SECRET,
             { expiresIn: '30d' }
+        );
+
+        // Log successful login
+        await AuditService.log(
+            AuditAction.LOGIN,
+            'members',
+            member.id,
+            user.id,
+            { email: user.email, role: 'member' }
         );
 
         return {
@@ -120,6 +136,10 @@ export class AuthService {
             throw new AuthenticationError('Account is not active');
         }
 
+        if (!user.isEmailVerified) {
+            throw new AuthenticationError('Email not verified. Please check your inbox.');
+        }
+
         const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
         if (!isPasswordValid) {
             throw new AuthenticationError('Invalid credentials');
@@ -143,6 +163,15 @@ export class AuthService {
             },
             JWT_SECRET,
             { expiresIn: '30d' }
+        );
+
+        // Log successful login
+        await AuditService.log(
+            AuditAction.LOGIN,
+            'trainers',
+            trainer.id,
+            user.id,
+            { email: user.email, role: 'trainer' }
         );
 
         return {
@@ -182,6 +211,10 @@ export class AuthService {
             throw new AuthenticationError('Account is not active');
         }
 
+        if (!user.isEmailVerified) {
+            throw new AuthenticationError('Email not verified. Please check your inbox.');
+        }
+
         const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
         if (!isPasswordValid) {
             throw new AuthenticationError('Invalid credentials');
@@ -206,6 +239,15 @@ export class AuthService {
             },
             JWT_SECRET,
             { expiresIn: '30d' }
+        );
+
+        // Log successful login
+        await AuditService.log(
+            AuditAction.LOGIN,
+            'staff',
+            staffMember.id,
+            user.id,
+            { email: user.email, role: user.role, designation: staffMember.designation }
         );
 
         return {
@@ -256,10 +298,10 @@ export class AuthService {
         const qrToken = generateQRToken(memberId);
         const qrCodeDataUrl = await generateQRCode(memberId);
 
-        // Update member's QR token
-        await db.update(members)
-            .set({ qrCode: qrToken })
-            .where(eq(members.id, memberId));
+        // Update member's QR token - Removed as qrCode column is deprecated
+        // await db.update(members)
+        //     .set({ qrCode: qrToken })
+        //     .where(eq(members.id, memberId));
 
         return {
             qrCodeDataUrl,
@@ -399,5 +441,87 @@ export class AuthService {
         await db.update(users)
             .set({ passwordHash: newPasswordHash })
             .where(eq(users.id, realUserId));
+
+        await AuditService.log(
+            AuditAction.CHANGE_PASSWORD,
+            'users',
+            realUserId,
+            realUserId,
+            { userType }
+        );
+    }
+
+    // Verify Email
+    static async verifyEmail(token: string): Promise<boolean> {
+        const [user] = await db.select().from(users).where(eq(users.emailVerificationToken, token)).limit(1);
+        if (!user) throw new NotFoundError('Invalid verification token');
+
+        await db.update(users)
+            .set({
+                isEmailVerified: true,
+                emailVerificationToken: null,
+                isActive: true
+            })
+            .where(eq(users.id, user.id));
+
+        await AuditService.log(
+            AuditAction.VERIFY_EMAIL,
+            'users',
+            user.id,
+            user.id
+        );
+
+        return true;
+    }
+
+    // Forgot Password
+    static async forgotPassword(email: string): Promise<void> {
+        const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+        if (!user) return;
+
+        const token = randomUUID();
+        const expires = new Date(Date.now() + 3600000); // 1 hour
+
+        await db.update(users)
+            .set({
+                passwordResetToken: token,
+                passwordResetExpires: expires
+            })
+            .where(eq(users.id, user.id));
+
+        try {
+            await EmailService.sendPasswordResetEmail(user.email, token);
+        } catch (error) {
+            console.error('Failed to send reset email:', error);
+        }
+    }
+
+    // Reset Password
+    static async resetPassword(token: string, newPassword: string): Promise<void> {
+        const [user] = await db.select().from(users)
+            .where(and(
+                eq(users.passwordResetToken, token),
+                gt(users.passwordResetExpires, new Date())
+            ))
+            .limit(1);
+
+        if (!user) throw new AuthenticationError('Invalid or expired reset token');
+
+        const passwordHash = await this.hashPassword(newPassword);
+
+        await db.update(users)
+            .set({
+                passwordHash,
+                passwordResetToken: null,
+                passwordResetExpires: null
+            })
+            .where(eq(users.id, user.id));
+
+        await AuditService.log(
+            AuditAction.RESET_PASSWORD,
+            'users',
+            user.id,
+            user.id
+        );
     }
 }

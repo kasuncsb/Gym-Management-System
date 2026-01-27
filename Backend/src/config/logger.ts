@@ -22,16 +22,19 @@ if (process.env.NODE_ENV !== 'production') {
   logger.add(
     new winston.transports.Console({
       format: winston.format.combine(
+        winston.format((info) => {
+          info.level = info.level.toUpperCase();
+          return info;
+        })(),
         winston.format.colorize(),
-        winston.format.printf(
-          ({ level, message, timestamp, ...metadata }: winston.Logform.TransformableInfo) => {
-            let msg = `${timestamp} [${String(level).toUpperCase()}]: ${message}`;
-            if (Object.keys(metadata).length > 0) {
-              msg += ` ${JSON.stringify(metadata)}`;
-            }
-            return msg;
+        winston.format.printf(({ level, message, ...metadata }) => {
+          let msg = `${level}:   ${message}`;
+          // Only append stack trace if available, avoid raw JSON objects
+          if (metadata.stack) {
+            msg += `\n${metadata.stack}`;
           }
-        )
+          return msg;
+        })
       ),
     })
   );

@@ -115,7 +115,7 @@ export function Navbar() {
                         className="px-6 py-4 bg-indigo-600 text-white text-center font-bold rounded-xl text-lg hover:bg-indigo-700"
                         onClick={() => setIsOpen(false)}
                     >
-                        Start Free Trial
+                        Create Account
                     </Link>
                 </div>
             )}

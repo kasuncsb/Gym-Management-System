@@ -3,23 +3,40 @@
 import { useState } from 'react';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { authAPI } from "@/lib/api";
-import { Dumbbell, User, Mail, Lock, Phone, Loader2 } from "lucide-react";
+import { authAPI, getErrorMessage } from "@/lib/api";
+import { Dumbbell, User, Mail, Lock, Phone, Loader2, CheckCircle, ArrowRight, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Register() {
-    const [email, setEmail] = useState('');
     const [name, setName] = useState('');
-    const [password, setPassword] = useState('');
+    const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [passwordFocused, setPasswordFocused] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [isSuccess, setIsSuccess] = useState(false);
     const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         setError('');
+
+        if (password !== confirmPassword) {
+            setError('Passwords do not match');
+            setIsLoading(false);
+            return;
+        }
+
+        if (password.length < 8) {
+            setError('Password must be at least 8 characters');
+            setIsLoading(false);
+            return;
+        }
 
         try {
             await authAPI.register({
@@ -29,15 +46,44 @@ export default function Register() {
                 phone
             });
 
-            // Navigate to login
-            router.push('/login');
+            setIsSuccess(true);
         } catch (err: any) {
             console.error('Registration failed:', err);
-            setError(err.response?.data?.message || 'Registration failed. Please try again.');
+            setError(getErrorMessage(err));
         } finally {
             setIsLoading(false);
         }
     };
+
+    if (isSuccess) {
+        return (
+            <div className="min-h-screen bg-black text-white flex items-center justify-center p-6 relative overflow-hidden">
+                <div className="absolute inset-0 z-0">
+                    <div className="absolute top-0 right-[-10%] w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[128px]" />
+                    <div className="absolute bottom-0 left-[-10%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[128px]" />
+                </div>
+
+                <div className="w-full max-w-md bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-8 rounded-3xl shadow-2xl relative z-10 text-center">
+                    <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <CheckCircle className="text-green-500" size={32} />
+                    </div>
+
+                    <h2 className="text-2xl font-bold mb-4">Account Created!</h2>
+                    <p className="text-zinc-400 mb-8 leading-relaxed">
+                        We've sent a verification link to <span className="text-white font-medium">{email}</span>.
+                        Please check your inbox to verify your account and access the dashboard.
+                    </p>
+
+                    <Link
+                        href="/login"
+                        className="w-full py-3.5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2"
+                    >
+                        Go to Login <ArrowRight size={18} />
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-black text-white flex relative overflow-hidden selection:bg-indigo-500/30">
@@ -141,18 +187,76 @@ export default function Register() {
                             </div>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-2 relative">
                             <label className="text-sm font-medium text-zinc-300">Password</label>
                             <div className="relative group">
                                 <Lock className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
                                 <input
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                                    onFocus={() => setPasswordFocused(true)}
+                                    onBlur={() => setPasswordFocused(false)}
+                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-12 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                                     placeholder="Create password"
                                     required
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-3.5 text-zinc-500 hover:text-white transition-colors"
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
+
+                            {/* Password Requirements Tooltip */}
+                            {passwordFocused && (
+                                <div className="absolute top-full left-0 mt-4 w-full lg:top-1/2 lg:-translate-y-1/2 lg:left-full lg:ml-6 lg:mt-0 lg:w-72 p-4 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-50 animate-in fade-in slide-in-from-top-2 lg:slide-in-from-left-2 transition-all">
+                                    {/* Tooltip Arrow/Tail */}
+                                    <div className="absolute w-3 h-3 bg-zinc-900 border-zinc-800 transform rotate-45 
+                                        top-[-7px] left-1/2 -translate-x-1/2 border-t border-l
+                                        lg:top-1/2 lg:left-[-7px] lg:-translate-y-1/2 lg:translate-x-0 lg:border-t-0 lg:border-l lg:border-b"
+                                    />
+
+                                    <h4 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+                                        <AlertCircle size={14} className="text-indigo-400" /> Password Requirements
+                                    </h4>
+                                    <ul className="space-y-1">
+                                        {[
+                                            { label: "At least 8 characters", valid: password.length >= 8 },
+                                            { label: "One uppercase letter", valid: /[A-Z]/.test(password) },
+                                            { label: "One number", valid: /[0-9]/.test(password) },
+                                        ].map((req, i) => (
+                                            <li key={i} className={cn("text-xs flex items-center gap-2", req.valid ? "text-green-400" : "text-zinc-500")}>
+                                                <div className={cn("w-1.5 h-1.5 rounded-full", req.valid ? "bg-green-400" : "bg-zinc-700")} />
+                                                {req.label}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-zinc-300">Confirm Password</label>
+                            <div className="relative group">
+                                <Lock className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+                                <input
+                                    type={showConfirmPassword ? "text" : "password"}
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-12 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                                    placeholder="Confirm password"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className="absolute right-4 top-3.5 text-zinc-500 hover:text-white transition-colors"
+                                >
+                                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
                             </div>
                         </div>
 

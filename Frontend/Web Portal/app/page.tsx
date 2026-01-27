@@ -42,7 +42,7 @@ export default function Home() {
               href="/register"
               className="w-full sm:w-auto px-8 py-4 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-all transform hover:scale-105 flex items-center justify-center gap-2"
             >
-              Start Free Trial <ArrowRight size={20} />
+              Create Account <ArrowRight size={20} />
             </Link>
             <Link
               href="/login"
@@ -116,8 +116,8 @@ export default function Home() {
               <div
                 key={i}
                 className={`relative p-8 rounded-3xl border flex flex-col ${plan.popular
-                    ? "bg-zinc-900/80 border-indigo-500 shadow-2xl shadow-indigo-500/10 scale-105 z-10"
-                    : "bg-black border-zinc-800 hover:border-zinc-700"
+                  ? "bg-zinc-900/80 border-indigo-500 shadow-2xl shadow-indigo-500/10 scale-105 z-10"
+                  : "bg-black border-zinc-800 hover:border-zinc-700"
                   }`}
               >
                 {plan.popular && (
@@ -146,8 +146,8 @@ export default function Home() {
                 </div>
 
                 <button className={`w-full py-4 rounded-xl font-bold transition-all ${plan.popular
-                    ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25"
-                    : "bg-zinc-100 hover:bg-white text-black"
+                  ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25"
+                  : "bg-zinc-100 hover:bg-white text-black"
                   }`}>
                   Choose Plan
                 </button>

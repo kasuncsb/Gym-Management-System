@@ -120,4 +120,25 @@ export class AuthController {
         const result = await AuthService.generateMemberQR(memberId);
         res.json(successResponse(result, 'QR code generated'));
     });
+
+    // Verify Email
+    static verifyEmail = asyncHandler(async (req: Request, res: Response) => {
+        const { token } = req.body;
+        await AuthService.verifyEmail(token);
+        res.json(successResponse(null, 'Email verified successfully'));
+    });
+
+    // Forgot Password
+    static forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+        const { email } = req.body;
+        await AuthService.forgotPassword(email);
+        res.json(successResponse(null, 'If your email is registered, you will receive a password reset link'));
+    });
+
+    // Reset Password
+    static resetPassword = asyncHandler(async (req: Request, res: Response) => {
+        const { token, newPassword } = req.body;
+        await AuthService.resetPassword(token, newPassword);
+        res.json(successResponse(null, 'Password reset successfully'));
+    });
 }

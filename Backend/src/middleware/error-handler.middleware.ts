@@ -10,13 +10,7 @@ export const errorHandler = (
     _next: NextFunction
 ) => {
     // Log error
-    logger.error('Error occurred:', {
-        message: err.message,
-        stack: err.stack,
-        path: req.path,
-        method: req.method,
-        ip: req.ip
-    });
+    logger.error(err.message);
 
     // Handle known operational errors
     if (err instanceof AppError) {

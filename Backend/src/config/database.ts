@@ -23,11 +23,11 @@ export const db = drizzle(poolConnection, { schema, mode: 'default' });
 // Test connection
 poolConnection.getConnection()
   .then(connection => {
-    logger.info('✅ Database connected successfully');
+    logger.info('Database connected successfully');
     connection.release();
   })
   .catch(err => {
-    logger.error('❌ Database connection failed:', err);
+    logger.error('Database connection failed:', err);
     process.exit(1);
   });
 

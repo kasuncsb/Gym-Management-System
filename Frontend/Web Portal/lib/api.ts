@@ -24,20 +24,44 @@ apiClient.interceptors.request.use(
 );
 
 // Response interceptor for error handling
+// Response interceptor for global error handling
 apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
+        // Handle 401 Unauthorized (Token expired)
         if (error.response?.status === 401) {
-            // Token expired or invalid
             localStorage.removeItem('token');
             localStorage.removeItem('user');
-            if (typeof window !== 'undefined') {
+            if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
                 window.location.href = '/login';
             }
         }
+
+        // Normalize error message from backend structure
+        // Backend returns: { success: false, error: { code: '...', message: '...' } }
+        if (error.response?.data?.error?.message) {
+            error.message = error.response.data.error.message;
+        } else if (error.response?.data?.message) {
+            error.message = error.response.data.message;
+        }
+
         return Promise.reject(error);
     }
 );
+
+// Helper to extract user-friendly error message
+export const getErrorMessage = (error: any): string => {
+    if (error.response?.data?.error?.message) {
+        return error.response.data.error.message;
+    }
+    if (error.response?.data?.message) {
+        return error.response.data.message;
+    }
+    if (error.message) {
+        return error.message;
+    }
+    return 'An unexpected error occurred. Please try again.';
+};
 
 // API Services
 export const authAPI = {
@@ -58,6 +82,15 @@ export const authAPI = {
 
     getQRCode: () =>
         apiClient.get('/auth/qr-code'),
+
+    verifyEmail: (token: string) =>
+        apiClient.post('/auth/verify-email', { token }),
+
+    forgotPassword: (email: string) =>
+        apiClient.post('/auth/forgot-password', { email }),
+
+    resetPassword: (token: string, newPassword: string) =>
+        apiClient.post('/auth/reset-password', { token, newPassword }),
 };
 
 export const memberAPI = {

@@ -5,9 +5,10 @@ import { members, users, subscriptions, subscriptionPlans, accessLogs } from '..
 import { AuthService } from './auth.service';
 import { NotFoundError, ConflictError, ValidationError } from '../utils/error-types';
 import { validateEmail, validatePhone, formatPhoneNumber } from '../utils/validators';
-import { generateQRToken } from '../utils/qr-generator';
+import { AuditService, AuditAction } from './audit.service';
 import { generateMemberId } from '../utils/id-generator';
 import { randomUUID } from 'crypto';
+import { EmailService } from './email.service';
 
 export class MemberService {
     // Create new member (registration)
@@ -50,7 +51,7 @@ export class MemberService {
         const userId = randomUUID();
         const memberId = randomUUID();
         const memberCode = generateMemberId();
-        const qrCodeToken = generateQRToken(memberId);
+        const emailVerificationToken = randomUUID();
 
         // Transaction to create user and member
         // @ts-ignore - transaction type inference issue
@@ -63,7 +64,9 @@ export class MemberService {
                 fullName: data.name,
                 phone: phone,
                 role: 'member',
-                isActive: true,
+                isActive: true, // Account active, but email not verified
+                isEmailVerified: false,
+                emailVerificationToken: emailVerificationToken,
             });
 
             // 2. Create Member Profile
@@ -72,16 +75,30 @@ export class MemberService {
                 userId: userId,
                 memberCode: memberCode,
                 dateOfBirth: data.dateOfBirth,
-                emergencyContactName: data.emergencyContact, // mapped from input
-                // medicalConditions? not in input
-                qrCode: qrCodeToken, // Schema has qrCode, input generates qrCodeToken. Mapping to qrCode column for now.
+                emergencyContactName: data.emergencyContact,
                 status: 'active',
                 joinDate: new Date(),
             });
         });
 
+        // Send verification email
+        try {
+            await EmailService.sendVerificationEmail(data.email, emailVerificationToken);
+        } catch (error) {
+            console.error('Failed to send verification email:', error);
+        }
+
+        // Log member registration
+        await AuditService.log(
+            AuditAction.REGISTER,
+            'members',
+            memberId,
+            userId,
+            { email: data.email, name: data.name, method: 'self-register' }
+        );
+
         return {
-            memberId, // Return the internal ID or memberCode? Usually internal ID for API consistency
+            memberId,
             memberCode,
             name: data.name,
             email: data.email,
@@ -117,9 +134,6 @@ export class MemberService {
                 eq(subscriptions.memberId, memberId),
                 isNull(subscriptions.deletedAt)
             ))
-            // Schema check: subscriptions has no createdAt. It has startDate.
-            // But wait, my task plan didn't check for createdAt in subscriptions.
-            // I'll use startDate for ordering.
             .orderBy(desc(subscriptions.startDate))
             .limit(5);
 
@@ -190,6 +204,20 @@ export class MemberService {
                 .set(memberUpdates)
                 .where(eq(members.id, memberId));
         }
+
+        // Log update
+        await AuditService.log(
+            AuditAction.UPDATE,
+            'members',
+            memberId,
+            existing.userId, // User performing update (likely themselves, or admin context needed)
+            {
+                updatedFields: [
+                    ...Object.keys(userUpdates),
+                    ...Object.keys(memberUpdates)
+                ]
+            }
+        );
 
         return this.getMemberById(memberId);
     }
@@ -293,6 +321,17 @@ export class MemberService {
             .set({ status: lowerStatus })
             .where(eq(members.id, memberId));
 
+        // Get user ID for log
+        const [mem] = await db.select({ userId: members.userId }).from(members).where(eq(members.id, memberId));
+
+        await AuditService.log(
+            AuditAction.UPDATE,
+            'members',
+            memberId,
+            mem?.userId || 'unknown',
+            { action: 'change_status', newStatus: lowerStatus }
+        );
+
         return this.getMemberById(memberId);
     }
 
@@ -305,10 +344,6 @@ export class MemberService {
             })
             .where(eq(members.id, memberId));
 
-        // Also update user? Or keep user active?
-        // Usually if member is deleted, we might keep user to allow login but show "No active membership"?
-        // Or if this is a "Hard" soft delete, deactivating user is safer.
-
         const [existing] = await db.select({ userId: members.userId }).from(members).where(eq(members.id, memberId));
         if (existing) {
             await db.update(users)
@@ -317,6 +352,14 @@ export class MemberService {
                 })
                 .where(eq(users.id, existing.userId));
         }
+
+        await AuditService.log(
+            AuditAction.DELETE,
+            'members',
+            memberId,
+            existing?.userId || 'unknown',
+            { type: 'soft_delete' }
+        );
     }
 
     // Get member statistics
@@ -331,9 +374,7 @@ export class MemberService {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const checkedInToday = await db.selectDistinct({ memberId: accessLogs.userId }) // Schema has userId in accessLogs, not memberId directly?
-            // Wait, accessLogs has userId. members has userId. So we can link them.
-            // But the stats probably want count of distinct members (users) who accessed.
+        const checkedInToday = await db.selectDistinct({ memberId: accessLogs.userId })
             .from(accessLogs)
             .where(and(
                 eq(accessLogs.direction, 'in'),
