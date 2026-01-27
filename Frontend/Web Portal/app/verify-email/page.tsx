@@ -36,8 +36,8 @@ function VerifyEmailContent() {
         <div className="w-full max-w-md bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-8 rounded-3xl shadow-2xl relative z-10 text-center">
             {status === 'loading' && (
                 <>
-                    <div className="w-16 h-16 bg-indigo-600/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Loader2 className="text-indigo-500 animate-spin" size={32} />
+                    <div className="w-16 h-16 bg-red-700/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Loader2 className="text-red-600 animate-spin" size={32} />
                     </div>
                     <h2 className="text-2xl font-bold mb-4">Verifying Email...</h2>
                     <p className="text-zinc-400">Please wait while we verify your account.</p>
@@ -55,7 +55,7 @@ function VerifyEmailContent() {
                     </p>
                     <Link
                         href="/login"
-                        className="w-full py-3.5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2"
+                        className="w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-700 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2"
                     >
                         Go to Login <ArrowRight size={18} />
                     </Link>
@@ -88,14 +88,14 @@ export default function VerifyEmail() {
         <div className="min-h-screen bg-black text-white flex items-center justify-center p-6 relative overflow-hidden">
             {/* Background Effects */}
             <div className="absolute inset-0 z-0">
-                <div className="absolute top-0 right-[-10%] w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[128px]" />
-                <div className="absolute bottom-0 left-[-10%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[128px]" />
+                <div className="absolute top-0 right-[-10%] w-[500px] h-[500px] bg-red-700/20 rounded-full blur-[128px]" />
+                <div className="absolute bottom-0 left-[-10%] w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[128px]" />
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
             </div>
 
             <Suspense fallback={
                 <div className="w-full max-w-md bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-8 rounded-3xl shadow-2xl relative z-10 text-center">
-                    <Loader2 className="text-indigo-500 animate-spin mx-auto" size={32} />
+                    <Loader2 className="text-red-600 animate-spin mx-auto" size={32} />
                 </div>
             }>
                 <VerifyEmailContent />

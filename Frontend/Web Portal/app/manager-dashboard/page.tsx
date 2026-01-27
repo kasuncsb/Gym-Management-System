@@ -2,24 +2,37 @@
 
 import { useState, useEffect } from 'react';
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { authAPI } from "@/lib/api";
+import { dashboardService, DashboardStats } from "@/lib/api/dashboard.service";
+import { Dumbbell, Users, Calendar, Clipboard, LogOut, Loader2, Clock, Package } from "lucide-react";
+
+// Format currency in LKR
+const formatCurrency = (amount: number): string => {
+    return `Rs. ${new Intl.NumberFormat('en-LK').format(amount)}`;
+};
 
 export default function ManagerDashboard() {
     const [profile, setProfile] = useState<any>(null);
+    const [stats, setStats] = useState<DashboardStats | null>(null);
     const [currentTime, setCurrentTime] = useState(new Date());
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-        const fetchProfile = async () => {
+        const fetchData = async () => {
             try {
                 const token = localStorage.getItem('token');
                 if (!token) { router.push('/login'); return; }
-                const res = await authAPI.getProfile();
-                setProfile(res.data.data);
+
+                const [profileRes, statsData] = await Promise.all([
+                    authAPI.getProfile(),
+                    dashboardService.getStats().catch(() => null)
+                ]);
+
+                setProfile(profileRes.data.data);
+                setStats(statsData);
             } catch (e) {
                 console.error(e);
                 router.push('/login');
@@ -27,52 +40,116 @@ export default function ManagerDashboard() {
                 setLoading(false);
             }
         };
-        fetchProfile();
+        fetchData();
         return () => clearInterval(timer);
     }, [router]);
 
-    if (loading || !profile) return <div className="flex h-screen items-center justify-center"><div className="animate-spin h-10 w-10 border-b-2 border-red-600 rounded-full"></div></div>;
+    if (loading || !profile) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-black">
+                <Loader2 className="animate-spin text-red-600" size={40} />
+            </div>
+        );
+    }
+
+    const formatDate = (date: Date) => {
+        return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
-            <nav className="bg-white text-gray-900 py-4 px-6 relative z-10 border-b border-gray-200 shadow-sm">
+        <div className="min-h-screen bg-black text-white">
+            <nav className="bg-zinc-900/50 backdrop-blur-xl border-b border-zinc-800 py-4 px-6 sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
-                    <div className="flex items-center space-x-3">
-                        <Link href="/" className="flex items-center space-x-3 group">
-                            <Image src="/logo.png" alt="Logo" width={50} height={50} className="transition-transform group-hover:scale-105" priority />
-                            <span className="text-xl font-bold text-gray-900 group-hover:text-red-500 transition-colors">PowerWorld Manager</span>
-                        </Link>
-                    </div>
+                    <Link href="/" className="flex items-center space-x-3 group">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-600 to-emerald-600 flex items-center justify-center">
+                            <Dumbbell className="text-white" size={20} />
+                        </div>
+                        <span className="text-xl font-bold text-white group-hover:text-green-400 transition-colors">PowerWorld Manager</span>
+                    </Link>
                     <div className="flex items-center space-x-4">
                         <div className="text-right">
-                            <div className="text-sm text-gray-500">Manager</div>
-                            <div className="text-gray-900 font-semibold">{profile.name}</div>
+                            <div className="text-sm text-zinc-500">Branch Manager</div>
+                            <div className="text-white font-semibold">{profile.name}</div>
                         </div>
-                        <button onClick={() => { localStorage.removeItem('token'); router.push('/login'); }} className="text-red-500 hover:text-red-700 text-sm">Logout</button>
+                        <button
+                            onClick={() => { localStorage.removeItem('token'); router.push('/login'); }}
+                            className="p-2 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
+                        >
+                            <LogOut size={20} />
+                        </button>
                     </div>
                 </div>
             </nav>
 
-            <main className="flex-1 px-6 py-8">
+            <main className="px-6 py-8">
                 <div className="max-w-7xl mx-auto">
                     <div className="mb-8">
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Branch Management</h1>
-                        <p className="text-gray-600">{currentTime.toLocaleString()}</p>
+                        <h1 className="text-3xl font-bold text-white mb-2">Branch Management</h1>
+                        <p className="text-zinc-500">{formatDate(currentTime)}</p>
                     </div>
 
+                    {/* Stats */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-2xl p-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-2 rounded-xl bg-red-500/10 text-blue-400">
+                                    <Users size={20} />
+                                </div>
+                                <h3 className="text-sm font-medium text-zinc-400">Branch Members</h3>
+                            </div>
+                            <div className="text-3xl font-bold text-white">{stats?.totalMembers?.toLocaleString() || '0'}</div>
+                        </div>
+
+                        <div className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-2xl p-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-2 rounded-xl bg-green-500/10 text-green-400">
+                                    <Clock size={20} />
+                                </div>
+                                <h3 className="text-sm font-medium text-zinc-400">Active Today</h3>
+                            </div>
+                            <div className="text-3xl font-bold text-white">{stats?.activeNow || '0'}</div>
+                        </div>
+
+                        <div className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-2xl p-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
+                                    <Package size={20} />
+                                </div>
+                                <h3 className="text-sm font-medium text-zinc-400">Monthly Revenue</h3>
+                            </div>
+                            <div className="text-3xl font-bold text-white">{formatCurrency(stats?.monthlyRevenue || 0)}</div>
+                        </div>
+                    </div>
+
+                    {/* Management Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <div className="p-6 bg-white rounded-lg border shadow-sm">
-                            <h3 className="text-xl font-semibold mb-2">Staff Shifts</h3>
-                            <p className="text-gray-600">Manage daily schedules.</p>
-                        </div>
-                        <div className="p-6 bg-white rounded-lg border shadow-sm">
-                            <h3 className="text-xl font-semibold mb-2">Inventory</h3>
-                            <p className="text-gray-600">Track equipment and supplies.</p>
-                        </div>
-                        <div className="p-6 bg-white rounded-lg border shadow-sm">
-                            <h3 className="text-xl font-semibold mb-2">Member Feedback</h3>
-                            <p className="text-gray-600">Review complaints and suggestions.</p>
-                        </div>
+                        <Link href="/dashboard/schedule" className="p-6 bg-zinc-900/50 backdrop-blur-md rounded-2xl border border-zinc-800 hover:border-red-500/50 transition-all group cursor-pointer">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="p-2 rounded-lg bg-red-500/10 text-blue-400">
+                                    <Calendar size={20} />
+                                </div>
+                                <h3 className="text-xl font-semibold text-blue-400 group-hover:text-blue-300">Staff Shifts</h3>
+                            </div>
+                            <p className="text-zinc-500">Manage daily schedules and shifts.</p>
+                        </Link>
+                        <Link href="/dashboard/members" className="p-6 bg-zinc-900/50 backdrop-blur-md rounded-2xl border border-zinc-800 hover:border-green-500/50 transition-all group cursor-pointer">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="p-2 rounded-lg bg-green-500/10 text-green-400">
+                                    <Users size={20} />
+                                </div>
+                                <h3 className="text-xl font-semibold text-green-400 group-hover:text-green-300">Members</h3>
+                            </div>
+                            <p className="text-zinc-500">View and manage branch members.</p>
+                        </Link>
+                        <Link href="/dashboard/settings" className="p-6 bg-zinc-900/50 backdrop-blur-md rounded-2xl border border-zinc-800 hover:border-purple-500/50 transition-all group cursor-pointer">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400">
+                                    <Clipboard size={20} />
+                                </div>
+                                <h3 className="text-xl font-semibold text-purple-400 group-hover:text-purple-300">Reports</h3>
+                            </div>
+                            <p className="text-zinc-500">View branch reports and analytics.</p>
+                        </Link>
                     </div>
                 </div>
             </main>

@@ -21,7 +21,7 @@ const getMonthlyPrice = (plan: Plan): string => {
 
 const planColors: Record<string, string> = {
     'monthly': 'zinc',
-    'annual': 'indigo',
+    'annual': 'red',
     'gold': 'purple',
     'default': 'zinc'
 };
@@ -62,7 +62,7 @@ export default function SubscriptionPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="animate-spin text-indigo-400" size={32} />
+                <Loader2 className="animate-spin text-red-500" size={32} />
             </div>
         );
     }
@@ -106,12 +106,12 @@ export default function SubscriptionPage() {
                                 className={cn(
                                     "relative p-8 rounded-3xl border backdrop-blur-md transition-all duration-300 flex flex-col h-full",
                                     isCurrent
-                                        ? "bg-black/80 border-indigo-500 shadow-2xl shadow-indigo-500/20 scale-105 z-10"
+                                        ? "bg-black/80 border-red-600 shadow-2xl shadow-red-600/20 scale-105 z-10"
                                         : "bg-black/40 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/40"
                                 )}
                             >
                                 {isPopular && (
-                                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-xs font-bold text-white uppercase tracking-wide shadow-lg">
+                                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-red-600 to-purple-500 text-xs font-bold text-white uppercase tracking-wide shadow-lg">
                                         Most Popular
                                     </div>
                                 )}
@@ -127,7 +127,7 @@ export default function SubscriptionPage() {
                                         <span className="text-sm text-zinc-500">/month</span>
                                     </div>
                                     {isCurrent && (
-                                        <div className="mt-4 py-2 px-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-sm font-semibold flex items-center justify-center gap-2">
+                                        <div className="mt-4 py-2 px-3 rounded-lg bg-red-600/10 border border-red-600/20 text-red-500 text-sm font-semibold flex items-center justify-center gap-2">
                                             <Check size={16} /> Current Plan
                                         </div>
                                     )}
@@ -138,7 +138,7 @@ export default function SubscriptionPage() {
                                         <div key={idx} className="flex items-start gap-3">
                                             <div className={cn(
                                                 "w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5",
-                                                isCurrent ? "bg-indigo-500 text-white" : "bg-zinc-800 text-zinc-400"
+                                                isCurrent ? "bg-red-600 text-white" : "bg-zinc-800 text-zinc-400"
                                             )}>
                                                 <Check size={12} />
                                             </div>
@@ -169,7 +169,7 @@ export default function SubscriptionPage() {
             {/* Quick Actions */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
                 <div className="p-6 rounded-2xl bg-zinc-900/30 border border-zinc-800 flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
+                    <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center text-blue-400">
                         <CreditCard size={24} />
                     </div>
                     <div>

@@ -1,25 +1,100 @@
 "use client";
 
-import { useState } from "react";
-import { QrCode, Search, CheckCircle, XCircle, User } from "lucide-react";
+import { useState, useCallback } from "react";
+import { QrCode, Search, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { qrAPI, memberAPI } from "@/lib/api";
+
+interface CheckInResult {
+    name: string;
+    status: string;
+    plan: string;
+    memberCode: string;
+    time: string;
+}
 
 export default function CheckInPage() {
     const [scanState, setScanState] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle');
-    const [lastScan, setLastScan] = useState<any>(null);
+    const [lastScan, setLastScan] = useState<CheckInResult | null>(null);
+    const [searchInput, setSearchInput] = useState("");
+    const [error, setError] = useState<string | null>(null);
+
+    const handleQRScan = async (qrData: string) => {
+        setScanState('scanning');
+        setError(null);
+        try {
+            // Call QR verify API
+            const response = await qrAPI.verify(qrData);
+            const data = response.data?.data;
+
+            if (data?.valid) {
+                setScanState('success');
+                setLastScan({
+                    name: data.member?.name || 'Member',
+                    status: 'Active',
+                    plan: data.member?.planName || 'Standard',
+                    memberCode: data.member?.memberCode || '',
+                    time: new Date().toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit' })
+                });
+            } else {
+                setScanState('error');
+                setError('Invalid or expired QR code');
+            }
+        } catch (err: any) {
+            setScanState('error');
+            setError(err?.response?.data?.error?.message || 'Failed to verify QR code');
+        }
+    };
+
+    const handleManualSearch = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!searchInput.trim()) return;
+
+        setScanState('scanning');
+        setError(null);
+
+        try {
+            const response = await memberAPI.search(searchInput);
+            const members = response.data?.data || [];
+
+            if (members.length > 0) {
+                const member = members[0];
+                // Record check-in
+                await qrAPI.recordAccess(member.id || member._id, 'check_in');
+
+                setScanState('success');
+                setLastScan({
+                    name: member.name,
+                    status: member.status || 'Active',
+                    plan: member.planName || 'Standard',
+                    memberCode: member.memberCode || '',
+                    time: new Date().toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit' })
+                });
+            } else {
+                setScanState('error');
+                setError('No member found with that ID or phone number');
+            }
+        } catch (err: any) {
+            setScanState('error');
+            setError(err?.response?.data?.error?.message || 'Search failed');
+        }
+    };
 
     const simulateScan = () => {
+        // In real implementation, this would activate camera and read QR
+        // For now, show scanning state
         setScanState('scanning');
         setTimeout(() => {
-            setScanState('success');
-            setLastScan({
-                name: "Alex Johnson",
-                status: "Active",
-                plan: "Premium",
-                image: null,
-                time: new Date().toLocaleTimeString()
-            });
-        }, 1500);
+            setScanState('idle');
+            setError('Camera not available. Use manual entry below.');
+        }, 2000);
+    };
+
+    const resetState = () => {
+        setScanState('idle');
+        setLastScan(null);
+        setError(null);
+        setSearchInput("");
     };
 
     return (
@@ -32,25 +107,64 @@ export default function CheckInPage() {
             {/* Scanner Area */}
             <div className="relative aspect-square md:aspect-video bg-black rounded-3xl border-2 border-dashed border-zinc-800 flex flex-col items-center justify-center overflow-hidden group">
                 {scanState === 'scanning' && (
-                    <div className="absolute inset-0 z-0 bg-indigo-500/10 animate-pulse" />
+                    <div className="absolute inset-0 z-0 bg-red-600/10 animate-pulse" />
                 )}
 
                 {/* Scanner Overlay Line */}
-                <div className="absolute top-0 left-0 w-full h-1 bg-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.5)] animate-[scan_2s_ease-in-out_infinite]" />
+                {scanState === 'scanning' && (
+                    <div className="absolute top-0 left-0 w-full h-1 bg-red-600 shadow-[0_0_20px_rgba(99,102,241,0.5)] animate-[scan_2s_ease-in-out_infinite]" />
+                )}
 
-                <div className="relative z-10 p-8 rounded-full bg-zinc-900/50 border border-zinc-700 mb-6">
-                    <QrCode size={48} className="text-white" />
-                </div>
+                {scanState === 'success' ? (
+                    <div className="relative z-10 text-center">
+                        <div className="p-8 rounded-full bg-green-500/10 border border-green-500/20 mb-6 inline-flex">
+                            <CheckCircle size={48} className="text-green-500" />
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-2">Access Granted</h3>
+                        <button onClick={resetState} className="text-red-500 hover:text-red-400">
+                            Scan Another
+                        </button>
+                    </div>
+                ) : scanState === 'error' ? (
+                    <div className="relative z-10 text-center">
+                        <div className="p-8 rounded-full bg-red-500/10 border border-red-500/20 mb-6 inline-flex">
+                            <XCircle size={48} className="text-red-500" />
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-2">Access Denied</h3>
+                        <p className="text-zinc-500 mb-4">{error}</p>
+                        <button onClick={resetState} className="text-red-500 hover:text-red-400">
+                            Try Again
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                        <div className="relative z-10 p-8 rounded-full bg-zinc-900/50 border border-zinc-700 mb-6">
+                            {scanState === 'scanning' ? (
+                                <Loader2 size={48} className="text-white animate-spin" />
+                            ) : (
+                                <QrCode size={48} className="text-white" />
+                            )}
+                        </div>
 
-                <h3 className="text-xl font-bold text-white mb-2">Ready to Scan</h3>
-                <p className="text-zinc-500 mb-8 max-w-xs text-center">Position the member's QR code within the frame.</p>
+                        <h3 className="text-xl font-bold text-white mb-2">
+                            {scanState === 'scanning' ? 'Scanning...' : 'Ready to Scan'}
+                        </h3>
+                        <p className="text-zinc-500 mb-8 max-w-xs text-center">
+                            Position the member's QR code within the frame.
+                        </p>
 
-                <button
-                    onClick={simulateScan}
-                    className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition shadow-lg shadow-indigo-500/20"
-                >
-                    {scanState === 'scanning' ? "Scanning..." : "Activate Camera"}
-                </button>
+                        <button
+                            onClick={simulateScan}
+                            disabled={scanState === 'scanning'}
+                            className={cn(
+                                "px-8 py-3 bg-red-700 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-600/20",
+                                scanState === 'scanning' && "opacity-50 cursor-not-allowed"
+                            )}
+                        >
+                            {scanState === 'scanning' ? "Scanning..." : "Activate Camera"}
+                        </button>
+                    </>
+                )}
             </div>
 
             {/* Manual Entry */}
@@ -63,19 +177,25 @@ export default function CheckInPage() {
                 </div>
             </div>
 
-            <div className="flex gap-4">
+            <form onSubmit={handleManualSearch} className="flex gap-4">
                 <div className="relative flex-1 group">
-                    <Search className="absolute left-4 top-3.5 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" size={20} />
+                    <Search className="absolute left-4 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={20} />
                     <input
                         type="text"
-                        placeholder="Enter Member ID or Phone Number"
-                        className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        placeholder="Enter Member Code or Phone Number"
+                        className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
                     />
                 </div>
-                <button className="px-6 py-3 bg-zinc-800 text-white font-bold rounded-xl hover:bg-zinc-700 transition border border-zinc-700">
+                <button
+                    type="submit"
+                    disabled={scanState === 'scanning'}
+                    className="px-6 py-3 bg-zinc-800 text-white font-bold rounded-xl hover:bg-zinc-700 transition border border-zinc-700"
+                >
                     Check In
                 </button>
-            </div>
+            </form>
 
             {/* Last Scanned Result */}
             {lastScan && (
@@ -90,7 +210,10 @@ export default function CheckInPage() {
                                 <span className="px-2 py-0.5 rounded text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/10 uppercase tracking-wide">
                                     Access Granted
                                 </span>
-                                <span className="text-sm text-zinc-500">{lastScan.plan} Plan</span>
+                                <span className="text-sm text-zinc-500">{lastScan.plan}</span>
+                                {lastScan.memberCode && (
+                                    <span className="text-sm text-zinc-600">#{lastScan.memberCode}</span>
+                                )}
                             </div>
                         </div>
                         <div className="text-right">

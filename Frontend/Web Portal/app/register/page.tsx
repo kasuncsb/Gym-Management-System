@@ -59,8 +59,8 @@ export default function Register() {
         return (
             <div className="min-h-screen bg-black text-white flex items-center justify-center p-6 relative overflow-hidden">
                 <div className="absolute inset-0 z-0">
-                    <div className="absolute top-0 right-[-10%] w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[128px]" />
-                    <div className="absolute bottom-0 left-[-10%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[128px]" />
+                    <div className="absolute top-0 right-[-10%] w-[500px] h-[500px] bg-red-700/20 rounded-full blur-[128px]" />
+                    <div className="absolute bottom-0 left-[-10%] w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[128px]" />
                 </div>
 
                 <div className="w-full max-w-md bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-8 rounded-3xl shadow-2xl relative z-10 text-center">
@@ -76,7 +76,7 @@ export default function Register() {
 
                     <Link
                         href="/login"
-                        className="w-full py-3.5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2"
+                        className="w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-700 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2"
                     >
                         Go to Login <ArrowRight size={18} />
                     </Link>
@@ -86,11 +86,11 @@ export default function Register() {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white flex relative overflow-hidden selection:bg-indigo-500/30">
+        <div className="min-h-screen bg-black text-white flex relative overflow-hidden selection:bg-red-600/30">
             {/* Background Effects */}
             <div className="absolute inset-0 z-0">
-                <div className="absolute top-0 right-[-10%] w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[128px]" />
-                <div className="absolute bottom-0 left-[-10%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[128px]" />
+                <div className="absolute top-0 right-[-10%] w-[500px] h-[500px] bg-red-700/20 rounded-full blur-[128px]" />
+                <div className="absolute bottom-0 left-[-10%] w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[128px]" />
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
             </div>
 
@@ -98,17 +98,17 @@ export default function Register() {
             <div className="hidden lg:flex lg:w-1/2 relative z-10 flex-col justify-between p-12 lg:p-16 order-last">
                 <div className="flex justify-end">
                     <Link href="/" className="inline-flex items-center gap-2 group mb-12">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-700 to-red-600 flex items-center justify-center group-hover:scale-105 transition-transform">
                             <Dumbbell className="text-white" size={24} />
                         </div>
-                        <span className="text-xl font-bold tracking-tight">Power<span className="text-indigo-400">World</span></span>
+                        <span className="text-xl font-bold tracking-tight">Power<span className="text-red-500">World</span></span>
                     </Link>
                 </div>
 
                 <div className="max-w-xl text-right ml-auto">
                     <h1 className="text-5xl font-bold mb-6 leading-tight">
                         Start your <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-l from-indigo-400 to-blue-500">Transformation.</span>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-l from-red-500 to-red-500">Transformation.</span>
                     </h1>
                     <p className="text-xl text-zinc-400 leading-relaxed">
                         Join thousands of members forging their best selves. Premium facilities, expert coding, and result-driven community.
@@ -125,7 +125,7 @@ export default function Register() {
                 <div className="w-full max-w-md bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-8 rounded-3xl shadow-2xl">
                     <div className="mb-8 text-center lg:text-left">
                         <Link href="/" className="lg:hidden inline-flex items-center gap-2 mb-8">
-                            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-lg bg-red-700 flex items-center justify-center">
                                 <Dumbbell className="text-white" size={18} />
                             </div>
                             <span className="text-lg font-bold">PowerWorld</span>
@@ -145,12 +145,12 @@ export default function Register() {
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-zinc-300">Full Name</label>
                             <div className="relative group">
-                                <User className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+                                <User className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={18} />
                                 <input
                                     type="text"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
-                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
                                     placeholder="e.g., Kasun Perera"
                                     required
                                 />
@@ -160,12 +160,12 @@ export default function Register() {
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-zinc-300">Email Address</label>
                             <div className="relative group">
-                                <Mail className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+                                <Mail className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={18} />
                                 <input
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
                                     placeholder="name@example.com"
                                     required
                                 />
@@ -175,12 +175,12 @@ export default function Register() {
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-zinc-300">Phone Number</label>
                             <div className="relative group">
-                                <Phone className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+                                <Phone className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={18} />
                                 <input
                                     type="tel"
                                     value={phone}
                                     onChange={(e) => setPhone(e.target.value)}
-                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
                                     placeholder="+94 77 123 4567"
                                     required
                                 />
@@ -190,14 +190,14 @@ export default function Register() {
                         <div className="space-y-2 relative">
                             <label className="text-sm font-medium text-zinc-300">Password</label>
                             <div className="relative group">
-                                <Lock className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+                                <Lock className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={18} />
                                 <input
                                     type={showPassword ? "text" : "password"}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     onFocus={() => setPasswordFocused(true)}
                                     onBlur={() => setPasswordFocused(false)}
-                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-12 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-12 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
                                     placeholder="Create password"
                                     required
                                 />
@@ -220,7 +220,7 @@ export default function Register() {
                                     />
 
                                     <h4 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
-                                        <AlertCircle size={14} className="text-indigo-400" /> Password Requirements
+                                        <AlertCircle size={14} className="text-red-500" /> Password Requirements
                                     </h4>
                                     <ul className="space-y-1">
                                         {[
@@ -241,12 +241,12 @@ export default function Register() {
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-zinc-300">Confirm Password</label>
                             <div className="relative group">
-                                <Lock className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+                                <Lock className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={18} />
                                 <input
                                     type={showConfirmPassword ? "text" : "password"}
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-12 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-12 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
                                     placeholder="Confirm password"
                                     required
                                 />
@@ -264,7 +264,7 @@ export default function Register() {
                             type="submit"
                             disabled={isLoading}
                             className={cn(
-                                "w-full py-3.5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 mt-4",
+                                "w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-700 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2 mt-4",
                                 isLoading && "opacity-70 cursor-not-allowed"
                             )}
                         >
@@ -274,7 +274,7 @@ export default function Register() {
 
                     <div className="mt-8 text-center text-sm text-zinc-400">
                         Already have an account? {' '}
-                        <Link href="/login" className="text-indigo-400 hover:text-indigo-300 font-medium hover:underline">
+                        <Link href="/login" className="text-red-500 hover:text-red-400 font-medium hover:underline">
                             Sign in instead
                         </Link>
                     </div>

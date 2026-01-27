@@ -20,7 +20,7 @@ export default function SettingsPage() {
                 {/* Notifications Section */}
                 <div className="p-6 rounded-2xl bg-black/40 border border-zinc-800 backdrop-blur-md">
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
+                        <div className="p-2 rounded-lg bg-red-600/10 text-red-500">
                             <Bell size={20} />
                         </div>
                         <h3 className="text-lg font-bold text-white">Notifications</h3>
@@ -36,7 +36,7 @@ export default function SettingsPage() {
                                 onClick={() => setEmailNotifs(!emailNotifs)}
                                 className={cn(
                                     "w-12 h-6 rounded-full p-1 transition-colors duration-300 relative",
-                                    emailNotifs ? "bg-indigo-600" : "bg-zinc-700"
+                                    emailNotifs ? "bg-red-700" : "bg-zinc-700"
                                 )}
                             >
                                 <div className={cn(
@@ -55,7 +55,7 @@ export default function SettingsPage() {
                                 onClick={() => setPushNotifs(!pushNotifs)}
                                 className={cn(
                                     "w-12 h-6 rounded-full p-1 transition-colors duration-300 relative",
-                                    pushNotifs ? "bg-indigo-600" : "bg-zinc-700"
+                                    pushNotifs ? "bg-red-700" : "bg-zinc-700"
                                 )}
                             >
                                 <div className={cn(
@@ -83,7 +83,7 @@ export default function SettingsPage() {
                                     <Smartphone size={18} />
                                 </div>
                                 <div>
-                                    <h4 className="font-medium text-white group-hover:text-indigo-400 transition">Two-Factor Authentication</h4>
+                                    <h4 className="font-medium text-white group-hover:text-red-500 transition">Two-Factor Authentication</h4>
                                     <p className="text-sm text-zinc-500">Add an extra layer of security.</p>
                                 </div>
                             </div>
@@ -96,7 +96,7 @@ export default function SettingsPage() {
                                     <Globe size={18} />
                                 </div>
                                 <div>
-                                    <h4 className="font-medium text-white group-hover:text-indigo-400 transition">Active Sessions</h4>
+                                    <h4 className="font-medium text-white group-hover:text-red-500 transition">Active Sessions</h4>
                                     <p className="text-sm text-zinc-500">Manage devices logged into your account.</p>
                                 </div>
                             </div>
@@ -115,8 +115,8 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="grid grid-cols-3 gap-4">
-                        <button className="p-4 rounded-xl border-2 border-indigo-500 bg-zinc-900/50 flex flex-col items-center gap-2">
-                            <Moon size={24} className="text-indigo-400" />
+                        <button className="p-4 rounded-xl border-2 border-red-600 bg-zinc-900/50 flex flex-col items-center gap-2">
+                            <Moon size={24} className="text-red-500" />
                             <span className="text-sm font-medium text-white">Pure Black</span>
                         </button>
                         <button className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/30 flex flex-col items-center gap-2 opacity-50 cursor-not-allowed">

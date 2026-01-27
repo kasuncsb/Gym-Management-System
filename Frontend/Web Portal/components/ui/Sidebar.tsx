@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
     LayoutDashboard,
@@ -91,12 +92,12 @@ export function Sidebar() {
             >
                 <div className="flex flex-col h-full">
                     {/* Logo Section */}
-                    <Link href="/" className="h-20 flex items-center px-8 border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center mr-3">
-                            <Dumbbell className="text-white" size={16} />
+                    <Link href="/" className="h-20 flex items-center px-6 border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors">
+                        <div className="w-10 h-10 rounded-xl overflow-hidden mr-3">
+                            <Image src="/logo.svg" alt="PowerWorld" width={40} height={40} className="object-cover" />
                         </div>
-                        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400">
-                            FitPulse
+                        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-red-500">
+                            PowerWorld
                         </h1>
                     </Link>
 
@@ -114,18 +115,18 @@ export function Sidebar() {
                                     className={cn(
                                         "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden",
                                         isActive
-                                            ? "bg-indigo-600/10 text-indigo-400 border border-indigo-500/20"
+                                            ? "bg-red-700/10 text-red-500 border border-red-600/20"
                                             : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100"
                                     )}
                                 >
                                     {isActive && (
-                                        <div className="absolute left-0 top-0 h-full w-1 bg-indigo-500 rounded-r-full" />
+                                        <div className="absolute left-0 top-0 h-full w-1 bg-red-600 rounded-r-full" />
                                     )}
                                     <item.icon
                                         size={20}
                                         className={cn(
                                             "transition-transform duration-200 group-hover:scale-110",
-                                            isActive ? "text-indigo-400" : "text-zinc-500 group-hover:text-zinc-300"
+                                            isActive ? "text-red-500" : "text-zinc-500 group-hover:text-zinc-300"
                                         )}
                                     />
                                     <span className="font-medium">{item.name}</span>
@@ -138,7 +139,7 @@ export function Sidebar() {
                     <div className="p-4 border-t border-zinc-800 bg-zinc-900/30">
                         {user && (
                             <div className="mb-4 flex items-center gap-3 px-2">
-                                <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center border border-zinc-700">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-700 to-red-600 flex items-center justify-center border border-red-600/30">
                                     <span className="text-sm font-bold text-white uppercase">{user.name?.charAt(0) || 'U'}</span>
                                 </div>
                                 <div className="overflow-hidden">

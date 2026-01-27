@@ -35,13 +35,13 @@ export default function ForgotPassword() {
         return (
             <div className="min-h-screen bg-black text-white flex items-center justify-center p-6 relative overflow-hidden">
                 <div className="absolute inset-0 z-0">
-                    <div className="absolute top-0 right-[-10%] w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[128px]" />
-                    <div className="absolute bottom-0 left-[-10%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[128px]" />
+                    <div className="absolute top-0 right-[-10%] w-[500px] h-[500px] bg-red-700/20 rounded-full blur-[128px]" />
+                    <div className="absolute bottom-0 left-[-10%] w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[128px]" />
                 </div>
 
                 <div className="w-full max-w-md bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-8 rounded-3xl shadow-2xl relative z-10 text-center">
-                    <div className="w-16 h-16 bg-indigo-600/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <CheckCircle className="text-indigo-500" size={32} />
+                    <div className="w-16 h-16 bg-red-700/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <CheckCircle className="text-red-600" size={32} />
                     </div>
 
                     <h2 className="text-2xl font-bold mb-4">Check Your Email</h2>
@@ -52,7 +52,7 @@ export default function ForgotPassword() {
 
                     <Link
                         href="/login"
-                        className="w-full py-3.5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2"
+                        className="w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-700 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2"
                     >
                         Back to Login
                     </Link>
@@ -62,11 +62,11 @@ export default function ForgotPassword() {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white flex relative overflow-hidden selection:bg-indigo-500/30">
+        <div className="min-h-screen bg-black text-white flex relative overflow-hidden selection:bg-red-600/30">
             {/* Background Effects */}
             <div className="absolute inset-0 z-0">
-                <div className="absolute top-0 right-[-10%] w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[128px]" />
-                <div className="absolute bottom-0 left-[-10%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[128px]" />
+                <div className="absolute top-0 right-[-10%] w-[500px] h-[500px] bg-red-700/20 rounded-full blur-[128px]" />
+                <div className="absolute bottom-0 left-[-10%] w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[128px]" />
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
             </div>
 
@@ -74,7 +74,7 @@ export default function ForgotPassword() {
                 <div className="w-full max-w-md bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-8 rounded-3xl shadow-2xl">
                     <div className="mb-8 text-center">
                         <Link href="/" className="inline-flex items-center gap-2 mb-8 group">
-                            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                            <div className="w-8 h-8 rounded-lg bg-red-700 flex items-center justify-center group-hover:scale-105 transition-transform">
                                 <Dumbbell className="text-white" size={18} />
                             </div>
                             <span className="text-lg font-bold">PowerWorld</span>
@@ -94,12 +94,12 @@ export default function ForgotPassword() {
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-zinc-300">Email Address</label>
                             <div className="relative group">
-                                <Mail className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+                                <Mail className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={18} />
                                 <input
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
                                     placeholder="name@example.com"
                                     required
                                 />
@@ -110,7 +110,7 @@ export default function ForgotPassword() {
                             type="submit"
                             disabled={isLoading}
                             className={cn(
-                                "w-full py-3.5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2",
+                                "w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-700 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2",
                                 isLoading && "opacity-70 cursor-not-allowed"
                             )}
                         >

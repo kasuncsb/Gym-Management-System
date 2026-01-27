@@ -48,7 +48,7 @@ export default function BillingPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="animate-spin text-indigo-400" size={32} />
+                <Loader2 className="animate-spin text-red-500" size={32} />
             </div>
         );
     }
@@ -64,15 +64,15 @@ export default function BillingPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Current Plan Card */}
                 <div className="lg:col-span-2 space-y-8">
-                    <div className="p-8 rounded-3xl bg-gradient-to-br from-indigo-900/40 via-black to-black border border-indigo-500/30 relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2" />
+                    <div className="p-8 rounded-3xl bg-gradient-to-br from-red-900/40 via-black to-black border border-red-600/30 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-red-700/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2" />
 
                         <div className="relative z-10 flex flex-col md:flex-row justify-between md:items-start gap-6">
                             <div>
                                 <div className={cn(
                                     "inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mb-4",
                                     subscription?.status === 'active'
-                                        ? "bg-indigo-500/20 border border-indigo-500/30 text-indigo-400"
+                                        ? "bg-red-600/20 border border-red-600/30 text-red-500"
                                         : "bg-zinc-500/20 border border-zinc-500/30 text-zinc-400"
                                 )}>
                                     <CheckCircle size={12} /> {subscription?.status || 'No Active Plan'}
@@ -115,7 +115,7 @@ export default function BillingPage() {
                     <div className="p-6 rounded-2xl bg-black/40 border border-zinc-800 backdrop-blur-md">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-lg font-bold text-white">Payment Method</h3>
-                            <button className="text-sm text-indigo-400 hover:text-indigo-300 font-medium">Add</button>
+                            <button className="text-sm text-red-500 hover:text-red-400 font-medium">Add</button>
                         </div>
                         <div className="flex items-center gap-4 p-4 rounded-xl bg-zinc-900/50 border border-zinc-800">
                             <div className="w-12 h-8 rounded bg-zinc-800 flex items-center justify-center border border-zinc-700">

@@ -63,15 +63,15 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-black text-white selection:bg-red-600/30">
       <Navbar />
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
         {/* Abstract Background */}
         <div className="absolute inset-0 z-0">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600/20 rounded-full blur-[128px]" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[128px]" />
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-red-700/20 rounded-full blur-[128px]" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-red-600/10 rounded-full blur-[128px]" />
           {/* Grid Pattern Overlay */}
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
         </div>
@@ -79,7 +79,7 @@ export default function Home() {
         <div className="container relative z-10 px-6 mx-auto text-center">
           {branches.length > 0 && (
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-900/50 border border-zinc-800 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
               <span className="text-sm font-medium text-zinc-300">
                 New Location Open in {branches[branches.length - 1].name.replace('Power World ', '')}
               </span>
@@ -87,7 +87,7 @@ export default function Home() {
           )}
 
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-            Forging <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-blue-500">Elite</span>
+            Forging <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-500">Elite</span>
             <br />
             Fitness in Sri Lanka
           </h1>
@@ -137,7 +137,7 @@ export default function Home() {
       <section id="features" className="py-32 relative">
         <div className="container px-6 mx-auto">
           <div className="text-center mb-24">
-            <h2 className="text-3xl md:text-5xl font-bold mb-6">Built for <span className="text-indigo-500">Performance</span></h2>
+            <h2 className="text-3xl md:text-5xl font-bold mb-6">Built for <span className="text-red-600">Performance</span></h2>
             <p className="text-zinc-400 max-w-2xl mx-auto text-lg">Everything you need to crush your fitness goals, all in one premium ecosystem.</p>
           </div>
 
@@ -147,9 +147,9 @@ export default function Home() {
               { title: "Expert Coaching", icon: Users, desc: "Certified personal trainers to guide your transformation." },
               { title: "Smart Tracking", icon: Trophy, desc: "Track workouts and progress with our dedicated mobile app." },
             ].map((feature, i) => (
-              <div key={i} className="p-8 rounded-2xl bg-zinc-900/50 border border-zinc-800 hover:border-indigo-500/50 hover:bg-zinc-900 transition-all group">
+              <div key={i} className="p-8 rounded-2xl bg-zinc-900/50 border border-zinc-800 hover:border-red-600/50 hover:bg-zinc-900 transition-all group">
                 <div className="w-14 h-14 rounded-xl bg-zinc-800 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                  <feature.icon className="text-indigo-400" size={28} />
+                  <feature.icon className="text-red-500" size={28} />
                 </div>
                 <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
                 <p className="text-zinc-400 leading-relaxed">{feature.desc}</p>
@@ -163,7 +163,7 @@ export default function Home() {
       <section id="pricing" className="py-32 bg-zinc-900/20 border-t border-zinc-900">
         <div className="container px-6 mx-auto">
           <div className="text-center mb-24">
-            <h2 className="text-3xl md:text-5xl font-bold mb-6">Simple, Transparent <span className="text-indigo-500">Pricing</span></h2>
+            <h2 className="text-3xl md:text-5xl font-bold mb-6">Simple, Transparent <span className="text-red-600">Pricing</span></h2>
             <p className="text-zinc-400">No joining fees. Cancel anytime.</p>
           </div>
 
@@ -177,12 +177,12 @@ export default function Home() {
                   <div
                     key={i}
                     className={`relative p-8 rounded-3xl border flex flex-col ${isPopular
-                      ? "bg-zinc-900/80 border-indigo-500 shadow-2xl shadow-indigo-500/10 scale-105 z-10"
+                      ? "bg-zinc-900/80 border-red-600 shadow-2xl shadow-red-600/10 scale-105 z-10"
                       : "bg-black border-zinc-800 hover:border-zinc-700"
                       }`}
                   >
                     {isPopular && (
-                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-indigo-600 text-white text-xs font-bold uppercase tracking-wide rounded-full">
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-red-700 text-white text-xs font-bold uppercase tracking-wide rounded-full">
                         Best Value
                       </div>
                     )}
@@ -197,8 +197,8 @@ export default function Home() {
                     <div className="flex-1 space-y-4 mb-8">
                       {getPlanBenefits(plan).map((feat, j) => (
                         <div key={j} className="flex items-center gap-3">
-                          <div className="w-5 h-5 rounded-full bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
-                            <Check size={12} className="text-indigo-400" />
+                          <div className="w-5 h-5 rounded-full bg-red-600/20 flex items-center justify-center flex-shrink-0">
+                            <Check size={12} className="text-red-500" />
                           </div>
                           <span className="text-zinc-300 text-sm">{feat}</span>
                         </div>
@@ -206,7 +206,7 @@ export default function Home() {
                     </div>
 
                     <button className={`w-full py-4 rounded-xl font-bold transition-all ${isPopular
-                      ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25"
+                      ? "bg-red-700 hover:bg-red-700 text-white shadow-lg shadow-red-600/25"
                       : "bg-zinc-100 hover:bg-white text-black"
                       }`}>
                       Select {plan.name}

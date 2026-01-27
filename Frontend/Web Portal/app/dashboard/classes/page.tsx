@@ -45,7 +45,7 @@ export default function ClassesPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="animate-spin text-indigo-400" size={32} />
+                <Loader2 className="animate-spin text-red-500" size={32} />
             </div>
         );
     }
@@ -66,7 +66,7 @@ export default function ClassesPage() {
                     </div>
                 ) : (
                     classes.map((cls) => (
-                        <div key={cls.id} className="group flex flex-col rounded-3xl bg-black/40 border border-zinc-800 backdrop-blur-sm overflow-hidden hover:border-indigo-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10">
+                        <div key={cls.id} className="group flex flex-col rounded-3xl bg-black/40 border border-zinc-800 backdrop-blur-sm overflow-hidden hover:border-red-600/50 transition-all duration-300 hover:shadow-2xl hover:shadow-red-600/10">
                             {/* Image */}
                             <div className="h-48 relative overflow-hidden">
                                 <img
@@ -105,7 +105,7 @@ export default function ClassesPage() {
 
                                 <Link
                                     href="/dashboard/schedule"
-                                    className="w-full py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-white font-medium hover:bg-indigo-600 hover:border-indigo-500 transition-all flex items-center justify-center gap-2 group-hover:translate-x-1"
+                                    className="w-full py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-white font-medium hover:bg-red-700 hover:border-red-600 transition-all flex items-center justify-center gap-2 group-hover:translate-x-1"
                                 >
                                     View Schedule <ArrowRight size={16} />
                                 </Link>

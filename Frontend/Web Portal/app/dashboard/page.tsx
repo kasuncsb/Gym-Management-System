@@ -45,14 +45,14 @@ export default function DashboardPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-3xl font-bold text-white">Dashboard</h2>
-                    <p className="text-zinc-400 mt-1">Welcome back, <span className="text-indigo-400 font-medium">{user?.name || 'User'}</span></p>
+                    <p className="text-zinc-400 mt-1">Welcome back, <span className="text-red-500 font-medium">{user?.name || 'User'}</span></p>
                 </div>
                 <div className="flex gap-3">
                     <button className="px-4 py-2 bg-zinc-900/50 border border-zinc-800 text-white rounded-lg hover:bg-zinc-800 transition backdrop-blur-sm">
                         Download Report
                     </button>
                     {user?.role !== 'member' && (
-                        <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition">
+                        <button className="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-700 shadow-lg shadow-red-600/20 transition">
                             Add Member
                         </button>
                     )}
@@ -91,7 +91,7 @@ export default function DashboardPage() {
                     trend="Active / Total"
                     trendUp={(stats?.conversionRate || 0) > 50}
                     icon={TrendingUp}
-                    color="orange"
+                    color="red"
                 />
             </div>
 
@@ -124,7 +124,7 @@ export default function DashboardPage() {
                             ))
                         )}
                     </div>
-                    <button className="w-full mt-6 py-2 text-sm text-indigo-400 hover:text-indigo-300 font-medium transition">
+                    <button className="w-full mt-6 py-2 text-sm text-red-500 hover:text-red-400 font-medium transition">
                         View All Members
                     </button>
                 </div>

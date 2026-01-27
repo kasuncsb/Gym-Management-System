@@ -55,11 +55,11 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen bg-black text-white flex relative overflow-hidden selection:bg-indigo-500/30">
+        <div className="min-h-screen bg-black text-white flex relative overflow-hidden selection:bg-red-600/30">
             {/* Background Effects */}
             <div className="absolute inset-0 z-0">
-                <div className="absolute top-0 left-[-10%] w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[128px]" />
-                <div className="absolute bottom-0 right-[-10%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[128px]" />
+                <div className="absolute top-0 left-[-10%] w-[500px] h-[500px] bg-red-700/20 rounded-full blur-[128px]" />
+                <div className="absolute bottom-0 right-[-10%] w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[128px]" />
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
             </div>
 
@@ -67,17 +67,17 @@ export default function Login() {
             <div className="hidden lg:flex lg:w-1/2 relative z-10 flex-col justify-between p-12 lg:p-16">
                 <div>
                     <Link href="/" className="inline-flex items-center gap-2 group mb-12">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-700 to-red-600 flex items-center justify-center group-hover:scale-105 transition-transform">
                             <Dumbbell className="text-white" size={24} />
                         </div>
-                        <span className="text-xl font-bold tracking-tight">Power<span className="text-indigo-400">World</span></span>
+                        <span className="text-xl font-bold tracking-tight">Power<span className="text-red-500">World</span></span>
                     </Link>
                 </div>
 
                 <div className="max-w-xl">
                     <h1 className="text-5xl font-bold mb-6 leading-tight">
                         Welcome back to <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-blue-500">Elite Fitness.</span>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-500">Elite Fitness.</span>
                     </h1>
                     <p className="text-xl text-zinc-400 leading-relaxed">
                         Track your progress, book classes, and crush your goals with our premium management platform.
@@ -94,7 +94,7 @@ export default function Login() {
                 <div className="w-full max-w-md bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-8 rounded-3xl shadow-2xl">
                     <div className="mb-8 text-center lg:text-left">
                         <Link href="/" className="lg:hidden inline-flex items-center gap-2 mb-8">
-                            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-lg bg-red-700 flex items-center justify-center">
                                 <Dumbbell className="text-white" size={18} />
                             </div>
                             <span className="text-lg font-bold">PowerWorld</span>
@@ -114,12 +114,12 @@ export default function Login() {
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-zinc-300">Email Address</label>
                             <div className="relative group">
-                                <Mail className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+                                <Mail className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={18} />
                                 <input
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
                                     placeholder="name@example.com"
                                     required
                                 />
@@ -129,15 +129,15 @@ export default function Login() {
                         <div className="space-y-2">
                             <div className="flex justify-between items-center">
                                 <label className="text-sm font-medium text-zinc-300">Password</label>
-                                <Link href="/forgot-password" className="text-xs text-indigo-400 hover:text-indigo-300">Forgot password?</Link>
+                                <Link href="/forgot-password" className="text-xs text-red-500 hover:text-red-400">Forgot password?</Link>
                             </div>
                             <div className="relative group">
-                                <Lock className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+                                <Lock className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={18} />
                                 <input
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
                                     placeholder="••••••••"
                                     required
                                 />
@@ -148,7 +148,7 @@ export default function Login() {
                             type="submit"
                             disabled={isLoading}
                             className={cn(
-                                "w-full py-3.5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2",
+                                "w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-700 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2",
                                 isLoading && "opacity-70 cursor-not-allowed"
                             )}
                         >
@@ -158,7 +158,7 @@ export default function Login() {
 
                     <div className="mt-8 text-center text-sm text-zinc-400">
                         Don&apos;t have an account? {' '}
-                        <Link href="/register" className="text-indigo-400 hover:text-indigo-300 font-medium hover:underline">
+                        <Link href="/register" className="text-red-500 hover:text-red-400 font-medium hover:underline">
                             Create Account
                         </Link>
                     </div>

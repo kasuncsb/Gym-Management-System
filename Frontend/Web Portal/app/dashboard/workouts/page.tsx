@@ -71,7 +71,7 @@ export default function WorkoutsPage() {
                     <h2 className="text-3xl font-bold text-white">Workouts</h2>
                     <p className="text-zinc-400 mt-1">Explore guided sessions and track your progress</p>
                 </div>
-                <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition font-medium">
+                <button className="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-700 shadow-lg shadow-red-600/20 transition font-medium">
                     Create Custom Plan
                 </button>
             </div>
@@ -126,11 +126,11 @@ export default function WorkoutsPage() {
 
                             <div className="mb-6 flex items-center gap-4 text-sm text-zinc-300">
                                 <div className="flex items-center gap-1.5">
-                                    <Clock size={16} className="text-indigo-400" />
+                                    <Clock size={16} className="text-red-500" />
                                     <span>{workout.duration}</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                    <Flame size={16} className="text-orange-500" />
+                                    <Flame size={16} className="text-red-600" />
                                     <span>{workout.calories}</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
@@ -139,7 +139,7 @@ export default function WorkoutsPage() {
                                 </div>
                             </div>
 
-                            <button className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 py-3 font-semibold text-white backdrop-blur-md transition-colors hover:bg-white/20 group-hover:bg-indigo-600 group-hover:shadow-lg group-hover:shadow-indigo-500/20">
+                            <button className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 py-3 font-semibold text-white backdrop-blur-md transition-colors hover:bg-white/20 group-hover:bg-red-700 group-hover:shadow-lg group-hover:shadow-red-600/20">
                                 <Play size={18} fill="currentColor" />
                                 Start Workout
                             </button>
