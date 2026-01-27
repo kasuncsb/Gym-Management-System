@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { subscriptionAPI, memberAPI, qrAPI } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';

@@ -2,20 +2,40 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from "next/link";
-import Image from "next/image";
-import { qrAPI } from "@/lib/api";
-// Note: In a real app, you'd use a library like 'jsqr' or 'react-qr-reader' to decode video stream.
-// For this demo, we simulate the 'decoding' part or assume 'scanResult' comes from a library.
-// We will simply start the camera stream to show we can, and keep the 'Simulate Scan' button 
-// which effectively tests the API integration.
+import { useRouter } from "next/navigation";
+import { qrAPI, authAPI } from "@/lib/api";
+import { Dumbbell, ScanLine, CheckCircle, XCircle, Loader2, DoorOpen, ArrowLeft } from "lucide-react";
+
+interface ScanResult {
+    success: boolean;
+    message: string;
+    memberName?: string;
+    direction?: 'in' | 'out';
+}
 
 export default function QRScannerPage() {
     const [isScanning, setIsScanning] = useState(false);
-    const [scanResult, setScanResult] = useState<string | null>(null);
-    const [apiMessage, setApiMessage] = useState<string>('');
+    const [scanResult, setScanResult] = useState<ScanResult | null>(null);
     const [loading, setLoading] = useState(false);
+    const [showDoorAnimation, setShowDoorAnimation] = useState(false);
+    const [profile, setProfile] = useState<any>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
+    const router = useRouter();
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            router.push('/login');
+            return;
+        }
+
+        authAPI.getProfile()
+            .then(res => setProfile(res.data.data))
+            .catch(() => router.push('/login'));
+
+        return () => stopScanning();
+    }, [router]);
 
     const startScanning = async () => {
         try {
@@ -31,6 +51,7 @@ export default function QRScannerPage() {
                 videoRef.current.srcObject = stream;
                 streamRef.current = stream;
                 setIsScanning(true);
+                setScanResult(null);
             }
         } catch (error) {
             console.error('Error accessing camera:', error);
@@ -47,141 +68,192 @@ export default function QRScannerPage() {
     };
 
     const handleScan = async (qrData: string) => {
-        setScanResult(qrData);
         setLoading(true);
-        setApiMessage('');
+        setScanResult(null);
 
         try {
-            // Call Backend
             const res = await qrAPI.scan(qrData, 'GATE01', 'SCANNER_WEB', 'Front Desk');
+
             if (res.data.success) {
-                setApiMessage(`✅ Access Granted: ${res.data.data.message || 'Welcome!'}`);
+                setScanResult({
+                    success: true,
+                    message: res.data.data.message || 'Access Granted',
+                    memberName: res.data.data.memberName,
+                    direction: res.data.data.direction,
+                });
+
+                // Show door unlock animation
+                setShowDoorAnimation(true);
+                setTimeout(() => setShowDoorAnimation(false), 3000);
             } else {
-                setApiMessage(`❌ Access Denied: ${res.data.message}`);
+                setScanResult({
+                    success: false,
+                    message: res.data.error?.message || 'Access Denied',
+                });
             }
         } catch (err: any) {
-            setApiMessage(`❌ Error: ${err.response?.data?.message || err.message}`);
+            const errorMsg = err.response?.data?.error?.message || err.message || 'Scan failed';
+            setScanResult({
+                success: false,
+                message: errorMsg,
+            });
         } finally {
             setLoading(false);
         }
     };
 
-    const simulateQRScan = () => {
-        // Simulate detecting a code
-        // In a real app this comes from the video decoder
-        const mockQRData = 'MEMBER-UUID-FROM-DB'; // You normally scan a UUID
+    const simulateScan = () => {
+        // In production, this would come from the camera decoder
+        const mockQRData = 'MEMBER-' + Date.now();
         handleScan(mockQRData);
     };
 
-    useEffect(() => {
-        return () => stopScanning();
-    }, []);
+    const getBackLink = () => {
+        if (!profile) return '/dashboard';
+        if (profile.role === 'admin' || profile.staffRole === 'admin') return '/admin-dashboard';
+        if (profile.role === 'manager' || profile.staffRole === 'manager') return '/manager-dashboard';
+        if (profile.role === 'staff') return '/staff-dashboard';
+        return '/dashboard';
+    };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
-            {/* Navigation Header */}
-            <nav className="bg-white text-gray-900 py-4 px-6 relative z-10 border-b border-gray-200 shadow-sm">
+        <div className="min-h-screen bg-black text-white">
+            {/* Navigation */}
+            <nav className="bg-zinc-900/50 backdrop-blur-xl border-b border-zinc-800 py-4 px-6 sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
-                    <div className="flex items-center space-x-3">
-                        <Link href="/" className="flex items-center space-x-3 group">
-                            <Image
-                                src="/logo.png"
-                                alt="PowerWorld Fitness Logo"
-                                width={50}
-                                height={50}
-                                className="transition-transform group-hover:scale-105"
-                                priority
-                            />
-                            <span className="text-xl font-bold text-gray-900 group-hover:text-red-500 transition-colors">
-                                PowerWorld
-                            </span>
-                        </Link>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                        <Link
-                            href="/dashboard"
-                            className="text-gray-600 hover:text-gray-900 transition-colors"
-                        >
-                            Back to Dashboard
-                        </Link>
-                    </div>
+                    <Link href="/" className="flex items-center space-x-3 group">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-700 to-red-900 flex items-center justify-center">
+                            <Dumbbell className="text-white" size={20} />
+                        </div>
+                        <span className="text-xl font-bold text-white group-hover:text-red-500 transition-colors">PowerWorld</span>
+                    </Link>
+                    <Link
+                        href={getBackLink()}
+                        className="flex items-center gap-2 text-zinc-400 hover:text-white transition"
+                    >
+                        <ArrowLeft size={18} />
+                        Back to Dashboard
+                    </Link>
                 </div>
             </nav>
 
             {/* Main Content */}
-            <main className="flex-1 px-6 py-8">
-                <div className="max-w-4xl mx-auto">
+            <main className="px-6 py-8">
+                <div className="max-w-2xl mx-auto">
                     {/* Header */}
                     <div className="text-center mb-8">
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Check In/Out</h1>
-                        <p className="text-gray-600">Scan member QR code</p>
+                        <h1 className="text-3xl font-bold text-white mb-2">QR Check In/Out</h1>
+                        <p className="text-zinc-500">Scan member QR code for access</p>
                     </div>
 
-                    {/* QR Scanner Section */}
-                    <div className="bg-white border border-gray-200 rounded-lg p-6 mb-8 shadow-sm">
-                        <h2 className="text-xl font-semibold text-gray-900 mb-6 text-center">QR Code Scanner</h2>
+                    {/* Door Animation Overlay */}
+                    {showDoorAnimation && (
+                        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
+                            <div className="text-center">
+                                <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center animate-pulse">
+                                    <DoorOpen className="text-white" size={60} />
+                                </div>
+                                <h2 className="text-3xl font-bold text-green-400 mb-2">Door Unlocked</h2>
+                                <p className="text-zinc-400">
+                                    {scanResult?.direction === 'in' ? 'Welcome!' : 'Goodbye!'}
+                                    {scanResult?.memberName && ` ${scanResult.memberName}`}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Scanner Card */}
+                    <div className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-2xl p-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="p-2 rounded-xl bg-red-500/10 text-red-400">
+                                <ScanLine size={24} />
+                            </div>
+                            <h2 className="text-xl font-semibold text-white">QR Scanner</h2>
+                        </div>
 
                         {!isScanning ? (
                             <div className="text-center">
-                                <div className="w-64 h-64 mx-auto mb-6 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
+                                <div className="w-64 h-64 mx-auto mb-6 bg-zinc-800 rounded-xl flex items-center justify-center border-2 border-dashed border-zinc-700">
                                     <div className="text-center">
-                                        <svg className="w-16 h-16 text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                                        </svg>
-                                        <p className="text-gray-600">Camera preview</p>
+                                        <ScanLine className="w-16 h-16 text-zinc-600 mx-auto mb-4" />
+                                        <p className="text-zinc-500">Camera preview</p>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={startScanning}
-                                    className="bg-red-500 hover:bg-red-600 text-white px-8 py-3 rounded-lg font-semibold transition-colors mr-4"
-                                >
-                                    Start Scanning
-                                </button>
-                                <button
-                                    onClick={simulateQRScan}
-                                    disabled={loading}
-                                    className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-8 py-3 rounded-lg font-semibold transition-colors"
-                                >
-                                    {loading ? 'Processing...' : 'Simulate Scan'}
-                                </button>
+                                <div className="flex gap-4 justify-center">
+                                    <button
+                                        onClick={startScanning}
+                                        className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 py-3 rounded-xl font-semibold transition-all"
+                                    >
+                                        Start Camera
+                                    </button>
+                                    <button
+                                        onClick={simulateScan}
+                                        disabled={loading}
+                                        className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-8 py-3 rounded-xl font-semibold transition-colors"
+                                    >
+                                        {loading ? <Loader2 className="animate-spin" size={20} /> : 'Simulate Scan'}
+                                    </button>
+                                </div>
                             </div>
                         ) : (
                             <div className="text-center">
-                                <div className="relative w-full max-w-lg mx-auto mb-6 bg-gray-900 rounded-lg overflow-hidden h-64 sm:h-96">
+                                <div className="relative w-full max-w-md mx-auto mb-6 bg-zinc-800 rounded-xl overflow-hidden aspect-video">
                                     <video
                                         ref={videoRef}
                                         autoPlay
                                         playsInline
                                         className="w-full h-full object-cover"
                                     />
-                                    <div className="absolute inset-0 border-2 border-red-500 rounded-lg opacity-50"></div>
+                                    <div className="absolute inset-0 border-4 border-red-500/50 rounded-xl pointer-events-none">
+                                        {/* Scanning overlay */}
+                                        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-red-500 animate-pulse" />
+                                    </div>
                                 </div>
-                                <button
-                                    onClick={stopScanning}
-                                    className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-8 py-3 rounded-lg font-semibold transition-colors"
-                                >
-                                    Stop Scanning
-                                </button>
-                                <div className="mt-4">
+                                <div className="flex gap-4 justify-center">
                                     <button
-                                        onClick={simulateQRScan}
-                                        disabled={loading}
-                                        className="bg-blue-100 text-blue-700 px-4 py-2 rounded text-sm hover:bg-blue-200"
+                                        onClick={stopScanning}
+                                        className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-8 py-3 rounded-xl font-semibold transition-colors"
                                     >
-                                        Force Simulate Detect
+                                        Stop Camera
+                                    </button>
+                                    <button
+                                        onClick={simulateScan}
+                                        disabled={loading}
+                                        className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-3 rounded-xl font-semibold transition-all"
+                                    >
+                                        {loading ? <Loader2 className="animate-spin" size={20} /> : 'Test Scan'}
                                     </button>
                                 </div>
                             </div>
                         )}
 
-                        {apiMessage && (
-                            <div className={`mt-4 p-4 rounded-lg border text-center ${apiMessage.includes('Granted') ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
-                                <p className="font-medium text-lg">
-                                    {apiMessage}
-                                </p>
-                                {scanResult && <p className="text-xs mt-1 opacity-75">Code: {scanResult}</p>}
+                        {/* Result Display */}
+                        {scanResult && !showDoorAnimation && (
+                            <div className={`mt-6 p-4 rounded-xl border ${scanResult.success
+                                    ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                                    : 'bg-red-500/10 border-red-500/30 text-red-400'
+                                }`}>
+                                <div className="flex items-center gap-3">
+                                    {scanResult.success ? (
+                                        <CheckCircle size={24} />
+                                    ) : (
+                                        <XCircle size={24} />
+                                    )}
+                                    <div>
+                                        <p className="font-semibold text-lg">{scanResult.message}</p>
+                                        {scanResult.memberName && (
+                                            <p className="text-sm opacity-75">{scanResult.memberName}</p>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         )}
+                    </div>
+
+                    {/* Instructions */}
+                    <div className="mt-6 text-center text-zinc-500 text-sm">
+                        <p>Point the camera at the member's QR code.</p>
+                        <p className="mt-1">Access requires verified identity and active subscription.</p>
                     </div>
                 </div>
             </main>

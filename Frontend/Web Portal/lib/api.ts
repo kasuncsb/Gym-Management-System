@@ -108,6 +108,9 @@ export const memberAPI = {
 
     getStats: () =>
         apiClient.get('/members/stats'),
+
+    uploadDocument: (data: { type: string; fileUrl: string }) =>
+        apiClient.post('/members/documents', data),
 };
 
 export const subscriptionAPI = {
@@ -138,4 +141,48 @@ export const qrAPI = {
         apiClient.get('/qr/access-logs', { params: { startDate, endDate, status, limit } }),
 };
 
+// Role-specific APIs
+export const adminAPI = {
+    getMetrics: () =>
+        apiClient.get('/admin/metrics'),
+
+    getPendingDocuments: () =>
+        apiClient.get('/admin/documents/pending'),
+
+    approveDocument: (id: string) =>
+        apiClient.put(`/admin/documents/${id}/approve`),
+
+    rejectDocument: (id: string, reason: string) =>
+        apiClient.put(`/admin/documents/${id}/reject`, { reason }),
+
+    getAllUsers: (page: number = 1, limit: number = 20) =>
+        apiClient.get('/admin/users', { params: { page, limit } }),
+};
+
+export const managerAPI = {
+    getMetrics: () =>
+        apiClient.get('/manager/metrics'),
+
+    getBranchMembers: (page: number = 1, limit: number = 20) =>
+        apiClient.get('/manager/members', { params: { page, limit } }),
+
+    getStaffList: () =>
+        apiClient.get('/manager/staff'),
+};
+
+export const staffAPI = {
+    getMetrics: () =>
+        apiClient.get('/staff/metrics'),
+
+    getTodayCheckIns: () =>
+        apiClient.get('/staff/checkins/today'),
+
+    getEquipmentStatus: () =>
+        apiClient.get('/staff/equipment'),
+
+    reportEquipmentIssue: (id: string) =>
+        apiClient.post(`/staff/equipment/${id}/report`),
+};
+
 export default apiClient;
+

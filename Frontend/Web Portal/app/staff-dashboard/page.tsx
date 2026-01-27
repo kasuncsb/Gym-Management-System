@@ -3,23 +3,43 @@
 import { useState, useEffect } from 'react';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { authAPI } from "@/lib/api";
-import { Dumbbell, QrCode, Calendar, Users, LogOut, Loader2, Clock } from "lucide-react";
+import { authAPI, staffAPI } from "@/lib/api";
+import { Dumbbell, ScanLine, Wrench, ClipboardList, LogOut, Loader2, UserCheck, AlertTriangle } from "lucide-react";
+
+interface StaffMetrics {
+    checkIns: {
+        today: number;
+    };
+    checkOuts: {
+        today: number;
+    };
+    equipment: {
+        total: number;
+        needsMaintenance: number;
+    };
+}
 
 export default function StaffDashboard() {
     const [profile, setProfile] = useState<any>(null);
+    const [metrics, setMetrics] = useState<StaffMetrics | null>(null);
     const [currentTime, setCurrentTime] = useState(new Date());
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-        const fetchProfile = async () => {
+        const fetchData = async () => {
             try {
                 const token = localStorage.getItem('token');
                 if (!token) { router.push('/login'); return; }
-                const res = await authAPI.getProfile();
-                setProfile(res.data.data);
+
+                const [profileRes, metricsRes] = await Promise.all([
+                    authAPI.getProfile(),
+                    staffAPI.getMetrics().catch(() => null)
+                ]);
+
+                setProfile(profileRes.data.data);
+                setMetrics(metricsRes?.data?.data || null);
             } catch (e) {
                 console.error(e);
                 router.push('/login');
@@ -27,7 +47,7 @@ export default function StaffDashboard() {
                 setLoading(false);
             }
         };
-        fetchProfile();
+        fetchData();
         return () => clearInterval(timer);
     }, [router]);
 
@@ -39,12 +59,11 @@ export default function StaffDashboard() {
         );
     }
 
-    const formatTime = (date: Date) => {
-        return date.toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    };
-
     const formatDate = (date: Date) => {
         return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    };
+    const formatTime = (date: Date) => {
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
     };
 
     return (
@@ -52,14 +71,14 @@ export default function StaffDashboard() {
             <nav className="bg-zinc-900/50 backdrop-blur-xl border-b border-zinc-800 py-4 px-6 sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
                     <Link href="/" className="flex items-center space-x-3 group">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-700 to-red-600 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-600 to-orange-600 flex items-center justify-center">
                             <Dumbbell className="text-white" size={20} />
                         </div>
-                        <span className="text-xl font-bold text-white group-hover:text-red-500 transition-colors">PowerWorld Staff</span>
+                        <span className="text-xl font-bold text-white group-hover:text-amber-400 transition-colors">PowerWorld Staff</span>
                     </Link>
                     <div className="flex items-center space-x-4">
                         <div className="text-right">
-                            <div className="text-sm text-zinc-500">Staff</div>
+                            <div className="text-sm text-zinc-500">Staff Member</div>
                             <div className="text-white font-semibold">{profile.name}</div>
                         </div>
                         <button
@@ -75,56 +94,88 @@ export default function StaffDashboard() {
             <main className="px-6 py-8">
                 <div className="max-w-7xl mx-auto">
                     <div className="mb-8">
-                        <h1 className="text-3xl font-bold text-white mb-2">Staff Portal</h1>
-                        <p className="text-zinc-500">Welcome, {profile.name}</p>
+                        <h1 className="text-3xl font-bold text-white mb-2">Operations Dashboard</h1>
+                        <p className="text-zinc-500">{formatDate(currentTime)} • {formatTime(currentTime)}</p>
                     </div>
 
-                    {/* Current Time Card */}
-                    <div className="mb-8 p-6 bg-zinc-900/50 backdrop-blur-md rounded-2xl border border-zinc-800 text-center">
-                        <div className="flex items-center justify-center gap-3 mb-2">
-                            <Clock className="text-red-500" size={24} />
-                            <span className="text-zinc-400">{formatDate(currentTime)}</span>
-                        </div>
-                        <div className="text-5xl font-bold text-white font-mono">{formatTime(currentTime)}</div>
-                    </div>
-
-                    {/* Quick Actions */}
+                    {/* Operational Stats (Staff Focus) */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        <Link href="/dashboard/check-in" className="p-6 bg-gradient-to-br from-red-700/20 to-purple-600/20 border border-red-600/30 rounded-2xl hover:border-red-600/60 transition-all group cursor-pointer">
-                            <div className="flex items-center justify-center mb-4 text-red-500 group-hover:scale-110 transition-transform">
-                                <QrCode size={48} />
+                        <div className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-2xl p-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-2 rounded-xl bg-green-500/10 text-green-400">
+                                    <UserCheck size={20} />
+                                </div>
+                                <h3 className="text-sm font-medium text-zinc-400">Check-ins Today</h3>
                             </div>
-                            <h3 className="text-center font-bold text-white text-lg">QR Check-in</h3>
-                            <p className="text-center text-zinc-500 text-sm mt-1">Scan member QR codes</p>
-                        </Link>
+                            <div className="text-3xl font-bold text-white">{metrics?.checkIns?.today || '0'}</div>
+                            <div className="text-sm text-zinc-500 mt-1">Members entered</div>
+                        </div>
 
-                        <Link href="/dashboard/members" className="p-6 bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-2xl hover:border-green-500/50 transition-all group cursor-pointer">
-                            <div className="flex items-center justify-center mb-4 text-green-400 group-hover:scale-110 transition-transform">
-                                <Users size={48} />
+                        <div className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-2xl p-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
+                                    <ScanLine size={20} />
+                                </div>
+                                <h3 className="text-sm font-medium text-zinc-400">Check-outs Today</h3>
                             </div>
-                            <h3 className="text-center font-bold text-white text-lg">Members</h3>
-                            <p className="text-center text-zinc-500 text-sm mt-1">View member list</p>
-                        </Link>
+                            <div className="text-3xl font-bold text-white">{metrics?.checkOuts?.today || '0'}</div>
+                            <div className="text-sm text-zinc-500 mt-1">Members exited</div>
+                        </div>
 
-                        <Link href="/dashboard/schedule" className="p-6 bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-2xl hover:border-red-500/50 transition-all group cursor-pointer">
-                            <div className="flex items-center justify-center mb-4 text-blue-400 group-hover:scale-110 transition-transform">
-                                <Calendar size={48} />
+                        <div className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-2xl p-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
+                                    <Wrench size={20} />
+                                </div>
+                                <h3 className="text-sm font-medium text-zinc-400">Total Equipment</h3>
                             </div>
-                            <h3 className="text-center font-bold text-white text-lg">Schedule</h3>
-                            <p className="text-center text-zinc-500 text-sm mt-1">View class schedule</p>
-                        </Link>
+                            <div className="text-3xl font-bold text-white">{metrics?.equipment?.total || '0'}</div>
+                            <div className="text-sm text-zinc-500 mt-1">Machines tracked</div>
+                        </div>
+
+                        <div className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-2xl p-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className={`p-2 rounded-xl ${(metrics?.equipment?.needsMaintenance || 0) > 0 ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'}`}>
+                                    <AlertTriangle size={20} />
+                                </div>
+                                <h3 className="text-sm font-medium text-zinc-400">Needs Maintenance</h3>
+                            </div>
+                            <div className={`text-3xl font-bold ${(metrics?.equipment?.needsMaintenance || 0) > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                                {metrics?.equipment?.needsMaintenance || '0'}
+                            </div>
+                            <div className="text-sm text-zinc-500 mt-1">Equipment alerts</div>
+                        </div>
                     </div>
 
-                    {/* Today's Schedule */}
-                    <div className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-2xl p-6">
-                        <h2 className="text-xl font-semibold mb-4 text-white">Today's Schedule</h2>
-                        <div className="text-center text-zinc-500 py-8 border border-dashed border-zinc-800 rounded-xl">
-                            <Calendar className="mx-auto mb-3 text-zinc-600" size={32} />
-                            <p>No appointments scheduled for today.</p>
-                            <Link href="/dashboard/schedule" className="text-red-500 hover:text-red-400 text-sm mt-2 inline-block">
-                                View full schedule →
-                            </Link>
-                        </div>
+                    {/* Quick Actions Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <Link href="/qr-scanner" className="p-6 bg-zinc-900/50 backdrop-blur-md rounded-2xl border border-zinc-800 hover:border-green-500/50 transition-all group cursor-pointer">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="p-2 rounded-lg bg-green-500/10 text-green-400">
+                                    <ScanLine size={20} />
+                                </div>
+                                <h3 className="text-xl font-semibold text-green-400 group-hover:text-green-300">QR Scanner</h3>
+                            </div>
+                            <p className="text-zinc-500">Scan member QR codes for check-in/out.</p>
+                        </Link>
+                        <Link href="/staff-dashboard/checkin" className="p-6 bg-zinc-900/50 backdrop-blur-md rounded-2xl border border-zinc-800 hover:border-blue-500/50 transition-all group cursor-pointer">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
+                                    <ClipboardList size={20} />
+                                </div>
+                                <h3 className="text-xl font-semibold text-blue-400 group-hover:text-blue-300">Today's Log</h3>
+                            </div>
+                            <p className="text-zinc-500">View today's check-in/out history.</p>
+                        </Link>
+                        <Link href="/staff-dashboard/equipment" className="p-6 bg-zinc-900/50 backdrop-blur-md rounded-2xl border border-zinc-800 hover:border-purple-500/50 transition-all group cursor-pointer">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400">
+                                    <Wrench size={20} />
+                                </div>
+                                <h3 className="text-xl font-semibold text-purple-400 group-hover:text-purple-300">Equipment</h3>
+                            </div>
+                            <p className="text-zinc-500">View and report equipment issues.</p>
+                        </Link>
                     </div>
                 </div>
             </main>

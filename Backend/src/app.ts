@@ -21,6 +21,9 @@ import equipmentRoutes from './routes/equipment.routes';
 import leadRoutes from './routes/lead.routes';
 import publicRoutes from './routes/public.routes';
 import dashboardRoutes from './routes/dashboard.routes';
+import adminRoutes from './routes/admin.routes';
+import managerRoutes from './routes/manager.routes';
+import staffRoutes from './routes/staff.routes';
 
 const app: Application = express();
 
@@ -65,6 +68,9 @@ app.use('/api/equipment', equipmentRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/manager', managerRoutes);
+app.use('/api/staff', staffRoutes);
 
 // 404 handler
 app.use((req, res) => {

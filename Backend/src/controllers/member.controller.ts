@@ -4,6 +4,10 @@ import { MemberService } from '../services/member.service';
 import { asyncHandler } from '../middleware/error-handler.middleware';
 import { successResponse, paginatedResponse } from '../utils/response-formatter';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { db } from '../config/database';
+import { members } from '../db/schema';
+import { eq } from 'drizzle-orm';
+import { DocumentService } from '../services/document.service';
 
 export class MemberController {
     // Register new member
@@ -77,6 +81,38 @@ export class MemberController {
         await MemberService.deleteMember(id);
         res.json(successResponse(null, 'Member deleted'));
     });
+
+    static async uploadDocument(req: AuthRequest, res: Response) {
+        try {
+            const userId = req.user!.id;
+            const { type, fileUrl } = req.body;
+
+            // Get member ID from user ID
+            const [member] = await db.select().from(members).where(eq(members.userId, userId)).limit(1);
+
+            if (!member) {
+                return res.status(404).json({ success: false, message: 'Member profile not found' });
+            }
+
+            await DocumentService.createDocument({
+                memberId: member.id,
+                type,
+                fileUrl
+            });
+
+            // Update member status to pending verification if not already active
+            if (member.status !== 'active') {
+                await db.update(members)
+                    .set({ status: 'pending' })
+                    .where(eq(members.id, member.id));
+            }
+
+            return res.json({ success: true, message: 'Document uploaded successfully' });
+        } catch (error) {
+            console.error('Upload document error:', error);
+            return res.status(500).json({ success: false, message: 'Internal server error' });
+        }
+    }
 
     // Get member statistics (admin only)
     static getStats = asyncHandler(async (_req: Request, res: Response) => {

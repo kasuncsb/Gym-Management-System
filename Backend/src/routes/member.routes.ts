@@ -43,6 +43,7 @@ router.post('/register', registrationRateLimit, validate(registerSchema), Member
 // Member routes (self)
 router.get('/profile', authenticate, MemberController.getProfile);
 router.put('/profile', authenticate, validate(updateProfileSchema), MemberController.updateProfile);
+router.post('/documents', authenticate, MemberController.uploadDocument);
 
 // Admin routes
 router.get('/', authenticate, requireRole('admin', 'manager'), MemberController.getAllMembers);

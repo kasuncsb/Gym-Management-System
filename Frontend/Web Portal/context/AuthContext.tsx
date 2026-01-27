@@ -8,7 +8,7 @@ interface User {
     id: string;
     name: string;
     email: string;
-    role: 'admin' | 'staff' | 'member';
+    role: string;
 }
 
 interface AuthContextType {
@@ -17,6 +17,7 @@ interface AuthContextType {
     login: (token: string, user: User) => void;
     logout: () => void;
     isLoading: boolean;
+    loading: boolean; // Alias for isLoading to support migration
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+        <AuthContext.Provider value={{ user, token, login, logout, isLoading, loading: isLoading }}>
             {children}
         </AuthContext.Provider>
     );

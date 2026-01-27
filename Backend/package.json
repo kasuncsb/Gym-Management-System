@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:auth": "drizzle-kit studio",
-    "db:reset": "tsx scripts/reset-db.ts"
+    "db:reset": "tsx scripts/reset-db.ts",
+    "seed:demo": "tsx scripts/seed-demo-data.ts"
   },
   "keywords": [
     "gym",
