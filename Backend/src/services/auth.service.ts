@@ -1,7 +1,7 @@
 // Authentication Service - Drizzle ORM
 import { Request } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { eq, and, isNull, gt } from 'drizzle-orm';
 import { db } from '../config/database';
 import { members, trainers, staff, users } from '../db/schema';
@@ -35,6 +35,7 @@ interface LoginResult {
         name: string;
         email: string;
         role: string;
+        staffRole?: string;
     };
 }
 
@@ -75,15 +76,14 @@ export class AuthService {
             throw new AuthenticationError('Invalid credentials');
         }
 
-        // @ts-expect-error - jwt.sign types are overly strict, this is valid
         const token = jwt.sign(
             {
-                id: member.id, // Using member ID for token? Or User ID? Usually User ID is better but code uses member ID often. Keeping member ID for consistency with MemberService.
+                id: member.id,
                 email: user.email,
                 role: 'member'
-            },
+            } as object,
             JWT_SECRET,
-            { expiresIn: JWT_EXPIRES_IN }
+            { expiresIn: JWT_EXPIRES_IN } as SignOptions
         );
 
         const refreshToken = jwt.sign(
@@ -160,15 +160,14 @@ export class AuthService {
             throw new AuthenticationError('Invalid credentials');
         }
 
-        // @ts-expect-error - jwt.sign types are overly strict
         const token = jwt.sign(
             {
                 id: trainer.id,
                 email: user.email,
                 role: 'trainer'
-            },
+            } as object,
             JWT_SECRET,
-            { expiresIn: JWT_EXPIRES_IN }
+            { expiresIn: JWT_EXPIRES_IN } as SignOptions
         );
 
         const refreshToken = jwt.sign(
@@ -239,21 +238,20 @@ export class AuthService {
             throw new AuthenticationError('Invalid credentials');
         }
 
-        // @ts-expect-error
         const token = jwt.sign(
             {
                 id: staffMember?.id || user.id, // Fallback to user ID for admin if staff ID is missing
                 email: user.email,
                 role: user.role === 'admin' ? 'admin' : 'staff',
                 staffRole: user.role
-            },
+            } as object,
             JWT_SECRET,
-            { expiresIn: JWT_EXPIRES_IN }
+            { expiresIn: JWT_EXPIRES_IN } as SignOptions
         );
 
         const refreshToken = jwt.sign(
             {
-                id: staffMember.id,
+                id: staffMember?.id || user.id,
                 type: 'refresh'
             },
             JWT_SECRET,
@@ -264,9 +262,9 @@ export class AuthService {
         await AuditService.log(
             AuditAction.LOGIN,
             'staff',
-            staffMember.id,
+            staffMember?.id || user.id,
             user.id,
-            { email: user.email, role: user.role, designation: staffMember.designation },
+            { email: user.email, role: user.role, designation: staffMember?.designation },
             req
         );
 
@@ -274,10 +272,11 @@ export class AuthService {
             token,
             refreshToken,
             user: {
-                id: staffMember.id,
+                id: staffMember?.id || user.id,
                 name: user.fullName,
                 email: user.email,
-                role: user.role || 'staff'
+                role: user.role || 'staff',
+                staffRole: user.role
             }
         };
     }
@@ -339,7 +338,7 @@ export class AuthService {
             }
 
             // Determine user type and fetch user data
-            let userData: { id: string, name: string, email: string, role: string } | null = null;
+            let userData: { id: string, name: string, email: string, role: string, staffRole?: string } | null = null;
             let role: string = '';
             let staffRole: string | undefined;
 
@@ -387,7 +386,8 @@ export class AuthService {
                             id: staffResult.staff.id,
                             name: staffResult.user.fullName,
                             email: staffResult.user.email,
-                            role: staffResult.user.role || 'staff'
+                            role: staffResult.user.role || 'staff',
+                            staffRole: staffResult.user.role || undefined
                         };
                         role = 'staff';
                         staffRole = staffResult.user.role || undefined;
@@ -399,16 +399,15 @@ export class AuthService {
 
             if (!userData) throw new AuthenticationError('User not found');
 
-            // @ts-expect-error
             const token = jwt.sign(
                 {
                     id: userData.id,
                     email: userData.email,
                     role,
                     ...(role === 'staff' && { staffRole })
-                },
+                } as object,
                 JWT_SECRET,
-                { expiresIn: JWT_EXPIRES_IN }
+                { expiresIn: JWT_EXPIRES_IN } as SignOptions
             );
 
             return { token };

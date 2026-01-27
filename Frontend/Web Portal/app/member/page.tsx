@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from "@/context/AuthContext";
@@ -20,8 +22,17 @@ export default function DashboardPage() {
     const router = useRouter();
 
     useEffect(() => {
-        if (!isLoading && !user) {
-            router.push('/login');
+        if (!isLoading) {
+            if (!user) {
+                router.push('/login');
+                return;
+            }
+
+            if (user.role === 'admin') {
+                router.push('/admin-dashboard');
+            } else if (user.role !== 'member') {
+                router.push('/staff-dashboard');
+            }
         }
     }, [user, isLoading, router]);
 

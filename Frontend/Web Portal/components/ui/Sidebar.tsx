@@ -24,9 +24,7 @@ function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
-import { useAuth } from "@/context/AuthContext";
-
-
+import { useAuth, User } from "@/context/AuthContext";
 
 export function Sidebar() {
     const pathname = usePathname();
@@ -35,7 +33,16 @@ export function Sidebar() {
 
     // Navigation items based on role
     const getNavItems = () => {
-        // Role specific items
+        if (!user) return [];
+
+        const isAdmin = user.role === 'admin';
+        // Manager logic: explicitly check conflicting types if necessary, but string comparison is safe safely
+        const isManager = user.role === 'manager' || (user.role === 'staff' && user.staffRole === 'manager');
+        const isTrainer = user.role === 'trainer' || (user.role === 'staff' && user.staffRole === 'trainer');
+        // General staff check (includes manager and trainer if they fall under staff umbrella in some auth flows)
+        const isStaff = user.role === 'staff' || user.role === 'manager' || user.role === 'trainer';
+
+        // Admin items
         const adminItems = [
             { name: "Dashboard", href: "/admin-dashboard", icon: LayoutDashboard },
             { name: "Members", href: "/admin-dashboard/members", icon: Users },
@@ -43,11 +50,10 @@ export function Sidebar() {
             { name: "Settings", href: "/admin-dashboard/settings", icon: Settings },
         ];
 
-        const staffItems = [
-            { name: "Dashboard", href: "/staff-dashboard", icon: LayoutDashboard },
-            { name: "Members", href: "/admin-dashboard/members", icon: Users }, // Accessing member management
-            { name: "Check-in", href: "/staff-dashboard/check-in", icon: Dumbbell },
-        ];
+        // Staff components (can be combined based on specific staff role)
+        const staffDashboard = { name: "Dashboard", href: "/staff-dashboard", icon: LayoutDashboard };
+        const memberManagement = { name: "Members", href: "/admin-dashboard/members", icon: Users };
+        const checkIn = { name: "Check-in", href: "/staff-dashboard/check-in", icon: Dumbbell };
 
         const memberItems = [
             { name: "Dashboard", href: "/member", icon: LayoutDashboard },
@@ -58,14 +64,21 @@ export function Sidebar() {
             { name: "Profile", href: "/member/profile", icon: Settings },
         ];
 
-        switch (user?.role) {
-            case 'admin': return adminItems;
-            case 'manager': return staffItems; // Managers use staff dashboard + extra permissions
-            case 'staff': return staffItems;
-            case 'trainer': return staffItems; // Trainers share staff dashboard for now
-            case 'member': return memberItems;
-            default: return [{ name: "Dashboard", href: "/member", icon: LayoutDashboard }];
+        if (isAdmin) return adminItems;
+
+        if (isStaff) {
+            const items = [staffDashboard];
+            // Only managers (or staff with manager role) see member management
+            if (isManager) {
+                items.push(memberManagement);
+            }
+            items.push(checkIn);
+            return items;
         }
+
+        if (user?.role === 'member') return memberItems;
+
+        return [{ name: "Dashboard", href: "/member", icon: LayoutDashboard }];
     };
 
     const navItems = getNavItems();
@@ -105,7 +118,14 @@ export function Sidebar() {
                             Menu
                         </div>
                         {navItems.map((item) => {
-                            const isActive = pathname === item.href;
+                            // Improved active state logic to handle sub-routes 
+                            // Exact match for root dashboard paths, startsWith for sub-pages
+                            const isActive =
+                                pathname === item.href ||
+                                (pathname?.startsWith(`${item.href}/`) &&
+                                    item.href !== '/admin-dashboard' &&
+                                    item.href !== '/staff-dashboard' &&
+                                    item.href !== '/member');
                             return (
                                 <Link
                                     key={item.href}

@@ -38,7 +38,19 @@ export default function StaffDashboard() {
                     staffAPI.getMetrics().catch(() => null)
                 ]);
 
-                setProfile(profileRes.data.data);
+                const profileData = profileRes.data.data;
+                const role = profileData.role;
+
+                if (role === 'member') {
+                    router.push('/member');
+                    return;
+                }
+                if (role === 'admin') {
+                    router.push('/admin-dashboard');
+                    return;
+                }
+
+                setProfile(profileData);
                 setMetrics(metricsRes?.data?.data || null);
             } catch (e) {
                 console.error(e);

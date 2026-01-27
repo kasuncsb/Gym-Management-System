@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { memberAPI } from "@/lib/api";
 import { Search, Filter, MoreHorizontal, User, Shield, Phone, Mail } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 interface Member {
-    _id: string;
+    id: string;
     name: string;
     email: string;
     role: string;
@@ -15,14 +16,37 @@ interface Member {
     joinDate?: string;
 }
 
+import { useAuth } from "@/context/AuthContext";
+
 export default function MembersPage() {
+    const { user, isLoading: authLoading } = useAuth();
+    const router = useRouter(); // Ensure useRouter is imported (it is)
     const [members, setMembers] = useState<Member[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
-        fetchMembers();
-    }, []);
+        if (!authLoading) {
+            if (!user) {
+                router.push('/login');
+                return;
+            }
+
+            const isManager = user.role === 'manager' || (user.role === 'staff' && user.staffRole === 'manager');
+            const isAdmin = user.role === 'admin';
+
+            if (!isAdmin && !isManager) {
+                if (user.role === 'member') {
+                    router.push('/member');
+                } else {
+                    router.push('/staff-dashboard');
+                }
+                return;
+            }
+
+            fetchMembers();
+        }
+    }, [user, authLoading, router]);
 
     const fetchMembers = async () => {
         try {
@@ -30,7 +54,7 @@ export default function MembersPage() {
             const response = await memberAPI.getAll();
             // Assuming response structure: { data: { members: [...] } } or similar
             // Adjust based on actual API response
-            const data = response.data.data?.members || response.data.data || [];
+            const data = response.data.data || [];
             setMembers(data);
         } catch (error) {
             console.error("Failed to fetch members:", error);
@@ -118,7 +142,7 @@ export default function MembersPage() {
                                 ))
                             ) : members.length > 0 ? (
                                 members.map((member) => (
-                                    <tr key={member._id} className="group hover:bg-zinc-900/30 transition-colors">
+                                    <tr key={member.id} className="group hover:bg-zinc-900/30 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-full bg-red-600/10 flex items-center justify-center text-red-500 font-bold border border-red-600/20 group-hover:border-red-600/50 transition-colors">

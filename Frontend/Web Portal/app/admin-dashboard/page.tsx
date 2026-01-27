@@ -40,7 +40,14 @@ export default function AdminDashboard() {
                     adminAPI.getMetrics().catch(() => null)
                 ]);
 
-                setProfile(profileRes.data.data);
+                const profileData = profileRes.data.data;
+
+                if (profileData.role !== 'admin') {
+                    router.push('/login');
+                    return;
+                }
+
+                setProfile(profileData);
                 setMetrics(metricsRes?.data?.data || null);
             } catch (e) {
                 console.error(e);

@@ -4,11 +4,12 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient, authAPI } from '../lib/api';
 
-interface User {
+export interface User {
     id: string;
     name: string;
     email: string;
     role: string;
+    staffRole?: string;
     designation?: string;
     specialization?: string;
 }
@@ -49,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('token', newToken);
         localStorage.setItem('user', JSON.stringify(newUser));
 
-        localStorage.setItem('user', JSON.stringify(newUser));
+
 
         // Redirect logic should be handled by the component calling login
     };
