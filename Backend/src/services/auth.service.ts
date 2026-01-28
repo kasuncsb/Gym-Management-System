@@ -41,209 +41,66 @@ interface LoginResult {
 
 export class AuthService {
     // Member Authentication
-    static async loginMember(email: string, password: string, req?: Request): Promise<LoginResult> {
+    // Unified Login
+    static async login(email: string, password: string, req?: Request): Promise<LoginResult> {
         if (!validateEmail(email)) {
             throw new ValidationError('Invalid email format');
         }
 
-        const [result] = await db.select({
-            member: members,
-            user: users
-        })
-            .from(members)
-            .innerJoin(users, eq(members.userId, users.id))
-            .where(eq(users.email, email))
-            .limit(1);
-
-        if (!result || result.member.deletedAt) {
-            throw new AuthenticationError('Invalid credentials');
-        }
-
-        const { member, user } = result;
-
-        // Allow 'active' and 'pending' members to log in. 
-        // 'pending' status is needed so they can upload verification documents.
-        if (member.status === 'inactive' || member.status === 'suspended') {
-            throw new AuthenticationError('Account is ' + member.status);
-        }
-
-        if (!user.isEmailVerified) {
-            throw new AuthenticationError('Invalid credentials');
-        }
-
-        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-        if (!isPasswordValid) {
-            throw new AuthenticationError('Invalid credentials');
-        }
-
-        const token = jwt.sign(
-            {
-                id: member.id,
-                email: user.email,
-                role: 'member'
-            } as object,
-            JWT_SECRET,
-            { expiresIn: JWT_EXPIRES_IN } as SignOptions
-        );
-
-        const refreshToken = jwt.sign(
-            {
-                id: member.id,
-                type: 'refresh'
-            },
-            JWT_SECRET,
-            { expiresIn: '30d' }
-        );
-
-        // Log successful login
-        await AuditService.log(
-            AuditAction.LOGIN,
-            'members',
-            member.id,
-            user.id,
-            { email: user.email, role: 'member' },
-            req
-        );
-
-        return {
-            token,
-            refreshToken,
-            user: {
-                id: member.id,
-                name: user.fullName,
-                email: user.email,
-                role: 'member'
-            }
-        };
-    }
-
-    // Trainer Authentication
-    static async loginTrainer(email: string, password: string, req?: Request): Promise<LoginResult> {
-        if (!validateEmail(email)) {
-            throw new ValidationError('Invalid email format');
-        }
-
-        const [result] = await db.select({
-            trainer: trainers,
-            user: users
-        })
-            .from(trainers)
-            .innerJoin(users, eq(trainers.userId, users.id))
-            .where(eq(users.email, email))
-            .limit(1);
-
-        if (!result || result.trainer.deletedAt) {
-            throw new AuthenticationError('Invalid credentials');
-        }
-
-        const { trainer, user } = result;
-
-        // Trainer table doesn't have status? Schema check...
-        // Schema: trainers doesn't have status! 
-        // But user has isActive.
-        // Wait, schema definitely didn't have status for trainers in my view_file output.
-        // Let's check schema again mentally. 
-        // trainers has: id, userId, specialization, bio, hourlyRate, rating, branchId, deletedAt.
-        // users has: isActive.
-        // So I should check user.isActive.
-
-        if (!user.isActive) {
-            throw new AuthenticationError('Invalid credentials');
-        }
-
-        if (!user.isEmailVerified) {
-            throw new AuthenticationError('Invalid credentials');
-        }
-
-        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-        if (!isPasswordValid) {
-            throw new AuthenticationError('Invalid credentials');
-        }
-
-        const token = jwt.sign(
-            {
-                id: trainer.id,
-                email: user.email,
-                role: 'trainer'
-            } as object,
-            JWT_SECRET,
-            { expiresIn: JWT_EXPIRES_IN } as SignOptions
-        );
-
-        const refreshToken = jwt.sign(
-            {
-                id: trainer.id,
-                type: 'refresh'
-            },
-            JWT_SECRET,
-            { expiresIn: '30d' }
-        );
-
-        // Log successful login
-        await AuditService.log(
-            AuditAction.LOGIN,
-            'trainers',
-            trainer.id,
-            user.id,
-            { email: user.email, role: 'trainer' },
-            req
-        );
-
-        return {
-            token,
-            refreshToken,
-            user: {
-                id: trainer.id,
-                name: user.fullName,
-                email: user.email,
-                role: 'trainer'
-            }
-        };
-    }
-
-    // Staff Authentication
-    static async loginStaff(email: string, password: string, req?: Request): Promise<LoginResult> {
-        if (!validateEmail(email)) {
-            throw new ValidationError('Invalid email format');
-        }
-
-        const [user] = await db.select()
-            .from(users)
-            .where(eq(users.email, email))
-            .limit(1);
+        const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
         if (!user || user.deletedAt) {
             throw new AuthenticationError('Invalid credentials');
         }
 
-        const [staffMember] = await db.select()
-            .from(staff)
-            .where(eq(staff.userId, user.id))
-            .limit(1);
-
-        // System Admins can log in even without a staff record.
-        // Managers and other Staff MUST have an active staff record attached to a branch.
-        if (user.role !== 'admin') {
-            if (!staffMember || staffMember.status !== 'active' || staffMember.deletedAt) {
-                throw new AuthenticationError('Invalid credentials');
-            }
+        // Validate password first to prevent enumeration
+        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+        if (!isPasswordValid) {
+            throw new AuthenticationError('Invalid credentials');
         }
 
         if (!user.isEmailVerified) {
             throw new AuthenticationError('Please verify your email first');
         }
 
-        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-        if (!isPasswordValid) {
-            throw new AuthenticationError('Invalid credentials');
+        let profileId = user.id;
+        let requiresActiveStatus = true;
+        let userRole = user.role;
+        let staffDesignation: string | undefined;
+
+        // Role-specific validation
+        if (user.role === 'member') {
+            const [member] = await db.select().from(members).where(eq(members.userId, user.id)).limit(1);
+            if (!member || member.deletedAt) throw new AuthenticationError('Member profile not found');
+            if (member.status === 'inactive' || member.status === 'suspended') {
+                 throw new AuthenticationError('Account is ' + member.status);
+            }
+            profileId = member.id;
+        } else if (user.role === 'trainer') {
+            const [trainer] = await db.select().from(trainers).where(eq(trainers.userId, user.id)).limit(1);
+            if (!trainer || trainer.deletedAt) throw new AuthenticationError('Trainer profile not found');
+            if (!user.isActive) throw new AuthenticationError('Account is inactive');
+            profileId = trainer.id;
+        } else if (user.role === 'staff' || user.role === 'manager') {
+            const [staffMember] = await db.select().from(staff).where(eq(staff.userId, user.id)).limit(1);
+            if (!staffMember || staffMember.deletedAt) throw new AuthenticationError('Staff profile not found');
+            if (staffMember.status !== 'active') throw new AuthenticationError('Account is not active');
+            profileId = staffMember.id;
+            staffDesignation = staffMember.designation || undefined;
+        } else if (user.role === 'admin') {
+             // Admin doesn't strictly need a staff profile, but if they have one we can use it
+             const [staffMember] = await db.select().from(staff).where(eq(staff.userId, user.id)).limit(1);
+             if (staffMember) {
+                 profileId = staffMember.id;
+             }
         }
 
         const token = jwt.sign(
             {
-                id: staffMember?.id || user.id, // Fallback to user ID for admin if staff ID is missing
+                id: profileId,
                 email: user.email,
-                role: user.role === 'admin' ? 'admin' : 'staff',
-                staffRole: user.role
+                role: userRole,
+                staffRole: user.role === 'admin' ? 'admin' : (user.role === 'staff' || user.role === 'manager' ? user.role : undefined)
             } as object,
             JWT_SECRET,
             { expiresIn: JWT_EXPIRES_IN } as SignOptions
@@ -251,20 +108,19 @@ export class AuthService {
 
         const refreshToken = jwt.sign(
             {
-                id: staffMember?.id || user.id,
+                id: profileId,
                 type: 'refresh'
             },
             JWT_SECRET,
             { expiresIn: '30d' }
         );
 
-        // Log successful login
         await AuditService.log(
             AuditAction.LOGIN,
-            'staff',
-            staffMember?.id || user.id,
+            user.role === 'member' ? 'members' : (user.role === 'trainer' ? 'trainers' : 'staff'),
+            profileId,
             user.id,
-            { email: user.email, role: user.role, designation: staffMember?.designation },
+            { email: user.email, role: userRole, designation: staffDesignation },
             req
         );
 
@@ -272,14 +128,17 @@ export class AuthService {
             token,
             refreshToken,
             user: {
-                id: staffMember?.id || user.id,
+                id: profileId,
                 name: user.fullName,
                 email: user.email,
-                role: user.role || 'staff',
+                role: userRole,
                 staffRole: user.role
             }
         };
     }
+
+
+
 
     // Hash password
     static async hashPassword(password: string): Promise<string> {

@@ -9,18 +9,6 @@ interface RateLimitStore {
     };
 }
 
-const store: RateLimitStore = {};
-
-// Clean up old entries every 10 minutes
-setInterval(() => {
-    const now = Date.now();
-    Object.keys(store).forEach(key => {
-        if (store[key].resetTime < now) {
-            delete store[key];
-        }
-    });
-}, 600000);
-
 export function rateLimit(options: {
     windowMs: number;
     max: number;
@@ -33,6 +21,25 @@ export function rateLimit(options: {
         keyGenerator = (req) => req.ip || 'unknown',
         message = 'Too many requests, please try again later'
     } = options;
+
+    const store: RateLimitStore = {};
+
+    // Clean up old entries every 1 minute (or windowMs if larger, but 1 min is safe default check)
+    // We'll use a simple interval that clears expired keys
+    const cleanupInterval = setInterval(() => {
+        const now = Date.now();
+        Object.keys(store).forEach(key => {
+            if (store[key].resetTime < now) {
+                delete store[key];
+            }
+        });
+    }, 60000); // Check every minute
+
+    // Determine if we need to unref the interval to prevent keeping the process alive
+    // (Node.js specific, assuming this runs in Node)
+    if (cleanupInterval.unref) {
+        cleanupInterval.unref();
+    }
 
     return (req: Request, res: Response, next: NextFunction) => {
         const key = keyGenerator(req);
@@ -49,6 +56,9 @@ export function rateLimit(options: {
         store[key].count++;
 
         if (store[key].count > max) {
+            // If it's a new error, we probably want to throw it
+            // checking if the store count is *just* above max to avoid spamming errors if they keep hitting
+            // but the requirement is just to throw the error.
             throw new RateLimitError(message);
         }
 

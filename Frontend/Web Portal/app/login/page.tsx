@@ -11,7 +11,6 @@ import { useAuth } from "@/context/AuthContext";
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [userType, setUserType] = useState('member'); // Default to member
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const { login } = useAuth();
@@ -23,25 +22,17 @@ export default function Login() {
         setError('');
 
         try {
-            // Use selected userType
-            // let userType = 'member';
-            // const emailLower = email.toLowerCase();
-            // if (emailLower.includes('admin') || emailLower.includes('manager') || emailLower.includes('staff')) {
-            //     userType = 'staff';
-            // } else if (emailLower.includes('trainer')) {
-            //     userType = 'trainer';
-            // }
-
-            const response = await authAPI.login(email, password, userType);
+            const response = await authAPI.login(email, password);
             const { token, user } = response.data.data;
-
-
 
             login(token, user);
 
-            if (userType === 'staff') {
-                router.push(user.role === 'admin' ? '/admin-dashboard' : '/staff-dashboard');
-            } else if (userType === 'trainer') {
+            // Redirect based on role from backend
+            if (user.role === 'admin') {
+                router.push('/admin-dashboard');
+            } else if (user.role === 'staff' || user.role === 'manager') {
+                router.push('/staff-dashboard'); // Or manager dashboard if different
+            } else if (user.role === 'trainer') {
                 router.push('/staff-dashboard');
             } else {
                 router.push('/member');
@@ -57,7 +48,6 @@ export default function Login() {
 
     return (
         <div className="min-h-screen bg-black text-white flex relative overflow-hidden selection:bg-red-600/30">
-            {/* Background Effects */}
             {/* Background Effects */}
             <div className="absolute inset-0 z-0">
                 <div className="absolute top-0 left-[-10%] w-[500px] h-[500px] bg-red-700/30 rounded-full blur-[128px]" />
@@ -111,23 +101,6 @@ export default function Login() {
                             {error}
                         </div>
                     )}
-
-                    <div className="flex p-1 bg-zinc-800/50 rounded-xl mb-6">
-                        {['member', 'trainer', 'staff'].map((type) => (
-                            <button
-                                key={type}
-                                onClick={() => setUserType(type)}
-                                className={cn(
-                                    "flex-1 py-2 text-sm font-medium rounded-lg capitalize transition-all",
-                                    userType === type
-                                        ? "bg-zinc-800 text-white shadow-lg"
-                                        : "text-zinc-400 hover:text-zinc-200"
-                                )}
-                            >
-                                {type}
-                            </button>
-                        ))}
-                    </div>
 
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div className="space-y-2">

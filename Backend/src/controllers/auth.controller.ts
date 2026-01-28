@@ -9,19 +9,10 @@ import { successResponse } from '../utils/response-formatter';
 import { AuthRequest } from '../middleware/auth.middleware';
 
 export class AuthController {
-    // Member login
+    // Unified Login
     static login = asyncHandler(async (req: Request, res: Response) => {
-        const { email, password, userType = 'member' } = req.body;
-
-        let result;
-        if (userType === 'trainer') {
-            result = await AuthService.loginTrainer(email, password, req);
-        } else if (userType === 'staff') {
-            result = await AuthService.loginStaff(email, password, req);
-        } else {
-            result = await AuthService.loginMember(email, password, req);
-        }
-
+        const { email, password } = req.body;
+        const result = await AuthService.login(email, password, req);
         res.json(successResponse(result, 'Login successful'));
     });
 

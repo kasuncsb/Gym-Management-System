@@ -65,8 +65,8 @@ export const getErrorMessage = (error: any): string => {
 
 // API Services
 export const authAPI = {
-    login: (email: string, password: string, userType: string = 'member') =>
-        apiClient.post('/auth/login', { email, password, userType }),
+    login: (email: string, password: string) =>
+        apiClient.post('/auth/login', { email, password }),
 
     register: (data: any) =>
         apiClient.post('/members/register', data),
