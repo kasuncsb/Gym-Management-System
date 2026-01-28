@@ -30,9 +30,9 @@ export default function Login() {
             // Redirect based on role from backend
             if (user.role === 'admin') {
                 router.push('/admin-dashboard');
-            } else if (user.role === 'staff' || user.role === 'manager') {
-                router.push('/staff-dashboard'); // Or manager dashboard if different
-            } else if (user.role === 'trainer') {
+            } else if (user.role === 'manager') {
+                router.push('/manager-dashboard');
+            } else if (user.role === 'staff' || user.role === 'trainer') {
                 router.push('/staff-dashboard');
             } else {
                 router.push('/member');
