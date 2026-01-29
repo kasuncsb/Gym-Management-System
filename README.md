@@ -91,6 +91,26 @@ Gym-Management-System/
 - **QR Scanning**: Attendance, Access Logs
 - **Subscriptions**: Validate, Renewals, Plans
 
+## 👥 User Role Hierarchy
+
+The system implements a structured role hierarchy to ensure secure access and management:
+
+- **Users** (Base Class)
+  - **Members**: Customers with access to workouts, schedules, and check-ins.
+  - **Staff** (Super Class)
+    - **Admin**: Full system control and configuration.
+    - **Manager**: Branch management and staff coordination.
+    - **Trainer**: Program creation and member guidance.
+
+## 📐 Architecture & Design
+
+Detailed design documents are available in the [Documentation](./Documentation) directory:
+
+- 📊 **Database Schema**: [Relational Schema](./Documentation/REL_SCHEMA.svg)
+- 🕸 **Data Modeling**: [ER Diagram](./Documentation/ERD.svg)
+- 📑 **System Analysis**: [Proposed System Analysis](./Documentation/Proposed_System_Analysis_IM_2022_001.pdf)
+- 📋 **Requirements**: [Requirement Analysis](./Documentation/Requirement_Analysis_IM_2022_001.pdf)
+
 ## ✨ Frontend Features
 
 - Modern "Pure Black" glassmorphism design
