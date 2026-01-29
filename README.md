@@ -1,6 +1,11 @@
 # PowerWorld Gyms Management System
 
-A comprehensive management system for PowerWorld Gyms, Kiribathgoda, Sri Lanka. This repository contains both the backend API and the frontend web application.
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.1-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
+[![Express.js](https://img.shields.io/badge/Express-4.18-gray?logo=express)](https://expressjs.com/)
+[![License](https://img.shields.io/badge/License-Proprietary-red)](#license)
+
+A premium, enterprise-grade management suite for **PowerWorld Gyms**. Built with a focus on high-performance, real-time tracking, and a stunning "Pure Black" glassmorphism UI.
 
 ## 🏗 Project Structure
 
@@ -32,7 +37,17 @@ Gym-Management-System/
 - **API Client**: Axios
 - **State**: React Context API
 
-## 🛠 Setup & Installation
+## � Core Modules
+
+- **🔐 Auth & Security**: Secure JWT authentication with refresh token rotation and bcrypt password hashing.
+- **🙋 Membership Management**: Full lifecycle management for gym members, including registration, profile tracking, and status.
+- **💳 Subscription Engine**: Powerful subscription system with automated validation and plan management.
+- **📲 QR Attendance**: Real-time check-in/out system using high-security encrypted QR codes.
+- **🏗 Inventory & Equipment**: Track gym assets, maintenance logs, and inventory levels across branches.
+- **📅 Appointments & Leads**: Integrated scheduling for trainer sessions and lead tracking for potential members.
+- **📊 Interactive Dashboards**: Real-time analytics and data visualization using Recharts.
+
+## �🛠 Setup & Installation
 
 ### Prerequisites
 - Node.js 18 or higher
@@ -52,12 +67,15 @@ Gym-Management-System/
 
 3. Configure Environment:
    - Copy `.env.example` to `.env`
-   - Update database credentials and JWT secrets
+   - **Database**: Port 3306 (MySQL)
+   - **Secrets**: Update `JWT_SECRET` and `QR_SECRET`
+   - **Integrations**: Configure `STRIPE_SECRET_KEY` and `SMTP_USER` for payments and emails.
 
 4. Setup Database:
    ```bash
-   npm run prisma:generate
-   npm run prisma:migrate
+   npx prisma generate
+   npx prisma migrate dev
+   npm run seed:demo     # Optional: Seed data
    ```
 
 5. Run Server:
@@ -120,6 +138,14 @@ Detailed design documents are available in the [Documentation](./Documentation) 
 - Animated UI components
 - QR code display & scanning
 - Dark mode support
+
+## 🤝 Support & Contact
+
+For support, feedback, or inquiries regarding the system implementation:
+
+- 📧 **Email**: [kasun@kasunc.uk](mailto:kasun@kasunc.uk)
+- 🌐 **Portfolio**: [kasunc.uk](https://kasunc.uk)
+- 🏢 **Branch**: PowerWorld Gyms - Kiribathgoda
 
 ## 📄 License
 
