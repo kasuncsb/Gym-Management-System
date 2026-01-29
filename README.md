@@ -23,8 +23,11 @@ Gym-Management-System/
 - **Logging**: Winston
 
 ### Frontend
-- **Framework**: Next.js 15+ (App Router)
-- **Styling**: Vanilla CSS (Glassmorphism design)
+- **Framework**: Next.js 16+ (App Router)
+- **Library**: React 19+
+- **Styling**: Tailwind CSS (Pure Black & Glassmorphism design)
+- **Icons**: Lucide React
+- **Charts**: Recharts
 - **Language**: TypeScript
 - **API Client**: Axios
 - **State**: React Context API
@@ -90,9 +93,11 @@ Gym-Management-System/
 
 ## ✨ Frontend Features
 
-- Modern glassmorphism design
+- Modern "Pure Black" glassmorphism design
 - Role-based routing (Member/Trainer/Manager/Admin)
 - Real-time subscription validation
+- Interactive Dashboard Charts
+- Animated UI components
 - QR code display & scanning
 - Dark mode support
 
