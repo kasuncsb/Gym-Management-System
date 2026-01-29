@@ -12,7 +12,7 @@ export interface AuthRequest extends Request {
     user?: {
         id: string;
         email: string;
-        role: 'member' | 'trainer' | 'staff' | 'admin';
+        role: 'member' | 'trainer' | 'staff' | 'admin' | 'manager';
         staffRole?: string;
     };
     headers: any;
@@ -24,7 +24,7 @@ export interface AuthRequest extends Request {
 interface JWTPayload {
     id: string;
     email: string;
-    role: 'member' | 'trainer' | 'staff' | 'admin';
+    role: 'member' | 'trainer' | 'staff' | 'admin' | 'manager';
     staffRole?: string;
 }
 
@@ -64,7 +64,7 @@ export const authenticate = async (
                 .where(eq(trainers.id, decoded.id))
                 .limit(1);
             userExists = result !== undefined && result.deletedAt === null && result.isActive === true;
-        } else if (decoded.role === 'staff') {
+        } else if (decoded.role === 'staff' || decoded.role === 'manager') {
             const [staffMember] = await db.select({ status: staff.status, deletedAt: staff.deletedAt })
                 .from(staff)
                 .where(eq(staff.id, decoded.id))

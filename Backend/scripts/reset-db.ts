@@ -37,26 +37,26 @@ async function resetDatabase() {
         };
     }
 
-    console.log(`Using Database: ${dbName} on ${dbConfig.host}:${dbConfig.port}`);
+    console.log(`INFO:   Using Database: ${dbName} on ${dbConfig.host}:${dbConfig.port}`);
 
 
-    console.log('🚀 Starting Database Reset Process...');
+    console.log('INFO:   Starting Database Reset Process...');
 
     let connection;
 
     try {
         // 1. Connect to MySQL Server (no DB selected yet)
         connection = await mysql.createConnection(dbConfig);
-        console.log('✅ Connected to MySQL Server');
+        console.log('INFO:   Connected to MySQL Server');
 
         // 2. Drop and Create Database
-        console.log(`🗑️  Dropping database '${dbName}'...`);
+        console.log(`INFO:   Dropping database '${dbName}'...`);
         await connection.query(`DROP DATABASE IF EXISTS \`${dbName}\`;`);
 
-        console.log(`Ck  Creating database '${dbName}'...`);
+        console.log(`INFO:   Creating database '${dbName}'...`);
         await connection.query(`CREATE DATABASE \`${dbName}\`;`);
 
-        console.log(`🔌 Use database '${dbName}'...`);
+        console.log(`INFO:   Use database '${dbName}'...`);
         await connection.query(`USE \`${dbName}\`;`);
 
         // Close this connection to allow drizzle-kit to connect independently or use it? 
@@ -64,20 +64,21 @@ async function resetDatabase() {
         // We can keep this connection open if we want to run seed.sql later using it.
 
         // 3. Run db:push (Schema Push)
-        console.log('📦 Pushing Schema (drizzle-kit)...');
+        console.log('INFO:   Pushing Schema (drizzle-kit)...');
         try {
             // Execute command in the Backend directory (current process cwd is likely Backend root if run via npm)
             const { stdout, stderr } = await execPromise('npm run db:push');
             console.log(stdout);
             if (stderr) console.error(stderr);
-            console.log('✅ Schema pushed successfully');
+            if (stderr) console.error(stderr);
+            console.log('INFO:   Schema pushed successfully');
         } catch (pushError: any) {
-            console.error('❌ Failed to push schema:', pushError.message);
+            console.error('ERROR:  Failed to push schema:', pushError.message);
             throw pushError;
         }
 
         // 4. Seed Data
-        console.log('🌱 Seeding Data...');
+        console.log('INFO:   Seeding Data...');
         const seedFilePath = path.join(__dirname, '../../Database/seed.sql');
 
         if (!fs.existsSync(seedFilePath)) {
@@ -107,10 +108,10 @@ async function resetDatabase() {
 
         await connection.query('SET FOREIGN_KEY_CHECKS = 1;');
 
-        console.log('✅ Data Seeding Completed');
+        console.log('INFO:   Data Seeding Completed');
 
     } catch (error) {
-        console.error('❌ Database Reset Failed:', error);
+        console.error('ERROR:  Database Reset Failed:', error);
         process.exit(1);
     } finally {
         if (connection) {
@@ -118,7 +119,7 @@ async function resetDatabase() {
         }
     }
 
-    console.log('✨ All Done! Database is fresh and ready.');
+    console.log('INFO:   All Done! Database is fresh and ready.');
 }
 
 resetDatabase();
