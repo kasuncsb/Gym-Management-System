@@ -30,7 +30,7 @@ const lastNames = ['Perera', 'Fernando', 'Silva', 'Jayasuriya', 'Bandara', 'Wick
 
 // Cleanup existing data (in reverse order of dependencies)
 async function cleanupData() {
-    console.log('🧹 Cleaning up existing data...\n');
+    console.log('INFO:   Cleaning up existing data...\n');
 
     try {
         // Delete in order respecting foreign keys (children first)
@@ -54,19 +54,19 @@ async function cleanupData() {
 
         console.log('✅ Cleanup complete\n');
     } catch (error) {
-        console.error('⚠️  Cleanup warning:', error);
-        console.log('Continuing with seed...\n');
+        console.error('WARN:   Cleanup warning:', error);
+        console.log('INFO:   Continuing with seed...\n');
     }
 }
 
 async function seedData() {
-    console.log('🌱 Starting seed...\n');
+    console.log('INFO:   Starting seed...\n');
 
     // Clean up existing data first
     await cleanupData();
 
     // 1. Create Branch
-    console.log('📍 Creating branch...');
+    console.log('INFO:   Creating branch...');
     const branchId = nanoid();
     await db.insert(branches).values({
         id: branchId,
@@ -79,7 +79,7 @@ async function seedData() {
     });
 
     // 1.1 Create Gate
-    console.log('🚪 Creating gate...');
+    console.log('INFO:   Creating gate...');
     const zoneId = nanoid();
     await db.insert(zones).values({
         id: zoneId,
@@ -97,7 +97,7 @@ async function seedData() {
     });
 
     // 2. Create Subscription Plans
-    console.log('💰 Creating subscription plans...');
+    console.log('INFO:   Creating subscription plans...');
     const plans = [
         { name: 'Basic Monthly', price: '3500.00', duration: 30, features: ['Gym access', 'Locker'] },
         { name: 'Premium Monthly', price: '6000.00', duration: 30, features: ['Gym access', 'Classes', 'Locker', 'Towel'] },
@@ -121,7 +121,7 @@ async function seedData() {
     }
 
     // 3. Create Admin User
-    console.log('👤 Creating admin user...');
+    console.log('INFO:   Creating admin user...');
     const adminUserId = nanoid();
     const hashedPassword = await bcrypt.hash('admin123', 10);
     await db.insert(users).values({
@@ -145,7 +145,7 @@ async function seedData() {
     });
 
     // 4. Create Manager
-    console.log('👤 Creating manager...');
+    console.log('INFO:   Creating manager...');
     const managerUserId = nanoid();
     await db.insert(users).values({
         id: managerUserId,
@@ -169,7 +169,7 @@ async function seedData() {
     });
 
     // 5. Create Staff Members
-    console.log('👥 Creating staff members...');
+    console.log('INFO:   Creating staff members...');
     for (let i = 0; i < STAFF_COUNT; i++) {
         const userId = nanoid();
         const name = `${firstNames[i % firstNames.length]} ${lastNames[i % lastNames.length]}`;
@@ -195,7 +195,7 @@ async function seedData() {
     }
 
     // 6. Create Trainers
-    console.log('💪 Creating trainers...');
+    console.log('INFO:   Creating trainers...');
     for (let i = 0; i < TRAINER_COUNT; i++) {
         const userId = nanoid();
         const name = `${firstNames[(i + 5) % firstNames.length]} ${lastNames[(i + 3) % lastNames.length]}`;
@@ -220,7 +220,7 @@ async function seedData() {
     }
 
     // 7. Create Members with Subscriptions
-    console.log('👥 Creating members with subscriptions...');
+    console.log('INFO:   Creating members with subscriptions...');
     // memberIds and memberUserIds declared at top
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
@@ -287,7 +287,7 @@ async function seedData() {
     }
 
     // 8. Create Access Logs (6 months history)
-    console.log('📊 Creating access log history...');
+    console.log('INFO:   Creating access log history...');
     const today = new Date();
     let logCount = 0;
 
@@ -323,7 +323,7 @@ async function seedData() {
     console.log(`   Created ${logCount} access log entries`);
 
     // 9. Create Equipment
-    console.log('🏋️ Creating equipment...');
+    console.log('INFO:   Creating equipment...');
     const equipmentList = [
         { name: 'Treadmill 1', type: 'cardio' },
         { name: 'Treadmill 2', type: 'cardio' },
@@ -351,17 +351,17 @@ async function seedData() {
         });
     }
 
-    console.log('\n✅ Seed complete!');
-    console.log('\n📝 Test Accounts:');
-    console.log('   Admin: admin@powerworld.lk / admin123');
-    console.log('   Manager: manager@powerworld.lk / admin123');
-    console.log('   Staff: staff1@powerworld.lk / admin123');
-    console.log('   Member: member1@example.com / admin123');
+    console.log('\nINFO:   Seed complete!');
+    console.log('\nINFO:   Test Accounts:');
+    console.log('INFO:      Admin: admin@powerworld.lk / admin123');
+    console.log('INFO:      Manager: manager@powerworld.lk / admin123');
+    console.log('INFO:      Staff: staff1@powerworld.lk / admin123');
+    console.log('INFO:      Member: member1@example.com / admin123');
 
     process.exit(0);
 }
 
 seedData().catch(err => {
-    console.error('❌ Seed failed:', err);
+    console.error('ERROR:  Seed failed:', err);
     process.exit(1);
 });
