@@ -7,14 +7,39 @@
 
 A premium, enterprise-grade management suite for **PowerWorld Gyms**. Built with a focus on high-performance, real-time tracking, and a stunning "Pure Black" glassmorphism UI.
 
-## 🏗 Project Structure
+## 📋 Table of Contents
+- [🏗 Project Organization](#-project-organization)
+- [🚀 Tech Stack](#-tech-stack)
+- [📦 Core Modules](#-core-modules)
+- [💎 Key Technical Highlights](#-key-technical-highlights)
+- [🛠 Setup & Installation](#-setup--installation)
+- [📚 API Endpoints Overview](#-api-endpoints-overview)
+- [👥 User Role Hierarchy](#-user-role-hierarchy)
+- [📐 Architecture & Design](#-architecture--design)
+- [✨ Frontend Features](#-frontend-features)
+- [🛤 Roadmap & Future Goals](#-roadmap--future-goals)
+- [🤝 Support & Contact](#-support--contact)
 
-```
+---
+
+## 🏗 Project Organization
+
+The repository is structured to separate concerns between the backend services, the frontend user portal, and the core database logic:
+
+```bash
 Gym-Management-System/
-├── Backend/               # Express.js API with TypeScript & Prisma
-├── Frontend/              # Next.js Web Portal
-├── Database/              # Database scripts/schemas
-└── Demo Assets/           # Project assets and demos
+├── 📂 Backend/           # Express API with TypeScript & Prisma
+│   ├── 📂 src/           # Source code (routes, controllers, services)
+│   └── 📄 prisma/        # Database schema and migrations
+├── 📂 Frontend/          # Client-side applications
+│   ├── 📂 Web Portal/    # Next.js 16 App with Tailwind
+│   │   ├── 📂 app/       # Role-based pages and layouts
+│   │   ├── 📂 components/# Shared UI components
+│   │   └── 📂 context/   # Auth & Global state management
+│   └── 📂 Mobile Apps/   # Target for future cross-platform development
+├── 📂 Database/          # Raw SQL scripts and ERD exports
+├── 📂 Documentation/     # Full project analysis, SRD, and diagrams
+└── 📂 Demo Assets/       # Visual guides and design mockups
 ```
 
 ## 🚀 Tech Stack
@@ -37,7 +62,7 @@ Gym-Management-System/
 - **API Client**: Axios
 - **State**: React Context API
 
-## � Core Modules
+## 📦 Core Modules
 
 - **🔐 Auth & Security**: Secure JWT authentication with refresh token rotation and bcrypt password hashing.
 - **🙋 Membership Management**: Full lifecycle management for gym members, including registration, profile tracking, and status.
@@ -46,6 +71,14 @@ Gym-Management-System/
 - **🏗 Inventory & Equipment**: Track gym assets, maintenance logs, and inventory levels across branches.
 - **📅 Appointments & Leads**: Integrated scheduling for trainer sessions and lead tracking for potential members.
 - **📊 Interactive Dashboards**: Real-time analytics and data visualization using Recharts.
+
+## 💎 Key Technical Highlights
+
+- **⚡ High-Performance Architecture**: Modular backend service layer for decoupled business logic and easier scaling.
+- **🛡 Enterprise Security**: Multi-layered auth flow with Refresh Token rotation, CSRF protection, and role-based middleware.
+- **🎨 Glassmorphism v2**: Custom-built design system using Tailwind CSS 4.x for a sleek, premium "Pure Black" aesthetic.
+- **📊 Data Visualization**: Dynamic, responsive charts for tracking gym performance and member activity.
+- **� Real-time Validation**: Instant seat availability and subscription status checks across all branch access points.
 
 ## �🛠 Setup & Installation
 
@@ -59,25 +92,21 @@ Gym-Management-System/
    ```bash
    cd Backend
    ```
-
 2. Install dependencies:
    ```bash
    npm install
    ```
-
 3. Configure Environment:
    - Copy `.env.example` to `.env`
    - **Database**: Port 3306 (MySQL)
    - **Secrets**: Update `JWT_SECRET` and `QR_SECRET`
    - **Integrations**: Configure `STRIPE_SECRET_KEY` and `SMTP_USER` for payments and emails.
-
 4. Setup Database:
    ```bash
    npx prisma generate
    npx prisma migrate dev
    npm run seed:demo     # Optional: Seed data
    ```
-
 5. Run Server:
    ```bash
    npm run dev
@@ -90,12 +119,10 @@ Gym-Management-System/
    ```bash
    cd "Frontend/Web Portal"
    ```
-
 2. Install dependencies:
    ```bash
    npm install
    ```
-
 3. Run Development Server:
    ```bash
    npm run dev
@@ -139,9 +166,16 @@ Detailed design documents are available in the [Documentation](./Documentation) 
 - QR code display & scanning
 - Dark mode support
 
-## 🤝 Support & Contact
+## 🛤 Roadmap & Future Goals
 
-For support, feedback, or inquiries regarding the system implementation:
+Upcoming features include:
+
+- [ ] **📱 Mobile App**: Cross-platform React Native app for members.
+- [ ] **🤖 AI Training Plans**: Personalized workout generation based on member goals.
+- [ ] **🏪 E-commerce Integration**: In-app purchase for supplements and gym gear.
+- [ ] **🏨 Multi-branch Sync**: Enhanced real-time synchronization for global member roaming.
+
+## 🤝 Support & Contact
 
 - 📧 **Email**: [kasun@kasunc.uk](mailto:kasun@kasunc.uk)
 - 🌐 **Portfolio**: [kasunc.uk](https://kasunc.uk)
