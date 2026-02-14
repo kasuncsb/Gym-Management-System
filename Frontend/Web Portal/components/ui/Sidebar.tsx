@@ -64,13 +64,15 @@ export function Sidebar() {
         const managerItems = [
             { name: "Dashboard", href: "/manager-dashboard", icon: LayoutDashboard },
             { name: "Members", href: "/manager-dashboard/members", icon: Users },
-            { name: "Staff", href: "/manager-dashboard/staff", icon: CalendarDays },
+            { name: "Staff", href: "/manager-dashboard/staff", icon: UserCheck },
             { name: "Shifts", href: "/manager-dashboard/shifts", icon: Clock },
             { name: "Payments", href: "/manager-dashboard/payments", icon: DollarSign },
+            { name: "Subscriptions", href: "/manager-dashboard/subscriptions", icon: CreditCard },
             { name: "Inventory", href: "/manager-dashboard/inventory", icon: Package },
+            { name: "Equipment", href: "/manager-dashboard/equipment", icon: Dumbbell },
             { name: "Analytics", href: "/manager-dashboard/analytics", icon: LineChart },
             { name: "Reports", href: "/manager-dashboard/reports", icon: BarChart3 },
-            { name: "Equipment", href: "/manager-dashboard/equipment", icon: Dumbbell },
+            { name: "Notifications", href: "/manager-dashboard/notifications", icon: Bell },
         ];
 
         const staffItems = [
@@ -150,6 +152,7 @@ export function Sidebar() {
                                 pathname === item.href ||
                                 (pathname?.startsWith(`${item.href}/`) &&
                                     item.href !== '/admin-dashboard' &&
+                                    item.href !== '/manager-dashboard' &&
                                     item.href !== '/staff-dashboard' &&
                                     item.href !== '/member');
                             return (
