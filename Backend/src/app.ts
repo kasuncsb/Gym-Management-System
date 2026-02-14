@@ -2,23 +2,17 @@
 import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
 import { errorHandler } from './middleware/error-handler.middleware';
 import { requestLogger } from './middleware/logger.middleware';
 import { apiRateLimit } from './middleware/rate-limit.middleware';
-
-// Load environment variables
-dotenv.config();
+import { env } from './config/env';
 
 // Import routes
 import authRoutes from './routes/auth.routes';
 import memberRoutes from './routes/member.routes';
 import qrRoutes from './routes/qr.routes';
 import subscriptionRoutes from './routes/subscription.routes';
-import appointmentRoutes from './routes/appointment.routes';
-import inventoryRoutes from './routes/inventory.routes';
 import equipmentRoutes from './routes/equipment.routes';
-import leadRoutes from './routes/lead.routes';
 import publicRoutes from './routes/public.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import adminRoutes from './routes/admin.routes';
@@ -32,7 +26,7 @@ app.use(helmet());
 
 // CORS configuration
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: env.FRONTEND_URL,
     credentials: true
 }));
 
@@ -62,10 +56,7 @@ app.use('/api/members', memberRoutes);
 app.use('/api/qr', qrRoutes);
 
 app.use('/api/subscriptions', subscriptionRoutes);
-app.use('/api/appointments', appointmentRoutes);
-app.use('/api/inventory', inventoryRoutes);
 app.use('/api/equipment', equipmentRoutes);
-app.use('/api/leads', leadRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);

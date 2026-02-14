@@ -1,4 +1,4 @@
-// Authentication Routes
+// Authentication Routes — Phase 1
 import { Router } from 'express';
 import Joi from 'joi';
 import { AuthController } from '../controllers/auth.controller';
@@ -10,44 +10,42 @@ const router = Router();
 
 // Validation schemas
 const loginSchema = {
-    body: Joi.object({
-        email: Joi.string().email().required(),
-        password: Joi.string().required(),
-        userType: Joi.string().valid('member', 'trainer', 'staff').optional()
-    })
+  body: Joi.object({
+    email: Joi.string().email().required(),
+    password: Joi.string().required(),
+  }),
 };
 
 const refreshTokenSchema = {
-    body: Joi.object({
-        refreshToken: Joi.string().required()
-    })
+  body: Joi.object({
+    refreshToken: Joi.string().required(),
+  }),
 };
 
-
 const changePasswordSchema = {
-    body: Joi.object({
-        oldPassword: Joi.string().required(),
-        newPassword: Joi.string().min(8).required()
-    })
+  body: Joi.object({
+    oldPassword: Joi.string().required(),
+    newPassword: Joi.string().min(8).required(),
+  }),
 };
 
 const verifyEmailSchema = {
-    body: Joi.object({
-        token: Joi.string().required()
-    })
+  body: Joi.object({
+    token: Joi.string().required(),
+  }),
 };
 
 const forgotPasswordSchema = {
-    body: Joi.object({
-        email: Joi.string().email().required()
-    })
+  body: Joi.object({
+    email: Joi.string().email().required(),
+  }),
 };
 
 const resetPasswordSchema = {
-    body: Joi.object({
-        token: Joi.string().required(),
-        newPassword: Joi.string().min(8).required()
-    })
+  body: Joi.object({
+    token: Joi.string().required(),
+    newPassword: Joi.string().min(8).required(),
+  }),
 };
 
 // Public routes
@@ -60,6 +58,7 @@ router.post('/reset-password', validate(resetPasswordSchema), AuthController.res
 // Protected routes
 router.get('/profile', authenticate, AuthController.getProfile);
 router.post('/change-password', authenticate, validate(changePasswordSchema), AuthController.changePassword);
+router.post('/logout', authenticate, AuthController.logout);
 router.get('/qr-code', authenticate, AuthController.generateQR);
 
 export default router;

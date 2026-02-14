@@ -32,7 +32,7 @@ export default function AdminDashboard() {
 
         const fetchData = async () => {
             try {
-                const token = localStorage.getItem('token');
+                const token = localStorage.getItem('accessToken');
                 if (!token) { router.push('/login'); return; }
 
                 const [profileRes, metricsRes] = await Promise.all([

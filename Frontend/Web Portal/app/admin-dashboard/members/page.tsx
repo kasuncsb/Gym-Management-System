@@ -32,8 +32,8 @@ export default function MembersPage() {
                 return;
             }
 
-            const isManager = user.role === 'manager' || (user.role === 'staff' && user.staffRole === 'manager');
             const isAdmin = user.role === 'admin';
+            const isManager = user.role === 'manager';
 
             if (!isAdmin && !isManager) {
                 if (user.role === 'member') {

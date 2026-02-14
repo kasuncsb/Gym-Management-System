@@ -34,8 +34,8 @@ export default function DocumentUploadPage() {
 
         try {
             const response = await memberAPI.uploadDocument({
-                type,
-                fileUrl: fileUrl.trim()
+                documentType: type,
+                storageKey: fileUrl.trim()
             });
 
             if (response.data.success) {

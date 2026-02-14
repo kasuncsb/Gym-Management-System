@@ -1,44 +1,34 @@
 // ID Generator for PowerWorld Gyms
-// Format: PWG-{LOCATION}-{TYPE}-{SEQUENCE}
-// Example: PWG-KBT-MEM-00001
+// Format: PWG-{LOCATION}-{TYPE}-{NANOID}
+// Example: PWG-KBT-MEM-A1B2C
 
 import { customAlphabet } from 'nanoid';
 
 const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 5);
+const nanoidLong = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 8);
 
-const LOCATION_CODE = process.env.GYM_LOCATION_CODE || 'KBT'; // Kiribathgoda
+const LOCATION_CODE = process.env.GYM_LOCATION_CODE || 'KBT';
 
-export function generateMemberId(): string {
-    return `PWG-${LOCATION_CODE}-MEM-${nanoid()}`;
-}
+export const generateId = {
+  member:       () => `PWG-${LOCATION_CODE}-MEM-${nanoid()}`,
+  trainer:      () => `PWG-${LOCATION_CODE}-TRN-${nanoid()}`,
+  staff:        () => `PWG-${LOCATION_CODE}-STF-${nanoid()}`,
+  subscription: () => `PWG-SUB-${nanoidLong()}`,
+  payment:      () => `PWG-PAY-${nanoidLong()}`,
+  equipment:    () => `PWG-EQP-${nanoid()}`,
+  workout:      () => `PWG-WRK-${nanoid()}`,
+  session:      () => `PWG-SES-${nanoid()}`,
+  branch:       () => `PWG-BRN-${nanoid()}`,
+  plan:         () => `PWG-PLN-${nanoid()}`,
+  generic:      () => crypto.randomUUID(),
+};
 
-export function generateTrainerId(): string {
-    return `PWG-${LOCATION_CODE}-TRN-${nanoid()}`;
-}
+// Keep legacy named exports for backward compat
+export const generateMemberId       = generateId.member;
+export const generateTrainerId      = generateId.trainer;
+export const generateStaffId        = generateId.staff;
+export const generateSubscriptionId = generateId.subscription;
+export const generatePaymentId      = generateId.payment;
+export const generateEquipmentId    = generateId.equipment;
+export const generateWorkoutId      = generateId.workout;
 
-export function generateStaffId(): string {
-    return `PWG-${LOCATION_CODE}-STF-${nanoid()}`;
-}
-
-export function generateSubscriptionId(): string {
-    const date = new Date().toISOString().split('T')[0].replace(/-/g, '');
-    return `PWG-SUB-${date}-${nanoid()}`;
-}
-
-export function generatePaymentId(): string {
-    const date = new Date().toISOString().split('T')[0].replace(/-/g, '');
-    return `PWG-PAY-${date}-${nanoid()}`;
-}
-
-export function generateAppointmentId(): string {
-    const date = new Date().toISOString().split('T')[0].replace(/-/g, '');
-    return `PWG-APT-${date}-${nanoid()}`;
-}
-
-export function generateWorkoutId(): string {
-    return `PWG-WRK-${nanoid()}`;
-}
-
-export function generateEquipmentId(): string {
-    return `PWG-EQP-${nanoid()}`;
-}

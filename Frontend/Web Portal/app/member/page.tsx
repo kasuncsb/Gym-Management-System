@@ -59,7 +59,7 @@ export default function DashboardPage() {
             <div>
                 <h2 className="text-3xl font-bold text-white">Dashboard</h2>
                 <p className="text-zinc-400 mt-1">
-                    Welcome back, <span className="text-red-500 font-medium">{user?.name || 'Member'}</span>!
+                    Welcome back, <span className="text-red-500 font-medium">{user?.fullName || 'Member'}</span>!
                     Ready to crush your goals?
                 </p>
             </div>

@@ -1,25 +1,19 @@
 import nodemailer from 'nodemailer';
 import logger from '../config/logger';
+import { env } from '../config/env';
 
-// Email configuration from environment variables
-const SMTP_HOST = process.env.SMTP_HOST || 'smtp.zoho.com';
-const SMTP_PORT = parseInt(process.env.SMTP_PORT || '465', 10);
-const SMTP_SECURE = process.env.SMTP_SECURE === 'true'; // Usually true for port 465
-const SMTP_USER = process.env.SMTP_USER;
-const SMTP_PASSWORD = process.env.SMTP_PASSWORD;
-const EMAIL_FROM = process.env.EMAIL_FROM || '"PowerWorld Gyms" <noreply@powerworld.lk>';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
-
-// Create reusable transporter object using the default SMTP transport
 const transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_SECURE,
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+    secure: env.SMTP_PORT === 465,
     auth: {
-        user: SMTP_USER,
-        pass: SMTP_PASSWORD,
+        user: env.SMTP_USER,
+        pass: env.SMTP_PASSWORD,
     },
 });
+
+const EMAIL_FROM = env.EMAIL_FROM;
+const FRONTEND_URL = env.FRONTEND_URL;
 
 export class EmailService {
     // Verify connection configuration

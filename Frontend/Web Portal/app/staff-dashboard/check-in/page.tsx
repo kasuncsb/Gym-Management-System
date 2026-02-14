@@ -1,17 +1,16 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { QrCode, Search, CheckCircle, XCircle, Loader2, ExternalLink } from "lucide-react";
+import { QrCode, Search, CheckCircle, XCircle, Loader2, ExternalLink, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { qrAPI, memberAPI } from "@/lib/api";
 
 interface CheckInResult {
     name: string;
-    status: string;
-    plan: string;
-    memberCode: string;
+    direction: 'in' | 'out';
     time: string;
+    sessionId?: string;
 }
 
 export default function CheckInPage() {
@@ -24,22 +23,20 @@ export default function CheckInPage() {
         setScanState('scanning');
         setError(null);
         try {
-            // Call QR scan API
-            const response = await qrAPI.scan(qrData, 'reception-desk', 'kiosk-01', 'main-entrance');
+            const response = await qrAPI.scan(qrData, 'reception-desk');
             const data = response.data?.data;
 
-            if (data?.valid) {
+            if (data?.accessGranted) {
                 setScanState('success');
                 setLastScan({
-                    name: data.member?.name || 'Member',
-                    status: data.accessGranted ? 'Active' : 'Denied',
-                    plan: data.member?.planName || 'Standard',
-                    memberCode: data.member?.memberCode || '',
+                    name: data.userName || 'Member',
+                    direction: data.direction || 'in',
+                    sessionId: data.sessionId,
                     time: new Date().toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit' })
                 });
             } else {
                 setScanState('error');
-                setError(data?.message || 'Invalid or expired QR code');
+                setError(data?.message || 'Access denied');
             }
         } catch (err: any) {
             setScanState('error');
@@ -60,18 +57,22 @@ export default function CheckInPage() {
 
             if (members.length > 0) {
                 const member = members[0];
-                // Record check-in
-                // Record check-in via scan simulation
-                await qrAPI.scan(member.qrCode || member.memberCode || member.id, 'reception-desk', 'manual-entry', 'main-entrance');
+                // Manual check-in — pass member code as QR data
+                const scanRes = await qrAPI.scan(JSON.stringify({ memberId: member.id }), 'reception-desk');
+                const data = scanRes.data?.data;
 
-                setScanState('success');
-                setLastScan({
-                    name: member.name,
-                    status: member.status || 'Active',
-                    plan: member.planName || 'Standard',
-                    memberCode: member.memberCode || '',
-                    time: new Date().toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit' })
-                });
+                if (data?.accessGranted) {
+                    setScanState('success');
+                    setLastScan({
+                        name: data.userName || member.fullName || 'Member',
+                        direction: data.direction || 'in',
+                        sessionId: data.sessionId,
+                        time: new Date().toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit' })
+                    });
+                } else {
+                    setScanState('error');
+                    setError(data?.message || 'Access denied for this member');
+                }
             } else {
                 setScanState('error');
                 setError('No member found with that ID or phone number');
@@ -193,24 +194,32 @@ export default function CheckInPage() {
             {lastScan && (
                 <div className="mt-8 p-6 rounded-2xl bg-zinc-900/40 border border-zinc-800 backdrop-blur-md animate-in slide-in-from-bottom-2">
                     <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-500">
-                            <CheckCircle size={32} />
+                        <div className={cn(
+                            "w-16 h-16 rounded-full border flex items-center justify-center",
+                            lastScan.direction === 'in'
+                                ? "bg-green-500/10 border-green-500/20 text-green-500"
+                                : "bg-amber-500/10 border-amber-500/20 text-amber-500"
+                        )}>
+                            {lastScan.direction === 'in' ? <ArrowDownLeft size={32} /> : <ArrowUpRight size={32} />}
                         </div>
                         <div className="flex-1">
                             <h4 className="text-xl font-bold text-white">{lastScan.name}</h4>
                             <div className="flex items-center gap-3 mt-1">
-                                <span className="px-2 py-0.5 rounded text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/10 uppercase tracking-wide">
-                                    Access Granted
+                                <span className={cn(
+                                    "px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide border",
+                                    lastScan.direction === 'in'
+                                        ? "bg-green-500/20 text-green-400 border-green-500/10"
+                                        : "bg-amber-500/20 text-amber-400 border-amber-500/10"
+                                )}>
+                                    {lastScan.direction === 'in' ? 'Checked In' : 'Checked Out'}
                                 </span>
-                                <span className="text-sm text-zinc-500">{lastScan.plan}</span>
-                                {lastScan.memberCode && (
-                                    <span className="text-sm text-zinc-600">#{lastScan.memberCode}</span>
-                                )}
                             </div>
                         </div>
                         <div className="text-right">
                             <span className="block text-2xl font-bold text-zinc-200">{lastScan.time}</span>
-                            <span className="text-xs text-zinc-500 uppercase">Check-in Time</span>
+                            <span className="text-xs text-zinc-500 uppercase">
+                                {lastScan.direction === 'in' ? 'Check-in' : 'Check-out'} Time
+                            </span>
                         </div>
                     </div>
                 </div>

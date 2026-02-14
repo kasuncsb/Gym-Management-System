@@ -3,13 +3,13 @@
 import { Sidebar } from "@/components/ui/Sidebar";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
-export default function StaffLayout({
+export default function ManagerLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
     return (
-        <ProtectedRoute allowedRoles={['staff', 'trainer']}>
+        <ProtectedRoute allowedRoles={['manager']}>
             <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-red-600/30">
                 <Sidebar />
                 <main className="transition-all duration-300 md:ml-64 min-h-screen">

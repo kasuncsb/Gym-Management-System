@@ -25,7 +25,7 @@ export default function QRScannerPage() {
     const router = useRouter();
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('accessToken');
         if (!token) {
             router.push('/login');
             return;
@@ -73,7 +73,7 @@ export default function QRScannerPage() {
         setScanResult(null);
 
         try {
-            const res = await qrAPI.scan(qrData, 'GATE01', 'SCANNER_WEB', 'Front Desk');
+            const res = await qrAPI.scan(qrData, 'GATE01');
 
             if (res.data.success) {
                 setScanResult({
@@ -105,8 +105,8 @@ export default function QRScannerPage() {
 
     const getBackLink = () => {
         if (!profile) return '/member';
-        if (profile.role === 'admin' || profile.staffRole === 'admin') return '/admin-dashboard';
-        if (profile.role === 'manager' || profile.staffRole === 'manager') return '/manager-dashboard';
+        if (profile.role === 'admin') return '/admin-dashboard';
+        if (profile.role === 'manager') return '/manager-dashboard';
         if (profile.role === 'staff') return '/staff-dashboard';
         return '/member';
     };

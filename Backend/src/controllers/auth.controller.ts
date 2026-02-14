@@ -1,170 +1,111 @@
-// Authentication Controller
+// Authentication Controller — Phase 1
 import { Request, Response } from 'express';
 import { eq } from 'drizzle-orm';
 import { db } from '../config/database';
-import { members, trainers, staff, users } from '../db/schema';
+import { users, members, staff, trainers } from '../db/schema';
 import { AuthService } from '../services/auth.service';
 import { asyncHandler } from '../middleware/error-handler.middleware';
 import { successResponse } from '../utils/response-formatter';
 import { AuthRequest } from '../middleware/auth.middleware';
 
 export class AuthController {
-    // Unified Login
-    static login = asyncHandler(async (req: Request, res: Response) => {
-        const { email, password } = req.body;
-        const result = await AuthService.login(email, password, req);
-        res.json(successResponse(result, 'Login successful'));
-    });
+  // POST /api/auth/login
+  static login = asyncHandler(async (req: Request, res: Response) => {
+    const { email, password } = req.body;
+    const result = await AuthService.login(email, password, req);
+    res.json(successResponse(result, 'Login successful'));
+  });
 
-    // Refresh token
-    static refreshToken = asyncHandler(async (req: Request, res: Response) => {
-        const { refreshToken } = req.body;
-        const result = await AuthService.refreshToken(refreshToken);
-        res.json(successResponse(result, 'Token refreshed'));
-    });
+  // POST /api/auth/refresh
+  static refreshToken = asyncHandler(async (req: Request, res: Response) => {
+    const { refreshToken } = req.body;
+    const result = await AuthService.refreshAccessToken(refreshToken);
+    res.json(successResponse(result, 'Token refreshed'));
+  });
 
-    // Change password
-    static changePassword = asyncHandler(async (req: AuthRequest, res: Response) => {
-        const { oldPassword, newPassword } = req.body;
-        const userId = req.user!.id;
-        const userType = req.user!.role as 'member' | 'trainer' | 'staff';
+  // POST /api/auth/logout
+  static logout = asyncHandler(async (req: AuthRequest, res: Response) => {
+    await AuthService.logout(req.user!.userId);
+    res.json(successResponse(null, 'Logged out'));
+  });
 
-        await AuthService.changePassword(userId, userType, oldPassword, newPassword);
-        res.json(successResponse(null, 'Password changed successfully'));
-    });
+  // POST /api/auth/change-password
+  static changePassword = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { oldPassword, newPassword } = req.body;
+    await AuthService.changePassword(req.user!.userId, oldPassword, newPassword);
+    res.json(successResponse(null, 'Password changed successfully'));
+  });
 
-    // Get current user profile
-    static getProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
-        const userId = req.user!.id;
-        const userRole = req.user!.role;
+  // GET /api/auth/profile
+  static getProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const userId = req.user!.userId;
+    const role = req.user!.role;
 
-        let profile;
-        if (userRole === 'member') {
-            const [result] = await db.select({
-                member: members,
-                user: users
-            })
-                .from(members)
-                .innerJoin(users, eq(members.userId, users.id))
-                .where(eq(members.id, userId))
-                .limit(1);
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) return void res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'User not found' } });
 
-            if (result) {
-                profile = {
-                    id: result.member.id,
-                    name: result.user.fullName,
-                    email: result.user.email,
-                    phone: result.user.phone,
-                    dateOfBirth: result.member.dateOfBirth,
-                    joinDate: result.member.joinDate,
-                    status: result.member.status
-                };
-            }
-        } else if (userRole === 'trainer') {
-            const [result] = await db.select({
-                trainer: trainers,
-                user: users
-            })
-                .from(trainers)
-                .innerJoin(users, eq(trainers.userId, users.id))
-                .where(eq(trainers.id, userId))
-                .limit(1);
+    // Base profile
+    const profile: Record<string, any> = {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      gender: user.gender,
+      dateOfBirth: user.dateOfBirth,
+      avatarUrl: user.avatarUrl,
+      isActive: user.isActive,
+    };
 
-            if (result) {
-                profile = {
-                    id: result.trainer.id,
-                    name: result.user.fullName,
-                    email: result.user.email,
-                    phone: result.user.phone,
-                    specialization: result.trainer.specialization,
-                    status: result.user.isActive ? 'active' : 'inactive' // Trainer has no status column, use user.isActive
-                };
-            }
-        } else if (userRole === 'admin') {
-            // Admin ID in token might be User ID OR Staff ID (if they are also staff)
-            // First retry finding as direct User ID
-            let result = await db.select()
-                .from(users)
-                .where(eq(users.id, userId))
-                .limit(1);
+    // Attach role-specific data
+    if (role === 'member') {
+      const [m] = await db.select().from(members).where(eq(members.userId, userId)).limit(1);
+      if (m) Object.assign(profile, {
+        memberCode: m.memberCode, joinDate: m.joinDate, experienceLevel: m.experienceLevel,
+        status: m.status, isOnboarded: m.isOnboarded,
+      });
+    } else if (role === 'trainer') {
+      const [t] = await db.select().from(trainers).where(eq(trainers.userId, userId)).limit(1);
+      if (t) Object.assign(profile, {
+        specialization: t.specialization, bio: t.bio, certifications: t.certifications,
+        hourlyRate: t.hourlyRate, rating: t.rating, maxClients: t.maxClients,
+      });
+    } else if (role === 'staff' || role === 'manager') {
+      const [s] = await db.select().from(staff).where(eq(staff.userId, userId)).limit(1);
+      if (s) Object.assign(profile, {
+        employeeCode: s.employeeCode, designation: s.designation,
+        hireDate: s.hireDate, staffStatus: s.status,
+      });
+    }
 
-            // If not found, try to resolve via Staff table (if token has staff ID)
-            if (result.length === 0) {
-                const [staffMember] = await db.select({ userId: staff.userId })
-                    .from(staff)
-                    .where(eq(staff.id, userId))
-                    .limit(1);
+    res.json(successResponse(profile, 'Profile retrieved'));
+  });
 
-                if (staffMember) {
-                    result = await db.select()
-                        .from(users)
-                        .where(eq(users.id, staffMember.userId))
-                        .limit(1);
-                }
-            }
+  // GET /api/auth/qr-code
+  static generateQR = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await AuthService.generateMemberQR(req.user!.userId);
+    res.json(successResponse(result, 'QR code generated'));
+  });
 
-            if (result.length > 0) {
-                const user = result[0];
-                profile = {
-                    id: user.id,
-                    name: user.fullName,
-                    email: user.email,
-                    phone: user.phone,
-                    role: 'admin',
-                    status: user.isActive ? 'active' : 'inactive'
-                };
-            }
-        } else {
-            const [result] = await db.select({
-                staff: staff,
-                user: users
-            })
-                .from(staff)
-                .innerJoin(users, eq(staff.userId, users.id))
-                .where(eq(staff.id, userId))
-                .limit(1);
+  // POST /api/auth/verify-email
+  static verifyEmail = asyncHandler(async (req: Request, res: Response) => {
+    const { token } = req.body;
+    await AuthService.verifyEmail(token);
+    res.json(successResponse(null, 'Email verified successfully'));
+  });
 
-            if (result) {
-                profile = {
-                    id: result.staff.id,
-                    name: result.user.fullName,
-                    email: result.user.email,
-                    phone: result.user.phone,
-                    role: result.user.role || 'staff',
-                    designation: result.staff.designation,
-                    status: result.staff.status
-                };
-            }
-        }
+  // POST /api/auth/forgot-password
+  static forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+    await AuthService.forgotPassword(email);
+    res.json(successResponse(null, 'If your email is registered, you will receive a password reset link'));
+  });
 
-        res.json(successResponse(profile, 'Profile retrieved'));
-    });
-
-    // Generate member QR code
-    static generateQR = asyncHandler(async (req: AuthRequest, res: Response) => {
-        const memberId = req.user!.id;
-        const result = await AuthService.generateMemberQR(memberId);
-        res.json(successResponse(result, 'QR code generated'));
-    });
-
-    // Verify Email
-    static verifyEmail = asyncHandler(async (req: Request, res: Response) => {
-        const { token } = req.body;
-        await AuthService.verifyEmail(token);
-        res.json(successResponse(null, 'Email verified successfully'));
-    });
-
-    // Forgot Password
-    static forgotPassword = asyncHandler(async (req: Request, res: Response) => {
-        const { email } = req.body;
-        await AuthService.forgotPassword(email);
-        res.json(successResponse(null, 'If your email is registered, you will receive a password reset link'));
-    });
-
-    // Reset Password
-    static resetPassword = asyncHandler(async (req: Request, res: Response) => {
-        const { token, newPassword } = req.body;
-        await AuthService.resetPassword(token, newPassword);
-        res.json(successResponse(null, 'Password reset successfully'));
-    });
+  // POST /api/auth/reset-password
+  static resetPassword = asyncHandler(async (req: Request, res: Response) => {
+    const { token, newPassword } = req.body;
+    await AuthService.resetPassword(token, newPassword);
+    res.json(successResponse(null, 'Password reset successfully'));
+  });
 }
+

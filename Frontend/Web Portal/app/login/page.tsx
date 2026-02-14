@@ -23,11 +23,18 @@ export default function Login() {
 
         try {
             const response = await authAPI.login(email, password);
-            const { token, user } = response.data.data;
+            const { accessToken, refreshToken, user } = response.data.data;
 
-            login(token, user);
+            login(accessToken, refreshToken, {
+                id: user.id,
+                fullName: user.fullName,
+                email: user.email,
+                role: user.role,
+                phone: user.phone,
+                avatarUrl: user.avatarUrl,
+            });
 
-            // Redirect based on role from backend
+            // Redirect based on role
             if (user.role === 'admin') {
                 router.push('/admin-dashboard');
             } else if (user.role === 'manager') {

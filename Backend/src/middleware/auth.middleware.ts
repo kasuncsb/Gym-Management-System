@@ -1,170 +1,127 @@
-// Authentication Middleware
+// Authentication & Authorization Middleware — Phase 1
+// JWT uses users.id everywhere (no profile-ID confusion)
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { eq } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { db } from '../config/database';
-import { members, trainers, staff, users } from '../db/schema';
+import { users } from '../db/schema';
+import { env } from '../config/env';
 import { AuthenticationError, AuthorizationError } from '../utils/error-types';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+// ---- Types ----------------------------------------------------------------
 
+export type Role = 'admin' | 'manager' | 'staff' | 'trainer' | 'member';
+
+export interface JWTPayload {
+  userId: string;       // always users.id
+  email: string;
+  role: Role;
+}
+
+/** Extended Express request carrying the verified user claim */
 export interface AuthRequest extends Request {
-    user?: {
-        id: string;
-        email: string;
-        role: 'member' | 'trainer' | 'staff' | 'admin' | 'manager';
-        staffRole?: string;
-    };
-    headers: any;
-    params: any;
-    query: any;
-    body: any;
+  user?: JWTPayload;
 }
 
-interface JWTPayload {
-    id: string;
-    email: string;
-    role: 'member' | 'trainer' | 'staff' | 'admin' | 'manager';
-    staffRole?: string;
-}
+// ---- Middleware ------------------------------------------------------------
 
-// Main authentication middleware
+/**
+ * Verify the Bearer access-token, look up user in DB, and attach `req.user`.
+ */
 export const authenticate = async (
-    req: AuthRequest,
-    _res: Response,
-    next: NextFunction
+  req: AuthRequest,
+  _res: Response,
+  next: NextFunction,
 ) => {
-    try {
-        const authHeader = req.headers.authorization;
-
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            throw new AuthenticationError('No authentication token provided');
-        }
-
-        const token = authHeader.substring(7);
-
-        const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
-
-        // Verify user still exists and is active
-        let userExists = false;
-
-        if (decoded.role === 'member') {
-            const [member] = await db.select({ status: members.status, deletedAt: members.deletedAt })
-                .from(members)
-                .where(eq(members.id, decoded.id))
-                .limit(1);
-            userExists = member !== undefined && member.deletedAt === null && member.status === 'active';
-        } else if (decoded.role === 'trainer') {
-            const [result] = await db.select({
-                isActive: users.isActive,
-                deletedAt: trainers.deletedAt
-            })
-                .from(trainers)
-                .innerJoin(users, eq(trainers.userId, users.id))
-                .where(eq(trainers.id, decoded.id))
-                .limit(1);
-            userExists = result !== undefined && result.deletedAt === null && result.isActive === true;
-        } else if (decoded.role === 'staff' || decoded.role === 'manager') {
-            const [staffMember] = await db.select({ status: staff.status, deletedAt: staff.deletedAt })
-                .from(staff)
-                .where(eq(staff.id, decoded.id))
-                .limit(1);
-            userExists = staffMember !== undefined && staffMember.deletedAt === null && staffMember.status === 'active';
-        } else if (decoded.role === 'admin') {
-            const [adminUser] = await db.select({ isActive: users.isActive, deletedAt: users.deletedAt })
-                .from(users)
-                .where(eq(users.id, decoded.id))
-                .limit(1);
-
-            if (adminUser) {
-                userExists = adminUser.deletedAt === null && adminUser.isActive === true;
-            } else {
-                const [adminStaff] = await db.select({
-                    staffDeletedAt: staff.deletedAt,
-                    staffStatus: staff.status,
-                    userDeletedAt: users.deletedAt,
-                    userIsActive: users.isActive,
-                    userRole: users.role
-                })
-                    .from(staff)
-                    .innerJoin(users, eq(staff.userId, users.id))
-                    .where(eq(staff.id, decoded.id))
-                    .limit(1);
-
-                userExists = adminStaff !== undefined
-                    && adminStaff.userRole === 'admin'
-                    && adminStaff.userDeletedAt === null
-                    && adminStaff.userIsActive === true
-                    && adminStaff.staffDeletedAt === null
-                    && adminStaff.staffStatus === 'active';
-            }
-        }
-
-        if (!userExists) {
-            throw new AuthenticationError('User not found or inactive');
-        }
-
-        req.user = decoded;
-        next();
-    } catch (error) {
-        if (error instanceof jwt.JsonWebTokenError) {
-            next(new AuthenticationError('Invalid token'));
-        } else if (error instanceof jwt.TokenExpiredError) {
-            next(new AuthenticationError('Token expired'));
-        } else {
-            next(error);
-        }
-    }
-};
-
-// Role-based authorization middleware
-export const requireRole = (...allowedRoles: string[]) => {
-    return (req: AuthRequest, _res: Response, next: NextFunction) => {
-        if (!req.user) {
-            return next(new AuthenticationError('Not authenticated'));
-        }
-
-        const userRole = req.user.role;
-        const staffRole = req.user.staffRole;
-
-        const hasRole = allowedRoles.some(role => {
-            if (role === userRole) return true;
-            if (userRole === 'staff' && staffRole === role) return true;
-            return false;
-        });
-
-        if (!hasRole) {
-            return next(
-                new AuthorizationError(
-                    `Access denied. Required roles: ${allowedRoles.join(', ')}`
-                )
-            );
-        }
-
-        next();
-    };
-};
-
-// Optional authentication - doesn't fail if no token
-export const optionalAuth = (
-    req: AuthRequest,
-    _res: Response,
-    next: NextFunction
-) => {
+  try {
     const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return next();
+    if (!authHeader?.startsWith('Bearer ')) {
+      throw new AuthenticationError('No authentication token provided');
     }
 
     const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as JWTPayload;
 
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
-        req.user = decoded;
-    } catch (_error) {
-        // Silently continue without user
+    // Verify user still exists, is active, and not soft-deleted
+    const [user] = await db
+      .select({
+        id: users.id,
+        isActive: users.isActive,
+        role: users.role,
+        lockedUntil: users.lockedUntil,
+      })
+      .from(users)
+      .where(and(eq(users.id, decoded.userId), isNull(users.deletedAt)))
+      .limit(1);
+
+    if (!user) {
+      throw new AuthenticationError('User not found or deactivated');
+    }
+    if (!user.isActive) {
+      throw new AuthenticationError('Account is deactivated');
+    }
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw new AuthenticationError('Account is temporarily locked');
     }
 
+    // Ensure role in token still matches DB (prevents stale tokens after role change)
+    if (user.role !== decoded.role) {
+      throw new AuthenticationError('Token role mismatch — please log in again');
+    }
+
+    req.user = decoded;
     next();
+  } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError) {
+      return next(new AuthenticationError('Invalid token'));
+    }
+    if (error instanceof jwt.TokenExpiredError) {
+      return next(new AuthenticationError('Token expired'));
+    }
+    next(error);
+  }
 };
+
+/**
+ * Restrict access to specific roles.
+ * Usage: `requireRole('admin', 'manager')`
+ */
+export const requireRole = (...allowed: Role[]) => {
+  return (req: AuthRequest, _res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return next(new AuthenticationError('Not authenticated'));
+    }
+    if (!allowed.includes(req.user.role)) {
+      return next(
+        new AuthorizationError(
+          `Access denied. Required roles: ${allowed.join(', ')}`,
+        ),
+      );
+    }
+    next();
+  };
+};
+
+/**
+ * Optional auth — attach user if token present, else continue silently.
+ */
+export const optionalAuth = (
+  req: AuthRequest,
+  _res: Response,
+  next: NextFunction,
+) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) return next();
+
+  try {
+    const decoded = jwt.verify(
+      authHeader.substring(7),
+      env.JWT_ACCESS_SECRET,
+    ) as JWTPayload;
+    req.user = decoded;
+  } catch {
+    // Silently continue without user
+  }
+  next();
+};
+

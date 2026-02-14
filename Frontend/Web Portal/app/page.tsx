@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from "next/link";
 import { Navbar } from "@/components/ui/Navbar";
 import { ArrowRight, Check, Zap, Users, Trophy } from "lucide-react";
-import { publicService, Plan, Branch, Stats, Trainer, ClassType } from "@/lib/api/public.service";
+import { publicService, Plan, Branch, Stats, Trainer } from "@/lib/api/public.service";
 
 export default function Home() {
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -122,7 +122,7 @@ export default function Home() {
               { label: "Active Members", value: stats?.activeMembers ? `${(stats.activeMembers / 1000).toFixed(1)}k+` : "25k+" },
               { label: "Locations", value: stats?.locations || "24+" },
               { label: "Expert Trainers", value: stats?.expertTrainers || "150+" },
-              { label: "Classes Weekly", value: stats?.classesWeekly || "500+" },
+              { label: "Total Staff", value: stats?.totalStaff || "50+" },
             ].map((stat, i) => (
               <div key={i} className="text-center">
                 <h3 className="text-4xl md:text-5xl font-bold text-white mb-2">{stat.value}</h3>

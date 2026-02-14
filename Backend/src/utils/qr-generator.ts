@@ -1,123 +1,83 @@
-// QR Code generation and validation utilities
+// QR Code generation & validation — persistent secret per user (Phase 1)
+//
+// Flow:
+//   1. Each user has a `qrCodeSecret` stored in users table.
+//      If not present, we generate one when the QR is first requested.
+//   2. The QR payload is:  JSON { userId, sig }
+//      where sig = HMAC-SHA256( userId, userSecret + globalSecret )
+//   3. On scan, we look up the user, recompute the sig, and compare.
+//   4. No expiry on the QR itself — access decisions (subscription, business hours)
+//      are checked at scan time.
+
 import QRCode from 'qrcode';
 import crypto from 'crypto';
+import { env } from '../config/env';
 
-const QR_SECRET = process.env.QR_SECRET || 'default-qr-secret-change-this';
-const QR_TOKEN_EXPIRES_IN = parseInt(process.env.QR_TOKEN_EXPIRES_IN || '300', 10); // 5 minutes
+// ---- Generation -----------------------------------------------------------
 
-interface QRCodeData {
-    memberId: string;
-    timestamp: number;
-    signature: string;
+export function deriveSignature(userId: string, userSecret: string): string {
+  return crypto
+    .createHmac('sha256', userSecret + env.QR_SECRET)
+    .update(userId)
+    .digest('hex');
 }
 
-export async function generateQRCode(memberId: string): Promise<string> {
-    const timestamp = Date.now();
-    const dataToSign = `${memberId}:${timestamp}`;
-    const signature = crypto
-        .createHmac('sha256', QR_SECRET)
-        .update(dataToSign)
-        .digest('hex');
-
-    const qrData: QRCodeData = {
-        memberId,
-        timestamp,
-        signature
-    };
-
-    const qrString = JSON.stringify(qrData);
-    const qrCodeDataUrl = await QRCode.toDataURL(qrString, {
-        errorCorrectionLevel: 'H',
-        width: 400,
-        margin: 1
-    });
-
-    return qrCodeDataUrl;
+export function buildQRPayload(userId: string, userSecret: string): string {
+  const sig = deriveSignature(userId, userSecret);
+  return JSON.stringify({ userId, sig });
 }
 
-export function generateQRToken(memberId: string): string {
-    const timestamp = Date.now();
-    const dataToSign = `${memberId}:${timestamp}`;
-    const signature = crypto
-        .createHmac('sha256', QR_SECRET)
-        .update(dataToSign)
-        .digest('hex');
-
-    return `${memberId}:${timestamp}:${signature}`;
+/** Render a QR code data-URL image from the JSON payload. */
+export async function generateQRDataUrl(payload: string): Promise<string> {
+  return QRCode.toDataURL(payload, {
+    errorCorrectionLevel: 'M',
+    margin: 2,
+    width: 300,
+    color: { dark: '#000000', light: '#FFFFFF' },
+  });
 }
 
-export function validateQRToken(token: string): {
-    valid: boolean;
-    memberId?: string;
-    reason?: string;
-} {
-    try {
-        const parts = token.split(':');
-        if (parts.length !== 3) {
-            return { valid: false, reason: 'Invalid token format' };
-        }
+/** Generate a cryptographically random hex secret for a new user. */
+export function generateUserSecret(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
 
-        const [memberId, timestampStr, receivedSignature] = parts;
-        const timestamp = parseInt(timestampStr, 10);
+// ---- Validation -----------------------------------------------------------
 
-        // Check if timestamp is valid
-        if (isNaN(timestamp)) {
-            return { valid: false, reason: 'Invalid timestamp' };
-        }
+export interface QRValidationResult {
+  valid: boolean;
+  userId?: string;
+  reason?: string;
+}
 
-        // Check if token is expired
-        const now = Date.now();
-        const expiresAt = timestamp + QR_TOKEN_EXPIRES_IN * 1000;
-        if (now > expiresAt) {
-            return { valid: false, reason: 'QR code expired' };
-        }
+/**
+ * Parse + validate a QR payload string.
+ * Returns the userId if the signature matches; otherwise `valid: false`.
+ */
+export function validateQRPayload(
+  raw: string,
+  knownUserSecret: string,
+): QRValidationResult {
+  try {
+    const parsed = JSON.parse(raw) as { userId?: string; sig?: string };
 
-        // Verify signature
-        const dataToSign = `${memberId}:${timestamp}`;
-        const expectedSignature = crypto
-            .createHmac('sha256', QR_SECRET)
-            .update(dataToSign)
-            .digest('hex');
-
-        if (receivedSignature !== expectedSignature) {
-            return { valid: false, reason: 'Invalid signature' };
-        }
-
-        return { valid: true, memberId };
-    } catch (error) {
-        return { valid: false, reason: 'Token validation failed' };
+    if (!parsed.userId || !parsed.sig) {
+      return { valid: false, reason: 'Malformed QR payload' };
     }
-}
 
-export function parseQRCode(qrString: string): {
-    valid: boolean;
-    memberId?: string;
-    reason?: string;
-} {
-    try {
-        const qrData: QRCodeData = JSON.parse(qrString);
-        const { memberId, timestamp, signature } = qrData;
+    const expected = deriveSignature(parsed.userId, knownUserSecret);
 
-        // Check if token is expired
-        const now = Date.now();
-        const expiresAt = timestamp + QR_TOKEN_EXPIRES_IN * 1000;
-        if (now > expiresAt) {
-            return { valid: false, reason: 'QR code expired' };
-        }
+    const isValid = crypto.timingSafeEqual(
+      Buffer.from(expected, 'hex'),
+      Buffer.from(parsed.sig, 'hex'),
+    );
 
-        // Verify signature
-        const dataToSign = `${memberId}:${timestamp}`;
-        const expectedSignature = crypto
-            .createHmac('sha256', QR_SECRET)
-            .update(dataToSign)
-            .digest('hex');
-
-        if (signature !== expectedSignature) {
-            return { valid: false, reason: 'Invalid signature' };
-        }
-
-        return { valid: true, memberId };
-    } catch (error) {
-        return { valid: false, reason: 'Invalid QR code format' };
+    if (!isValid) {
+      return { valid: false, userId: parsed.userId, reason: 'Invalid signature' };
     }
+
+    return { valid: true, userId: parsed.userId };
+  } catch {
+    return { valid: false, reason: 'Invalid QR data' };
+  }
 }

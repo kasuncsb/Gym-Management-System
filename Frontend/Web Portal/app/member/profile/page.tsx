@@ -28,7 +28,7 @@ export default function ProfilePage() {
             const response = await authAPI.getProfile();
             const data = response.data.data;
             setFormData({
-                name: data.name || "",
+                name: data.fullName || "",
                 email: data.email || "",
                 phone: data.phone || "",
             });

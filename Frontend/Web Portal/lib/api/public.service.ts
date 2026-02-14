@@ -6,19 +6,24 @@ export interface Plan {
     price: string;
     durationDays: number;
     features: string | any;
+    sortOrder?: number;
+    includedPtSessions?: number;
 }
 
 export interface Branch {
     id: string;
     name: string;
     code: string;
+    address?: string;
+    openTime?: string;
+    closeTime?: string;
 }
 
 export interface Stats {
     activeMembers: number;
     locations: number;
     expertTrainers: number;
-    classesWeekly: number;
+    totalStaff: number;
 }
 
 export interface Trainer {
@@ -28,12 +33,6 @@ export interface Trainer {
     bio: string;
     rating: number;
     avatarUrl: string;
-}
-
-export interface ClassType {
-    id: string;
-    name: string;
-    type: string;
 }
 
 export const publicService = {
@@ -56,9 +55,4 @@ export const publicService = {
         const response = await api.get<{ data: Trainer[] }>('/public/trainers');
         return response.data.data;
     },
-
-    getClasses: async () => {
-        const response = await api.get<{ data: ClassType[] }>('/public/classes');
-        return response.data.data;
-    }
 };

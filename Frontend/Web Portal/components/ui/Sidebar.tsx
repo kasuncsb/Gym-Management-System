@@ -24,7 +24,7 @@ function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
-import { useAuth, User } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 
 export function Sidebar() {
     const pathname = usePathname();
@@ -35,50 +35,48 @@ export function Sidebar() {
     const getNavItems = () => {
         if (!user) return [];
 
-        const isAdmin = user.role === 'admin';
-        // Manager logic: explicitly check conflicting types if necessary, but string comparison is safe safely
-        const isManager = user.role === 'manager' || (user.role === 'staff' && user.staffRole === 'manager');
-        const isTrainer = user.role === 'trainer' || (user.role === 'staff' && user.staffRole === 'trainer');
-        // General staff check (includes manager and trainer if they fall under staff umbrella in some auth flows)
-        const isStaff = user.role === 'staff' || user.role === 'manager' || user.role === 'trainer';
-
-        // Admin items
         const adminItems = [
             { name: "Dashboard", href: "/admin-dashboard", icon: LayoutDashboard },
             { name: "Members", href: "/admin-dashboard/members", icon: Users },
+            { name: "Equipment", href: "/admin-dashboard/equipment", icon: Dumbbell },
             { name: "Billing", href: "/admin-dashboard/billing", icon: CreditCard },
             { name: "Settings", href: "/admin-dashboard/settings", icon: Settings },
         ];
 
-        // Staff components (can be combined based on specific staff role)
-        const staffDashboard = { name: "Dashboard", href: "/staff-dashboard", icon: LayoutDashboard };
-        const memberManagement = { name: "Members", href: "/admin-dashboard/members", icon: Users };
-        const checkIn = { name: "Check-in", href: "/staff-dashboard/check-in", icon: Dumbbell };
+        const managerItems = [
+            { name: "Dashboard", href: "/manager-dashboard", icon: LayoutDashboard },
+            { name: "Members", href: "/manager-dashboard/members", icon: Users },
+            { name: "Equipment", href: "/manager-dashboard/equipment", icon: Dumbbell },
+            { name: "Staff", href: "/manager-dashboard/staff", icon: CalendarDays },
+        ];
+
+        const staffItems = [
+            { name: "Dashboard", href: "/staff-dashboard", icon: LayoutDashboard },
+            { name: "Check-in", href: "/staff-dashboard/check-in", icon: QrCode },
+        ];
+
+        const trainerItems = [
+            { name: "Dashboard", href: "/staff-dashboard", icon: LayoutDashboard },
+            { name: "Check-in", href: "/staff-dashboard/check-in", icon: QrCode },
+            { name: "My Clients", href: "/staff-dashboard/clients", icon: Users },
+        ];
 
         const memberItems = [
             { name: "Dashboard", href: "/member", icon: LayoutDashboard },
             { name: "My Plan", href: "/member/subscription", icon: CreditCard },
             { name: "Access Pass", href: "/member/qr-code", icon: QrCode },
-            { name: "Classes", href: "/member/classes", icon: CalendarDays },
             { name: "Workouts", href: "/member/workouts", icon: Dumbbell },
             { name: "Profile", href: "/member/profile", icon: Settings },
         ];
 
-        if (isAdmin) return adminItems;
-
-        if (isStaff) {
-            const items = [staffDashboard];
-            // Only managers (or staff with manager role) see member management
-            if (isManager) {
-                items.push(memberManagement);
-            }
-            items.push(checkIn);
-            return items;
+        switch (user.role) {
+            case 'admin': return adminItems;
+            case 'manager': return managerItems;
+            case 'trainer': return trainerItems;
+            case 'staff': return staffItems;
+            case 'member': return memberItems;
+            default: return memberItems;
         }
-
-        if (user?.role === 'member') return memberItems;
-
-        return [{ name: "Dashboard", href: "/member", icon: LayoutDashboard }];
     };
 
     const navItems = getNavItems();
@@ -158,10 +156,10 @@ export function Sidebar() {
                         {user && (
                             <div className="mb-4 flex items-center gap-3 px-2">
                                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-700 to-red-600 flex items-center justify-center border border-red-600/30">
-                                    <span className="text-sm font-bold text-white uppercase">{user.name?.charAt(0) || 'U'}</span>
+                                    <span className="text-sm font-bold text-white uppercase">{user.fullName?.charAt(0) || 'U'}</span>
                                 </div>
                                 <div className="overflow-hidden">
-                                    <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                                    <p className="text-sm font-medium text-white truncate">{user.fullName}</p>
                                     <p className="text-xs text-zinc-500 capitalize">{user.role}</p>
                                 </div>
                             </div>

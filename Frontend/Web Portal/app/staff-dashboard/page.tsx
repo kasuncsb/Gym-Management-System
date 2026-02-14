@@ -30,7 +30,7 @@ export default function StaffDashboard() {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         const fetchData = async () => {
             try {
-                const token = localStorage.getItem('token');
+                const token = localStorage.getItem('accessToken');
                 if (!token) { router.push('/login'); return; }
 
                 const [profileRes, metricsRes] = await Promise.all([
@@ -91,10 +91,10 @@ export default function StaffDashboard() {
                     <div className="flex items-center space-x-4">
                         <div className="text-right">
                             <div className="text-sm text-zinc-500">Staff Member</div>
-                            <div className="text-white font-semibold">{profile.name}</div>
+                            <div className="text-white font-semibold">{profile.fullName}</div>
                         </div>
                         <button
-                            onClick={() => { localStorage.removeItem('token'); router.push('/login'); }}
+                            onClick={() => { localStorage.removeItem('accessToken'); localStorage.removeItem('refreshToken'); localStorage.removeItem('user'); router.push('/login'); }}
                             className="p-2 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
                         >
                             <LogOut size={20} />

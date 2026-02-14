@@ -33,7 +33,7 @@ const updateProfileSchema = {
 
 const updateStatusSchema = {
     body: Joi.object({
-        status: Joi.string().valid('ACTIVE', 'INACTIVE', 'SUSPENDED').required()
+        status: Joi.string().valid('active', 'inactive', 'suspended').required()
     })
 };
 

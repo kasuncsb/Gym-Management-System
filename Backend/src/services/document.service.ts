@@ -1,107 +1,102 @@
-// Document Service - Handles document uploads and verification
+// Document Service — Phase 1 (Drizzle ORM)
+// Handles identity-verification document uploads and admin review.
 import { db } from '../config/database';
 import { memberDocuments, members, users } from '../db/schema';
-import { eq, isNull, sql } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
-
-// For now, using local storage simulation. In production, replace with Oracle Object Storage SDK.
-// Oracle OCI SDK would be: import { ObjectStorageClient } from 'oci-objectstorage';
-
-interface DocumentUpload {
-    memberId: string;
-    type: 'nic' | 'passport' | 'waiver' | 'contract';
-    fileUrl: string;
-}
-
-interface DocumentWithMember {
-    id: string;
-    memberId: string;
-    memberName: string;
-    memberEmail: string;
-    type: string;
-    fileUrl: string;
-    status: 'pending' | 'approved' | 'rejected';
-    signedAt: Date | null;
-    reviewedAt: Date | null;
-    reviewedBy: string | null;
-    rejectionReason: string | null;
-}
+import { eq, and } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
 
 export class DocumentService {
-    // Upload document metadata (actual file upload handled by storage service)
-    static async createDocument(data: DocumentUpload): Promise<{ id: string }> {
-        const id = nanoid();
+  /** Create a new document record (upload metadata) */
+  static async createDocument(data: {
+    memberId: string;
+    documentType: 'nic_front' | 'nic_back' | 'selfie_with_nic' | 'student_id' | 'other';
+    storageKey: string;
+    originalFilename?: string;
+    mimeType?: string;
+    fileSizeBytes?: number;
+  }) {
+    const id = randomUUID();
+    await db.insert(memberDocuments).values({
+      id,
+      memberId: data.memberId,
+      documentType: data.documentType,
+      storageKey: data.storageKey,
+      originalFilename: data.originalFilename ?? null,
+      mimeType: data.mimeType ?? null,
+      fileSizeBytes: data.fileSizeBytes ?? null,
+      verificationStatus: 'pending_review',
+    });
+    return { id };
+  }
 
-        await db.insert(memberDocuments).values({
-            id,
-            memberId: data.memberId,
-            type: data.type,
-            fileUrl: data.fileUrl,
-            signedAt: new Date(),
-        });
+  /** Get documents pending admin review */
+  static async getPendingDocuments() {
+    return db
+      .select({
+        id: memberDocuments.id,
+        memberId: memberDocuments.memberId,
+        memberName: users.fullName,
+        memberEmail: users.email,
+        documentType: memberDocuments.documentType,
+        storageKey: memberDocuments.storageKey,
+        originalFilename: memberDocuments.originalFilename,
+        verificationStatus: memberDocuments.verificationStatus,
+        uploadedAt: memberDocuments.uploadedAt,
+      })
+      .from(memberDocuments)
+      .innerJoin(members, eq(members.id, memberDocuments.memberId))
+      .innerJoin(users, eq(users.id, members.userId))
+      .where(eq(memberDocuments.verificationStatus, 'pending_review'));
+  }
 
-        return { id };
-    }
+  /** Get all documents for a member */
+  static async getMemberDocuments(memberId: string) {
+    return db.select().from(memberDocuments).where(eq(memberDocuments.memberId, memberId));
+  }
 
-    // Get pending documents for admin approval
-    static async getPendingDocuments(): Promise<DocumentWithMember[]> {
-        const results = await db
-            .select({
-                id: memberDocuments.id,
-                memberId: memberDocuments.memberId,
-                memberName: users.fullName,
-                memberEmail: users.email,
-                type: memberDocuments.type,
-                fileUrl: memberDocuments.fileUrl,
-                signedAt: memberDocuments.signedAt,
-            })
-            .from(memberDocuments)
-            .innerJoin(members, eq(members.id, memberDocuments.memberId))
-            .innerJoin(users, eq(users.id, members.userId))
-            .where(
-                // Filter for documents not yet reviewed (no status field in schema, so using signedAt as proxy)
-                isNull(memberDocuments.signedAt)
-            );
+  /** Approve a document */
+  static async approveDocument(documentId: string, reviewerId: string) {
+    await db
+      .update(memberDocuments)
+      .set({ verificationStatus: 'verified', reviewedBy: reviewerId, reviewedAt: new Date() })
+      .where(eq(memberDocuments.id, documentId));
+  }
 
-        // Transform to match interface (schema doesn't have status field yet)
-        return results.map(r => ({
-            ...r,
-            status: 'pending' as const,
-            reviewedAt: null,
-            reviewedBy: null,
-            rejectionReason: null,
-        }));
-    }
+  /** Reject a document */
+  static async rejectDocument(
+    documentId: string,
+    reviewerId: string,
+    reason: 'blurry' | 'incomplete' | 'mismatch' | 'expired_nic' | 'wrong_document' | 'custom',
+    note?: string,
+  ) {
+    await db
+      .update(memberDocuments)
+      .set({
+        verificationStatus: 'rejected',
+        rejectionReason: reason,
+        rejectionNote: note ?? null,
+        reviewedBy: reviewerId,
+        reviewedAt: new Date(),
+      })
+      .where(eq(memberDocuments.id, documentId));
+  }
 
-    // Get documents by member
-    static async getMemberDocuments(memberId: string): Promise<any[]> {
-        return db
-            .select()
-            .from(memberDocuments)
-            .where(eq(memberDocuments.memberId, memberId));
-    }
+  /** Check if all required docs are verified for a member */
+  static async areAllDocsVerified(memberId: string): Promise<boolean> {
+    const docs = await db
+      .select({ status: memberDocuments.verificationStatus })
+      .from(memberDocuments)
+      .where(eq(memberDocuments.memberId, memberId));
 
-    // Update member verification status
-    static async updateMemberVerificationStatus(
-        memberId: string,
-        isVerified: boolean
-    ): Promise<void> {
-        await db
-            .update(members)
-            .set({
-                status: isVerified ? 'active' : 'pending'
-            })
-            .where(eq(members.id, memberId));
-    }
+    if (docs.length === 0) return false;
+    return docs.every((d) => d.status === 'verified');
+  }
 
-    // Check if member is verified
-    static async isMemberVerified(memberId: string): Promise<boolean> {
-        const [member] = await db
-            .select({ status: members.status })
-            .from(members)
-            .where(eq(members.id, memberId))
-            .limit(1);
-
-        return member?.status === 'active';
-    }
+  /** Update member verification status */
+  static async updateMemberVerificationStatus(memberId: string, isVerified: boolean) {
+    await db
+      .update(members)
+      .set({ status: isVerified ? 'active' : 'incomplete' })
+      .where(eq(members.id, memberId));
+  }
 }
