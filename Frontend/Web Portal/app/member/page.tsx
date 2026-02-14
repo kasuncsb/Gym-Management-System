@@ -156,7 +156,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Decorative BG */}
-                <div className="absolute top-0 right-0 h-full w-1/3 bg-gradient-to-l from-red-900/20 to-transparent pointer-events-none" />
+                <div className="absolute top-0 right-0 h-full w-1/3 bg-linear-to-l from-red-900/20 to-transparent pointer-events-none" />
                 <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-red-600/10 rounded-full blur-3xl pointer-events-none" />
             </div>
         </div>
