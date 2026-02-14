@@ -15,4 +15,9 @@ export * from './trainer.controller';
 export * from './payment.controller';
 export * from './shift.controller';
 export * from './notification.controller';
+export * from './inventory.controller';
+export * from './reporting.controller';
+export * from './analytics.controller';
+export * from './audit.controller';
+export * from './health-connect.controller';
 

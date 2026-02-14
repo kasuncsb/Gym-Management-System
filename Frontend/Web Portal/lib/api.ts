@@ -297,6 +297,84 @@ export const notificationAPI = {
     getUnreadCount: () => apiClient.get('/notifications/unread-count'),
     markRead: (id: string) => apiClient.patch(`/notifications/${id}/read`),
     markAllRead: () => apiClient.patch('/notifications/read-all'),
+    processScheduled: () => apiClient.post('/notifications/process-scheduled'),
+};
+
+// ── Inventory ──────────────────────────────────────
+export const inventoryAPI = {
+    list: (page = 1, limit = 20, category?: string, status?: string) =>
+        apiClient.get('/inventory', { params: { page, limit, category, status } }),
+    getById: (id: string) => apiClient.get(`/inventory/${id}`),
+    addItem: (data: any) => apiClient.post('/inventory', data),
+    updateItem: (id: string, data: any) => apiClient.put(`/inventory/${id}`, data),
+    deactivateItem: (id: string) => apiClient.delete(`/inventory/${id}`),
+    recordSale: (id: string, data: { quantity: number; reason?: string }) =>
+        apiClient.post(`/inventory/${id}/sale`, data),
+    restock: (id: string, data: { quantity: number; reason?: string }) =>
+        apiClient.post(`/inventory/${id}/restock`, data),
+    recordTransaction: (id: string, data: any) =>
+        apiClient.post(`/inventory/${id}/transactions`, data),
+    getTransactions: (id: string, limit = 50) =>
+        apiClient.get(`/inventory/${id}/transactions`, { params: { limit } }),
+    getLowStock: () => apiClient.get('/inventory/low-stock'),
+    getCategories: () => apiClient.get('/inventory/categories'),
+    getValue: () => apiClient.get('/inventory/value'),
+};
+
+// ── Reporting ──────────────────────────────────────
+export const reportingAPI = {
+    revenue: (year?: number, month?: number) =>
+        apiClient.get('/reports/revenue', { params: { year, month } }),
+    retention: () => apiClient.get('/reports/retention'),
+    attendance: (year?: number, month?: number) =>
+        apiClient.get('/reports/attendance', { params: { year, month } }),
+    equipmentCosts: () => apiClient.get('/reports/equipment-costs'),
+    planPopularity: () => apiClient.get('/reports/plan-popularity'),
+    summary: (year?: number, month?: number) =>
+        apiClient.get('/reports/summary', { params: { year, month } }),
+};
+
+// ── Analytics ──────────────────────────────────────
+export const analyticsAPI = {
+    memberGrowth: (months = 12) =>
+        apiClient.get('/analytics/member-growth', { params: { months } }),
+    revenueTrend: (months = 12) =>
+        apiClient.get('/analytics/revenue-trend', { params: { months } }),
+    attendanceHeatmap: (days = 90) =>
+        apiClient.get('/analytics/attendance-heatmap', { params: { days } }),
+    churnTrend: (months = 12) =>
+        apiClient.get('/analytics/churn-trend', { params: { months } }),
+    occupancy: () => apiClient.get('/analytics/occupancy'),
+    dailyVisits: (days = 30) =>
+        apiClient.get('/analytics/daily-visits', { params: { days } }),
+    equipmentUtilization: () => apiClient.get('/analytics/equipment-utilization'),
+    subscriptionDistribution: () => apiClient.get('/analytics/subscription-distribution'),
+    topMembers: (days = 30, limit = 10) =>
+        apiClient.get('/analytics/top-members', { params: { days, limit } }),
+};
+
+// ── Audit Logs ─────────────────────────────────────
+export const auditAPI = {
+    query: (params: {
+        page?: number; limit?: number; action?: string;
+        targetType?: string; actorId?: string;
+        startDate?: string; endDate?: string; search?: string;
+    }) => apiClient.get('/audit', { params }),
+    getActions: () => apiClient.get('/audit/actions'),
+    getTargetTypes: () => apiClient.get('/audit/target-types'),
+    export: (params: {
+        action?: string; targetType?: string;
+        startDate?: string; endDate?: string;
+    }) => apiClient.get('/audit/export', { params }),
+};
+
+// ── Health Connect ─────────────────────────────────
+export const healthConnectAPI = {
+    connect: () => apiClient.post('/health-connect/connect'),
+    getStatus: () => apiClient.get('/health-connect/status'),
+    disconnect: () => apiClient.post('/health-connect/disconnect'),
+    sync: () => apiClient.post('/health-connect/sync'),
+    simulate: () => apiClient.post('/health-connect/simulate'),
 };
 
 export default apiClient;

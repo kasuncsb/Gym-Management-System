@@ -19,7 +19,12 @@ import {
     DollarSign,
     Clock,
     Bell,
-    UserCheck
+    UserCheck,
+    Package,
+    BarChart3,
+    LineChart,
+    ShieldCheck,
+    Smartphone
 } from "lucide-react";
 import { useState } from "react";
 import { clsx, type ClassValue } from "clsx";
@@ -47,6 +52,10 @@ export function Sidebar() {
             { name: "Members", href: "/admin-dashboard/members", icon: Users },
             { name: "Plans", href: "/admin-dashboard/plans", icon: ClipboardList },
             { name: "Payments", href: "/admin-dashboard/payments", icon: DollarSign },
+            { name: "Inventory", href: "/admin-dashboard/inventory", icon: Package },
+            { name: "Analytics", href: "/admin-dashboard/analytics", icon: LineChart },
+            { name: "Reports", href: "/admin-dashboard/reports", icon: BarChart3 },
+            { name: "Audit Log", href: "/admin-dashboard/audit", icon: ShieldCheck },
             { name: "Equipment", href: "/admin-dashboard/equipment", icon: Dumbbell },
             { name: "Billing", href: "/admin-dashboard/billing", icon: CreditCard },
             { name: "Settings", href: "/admin-dashboard/settings", icon: Settings },
@@ -58,6 +67,9 @@ export function Sidebar() {
             { name: "Staff", href: "/manager-dashboard/staff", icon: CalendarDays },
             { name: "Shifts", href: "/manager-dashboard/shifts", icon: Clock },
             { name: "Payments", href: "/manager-dashboard/payments", icon: DollarSign },
+            { name: "Inventory", href: "/manager-dashboard/inventory", icon: Package },
+            { name: "Analytics", href: "/manager-dashboard/analytics", icon: LineChart },
+            { name: "Reports", href: "/manager-dashboard/reports", icon: BarChart3 },
             { name: "Equipment", href: "/manager-dashboard/equipment", icon: Dumbbell },
         ];
 
@@ -80,6 +92,7 @@ export function Sidebar() {
             { name: "Access Pass", href: "/member/qr-code", icon: QrCode },
             { name: "Workouts", href: "/member/workouts", icon: Dumbbell },
             { name: "Vitals", href: "/member/vitals", icon: Heart },
+            { name: "Health Connect", href: "/member/health-connect", icon: Smartphone },
             { name: "Trainers", href: "/member/trainers", icon: UserCheck },
             { name: "Profile", href: "/member/profile", icon: Settings },
         ];

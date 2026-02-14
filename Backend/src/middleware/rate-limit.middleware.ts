@@ -50,10 +50,19 @@ export function rateLimit(options: {
                 count: 1,
                 resetTime: now + windowMs
             };
+            // Add rate limit headers
+            res.setHeader('X-RateLimit-Limit', max);
+            res.setHeader('X-RateLimit-Remaining', max - 1);
+            res.setHeader('X-RateLimit-Reset', Math.ceil(store[key].resetTime / 1000));
             return next();
         }
 
         store[key].count++;
+
+        const remaining = Math.max(0, max - store[key].count);
+        res.setHeader('X-RateLimit-Limit', max);
+        res.setHeader('X-RateLimit-Remaining', remaining);
+        res.setHeader('X-RateLimit-Reset', Math.ceil(store[key].resetTime / 1000));
 
         if (store[key].count > max) {
             // If it's a new error, we probably want to throw it

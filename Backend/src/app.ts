@@ -6,6 +6,7 @@ import { errorHandler } from './middleware/error-handler.middleware';
 import { requestLogger } from './middleware/logger.middleware';
 import { apiRateLimit } from './middleware/rate-limit.middleware';
 import { env } from './config/env';
+import { cache } from './utils/cache';
 
 // Import routes
 import authRoutes from './routes/auth.routes';
@@ -24,16 +25,34 @@ import trainerRoutes from './routes/trainer.routes';
 import paymentRoutes from './routes/payment.routes';
 import shiftRoutes from './routes/shift.routes';
 import notificationRoutes from './routes/notification.routes';
+import inventoryRoutes from './routes/inventory.routes';
+import reportingRoutes from './routes/reporting.routes';
+import analyticsRoutes from './routes/analytics.routes';
+import auditRoutes from './routes/audit.routes';
+import healthConnectRoutes from './routes/health-connect.routes';
 
 const app: Application = express();
 
-// Security middleware
-app.use(helmet());
+// Security middleware with custom CSP
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", env.FRONTEND_URL],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
 
 // CORS configuration
 app.use(cors({
     origin: env.FRONTEND_URL,
-    credentials: true
+    credentials: true,
+    exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
 }));
 
 // Body parsers
@@ -46,13 +65,15 @@ app.use(requestLogger);
 // Rate limiting
 app.use('/api/', apiRateLimit);
 
-// Health check
+// Health check with uptime & cache stats
 app.get('/health', (req, res) => {
     res.json({
         status: 'ok',
         timestamp: new Date().toISOString(),
         service: 'PowerWorld Gym API',
-        version: '1.0.0'
+        version: '1.0.0',
+        uptime: Math.floor(process.uptime()),
+        cache: cache.stats(),
     });
 });
 
@@ -60,7 +81,6 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/members', memberRoutes);
 app.use('/api/qr', qrRoutes);
-
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/equipment', equipmentRoutes);
 app.use('/api/public', publicRoutes);
@@ -74,6 +94,11 @@ app.use('/api/trainers', trainerRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/shifts', shiftRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/reports', reportingRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/audit', auditRoutes);
+app.use('/api/health-connect', healthConnectRoutes);
 
 // 404 handler
 app.use((req, res) => {

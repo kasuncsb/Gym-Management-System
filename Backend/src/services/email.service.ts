@@ -96,4 +96,42 @@ export class EmailService {
             return false;
         }
     }
+
+    // Send Generic Email (for notifications, reminders, etc.)
+    static async sendGenericEmail(to: string, subject: string, textBody: string): Promise<boolean> {
+        try {
+            const transporter = nodemailer.createTransport({
+                host: env.SMTP_HOST,
+                port: env.SMTP_PORT,
+                secure: env.SMTP_PORT === 465,
+                auth: { user: env.SMTP_USER, pass: env.SMTP_PASSWORD },
+            });
+
+            const html = `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <div style="background: linear-gradient(135deg, #dc2626, #991b1b); padding: 20px; border-radius: 12px 12px 0 0; text-align: center;">
+                        <h1 style="color: white; margin: 0; font-size: 24px;">Power World Gyms</h1>
+                    </div>
+                    <div style="background: #1a1a1a; padding: 30px; color: #e0e0e0; border-radius: 0 0 12px 12px;">
+                        <h2 style="color: white;">${subject}</h2>
+                        <p style="line-height: 1.6; white-space: pre-line;">${textBody}</p>
+                        <hr style="border: 1px solid #333; margin: 20px 0;" />
+                        <p style="font-size: 12px; color: #888;">Power World Gyms — Kiribathgoda Branch<br/>311, Kandy Road, Gala Junction</p>
+                    </div>
+                </div>`;
+
+            await transporter.sendMail({
+                from: env.EMAIL_FROM || '"Power World Gyms" <no-reply@powerworldgyms.com>',
+                to,
+                subject,
+                text: textBody,
+                html,
+            });
+            logger.info(`Generic email sent to ${to}: ${subject}`);
+            return true;
+        } catch (error) {
+            logger.error(`Failed to send email to ${to}:`, error);
+            return false;
+        }
+    }
 }
