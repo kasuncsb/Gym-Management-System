@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { authAPI, managerAPI, equipmentAPI, notificationAPI } from "@/lib/api";
+import { managerAPI, equipmentAPI, notificationAPI } from "@/lib/api";
 import {
-    Users, TrendingUp, Loader2, DollarSign, UserCheck,
+    Users, TrendingUp, DollarSign, UserCheck,
     Dumbbell, Clock, CreditCard, Package, LineChart,
     BarChart3, Bell, CalendarDays, ArrowUpRight, Shield
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 const formatCurrency = (amount: number): string =>
     `Rs. ${new Intl.NumberFormat('en-LK').format(amount)}`;
@@ -54,15 +54,11 @@ export default function ManagerDashboard() {
     const [equipmentIssues, setEquipmentIssues] = useState(0);
     const [currentTime, setCurrentTime] = useState(new Date());
     const [loading, setLoading] = useState(true);
-    const router = useRouter();
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 60000);
         const fetchData = async () => {
             try {
-                const token = localStorage.getItem('accessToken');
-                if (!token) { router.push('/login'); return; }
-
                 const [metricsRes, notifsRes, issuesRes] = await Promise.all([
                     managerAPI.getMetrics().catch(() => null),
                     notificationAPI.getUnreadCount().catch(() => null),
@@ -80,12 +76,15 @@ export default function ManagerDashboard() {
         };
         fetchData();
         return () => clearInterval(timer);
-    }, [router]);
+    }, []);
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-64">
-                <Loader2 className="animate-spin text-red-500" size={32} />
+            <div className="space-y-8 page-enter">
+                <div className="space-y-2"><Skeleton className="h-8 w-52" /><Skeleton className="h-4 w-40" /></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">{ Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />) }</div>
+                <Skeleton className="h-6 w-32" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">{ Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />) }</div>
             </div>
         );
     }

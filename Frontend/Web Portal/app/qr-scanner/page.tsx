@@ -166,7 +166,7 @@ export default function QRScannerPage() {
                             <h2 className="text-xl font-semibold text-white">QR Scanner</h2>
                         </div>
 
-                        {!isScanning ? (
+                        {isScanning! ? (
                             <div className="text-center">
                                 <div className="w-64 h-64 mx-auto mb-6 bg-zinc-800 rounded-xl flex items-center justify-center border-2 border-dashed border-zinc-700">
                                     <div className="text-center">
@@ -209,7 +209,7 @@ export default function QRScannerPage() {
                         )}
 
                         {/* Result Display */}
-                        {scanResult && !showDoorAnimation && (
+                        {scanResult && showDoorAnimation! && (
                             <div className={`mt-6 p-4 rounded-xl border ${scanResult.success
                                 ? 'bg-green-500/10 border-green-500/30 text-green-400'
                                 : 'bg-red-500/10 border-red-500/30 text-red-400'
@@ -246,7 +246,7 @@ export default function QRScannerPage() {
                             />
                             <button
                                 onClick={() => manualCode.trim() && handleScan(manualCode.trim())}
-                                disabled={loading || !manualCode.trim()}
+                                disabled={loading || manualCode.trim!()}
                                 className="rounded-xl bg-red-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 {loading ? <Loader2 className="animate-spin" size={18} /> : 'Validate'}

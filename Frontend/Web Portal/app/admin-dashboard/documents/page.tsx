@@ -1,9 +1,11 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { adminAPI } from '@/lib/api';
-import { Check, X, FileText, Calendar } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from "react";
+import { FileText, Check, X, Calendar, RefreshCw, Eye } from "lucide-react";
+import { adminAPI, getErrorMessage } from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { PageHeader, Card, EmptyState, ErrorAlert, Badge, Modal, LoadingButton } from "@/components/ui/SharedComponents";
 
 interface PendingDocument {
     id: string;
@@ -11,165 +13,166 @@ interface PendingDocument {
     status: string;
     documentUrl: string;
     uploadedAt: string;
-    member: {
-        id: string;
-        fullName: string;
-        email: string;
-        memberCode: string;
-    };
+    member: { id: string; fullName: string; email: string; memberCode: string };
 }
 
+const TYPE_LABELS: Record<string, string> = { nic: "National ID", passport: "Passport", license: "Driving License" };
+
 export default function AdminDocumentsPage() {
-    const router = useRouter();
+    const toast = useToast();
     const [documents, setDocuments] = useState<PendingDocument[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+    const [error, setError] = useState("");
     const [processingId, setProcessingId] = useState<string | null>(null);
+    const [rejectModal, setRejectModal] = useState<PendingDocument | null>(null);
+    const [rejectReason, setRejectReason] = useState("");
+    const [rejecting, setRejecting] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
     const fetchDocuments = async () => {
+        setLoading(true);
+        setError("");
         try {
-            setLoading(true);
-            const response = await adminAPI.getPendingDocuments();
-            if (response.data.success) {
-                setDocuments(response.data.data);
-            } else {
-                setError('Failed to load documents');
-            }
-        } catch (err: any) {
-            setError(err.message || 'Error loading documents');
+            const res = await adminAPI.getPendingDocuments();
+            setDocuments(res.data.data || []);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        fetchDocuments();
-    }, []);
+    useEffect(() => { fetchDocuments(); }, []);
 
     const handleApprove = async (id: string) => {
+        setProcessingId(id);
         try {
-            setProcessingId(id);
             await adminAPI.approveDocument(id);
-            // Remove from list locally
-            setDocuments(prev => prev.filter(doc => doc.id !== id));
-        } catch (err: any) {
-            alert(err.message || 'Failed to approve document');
+            setDocuments(prev => prev.filter(d => d.id !== id));
+            toast.success("Document approved", "Member verification has been approved.");
+        } catch (err) {
+            toast.error("Approval failed", getErrorMessage(err));
         } finally {
             setProcessingId(null);
         }
     };
 
-    const handleReject = async (id: string) => {
-        const reason = prompt('Enter rejection reason:');
-        if (!reason) return;
-
+    const handleReject = async () => {
+        if (!rejectModal || !rejectReason.trim()) return;
+        setRejecting(true);
         try {
-            setProcessingId(id);
-            await adminAPI.rejectDocument(id, reason);
-            // Remove from list locally
-            setDocuments(prev => prev.filter(doc => doc.id !== id));
-        } catch (err: any) {
-            alert(err.message || 'Failed to reject document');
+            await adminAPI.rejectDocument(rejectModal.id, rejectReason);
+            setDocuments(prev => prev.filter(d => d.id !== rejectModal.id));
+            toast.success("Document rejected", "Rejection reason has been sent to the member.");
+            setRejectModal(null);
+            setRejectReason("");
+        } catch (err) {
+            toast.error("Rejection failed", getErrorMessage(err));
         } finally {
-            setProcessingId(null);
+            setRejecting(false);
         }
     };
 
-    const getTypeLabel = (type: string) => {
-        switch (type) {
-            case 'nic': return 'National ID';
-            case 'passport': return 'Passport';
-            case 'license': return 'Driving License';
-            default: return type.toUpperCase();
-        }
-    };
+    if (loading) {
+        return (
+            <div className="space-y-8 page-enter">
+                <div className="space-y-2"><Skeleton className="h-8 w-52" /><Skeleton className="h-4 w-72" /></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-64 rounded-2xl" />)}
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r from-white to-gray-400">
-                    Document Approvals
-                </h1>
-                <button
-                    onClick={fetchDocuments}
-                    className="p-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition-colors"
-                >
-                    Refresh
-                </button>
-            </div>
+        <div className="space-y-8 page-enter">
+            <PageHeader title="Document Approvals" subtitle={`${documents.length} pending verification${documents.length !== 1 ? "s" : ""}`}>
+                <LoadingButton onClick={fetchDocuments} variant="secondary" size="sm"><RefreshCw size={16} className="mr-1.5" /> Refresh</LoadingButton>
+            </PageHeader>
 
-            {error && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-xl">
-                    {error}
-                </div>
-            )}
+            {error && <ErrorAlert message={error} onRetry={fetchDocuments} />}
 
-            {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {[...Array(4)].map((_, i) => (
-                        <div key={i} className="bg-neutral-900/50 border border-white/5 rounded-2xl p-6 animate-pulse h-48"></div>
-                    ))}
-                </div>
-            ) : documents.length === 0 ? (
-                <div className="text-center py-12 bg-neutral-900/50 rounded-2xl border border-white/5">
-                    <FileText className="mx-auto h-12 w-12 text-gray-500 mb-4" />
-                    <h3 className="text-lg font-medium text-white">No pending documents</h3>
-                    <p className="text-gray-500 mt-2">All verification requests have been processed.</p>
-                </div>
+            {documents.length === 0 ? (
+                <Card><EmptyState icon={FileText} title="No pending documents" description="All verification requests have been processed." /></Card>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {documents.map((doc) => (
-                        <div key={doc.id} className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-2xl p-6 hover:border-white/10 transition-colors">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 stagger-in">
+                    {documents.map(doc => (
+                        <Card key={doc.id} className="flex flex-col">
                             <div className="flex justify-between items-start mb-4">
                                 <div>
-                                    <h3 className="font-semibold text-white text-lg">{doc.member.fullName}</h3>
-                                    <p className="text-sm text-gray-400">{doc.member.email}</p>
-                                    <p className="text-xs text-gray-500 mt-1">{doc.member.memberCode}</p>
+                                    <h3 className="font-semibold text-white">{doc.member.fullName}</h3>
+                                    <p className="text-xs text-zinc-500">{doc.member.email}</p>
+                                    <p className="text-xs text-zinc-600 mt-0.5">{doc.member.memberCode}</p>
                                 </div>
-                                <span className="px-2 py-1 bg-yellow-500/10 text-yellow-500 text-xs font-medium rounded-lg border border-yellow-500/20">
-                                    {getTypeLabel(doc.type)}
-                                </span>
+                                <Badge variant="warning">{TYPE_LABELS[doc.type] || doc.type.toUpperCase()}</Badge>
                             </div>
 
-                            <div className="bg-black/30 rounded-xl p-4 mb-4 border border-white/5">
-                                <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
-                                    <Calendar size={14} />
-                                    <span>Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()}</span>
+                            <div className="bg-black/40 rounded-xl p-3 mb-4 border border-zinc-800 flex-1">
+                                <div className="flex items-center gap-2 text-xs text-zinc-500 mb-2">
+                                    <Calendar size={12} />
+                                    Uploaded {new Date(doc.uploadedAt).toLocaleDateString()}
                                 </div>
-                                <div className="aspect-video bg-neutral-800 rounded-lg flex items-center justify-center text-gray-500 text-xs mt-2 relative overflow-hidden group">
+                                <div
+                                    className="aspect-video bg-zinc-900 rounded-lg flex items-center justify-center relative overflow-hidden group cursor-pointer"
+                                    onClick={() => doc.documentUrl && setPreviewUrl(doc.documentUrl)}
+                                >
                                     {doc.documentUrl ? (
-                                        <img src={doc.documentUrl} alt="Document" className="object-cover w-full h-full opacity-80 group-hover:opacity-100 transition-opacity" />
+                                        <>
+                                            <img src={doc.documentUrl} alt="Document" className="object-cover w-full h-full opacity-80 group-hover:opacity-100 transition" />
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition">
+                                                <span className="flex items-center gap-1.5 bg-white text-black px-3 py-1.5 rounded-full text-xs font-bold"><Eye size={12} /> View Full</span>
+                                            </div>
+                                        </>
                                     ) : (
-                                        <span>No Preview Available</span>
+                                        <span className="text-xs text-zinc-600">No Preview Available</span>
                                     )}
-                                    <a href={doc.documentUrl} target="_blank" rel="noopener noreferrer" className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <span className="bg-white text-black px-3 py-1 rounded-full text-xs font-bold">View Full</span>
-                                    </a>
                                 </div>
                             </div>
 
                             <div className="flex gap-3">
-                                <button
-                                    onClick={() => handleReject(doc.id)}
+                                <LoadingButton
+                                    onClick={() => setRejectModal(doc)}
                                     disabled={processingId === doc.id}
-                                    className="flex-1 py-2 px-4 rounded-lg border border-red-500/20 text-red-500 hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                    variant="ghost"
+                                    className="flex-1 text-red-400 border-red-500/20 border hover:bg-red-500/10"
                                 >
-                                    <X size={16} />
-                                    Reject
-                                </button>
-                                <button
+                                    <X size={16} className="mr-1.5" /> Reject
+                                </LoadingButton>
+                                <LoadingButton
                                     onClick={() => handleApprove(doc.id)}
-                                    disabled={processingId === doc.id}
-                                    className="flex-1 py-2 px-4 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-colors flex items-center justify-center gap-2 disabled:opacity-50 font-medium shadow-lg shadow-emerald-500/20"
+                                    loading={processingId === doc.id}
+                                    className="flex-1 bg-emerald-600 hover:bg-emerald-500"
                                 >
-                                    <Check size={16} />
-                                    Approve
-                                </button>
+                                    <Check size={16} className="mr-1.5" /> Approve
+                                </LoadingButton>
                             </div>
-                        </div>
+                        </Card>
                     ))}
                 </div>
             )}
+
+            {/* Reject Modal (replaces prompt()) */}
+            <Modal isOpen={!!rejectModal} onClose={() => { setRejectModal(null); setRejectReason(""); }} title="Reject Document" description={`Provide a reason for rejecting ${rejectModal?.member.fullName}'s document.`}>
+                <div className="space-y-4">
+                    <textarea
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        rows={3}
+                        className="w-full px-4 py-2.5 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 transition-all resize-none"
+                        placeholder="e.g. Document is blurry, please re-upload a clearer version..."
+                        autoFocus
+                    />
+                    <div className="flex justify-end gap-3">
+                        <button onClick={() => { setRejectModal(null); setRejectReason(""); }} className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">Cancel</button>
+                        <LoadingButton loading={rejecting} onClick={handleReject} disabled={!rejectReason.trim()} variant="danger">Reject Document</LoadingButton>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Image Preview Modal */}
+            <Modal isOpen={!!previewUrl} onClose={() => setPreviewUrl(null)} title="Document Preview" size="lg">
+                {previewUrl && <img src={previewUrl} alt="Document" className="w-full rounded-xl" />}
+            </Modal>
         </div>
     );
 }

@@ -1,131 +1,146 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { authAPI } from '@/lib/api';
-import { Loader2, Download, Copy, Check, Shield } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { Download, Copy, Check, Shield, QrCode, RefreshCw } from "lucide-react";
+import { authAPI, getErrorMessage } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/components/ui/Toast";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { PageHeader, Card, ErrorAlert, LoadingButton } from "@/components/ui/SharedComponents";
 
 export default function QRCodePage() {
     const { user } = useAuth();
-    const [qrCode, setQrCode] = useState('');
-    const [qrPayload, setQrPayload] = useState('');
+    const toast = useToast();
+    const [qrCode, setQrCode] = useState("");
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+    const [error, setError] = useState("");
     const [copied, setCopied] = useState(false);
 
-    useEffect(() => {
-        if (!user) return;
-        loadQR();
-    }, [user]);
+    useEffect(() => { if (user) loadQR(); }, [user]);
 
     const loadQR = async () => {
+        setLoading(true);
+        setError("");
         try {
-            const response = await authAPI.getQRCode();
-            setQrCode(response.data.data.qrCodeDataUrl);
-            setQrPayload(response.data.data.qrToken || response.data.data.qrPayload || '');
-            setError('');
-        } catch {
-            setError('Failed to load QR code');
+            const res = await authAPI.getQRCode();
+            setQrCode(res.data.data.qrCodeDataUrl);
+        } catch (err) {
+            setError(getErrorMessage(err));
         } finally {
             setLoading(false);
         }
     };
 
     const downloadQR = () => {
-        const link = document.createElement('a');
+        if (qrCode) return;
+        const link = document.createElement("a");
         link.href = qrCode;
-        link.download = `powerworld-qr-${user?.fullName}.png`;
+        link.download = `powerworld-qr-${user?.fullName || "member"}.png`;
         link.click();
+        toast.success("Downloaded", "QR code saved to your device.");
     };
 
-    const copyPayload = async () => {
+    const copyQR = async () => {
+        if (qrCode) return;
         try {
-            await navigator.clipboard.writeText(qrPayload);
+            const res = await fetch(qrCode);
+            const blob = await res.blob();
+            await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
             setCopied(true);
+            toast.success("Copied", "QR code copied to clipboard.");
             setTimeout(() => setCopied(false), 2000);
-        } catch { /* ignore */ }
+        } catch {
+            toast.error("Copy failed", "Unable to copy to clipboard. Try downloading instead.");
+        }
     };
 
     if (loading) {
         return (
-            <div className="flex h-[50vh] items-center justify-center">
-                <Loader2 className="animate-spin text-red-600" size={40} />
+            <div className="space-y-8 page-enter">
+                <div className="space-y-2"><Skeleton className="h-8 w-40" /><Skeleton className="h-4 w-64" /></div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <Skeleton className="h-115 rounded-3xl" />
+                    <div className="space-y-4"><Skeleton className="h-64 rounded-2xl" /><Skeleton className="h-32 rounded-2xl" /></div>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div>
-                <h2 className="text-3xl font-bold text-white">Access Pass</h2>
-                <p className="text-zinc-400 mt-1">Scan this QR code at the gym entrance.</p>
-            </div>
+        <div className="space-y-8 page-enter">
+            <PageHeader title="Access Pass" subtitle="Scan this QR code at the gym entrance for instant access" />
+
+            {error && <ErrorAlert message={error} onRetry={loadQR} />}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* QR Card */}
-                <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-2xl">
-                    {error ? (
-                        <div className="text-red-500 py-10">
-                            <p className="mb-4">{error}</p>
-                            <button onClick={loadQR} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-white transition">
-                                Retry
+                <Card className="flex flex-col items-center justify-center text-center relative overflow-hidden">
+                    <div className="absolute inset-0 bg-linear-to-b from-red-600/5 to-transparent pointer-events-none" />
+                    <div className="relative">
+                        <div className="bg-white p-5 rounded-3xl mb-6 shadow-2xl shadow-black/50 ring-4 ring-white/5 inline-block">
+                            {qrCode ? (
+                                <img src={qrCode} alt="Member QR Code" className="w-56 h-56 sm:w-64 sm:h-64 object-contain" />
+                            ) : (
+                                <div className="w-56 h-56 sm:w-64 sm:h-64 flex items-center justify-center">
+                                    <QrCode size={64} className="text-zinc-300" />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex items-center justify-center gap-2 text-sm text-emerald-500 font-medium bg-emerald-500/10 px-4 py-1.5 rounded-full mb-8 border border-emerald-500/20">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            Permanent — never expires
+                        </div>
+
+                        <div className="flex gap-3 w-full max-w-sm mx-auto">
+                            <button
+                                onClick={downloadQR}
+                                disabled={!qrCode}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-medium transition-all group disabled:opacity-50"
+                            >
+                                <Download size={18} className="group-hover:-translate-y-0.5 transition-transform" />
+                                Save
+                            </button>
+                            <button
+                                onClick={copyQR}
+                                disabled={!qrCode}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-medium transition-all group disabled:opacity-50"
+                            >
+                                {copied ? <Check size={18} className="text-emerald-400" /> : <Copy size={18} className="group-hover:scale-110 transition-transform" />}
+                                {copied ? "Copied" : "Copy"}
+                            </button>
+                            <button
+                                onClick={loadQR}
+                                className="flex items-center justify-center gap-2 py-3 px-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-medium transition-all group"
+                            >
+                                <RefreshCw size={18} className="group-hover:rotate-180 transition-transform duration-500" />
                             </button>
                         </div>
-                    ) : (
-                        <>
-                            <div className="relative bg-white p-4 rounded-2xl mb-6 shadow-inner ring-4 ring-black/10">
-                                <img src={qrCode} alt="Member QR Code" className="w-64 h-64 object-contain" />
-                            </div>
-
-                            <div className="flex items-center gap-2 text-sm text-emerald-500 font-medium bg-emerald-500/10 px-3 py-1 rounded-full mb-8">
-                                <span className="relative flex h-2 w-2">
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                                </span>
-                                Permanent — never expires
-                            </div>
-
-                            <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
-                                <button
-                                    onClick={downloadQR}
-                                    className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-medium transition group"
-                                >
-                                    <Download size={18} className="group-hover:-translate-y-0.5 transition-transform" />
-                                    Save
-                                </button>
-                                <button
-                                    onClick={copyPayload}
-                                    className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-medium transition group"
-                                >
-                                    {copied ? <Check size={18} className="text-green-500" /> : <Copy size={18} className="group-hover:scale-110 transition-transform" />}
-                                    {copied ? 'Copied' : 'Copy Payload'}
-                                </button>
-                            </div>
-                        </>
-                    )}
-                </div>
+                    </div>
+                </Card>
 
                 {/* Instructions */}
                 <div className="space-y-6">
-                    <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-2xl p-6">
+                    <Card>
                         <h3 className="text-xl font-bold text-white mb-6">How to use</h3>
                         <div className="space-y-6">
                             {[
-                                { title: 'Present Code', desc: 'Show this QR code at the turnstile scanner.' },
-                                { title: 'Wait for Scan', desc: 'Hold steady for a second until it beeps.' },
-                                { title: 'Enter', desc: 'The gate will unlock automatically.' },
+                                { title: "Present Code", desc: "Show this QR code at the turnstile scanner when entering." },
+                                { title: "Wait for Scan", desc: "Hold your screen steady for a second until you hear the beep." },
+                                { title: "Enter", desc: "The gate will unlock automatically. Welcome to PowerWorld!" },
                             ].map((step, i) => (
                                 <div key={i} className="flex gap-4">
-                                    <div className="flex-none w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-sm font-bold text-white">
+                                    <div className="flex-none w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-sm font-bold text-red-400">
                                         {i + 1}
                                     </div>
                                     <div>
-                                        <h4 className="text-white font-medium mb-1">{step.title}</h4>
-                                        <p className="text-sm text-zinc-500">{step.desc}</p>
+                                        <h4 className="text-white font-medium mb-0.5">{step.title}</h4>
+                                        <p className="text-sm text-zinc-500 leading-relaxed">{step.desc}</p>
                                     </div>
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </Card>
 
                     <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-5 flex gap-4">
                         <div className="flex-none p-2 bg-blue-500/20 text-blue-400 rounded-lg h-fit">
@@ -133,8 +148,9 @@ export default function QRCodePage() {
                         </div>
                         <div>
                             <h4 className="text-blue-400 font-medium mb-1">Secure Access</h4>
-                            <p className="text-sm text-blue-400/70">
-                                Your QR code is cryptographically signed and unique to your account. Access validity is checked at scan time against your subscription status.
+                            <p className="text-sm text-blue-400/70 leading-relaxed">
+                                Your QR code is cryptographically signed and unique to your account.
+                                Access validity is verified in real-time against your subscription status.
                             </p>
                         </div>
                     </div>

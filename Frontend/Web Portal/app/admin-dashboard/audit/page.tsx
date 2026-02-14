@@ -3,8 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { auditAPI, getErrorMessage } from '@/lib/api';
 import {
-    ShieldCheck, Search, Download, Loader2, Filter, ChevronLeft, ChevronRight
+    ShieldCheck, Search, Download, Filter, ChevronLeft, ChevronRight
 } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 interface AuditLog {
     id: string;
@@ -20,6 +22,7 @@ interface AuditLog {
 }
 
 export default function AuditLogPage() {
+    const toast = useToast();
     const [logs, setLogs] = useState<AuditLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -88,8 +91,9 @@ export default function AuditLogPage() {
             a.download = `audit-logs-${new Date().toISOString().slice(0, 10)}.json`;
             a.click();
             URL.revokeObjectURL(url);
+            toast.success('Audit log exported');
         } catch (err) {
-            setError(getErrorMessage(err));
+            toast.error('Export failed', getErrorMessage(err));
         }
     };
 
@@ -103,7 +107,7 @@ export default function AuditLogPage() {
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="space-y-6 page-enter">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r from-white to-gray-400 flex items-center gap-3">
@@ -161,9 +165,7 @@ export default function AuditLogPage() {
             {/* Logs Table */}
             <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden">
                 {loading ? (
-                    <div className="flex items-center justify-center py-16">
-                        <Loader2 className="animate-spin text-red-500" size={24} />
-                    </div>
+                    <div className="p-6 space-y-3">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-10 rounded-lg" />)}</div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">

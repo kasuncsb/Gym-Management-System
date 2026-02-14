@@ -4,8 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { inventoryAPI, getErrorMessage } from '@/lib/api';
 import {
     Package, Plus, Search, AlertTriangle, DollarSign,
-    ArrowUpDown, Loader2, X, Minus, PlusCircle
+    ArrowUpDown, X, Minus, PlusCircle, Loader2
 } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 interface InventoryItem {
     id: string;
@@ -26,6 +28,7 @@ interface CategorySummary {
 }
 
 export default function InventoryPage() {
+    const toast = useToast();
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [lowStock, setLowStock] = useState<InventoryItem[]>([]);
     const [categories, setCategories] = useState<CategorySummary[]>([]);
@@ -73,6 +76,7 @@ export default function InventoryPage() {
                 unitCost: parseFloat(formData.unitCost),
                 retailPrice: parseFloat(formData.retailPrice),
             });
+            toast.success('Item added successfully');
             setShowAddModal(false);
             setFormData({ name: '', category: 'supplements', quantity: 0, unitCost: '', retailPrice: '', reorderThreshold: 5, supplier: '' });
             fetchData();
@@ -92,6 +96,7 @@ export default function InventoryPage() {
             } else {
                 await inventoryAPI.restock(showStockModal.item.id, { quantity: stockQty });
             }
+            toast.success(showStockModal.type === 'sale' ? 'Sale recorded' : 'Restock completed');
             setShowStockModal(null);
             setStockQty(1);
             fetchData();
@@ -109,14 +114,16 @@ export default function InventoryPage() {
 
     if (loading) {
         return (
-            <div className="flex h-64 items-center justify-center">
-                <Loader2 className="animate-spin text-red-500" size={32} />
+            <div className="space-y-8 page-enter">
+                <div className="flex justify-between items-center"><Skeleton className="h-8 w-56" /><Skeleton className="h-10 w-32 rounded-lg" /></div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
+                <div className="space-y-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
             </div>
         );
     }
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="space-y-8 page-enter">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r from-white to-gray-400">

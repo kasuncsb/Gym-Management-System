@@ -1,226 +1,373 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Dumbbell, Loader2, Calendar, Clock, Target, Sparkles, BookOpen, Plus, ChevronDown, ChevronUp } from "lucide-react";
-import { workoutAPI } from "@/lib/api";
-import { cn } from "@/lib/utils";
-
-interface Exercise {
-    id: string;
-    exerciseName: string;
-    dayNumber: number;
-    exerciseOrder: number;
-    sets: number | null;
-    reps: string | null;
-    restSeconds: number | null;
-    notes: string | null;
-    equipment: string | null;
-    muscleGroups: string[] | null;
-}
-
-interface WorkoutPlan {
-    id: string;
-    planName: string;
-    planDescription: string | null;
-    source: string;
-    durationWeeks: number;
-    daysPerWeek: number;
-    difficulty: string | null;
-    isActive: boolean;
-    createdAt: string;
-    exercises?: Exercise[];
-}
-
-type Tab = 'plans' | 'library' | 'log';
+import { useState, useEffect } from "react";
+import { Dumbbell, Sparkles, ChevronDown, ChevronUp, Check, Clock, Loader2, Play, History, Zap, Target } from "lucide-react";
+import { workoutAPI, getErrorMessage } from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
+import { Skeleton, SkeletonCard } from "@/components/ui/Skeleton";
+import { PageHeader, Badge, Card, ErrorAlert, EmptyState, Tabs, LoadingButton, Modal } from "@/components/ui/SharedComponents";
 
 export default function WorkoutsPage() {
-    const [plans, setPlans] = useState<WorkoutPlan[]>([]);
-    const [library, setLibrary] = useState<WorkoutPlan[]>([]);
+    const toast = useToast();
+    const [activeTab, setActiveTab] = useState<string>("plans");
+    const [plans, setPlans] = useState<any[]>([]);
+    const [history, setHistory] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [tab, setTab] = useState<Tab>('plans');
-    const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
-    const [planDetails, setPlanDetails] = useState<Record<string, WorkoutPlan>>({});
+    const [error, setError] = useState('');
     const [generating, setGenerating] = useState(false);
-    const [logForm, setLogForm] = useState({ exerciseName: '', setsCompleted: '', repsCompleted: '', weightUsed: '', durationMinutes: '', notes: '' });
-    const [submittingLog, setSubmittingLog] = useState(false);
+    const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
+    const [logModal, setLogModal] = useState(false);
+    const [logLoading, setLogLoading] = useState(false);
+    const [logData, setLogData] = useState({
+        planId: '',
+        durationMinutes: 30,
+        caloriesBurned: 0,
+        notes: '',
+        rating: 4,
+    });
 
-    useEffect(() => {
-        const fetcher = async () => {
-            try {
-                const [plansRes, libRes] = await Promise.all([
-                    workoutAPI.getMyPlans().catch(() => ({ data: { data: [] } })),
-                    workoutAPI.getLibrary().catch(() => ({ data: { data: [] } })),
-                ]);
-                setPlans(plansRes.data.data || []);
-                setLibrary(libRes.data.data || []);
-            } catch (e) { console.error(e); }
-            finally { setLoading(false); }
-        };
-        fetcher();
-    }, []);
-
-    const togglePlan = async (planId: string) => {
-        if (expandedPlan === planId) { setExpandedPlan(null); return; }
-        setExpandedPlan(planId);
-        if (!planDetails[planId]) {
-            try {
-                const res = await workoutAPI.getPlan(planId);
-                setPlanDetails(prev => ({ ...prev, [planId]: res.data.data }));
-            } catch (e) { console.error(e); }
+    const fetchData = async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const [plansRes, historyRes] = await Promise.allSettled([
+                workoutAPI.getMyPlans(),
+                workoutAPI.getWorkoutHistory(),
+            ]);
+            if (plansRes.status === 'fulfilled') setPlans(plansRes.value.data.data || []);
+            if (historyRes.status === 'fulfilled') setHistory(historyRes.value.data.data || []);
+        } catch (err) {
+            setError(getErrorMessage(err));
+        } finally {
+            setLoading(false);
         }
     };
 
-    const handleGenerate = async () => {
+    useEffect(() => { fetchData(); }, []);
+
+    const handleGenerateAI = async () => {
         setGenerating(true);
         try {
             await workoutAPI.generateAIPlan();
-            const res = await workoutAPI.getMyPlans();
-            setPlans(res.data.data || []);
-        } catch (e) { console.error(e); }
-        finally { setGenerating(false); }
+            toast.success("AI Workout Plan Generated!", "Your personalized plan is ready.");
+            await fetchData();
+        } catch (err) {
+            toast.error("Generation failed", getErrorMessage(err));
+        } finally {
+            setGenerating(false);
+        }
     };
 
-    const handleLogWorkout = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setSubmittingLog(true);
+    const handleLogWorkout = async () => {
+        setLogLoading(true);
         try {
-            const payload: Record<string, unknown> = { exerciseName: logForm.exerciseName };
-            if (logForm.setsCompleted) payload.setsCompleted = parseInt(logForm.setsCompleted);
-            if (logForm.repsCompleted) payload.repsCompleted = parseInt(logForm.repsCompleted);
-            if (logForm.weightUsed) payload.weightUsed = logForm.weightUsed;
-            if (logForm.durationMinutes) payload.durationMinutes = parseInt(logForm.durationMinutes);
-            if (logForm.notes) payload.notes = logForm.notes;
-            await workoutAPI.logWorkout(payload);
-            setLogForm({ exerciseName: '', setsCompleted: '', repsCompleted: '', weightUsed: '', durationMinutes: '', notes: '' });
-            setTab('plans');
-        } catch (e) { console.error(e); }
-        finally { setSubmittingLog(false); }
+            await workoutAPI.logWorkout({
+                planId: logData.planId || undefined,
+                durationMinutes: logData.durationMinutes,
+                caloriesBurned: logData.caloriesBurned || undefined,
+                notes: logData.notes || undefined,
+                rating: logData.rating,
+            });
+            toast.success("Workout logged!", "Great job! Keep it up.");
+            setLogModal(false);
+            setLogData({ planId: '', durationMinutes: 30, caloriesBurned: 0, notes: '', rating: 4 });
+            await fetchData();
+        } catch (err) {
+            toast.error("Failed to log", getErrorMessage(err));
+        } finally {
+            setLogLoading(false);
+        }
     };
+
+    const activePlans = plans.filter((p: any) => p.isActive);
+
+    const tabs = [
+        { key: "plans", label: "My Plans", count: activePlans.length },
+        { key: "history", label: "History", count: history.length },
+    ];
 
     if (loading) {
-        return <div className="flex items-center justify-center h-64"><Loader2 className="animate-spin text-red-500" size={32} /></div>;
-    }
-
-    const renderPlanCard = (plan: WorkoutPlan) => {
-        const isExpanded = expandedPlan === plan.id;
-        const details = planDetails[plan.id];
         return (
-            <div key={plan.id} className="rounded-2xl border border-zinc-800 bg-black/40 overflow-hidden">
-                <button onClick={() => togglePlan(plan.id)} className="w-full p-6 text-left flex items-center justify-between hover:bg-zinc-900/30 transition">
-                    <div>
-                        <div className="flex items-center gap-3 mb-1">
-                            <h3 className="text-lg font-bold text-white">{plan.planName}</h3>
-                            {plan.difficulty && (
-                                <span className={cn("text-xs px-2 py-0.5 rounded-full border",
-                                    plan.difficulty === 'beginner' ? 'text-green-400 border-green-500/30 bg-green-500/10' :
-                                    plan.difficulty === 'intermediate' ? 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10' :
-                                    'text-red-400 border-red-500/30 bg-red-500/10'
-                                )}>{plan.difficulty}</span>
-                            )}
-                        </div>
-                        {plan.planDescription && <p className="text-sm text-zinc-500">{plan.planDescription}</p>}
-                        <div className="flex items-center gap-4 mt-2 text-xs text-zinc-500">
-                            <span className="flex items-center gap-1"><Calendar size={12} /> {plan.durationWeeks} weeks</span>
-                            <span className="flex items-center gap-1"><Clock size={12} /> {plan.daysPerWeek} days/week</span>
-                            <span className="capitalize">{plan.source.replace('_', ' ')}</span>
-                        </div>
-                    </div>
-                    {isExpanded ? <ChevronUp size={20} className="text-zinc-400" /> : <ChevronDown size={20} className="text-zinc-400" />}
-                </button>
-                {isExpanded && details?.exercises && (
-                    <div className="border-t border-zinc-800">
-                        {Array.from(new Set(details.exercises.map(e => e.dayNumber))).sort().map(day => (
-                            <div key={day}>
-                                <div className="px-6 py-2 bg-zinc-900/50 text-xs font-semibold text-zinc-400 uppercase">Day {day}</div>
-                                <div className="divide-y divide-zinc-800/50">
-                                    {details.exercises!.filter(e => e.dayNumber === day).sort((a, b) => a.exerciseOrder - b.exerciseOrder).map(ex => (
-                                        <div key={ex.id} className="px-6 py-3 flex items-center justify-between">
-                                            <div>
-                                                <p className="text-white font-medium text-sm">{ex.exerciseName}</p>
-                                                {ex.muscleGroups && <p className="text-xs text-zinc-600">{ex.muscleGroups.join(', ')}</p>}
-                                            </div>
-                                            <div className="flex items-center gap-3 text-sm text-zinc-400">
-                                                {ex.sets && ex.reps && <span>{ex.sets} &times; {ex.reps}</span>}
-                                                {ex.restSeconds && <span className="text-xs text-zinc-600">{ex.restSeconds}s rest</span>}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+            <div className="space-y-8 page-enter">
+                <div className="space-y-2">
+                    <Skeleton className="h-8 w-36" />
+                    <Skeleton className="h-4 w-56" />
+                </div>
+                <Skeleton className="h-10 w-64" />
+                <div className="grid gap-4">
+                    {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
+                </div>
             </div>
         );
-    };
+    }
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-3xl font-bold text-white">My Workouts</h2>
-                    <p className="text-zinc-400 mt-1">Your workout plans, curated library, and logging</p>
+        <div className="space-y-8 page-enter">
+            <PageHeader
+                title="Workouts"
+                subtitle="Your workout plans and exercise history"
+                actions={
+                    <div className="flex gap-3">
+                        <LoadingButton
+                            variant="secondary"
+                            icon={Play}
+                            onClick={() => setLogModal(true)}
+                        >
+                            Log Workout
+                        </LoadingButton>
+                        <LoadingButton
+                            loading={generating}
+                            icon={Sparkles}
+                            onClick={handleGenerateAI}
+                        >
+                            Generate AI Plan
+                        </LoadingButton>
+                    </div>
+                }
+            />
+
+            {error && <ErrorAlert message={error} onRetry={fetchData} />}
+
+            <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+
+            {/* Plans Tab */}
+            {activeTab === "plans" && (
+                <div className="space-y-4">
+                    {activePlans.length === 0 ? (
+                        <EmptyState
+                            icon={Dumbbell}
+                            title="No active workout plans"
+                            description="Generate an AI-powered workout plan or ask your trainer to create one for you."
+                            action={
+                                <LoadingButton
+                                    loading={generating}
+                                    icon={Sparkles}
+                                    onClick={handleGenerateAI}
+                                >
+                                    Generate AI Plan
+                                </LoadingButton>
+                            }
+                        />
+                    ) : (
+                        <div className="space-y-4 stagger-in">
+                            {activePlans.map((plan: any) => (
+                                <Card key={plan.id} padding="none">
+                                    <button
+                                        className="w-full p-5 flex items-center justify-between text-left hover:bg-zinc-800/30 transition-colors rounded-t-2xl"
+                                        onClick={() => setExpandedPlan(expandedPlan === plan.id ? null : plan.id)}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-11 h-11 rounded-xl bg-red-500/10 flex items-center justify-center">
+                                                <Target className="text-red-400" size={20} />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-base font-bold text-white">{plan.name || 'Workout Plan'}</h3>
+                                                <div className="flex items-center gap-3 mt-1">
+                                                    <Badge variant={plan.planSource === 'ai_generated' ? 'info' : 'default'}>
+                                                        {plan.planSource === 'ai_generated' ? 'AI Generated' : plan.planSource || 'Manual'}
+                                                    </Badge>
+                                                    <span className="text-xs text-zinc-500">
+                                                        {plan.exercises?.length || 0} exercises
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {expandedPlan === plan.id ? (
+                                            <ChevronUp className="text-zinc-500" size={20} />
+                                        ) : (
+                                            <ChevronDown className="text-zinc-500" size={20} />
+                                        )}
+                                    </button>
+
+                                    {expandedPlan === plan.id && plan.exercises && (
+                                        <div className="px-5 pb-5 border-t border-zinc-800">
+                                            {plan.description && (
+                                                <p className="text-sm text-zinc-400 py-3">{plan.description}</p>
+                                            )}
+                                            <div className="space-y-2 mt-2">
+                                                {(plan.exercises || []).map((ex: any, i: number) => (
+                                                    <div key={i} className="flex items-center gap-3 p-3 bg-zinc-800/30 rounded-xl">
+                                                        <div className="w-8 h-8 rounded-lg bg-zinc-700/50 flex items-center justify-center text-xs font-bold text-zinc-400">
+                                                            {i + 1}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-medium text-zinc-200">{ex.exerciseName || ex.name}</p>
+                                                            <p className="text-xs text-zinc-500">
+                                                                {[
+                                                                    ex.sets && `${ex.sets} sets`,
+                                                                    ex.reps && `${ex.reps} reps`,
+                                                                    ex.durationMinutes && `${ex.durationMinutes} min`,
+                                                                    ex.restSeconds && `${ex.restSeconds}s rest`,
+                                                                ].filter(Boolean).join(' \u2022 ')}
+                                                            </p>
+                                                        </div>
+                                                        {ex.muscleGroup && (
+                                                            <Badge variant="outline">{ex.muscleGroup}</Badge>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="mt-4 flex justify-end">
+                                                <LoadingButton
+                                                    variant="primary"
+                                                    size="sm"
+                                                    icon={Play}
+                                                    onClick={() => {
+                                                        setLogData(prev => ({ ...prev, planId: plan.id }));
+                                                        setLogModal(true);
+                                                    }}
+                                                >
+                                                    Start Workout
+                                                </LoadingButton>
+                                            </div>
+                                        </div>
+                                    )}
+                                </Card>
+                            ))}
+                        </div>
+                    )}
                 </div>
-                <button onClick={handleGenerate} disabled={generating} className="flex items-center gap-2 px-4 py-2.5 bg-linear-to-r from-purple-600 to-red-600 text-white rounded-xl hover:opacity-90 transition font-medium disabled:opacity-50">
-                    <Sparkles size={18} /> {generating ? 'Generating...' : 'AI Generate Plan'}
-                </button>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex gap-1 p-1 rounded-xl bg-zinc-900/50 border border-zinc-800 w-fit">
-                {([{ key: 'plans' as Tab, label: 'My Plans', icon: Dumbbell }, { key: 'library' as Tab, label: 'Library', icon: BookOpen }, { key: 'log' as Tab, label: 'Log Workout', icon: Plus }]).map(t => (
-                    <button key={t.key} onClick={() => setTab(t.key)} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition", tab === t.key ? 'bg-red-700 text-white' : 'text-zinc-400 hover:text-white')}>
-                        <t.icon size={16} /> {t.label}
-                    </button>
-                ))}
-            </div>
-
-            {tab === 'plans' && (
-                plans.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-zinc-800 bg-black/30 p-16 text-center">
-                        <Target className="mx-auto mb-4 text-zinc-600" size={40} />
-                        <h3 className="text-xl font-semibold text-zinc-300 mb-2">No Workout Plans Yet</h3>
-                        <p className="text-zinc-500 max-w-md mx-auto mb-6">Generate an AI plan or ask your trainer to assign one.</p>
-                        <button onClick={handleGenerate} disabled={generating} className="px-6 py-2.5 bg-linear-to-r from-purple-600 to-red-600 text-white rounded-xl font-medium">
-                            <Sparkles size={16} className="inline mr-2" /> Generate AI Plan
-                        </button>
-                    </div>
-                ) : (
-                    <div className="space-y-4">{plans.map(p => renderPlanCard(p))}</div>
-                )
             )}
 
-            {tab === 'library' && (
-                library.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-zinc-800 bg-black/30 p-16 text-center">
-                        <BookOpen className="mx-auto mb-4 text-zinc-600" size={40} />
-                        <h3 className="text-xl font-semibold text-zinc-300">Library is empty</h3>
-                        <p className="text-zinc-500 mt-2">The curated library will be populated by trainers.</p>
-                    </div>
-                ) : (
-                    <div className="space-y-4">{library.map(p => renderPlanCard(p))}</div>
-                )
+            {/* History Tab */}
+            {activeTab === "history" && (
+                <div className="space-y-4">
+                    {history.length === 0 ? (
+                        <EmptyState
+                            icon={History}
+                            title="No workout history"
+                            description="Start logging your workouts to track your progress over time."
+                            action={
+                                <LoadingButton icon={Play} onClick={() => setLogModal(true)}>
+                                    Log First Workout
+                                </LoadingButton>
+                            }
+                        />
+                    ) : (
+                        <Card padding="none">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-zinc-800 text-zinc-500 text-left">
+                                            <th className="p-4 font-medium">Date</th>
+                                            <th className="p-4 font-medium">Plan</th>
+                                            <th className="p-4 font-medium">Duration</th>
+                                            <th className="p-4 font-medium">Calories</th>
+                                            <th className="p-4 font-medium">Rating</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {history.map((log: any, i: number) => (
+                                            <tr key={i} className="border-b border-zinc-800/50 last:border-0 hover:bg-zinc-800/20 transition-colors">
+                                                <td className="p-4 text-zinc-200">
+                                                    {log.loggedAt ? new Date(log.loggedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A'}
+                                                </td>
+                                                <td className="p-4 text-zinc-400">{log.planName || 'Free workout'}</td>
+                                                <td className="p-4 text-zinc-300">{log.durationMinutes || 0} min</td>
+                                                <td className="p-4 text-zinc-300">{log.caloriesBurned || '-'}</td>
+                                                <td className="p-4">
+                                                    <div className="flex gap-0.5">
+                                                        {Array.from({ length: 5 }).map((_, s) => (
+                                                            <div
+                                                                key={s}
+                                                                className={`w-2 h-2 rounded-full ${s < (log.rating || 0) ? 'bg-amber-400' : 'bg-zinc-700'}`}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </Card>
+                    )}
+                </div>
             )}
 
-            {tab === 'log' && (
-                <form onSubmit={handleLogWorkout} className="rounded-2xl border border-zinc-800 bg-black/40 p-6 space-y-4 max-w-xl">
-                    <h3 className="text-lg font-bold text-white mb-2">Log a Workout</h3>
-                    <div>
-                        <label className="block text-sm text-zinc-400 mb-1">Exercise Name *</label>
-                        <input required type="text" value={logForm.exerciseName} onChange={e => setLogForm({...logForm, exerciseName: e.target.value})} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-red-600 focus:outline-none" placeholder="Bench Press" />
-                    </div>
+            {/* Log Workout Modal */}
+            <Modal
+                isOpen={logModal}
+                onClose={() => setLogModal(false)}
+                title="Log Workout"
+                description="Record your workout session details"
+                size="sm"
+            >
+                <div className="space-y-4">
+                    {activePlans.length > 0 && (
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-300 mb-1.5">Workout Plan (optional)</label>
+                            <select
+                                value={logData.planId}
+                                onChange={(e) => setLogData(prev => ({ ...prev, planId: e.target.value }))}
+                                className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30"
+                            >
+                                <option value="">Free workout</option>
+                                {activePlans.map((p: any) => (
+                                    <option key={p.id} value={p.id}>{p.name || 'Plan'}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className="block text-sm text-zinc-400 mb-1">Sets</label><input type="number" value={logForm.setsCompleted} onChange={e => setLogForm({...logForm, setsCompleted: e.target.value})} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-red-600 focus:outline-none" /></div>
-                        <div><label className="block text-sm text-zinc-400 mb-1">Reps</label><input type="number" value={logForm.repsCompleted} onChange={e => setLogForm({...logForm, repsCompleted: e.target.value})} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-red-600 focus:outline-none" /></div>
-                        <div><label className="block text-sm text-zinc-400 mb-1">Weight</label><input type="text" value={logForm.weightUsed} onChange={e => setLogForm({...logForm, weightUsed: e.target.value})} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-red-600 focus:outline-none" placeholder="60kg" /></div>
-                        <div><label className="block text-sm text-zinc-400 mb-1">Duration (min)</label><input type="number" value={logForm.durationMinutes} onChange={e => setLogForm({...logForm, durationMinutes: e.target.value})} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-red-600 focus:outline-none" /></div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-300 mb-1.5">Duration (min)</label>
+                            <input
+                                type="number"
+                                value={logData.durationMinutes}
+                                onChange={(e) => setLogData(prev => ({ ...prev, durationMinutes: parseInt(e.target.value) || 0 }))}
+                                className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-300 mb-1.5">Calories Burned</label>
+                            <input
+                                type="number"
+                                value={logData.caloriesBurned || ''}
+                                onChange={(e) => setLogData(prev => ({ ...prev, caloriesBurned: parseInt(e.target.value) || 0 }))}
+                                placeholder="Optional"
+                                className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30 placeholder-zinc-500"
+                            />
+                        </div>
                     </div>
-                    <div><label className="block text-sm text-zinc-400 mb-1">Notes</label><textarea value={logForm.notes} onChange={e => setLogForm({...logForm, notes: e.target.value})} rows={2} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-red-600 focus:outline-none" /></div>
-                    <button type="submit" disabled={submittingLog} className="px-6 py-2.5 bg-red-700 text-white rounded-xl hover:bg-red-600 transition font-medium disabled:opacity-50">
-                        {submittingLog ? 'Logging...' : 'Log Workout'}
-                    </button>
-                </form>
-            )}
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-300 mb-1.5">Rating</label>
+                        <div className="flex gap-2">
+                            {[1, 2, 3, 4, 5].map((r) => (
+                                <button
+                                    key={r}
+                                    onClick={() => setLogData(prev => ({ ...prev, rating: r }))}
+                                    className={`w-10 h-10 rounded-lg border text-sm font-bold transition-all ${
+                                        r <= logData.rating
+                                            ? 'bg-amber-500/20 border-amber-500/30 text-amber-400'
+                                            : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:border-zinc-600'
+                                    }`}
+                                >
+                                    {r}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-300 mb-1.5">Notes (optional)</label>
+                        <textarea
+                            value={logData.notes}
+                            onChange={(e) => setLogData(prev => ({ ...prev, notes: e.target.value }))}
+                            placeholder="How did the workout feel?"
+                            rows={2}
+                            className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30 resize-none placeholder-zinc-500"
+                        />
+                    </div>
+                    <div className="flex justify-end gap-3 pt-2">
+                        <LoadingButton variant="secondary" onClick={() => setLogModal(false)}>
+                            Cancel
+                        </LoadingButton>
+                        <LoadingButton loading={logLoading} icon={Check} onClick={handleLogWorkout}>
+                            Log Workout
+                        </LoadingButton>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

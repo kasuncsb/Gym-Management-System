@@ -1,196 +1,119 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { authAPI, staffAPI } from "@/lib/api";
-import { Dumbbell, ScanLine, Wrench, ClipboardList, LogOut, Loader2, UserCheck, AlertTriangle } from "lucide-react";
+import { UserCheck, ScanLine, Wrench, DollarSign, AlertTriangle, Calendar, Clock, ArrowRight, Users } from "lucide-react";
+import { staffAPI, getErrorMessage } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+import { Skeleton, SkeletonCard } from "@/components/ui/Skeleton";
+import { PageHeader, Card, ErrorAlert } from "@/components/ui/SharedComponents";
 
 interface StaffMetrics {
-    checkIns: {
-        today: number;
-    };
-    checkOuts: {
-        today: number;
-    };
-    equipment: {
-        total: number;
-        needsMaintenance: number;
-    };
+    checkIns: { today: number };
+    checkOuts: { today: number };
+    equipment: { total: number; needsMaintenance: number };
 }
 
 export default function StaffDashboard() {
-    const [profile, setProfile] = useState<any>(null);
+    const { user } = useAuth();
     const [metrics, setMetrics] = useState<StaffMetrics | null>(null);
-    const [currentTime, setCurrentTime] = useState(new Date());
     const [loading, setLoading] = useState(true);
-    const router = useRouter();
+    const [error, setError] = useState("");
+    const [currentTime, setCurrentTime] = useState(new Date());
 
     useEffect(() => {
-        const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-        const fetchData = async () => {
+        const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+        return () => clearInterval(timer);
+    }, []);
+
+    useEffect(() => {
+        async function fetch() {
             try {
-                const token = localStorage.getItem('accessToken');
-                if (!token) { router.push('/login'); return; }
-
-                const [profileRes, metricsRes] = await Promise.all([
-                    authAPI.getProfile(),
-                    staffAPI.getMetrics().catch(() => null)
-                ]);
-
-                const profileData = profileRes.data.data;
-                const role = profileData.role;
-
-                if (role === 'member') {
-                    router.push('/member');
-                    return;
-                }
-                if (role === 'admin') {
-                    router.push('/admin-dashboard');
-                    return;
-                }
-
-                setProfile(profileData);
-                setMetrics(metricsRes?.data?.data || null);
-            } catch (e) {
-                console.error(e);
-                router.push('/login');
+                const res = await staffAPI.getMetrics();
+                setMetrics(res.data.data);
+            } catch (err) {
+                setError(getErrorMessage(err));
             } finally {
                 setLoading(false);
             }
-        };
-        fetchData();
-        return () => clearInterval(timer);
-    }, [router]);
+        }
+        fetch();
+    }, []);
 
-    if (loading || !profile) {
+    const stats = [
+        { label: "Check-ins Today", value: metrics?.checkIns?.today || 0, icon: UserCheck, color: "emerald" },
+        { label: "Check-outs Today", value: metrics?.checkOuts?.today || 0, icon: ScanLine, color: "blue" },
+        { label: "Total Equipment", value: metrics?.equipment?.total || 0, icon: Wrench, color: "purple" },
+        { label: "Needs Maintenance", value: metrics?.equipment?.needsMaintenance || 0, icon: AlertTriangle, color: metrics?.equipment?.needsMaintenance ? "red" : "emerald" },
+    ];
+
+    const quickActions = [
+        { href: "/staff-dashboard/check-in", label: "Member Check-In", desc: "Scan or search for members", icon: ScanLine, color: "emerald" },
+        { href: "/staff-dashboard/equipment", label: "Equipment", desc: "View and report issues", icon: Wrench, color: "purple" },
+        { href: "/staff-dashboard/payments", label: "Payments", desc: "Record member payments", icon: DollarSign, color: "amber" },
+        { href: "/staff-dashboard/sessions", label: "Sessions", desc: "Manage training sessions", icon: Calendar, color: "blue" },
+        { href: "/staff-dashboard/availability", label: "Availability", desc: "Set your weekly schedule", icon: Clock, color: "cyan" },
+    ];
+
+    if (loading) {
         return (
-            <div className="flex h-screen items-center justify-center bg-black">
-                <Loader2 className="animate-spin text-red-600" size={40} />
+            <div className="space-y-8 page-enter">
+                <div className="space-y-2"><Skeleton className="h-8 w-48" /><Skeleton className="h-4 w-64" /></div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-2xl" />)}</div>
             </div>
         );
     }
 
-    const formatDate = (date: Date) => {
-        return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    };
-    const formatTime = (date: Date) => {
-        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    };
-
     return (
-        <div className="min-h-screen bg-black text-white">
-            <nav className="bg-zinc-900/50 backdrop-blur-xl border-b border-zinc-800 py-4 px-6 sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto flex justify-between items-center">
-                    <Link href="/" className="flex items-center space-x-3 group">
-                        <div className="w-10 h-10 rounded-xl bg-linear-to-br from-amber-600 to-orange-600 flex items-center justify-center">
-                            <Dumbbell className="text-white" size={20} />
+        <div className="space-y-8 page-enter">
+            <PageHeader
+                title="Operations Dashboard"
+                subtitle={`${currentTime.toLocaleDateString("en-LK", { weekday: "long", month: "long", day: "numeric" })} · Welcome back, ${user?.fullName?.split(" ")[0] || "Staff"}`}
+            />
+
+            {error && <ErrorAlert message={error} />}
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-in">
+                {stats.map(({ label, value, icon: Icon, color }, i) => (
+                    <Card key={i} className="relative overflow-hidden">
+                        <div className={`absolute top-0 right-0 w-20 h-20 bg-${color}-500/5 rounded-full blur-2xl`} />
+                        <div className="relative">
+                            <div className="flex items-center gap-2 mb-3">
+                                <div className={`w-9 h-9 rounded-lg bg-${color}-500/10 flex items-center justify-center`}>
+                                    <Icon size={18} className={`text-${color}-400`} />
+                                </div>
+                                <span className="text-xs text-zinc-500 font-medium">{label}</span>
+                            </div>
+                            <span className={`text-3xl font-bold ${color === "red" && value > 0 ? "text-red-400" : "text-white"}`}>{value}</span>
                         </div>
-                        <span className="text-xl font-bold text-white group-hover:text-amber-400 transition-colors">PowerWorld Staff</span>
-                    </Link>
-                    <div className="flex items-center space-x-4">
-                        <div className="text-right">
-                            <div className="text-sm text-zinc-500">Staff Member</div>
-                            <div className="text-white font-semibold">{profile.fullName}</div>
-                        </div>
-                        <button
-                            onClick={() => { localStorage.removeItem('accessToken'); localStorage.removeItem('refreshToken'); localStorage.removeItem('user'); router.push('/login'); }}
-                            className="p-2 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
-                        >
-                            <LogOut size={20} />
-                        </button>
-                    </div>
+                    </Card>
+                ))}
+            </div>
+
+            {/* Quick Actions */}
+            <div>
+                <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 stagger-in">
+                    {quickActions.map(({ href, label, desc, icon: Icon, color }) => (
+                        <Link key={href} href={href}>
+                            <Card className="group hover:border-zinc-700 cursor-pointer transition-all">
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-12 h-12 rounded-xl bg-${color}-500/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform`}>
+                                        <Icon size={22} className={`text-${color}-400`} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-semibold text-white group-hover:text-red-400 transition-colors">{label}</p>
+                                        <p className="text-xs text-zinc-500">{desc}</p>
+                                    </div>
+                                    <ArrowRight size={16} className="text-zinc-600 group-hover:text-zinc-400 group-hover:translate-x-1 transition-all" />
+                                </div>
+                            </Card>
+                        </Link>
+                    ))}
                 </div>
-            </nav>
-
-            <main className="px-6 py-8">
-                <div className="max-w-7xl mx-auto">
-                    <div className="mb-8">
-                        <h1 className="text-3xl font-bold text-white mb-2">Operations Dashboard</h1>
-                        <p className="text-zinc-500">{formatDate(currentTime)} • {formatTime(currentTime)}</p>
-                    </div>
-
-                    {/* Operational Stats (Staff Focus) */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        <div className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-2xl p-6">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="p-2 rounded-xl bg-green-500/10 text-green-400">
-                                    <UserCheck size={20} />
-                                </div>
-                                <h3 className="text-sm font-medium text-zinc-400">Check-ins Today</h3>
-                            </div>
-                            <div className="text-3xl font-bold text-white">{metrics?.checkIns?.today || '0'}</div>
-                            <div className="text-sm text-zinc-500 mt-1">Members entered</div>
-                        </div>
-
-                        <div className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-2xl p-6">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
-                                    <ScanLine size={20} />
-                                </div>
-                                <h3 className="text-sm font-medium text-zinc-400">Check-outs Today</h3>
-                            </div>
-                            <div className="text-3xl font-bold text-white">{metrics?.checkOuts?.today || '0'}</div>
-                            <div className="text-sm text-zinc-500 mt-1">Members exited</div>
-                        </div>
-
-                        <div className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-2xl p-6">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
-                                    <Wrench size={20} />
-                                </div>
-                                <h3 className="text-sm font-medium text-zinc-400">Total Equipment</h3>
-                            </div>
-                            <div className="text-3xl font-bold text-white">{metrics?.equipment?.total || '0'}</div>
-                            <div className="text-sm text-zinc-500 mt-1">Machines tracked</div>
-                        </div>
-
-                        <div className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-2xl p-6">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className={`p-2 rounded-xl ${(metrics?.equipment?.needsMaintenance || 0) > 0 ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'}`}>
-                                    <AlertTriangle size={20} />
-                                </div>
-                                <h3 className="text-sm font-medium text-zinc-400">Needs Maintenance</h3>
-                            </div>
-                            <div className={`text-3xl font-bold ${(metrics?.equipment?.needsMaintenance || 0) > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                                {metrics?.equipment?.needsMaintenance || '0'}
-                            </div>
-                            <div className="text-sm text-zinc-500 mt-1">Equipment alerts</div>
-                        </div>
-                    </div>
-
-                    {/* Quick Actions Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <Link href="/qr-scanner" className="p-6 bg-zinc-900/50 backdrop-blur-md rounded-2xl border border-zinc-800 hover:border-green-500/50 transition-all group cursor-pointer">
-                            <div className="flex items-center gap-3 mb-3">
-                                <div className="p-2 rounded-lg bg-green-500/10 text-green-400">
-                                    <ScanLine size={20} />
-                                </div>
-                                <h3 className="text-xl font-semibold text-green-400 group-hover:text-green-300">QR Scanner</h3>
-                            </div>
-                            <p className="text-zinc-500">Scan member QR codes for check-in/out.</p>
-                        </Link>
-                        <Link href="/staff-dashboard/checkin" className="p-6 bg-zinc-900/50 backdrop-blur-md rounded-2xl border border-zinc-800 hover:border-blue-500/50 transition-all group cursor-pointer">
-                            <div className="flex items-center gap-3 mb-3">
-                                <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
-                                    <ClipboardList size={20} />
-                                </div>
-                                <h3 className="text-xl font-semibold text-blue-400 group-hover:text-blue-300">Today's Log</h3>
-                            </div>
-                            <p className="text-zinc-500">View today's check-in/out history.</p>
-                        </Link>
-                        <Link href="/staff-dashboard/equipment" className="p-6 bg-zinc-900/50 backdrop-blur-md rounded-2xl border border-zinc-800 hover:border-purple-500/50 transition-all group cursor-pointer">
-                            <div className="flex items-center gap-3 mb-3">
-                                <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400">
-                                    <Wrench size={20} />
-                                </div>
-                                <h3 className="text-xl font-semibold text-purple-400 group-hover:text-purple-300">Equipment</h3>
-                            </div>
-                            <p className="text-zinc-500">View and report equipment issues.</p>
-                        </Link>
-                    </div>
-                </div>
-            </main>
+            </div>
         </div>
     );
 }

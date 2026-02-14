@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, TrendingUp, RefreshCw } from "lucide-react";
-import { paymentAPI } from "@/lib/api";
+import { TrendingUp, RefreshCw } from "lucide-react";
+import { paymentAPI, getErrorMessage } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useToast } from '@/components/ui/Toast';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 interface Payment {
     id: string;
@@ -16,6 +18,7 @@ interface Payment {
 }
 
 export default function ManagerPaymentsPage() {
+    const toast = useToast();
     const [payments, setPayments] = useState<Payment[]>([]);
     const [todayRevenue, setTodayRevenue] = useState<number>(0);
     const [loading, setLoading] = useState(true);
@@ -34,14 +37,14 @@ export default function ManagerPaymentsPage() {
             setPayments(paymentsRes.data.data || []);
             setTotalPages(paymentsRes.data.meta?.totalPages || 1);
             setTodayRevenue(revenueRes.data.data?.todayRevenue || 0);
-        } catch (e) { console.error(e); }
+        } catch (e) { toast.error('Failed to load payments', getErrorMessage(e)); }
         finally { setLoading(false); }
     };
 
     const formatCurrency = (amount: string | number) => `Rs. ${new Intl.NumberFormat('en-LK').format(typeof amount === 'string' ? parseFloat(amount) : amount)}`;
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="space-y-8 page-enter">
             <div><h2 className="text-3xl font-bold text-white">Payments</h2><p className="text-zinc-400 mt-1">Monitor payment transactions and revenue</p></div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -53,7 +56,7 @@ export default function ManagerPaymentsPage() {
 
             <div className="rounded-2xl border border-zinc-800 bg-black/40 overflow-hidden">
                 {loading ? (
-                    <div className="flex items-center justify-center p-12"><Loader2 className="animate-spin text-red-500" size={32} /></div>
+                    <div className="p-6 space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 rounded-lg" />)}</div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">

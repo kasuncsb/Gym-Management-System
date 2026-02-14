@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-    Users, Loader2, Mail, Phone, Calendar, Shield, Search,
+    Users, Mail, Phone, Calendar, Shield, Search,
     UserCheck, Clock, Briefcase, ChevronDown, RefreshCw
 } from 'lucide-react';
-import { managerAPI } from '@/lib/api';
+import { managerAPI, getErrorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/Toast';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 interface StaffMember {
     id: string;
@@ -27,6 +29,7 @@ const ROLE_CONFIG: Record<string, { color: string; bg: string; border: string; i
 };
 
 export default function ManagerStaffPage() {
+    const toast = useToast();
     const [staff, setStaff] = useState<StaffMember[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -39,7 +42,7 @@ export default function ManagerStaffPage() {
             const res = await managerAPI.getStaffList(1, 100);
             setStaff(res.data.data || []);
         } catch (e) {
-            console.error('Failed to load staff:', e);
+            toast.error('Failed to load staff', getErrorMessage(e));
         } finally {
             setLoading(false);
         }
@@ -64,14 +67,16 @@ export default function ManagerStaffPage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-64">
-                <Loader2 className="animate-spin text-red-500" size={32} />
+            <div className="space-y-8 page-enter">
+                <div className="flex justify-between items-center"><Skeleton className="h-8 w-48" /><Skeleton className="h-10 w-24 rounded-xl" /></div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-48 rounded-2xl" />)}</div>
             </div>
         );
     }
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="space-y-8 page-enter">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>

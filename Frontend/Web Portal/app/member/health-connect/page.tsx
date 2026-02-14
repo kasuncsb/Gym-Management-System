@@ -1,38 +1,37 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { healthConnectAPI, getErrorMessage } from '@/lib/api';
+import { useState, useEffect } from "react";
+import { healthConnectAPI, getErrorMessage } from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { PageHeader, Card, ErrorAlert, LoadingButton, Badge } from "@/components/ui/SharedComponents";
 import {
-    Smartphone, Wifi, WifiOff, RefreshCw, Loader2, Heart,
-    Activity, Zap, CheckCircle2, XCircle
-} from 'lucide-react';
+    Smartphone, Wifi, WifiOff, RefreshCw, Heart,
+    Activity, Zap, Moon, Footprints, Scale,
+} from "lucide-react";
 
-interface SyncResult {
-    synced: boolean;
-    data: {
-        weight: number;
-        height: number;
-        heartRate: number;
-        bloodPressureSystolic: number;
-        bloodPressureDiastolic: number;
-        bodyFatPercentage: number;
-        steps: number;
-        caloriesBurned: number;
-        sleepHours: number;
-        timestamp: string;
-    };
-    syncedAt: string;
+interface SyncData {
+    weight: number;
+    height: number;
+    heartRate: number;
+    bloodPressureSystolic: number;
+    bloodPressureDiastolic: number;
+    bodyFatPercentage: number;
+    steps: number;
+    caloriesBurned: number;
+    sleepHours: number;
+    timestamp: string;
 }
 
 export default function HealthConnectPage() {
+    const toast = useToast();
     const [loading, setLoading] = useState(true);
     const [connected, setConnected] = useState(false);
     const [lastSync, setLastSync] = useState<string | null>(null);
-    const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+    const [syncData, setSyncData] = useState<SyncData | null>(null);
     const [syncing, setSyncing] = useState(false);
     const [connecting, setConnecting] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+    const [error, setError] = useState("");
 
     useEffect(() => {
         const fetchStatus = async () => {
@@ -42,7 +41,6 @@ export default function HealthConnectPage() {
                 setConnected(data?.connected || false);
                 setLastSync(data?.lastSyncAt || null);
             } catch {
-                // Not connected
                 setConnected(false);
             } finally {
                 setLoading(false);
@@ -53,51 +51,43 @@ export default function HealthConnectPage() {
 
     const handleConnect = async () => {
         setConnecting(true);
-        setError('');
-        setSuccess('');
+        setError("");
         try {
             const res = await healthConnectAPI.connect();
-            const data = res.data.data;
-            if (data?.authUrl) {
-                // In a real app, we'd redirect. For demo, we simulate the callback.
-                setSuccess('Connection initiated! Simulating OAuth callback...');
-                // Auto-simulate the full connection
+            if (res.data.data?.authUrl) {
                 await healthConnectAPI.simulate();
                 setConnected(true);
-                setSuccess('Successfully connected to Google Health Connect!');
+                toast.success("Connected!", "Successfully connected to Google Health Connect.");
             }
         } catch (err) {
             setError(getErrorMessage(err));
+            toast.error("Connection failed", getErrorMessage(err));
         } finally {
             setConnecting(false);
         }
     };
 
     const handleDisconnect = async () => {
-        setError('');
-        setSuccess('');
         try {
             await healthConnectAPI.disconnect();
             setConnected(false);
-            setSyncResult(null);
+            setSyncData(null);
             setLastSync(null);
-            setSuccess('Disconnected from Google Health Connect');
+            toast.info("Disconnected", "Google Health Connect has been disconnected.");
         } catch (err) {
-            setError(getErrorMessage(err));
+            toast.error("Failed", getErrorMessage(err));
         }
     };
 
     const handleSync = async () => {
         setSyncing(true);
-        setError('');
-        setSuccess('');
         try {
             const res = await healthConnectAPI.sync();
-            setSyncResult(res.data.data);
+            setSyncData(res.data.data?.data || null);
             setLastSync(new Date().toISOString());
-            setSuccess('Health data synced successfully!');
+            toast.success("Synced!", "Health data has been synced to your vitals.");
         } catch (err) {
-            setError(getErrorMessage(err));
+            toast.error("Sync failed", getErrorMessage(err));
         } finally {
             setSyncing(false);
         }
@@ -105,136 +95,129 @@ export default function HealthConnectPage() {
 
     if (loading) {
         return (
-            <div className="flex h-64 items-center justify-center">
-                <Loader2 className="animate-spin text-red-500" size={32} />
+            <div className="space-y-8 page-enter">
+                <div className="space-y-2"><Skeleton className="h-8 w-48" /><Skeleton className="h-4 w-72" /></div>
+                <Skeleton className="h-48 w-full rounded-2xl" />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+                </div>
             </div>
         );
     }
 
+    const metrics = syncData ? [
+        { icon: Activity, color: "red", label: "Heart Rate", value: `${syncData.heartRate}`, unit: "bpm" },
+        { icon: Heart, color: "pink", label: "Blood Pressure", value: `${syncData.bloodPressureSystolic}/${syncData.bloodPressureDiastolic}`, unit: "mmHg" },
+        { icon: Scale, color: "blue", label: "Weight", value: `${syncData.weight}`, unit: "kg" },
+        { icon: Zap, color: "amber", label: "Body Fat", value: `${syncData.bodyFatPercentage}`, unit: "%" },
+        { icon: Footprints, color: "green", label: "Steps", value: syncData.steps.toLocaleString(), unit: "" },
+        { icon: Zap, color: "orange", label: "Calories", value: `${syncData.caloriesBurned}`, unit: "kcal" },
+        { icon: Moon, color: "indigo", label: "Sleep", value: `${syncData.sleepHours}`, unit: "hours" },
+    ] : [];
+
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div>
-                <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r from-white to-gray-400 flex items-center gap-3">
-                    <Smartphone className="text-green-400" size={28} /> Health Connect
-                </h1>
-                <p className="text-gray-400 text-sm mt-1">Sync health data from Google Health Connect</p>
-            </div>
+        <div className="space-y-8 page-enter">
+            <PageHeader
+                title="Health Connect"
+                subtitle="Sync health data from Google Health Connect"
+                badge={connected ? "Connected" : "Not Connected"}
+                badgeColor={connected ? "green" : "zinc"}
+            />
 
-            {error && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl flex items-center gap-2">
-                    <XCircle size={16} /> {error}
-                </div>
-            )}
-            {success && (
-                <div className="bg-green-500/10 border border-green-500/20 text-green-400 px-4 py-3 rounded-xl flex items-center gap-2">
-                    <CheckCircle2 size={16} /> {success}
-                </div>
-            )}
+            {error && <ErrorAlert message={error} />}
 
-            {/* Connection Status Card */}
-            <div className={`border rounded-2xl p-8 text-center space-y-4 ${connected
-                ? 'bg-green-900/10 border-green-800/30'
-                : 'bg-zinc-900/50 border-zinc-800'
-                }`}>
-                <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center ${connected
-                    ? 'bg-green-500/20 text-green-400'
-                    : 'bg-zinc-800 text-zinc-500'
+            {/* Connection Status */}
+            <Card className={`text-center relative overflow-hidden ${connected ? "border-emerald-800/30" : ""}`}>
+                {connected && <div className="absolute inset-0 bg-linear-to-b from-emerald-600/5 to-transparent pointer-events-none" />}
+                <div className="relative space-y-4">
+                    <div className={`w-16 h-16 mx-auto rounded-2xl flex items-center justify-center ${
+                        connected ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-zinc-800 text-zinc-500 border border-zinc-700"
                     }`}>
-                    {connected ? <Wifi size={32} /> : <WifiOff size={32} />}
-                </div>
-                <div>
-                    <h2 className="text-xl font-semibold">
-                        {connected ? 'Connected' : 'Not Connected'}
-                    </h2>
-                    <p className="text-sm text-zinc-400 mt-1">
-                        {connected
-                            ? `Last synced: ${lastSync ? new Date(lastSync).toLocaleString('en-LK', { timeZone: 'Asia/Colombo' }) : 'Never'}`
-                            : 'Connect to automatically sync your health metrics'}
-                    </p>
-                </div>
-
-                {connected ? (
-                    <div className="flex items-center justify-center gap-3">
-                        <button onClick={handleSync} disabled={syncing}
-                            className="flex items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50">
-                            {syncing ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}
-                            Sync Now
-                        </button>
-                        <button onClick={handleDisconnect}
-                            className="flex items-center gap-2 px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition-colors">
-                            <WifiOff size={16} /> Disconnect
-                        </button>
+                        {connected ? <Wifi size={32} /> : <WifiOff size={32} />}
                     </div>
-                ) : (
-                    <button onClick={handleConnect} disabled={connecting}
-                        className="inline-flex items-center gap-2 px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50">
-                        {connecting ? <Loader2 className="animate-spin" size={16} /> : <Smartphone size={16} />}
-                        Connect Google Health
-                    </button>
-                )}
-            </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-white">
+                            {connected ? "Connected to Health Connect" : "Not Connected"}
+                        </h2>
+                        <p className="text-sm text-zinc-400 mt-1">
+                            {connected
+                                ? `Last synced: ${lastSync ? new Date(lastSync).toLocaleString("en-LK", { timeZone: "Asia/Colombo" }) : "Never"}`
+                                : "Connect to automatically sync your health metrics from your wearable devices"
+                            }
+                        </p>
+                    </div>
 
-            {/* Synced Data Display */}
-            {syncResult?.data && (
-                <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-white">Last Synced Data</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <MetricCard icon={<Activity className="text-red-400" size={20} />}
-                            label="Heart Rate" value={`${syncResult.data.heartRate} bpm`} />
-                        <MetricCard icon={<Heart className="text-pink-400" size={20} />}
-                            label="Blood Pressure" value={`${syncResult.data.bloodPressureSystolic}/${syncResult.data.bloodPressureDiastolic} mmHg`} />
-                        <MetricCard icon={<Zap className="text-yellow-400" size={20} />}
-                            label="Weight" value={`${syncResult.data.weight} kg`} />
-                        <MetricCard icon={<Activity className="text-blue-400" size={20} />}
-                            label="Height" value={`${syncResult.data.height} cm`} />
-                        <MetricCard icon={<Zap className="text-green-400" size={20} />}
-                            label="Body Fat" value={`${syncResult.data.bodyFatPercentage}%`} />
-                        <MetricCard icon={<Activity className="text-purple-400" size={20} />}
-                            label="Steps" value={syncResult.data.steps.toLocaleString()} />
-                        <MetricCard icon={<Zap className="text-orange-400" size={20} />}
-                            label="Calories Burned" value={`${syncResult.data.caloriesBurned} kcal`} />
-                        <MetricCard icon={<Heart className="text-indigo-400" size={20} />}
-                            label="Sleep" value={`${syncResult.data.sleepHours} hours`} />
+                    {connected ? (
+                        <div className="flex items-center justify-center gap-3">
+                            <LoadingButton
+                                loading={syncing}
+                                icon={RefreshCw}
+                                onClick={handleSync}
+                                variant="primary"
+                            >
+                                Sync Now
+                            </LoadingButton>
+                            <LoadingButton
+                                icon={WifiOff}
+                                onClick={handleDisconnect}
+                                variant="ghost"
+                            >
+                                Disconnect
+                            </LoadingButton>
+                        </div>
+                    ) : (
+                        <LoadingButton
+                            loading={connecting}
+                            icon={Smartphone}
+                            onClick={handleConnect}
+                        >
+                            Connect Google Health
+                        </LoadingButton>
+                    )}
+                </div>
+            </Card>
+
+            {/* Synced Metrics */}
+            {metrics.length > 0 && (
+                <div>
+                    <h3 className="text-lg font-semibold text-white mb-4">Last Synced Data</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 stagger-in">
+                        {metrics.map(({ icon: Icon, color, label, value, unit }, i) => (
+                            <Card key={i} className="relative overflow-hidden">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-xl bg-${color}-500/10 flex items-center justify-center shrink-0`}>
+                                        <Icon size={20} className={`text-${color}-400`} />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-xs text-zinc-500 truncate">{label}</p>
+                                        <p className="text-lg font-bold text-white leading-tight">
+                                            {value} {unit && <span className="text-xs text-zinc-500 font-normal">{unit}</span>}
+                                        </p>
+                                    </div>
+                                </div>
+                            </Card>
+                        ))}
                     </div>
                 </div>
             )}
 
-            {/* Info Box */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
-                <h3 className="text-sm font-medium text-zinc-300 mb-3">How it works</h3>
-                <ul className="space-y-2 text-sm text-zinc-400">
-                    <li className="flex items-start gap-2">
-                        <span className="text-red-500 mt-0.5">1.</span>
-                        Connect your Google Health Connect account
-                    </li>
-                    <li className="flex items-start gap-2">
-                        <span className="text-red-500 mt-0.5">2.</span>
-                        Your health metrics (heart rate, weight, body fat, BP) are securely synced
-                    </li>
-                    <li className="flex items-start gap-2">
-                        <span className="text-red-500 mt-0.5">3.</span>
-                        Data is recorded in your vitals history for trainers and your own tracking
-                    </li>
-                    <li className="flex items-start gap-2">
-                        <span className="text-red-500 mt-0.5">4.</span>
-                        Conflict resolution ensures only new data overwrites older readings
-                    </li>
-                </ul>
-            </div>
-        </div>
-    );
-}
-
-function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-    return (
-        <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-zinc-800/50 flex items-center justify-center shrink-0">
-                {icon}
-            </div>
-            <div>
-                <div className="text-xs text-zinc-500">{label}</div>
-                <div className="text-lg font-semibold text-white">{value}</div>
-            </div>
+            {/* How it works */}
+            <Card>
+                <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider mb-4">How it works</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {[
+                        { num: "1", text: "Connect your Google Health Connect account safely" },
+                        { num: "2", text: "Health metrics (heart rate, weight, BP, body fat) are securely synced" },
+                        { num: "3", text: "Data is recorded in your vitals history for tracking" },
+                        { num: "4", text: "Smart conflict resolution ensures data accuracy" },
+                    ].map((item) => (
+                        <div key={item.num} className="flex items-start gap-3 p-3 rounded-xl bg-zinc-800/20">
+                            <span className="w-6 h-6 rounded-lg bg-red-500/10 text-red-400 text-xs font-bold flex items-center justify-center shrink-0">{item.num}</span>
+                            <p className="text-sm text-zinc-400 leading-relaxed">{item.text}</p>
+                        </div>
+                    ))}
+                </div>
+            </Card>
         </div>
     );
 }

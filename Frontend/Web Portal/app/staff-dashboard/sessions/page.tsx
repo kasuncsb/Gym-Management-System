@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Calendar, Clock, User, FileText, Check, X, Play } from "lucide-react";
-import { trainerAPI } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { Calendar, Clock, User, FileText, Check, X, Play } from "lucide-react";
+import { trainerAPI, getErrorMessage } from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { PageHeader, Card, EmptyState, Badge, Modal, LoadingButton, Tabs } from "@/components/ui/SharedComponents";
 
 interface Session {
     id: string;
@@ -17,121 +19,180 @@ interface Session {
     notes?: string;
 }
 
+const statusConfig: Record<string, { variant: "success" | "warning" | "info" | "error" | "default"; label: string }> = {
+    scheduled: { variant: "info", label: "Scheduled" },
+    in_progress: { variant: "warning", label: "In Progress" },
+    completed: { variant: "success", label: "Completed" },
+    cancelled: { variant: "error", label: "Cancelled" },
+    no_show: { variant: "default", label: "No Show" },
+};
+
 export default function TrainerSessionsPage() {
+    const toast = useToast();
     const [sessions, setSessions] = useState<Session[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState<'upcoming' | 'completed' | 'all'>('upcoming');
-    const [notesModal, setNotesModal] = useState<{ sessionId: string; existing: string } | null>(null);
-    const [noteText, setNoteText] = useState('');
+    const [error, setError] = useState("");
+    const [filter, setFilter] = useState("upcoming");
+    const [notesModal, setNotesModal] = useState<Session | null>(null);
+    const [noteText, setNoteText] = useState("");
     const [saving, setSaving] = useState(false);
+    const [updatingId, setUpdatingId] = useState<string | null>(null);
 
     const fetchSessions = async () => {
         setLoading(true);
         try {
             const res = await trainerAPI.getMySessions();
-            let data: Session[] = res.data.data || [];
-            if (filter === 'upcoming') data = data.filter(s => s.status === 'scheduled' || s.status === 'in_progress');
-            else if (filter === 'completed') data = data.filter(s => s.status === 'completed');
-            setSessions(data);
-        } catch (e) { console.error(e); }
-        finally { setLoading(false); }
+            setSessions(res.data.data || []);
+        } catch (err) {
+            setError(getErrorMessage(err));
+        } finally {
+            setLoading(false);
+        }
     };
 
-    useEffect(() => { fetchSessions(); }, [filter]);
+    useEffect(() => { fetchSessions(); }, []);
+
+    const filtered = sessions.filter((s) => {
+        if (filter === "upcoming") return s.status === "scheduled" || s.status === "in_progress";
+        if (filter === "completed") return s.status === "completed";
+        return true;
+    });
 
     const updateStatus = async (sessionId: string, status: string) => {
+        setUpdatingId(sessionId);
         try {
             await trainerAPI.updateSessionStatus(sessionId, status);
+            toast.success("Status updated", `Session marked as ${status.replace("_", " ")}`);
             fetchSessions();
-        } catch (e) { console.error(e); }
+        } catch (err) {
+            toast.error("Update failed", getErrorMessage(err));
+        } finally {
+            setUpdatingId(null);
+        }
     };
 
     const saveNotes = async () => {
         if (!notesModal) return;
         setSaving(true);
         try {
-            await trainerAPI.addSessionNotes(notesModal.sessionId, { notes: noteText });
+            await trainerAPI.addSessionNotes(notesModal.id, { notes: noteText });
+            toast.success("Notes saved", "Session notes have been updated.");
             setNotesModal(null);
-            setNoteText('');
             fetchSessions();
-        } catch (e) { console.error(e); }
-        finally { setSaving(false); }
+        } catch (err) {
+            toast.error("Failed to save", getErrorMessage(err));
+        } finally {
+            setSaving(false);
+        }
     };
 
-    const statusBadge = (status: string) => {
-        const styles: Record<string, string> = {
-            scheduled: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-            in_progress: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-            completed: 'bg-green-500/10 text-green-400 border-green-500/20',
-            cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
-            no_show: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
-        };
-        return <span className={cn('px-2 py-0.5 rounded-full text-xs border', styles[status] || styles.scheduled)}>{status.replace('_', ' ')}</span>;
-    };
+    const tabs = [
+        { key: "upcoming", label: "Upcoming", count: sessions.filter((s) => s.status === "scheduled" || s.status === "in_progress").length },
+        { key: "completed", label: "Completed", count: sessions.filter((s) => s.status === "completed").length },
+        { key: "all", label: "All", count: sessions.length },
+    ];
+
+    if (loading) {
+        return (
+            <div className="space-y-8 page-enter">
+                <div className="space-y-2"><Skeleton className="h-8 w-48" /><Skeleton className="h-4 w-64" /></div>
+                <Skeleton className="h-12 w-full rounded-xl" />
+                <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div><h2 className="text-3xl font-bold text-white">My Sessions</h2><p className="text-zinc-400 mt-1">Manage your personal training sessions</p></div>
+        <div className="space-y-8 page-enter">
+            <PageHeader title="My Sessions" subtitle="Manage your personal training sessions" />
 
-            <div className="flex gap-2">
-                {(['upcoming', 'completed', 'all'] as const).map(f => (
-                    <button key={f} onClick={() => setFilter(f)} className={cn('px-4 py-2 rounded-xl text-sm font-medium transition', filter === f ? 'bg-red-700 text-white' : 'bg-zinc-900 text-zinc-400 hover:text-white')}>
-                        {f.charAt(0).toUpperCase() + f.slice(1)}
-                    </button>
-                ))}
-            </div>
+            <Tabs tabs={tabs} activeTab={filter} onChange={setFilter} />
 
-            {loading ? (
-                <div className="flex items-center justify-center py-20"><Loader2 className="animate-spin text-zinc-400" size={24} /></div>
-            ) : sessions.length === 0 ? (
-                <div className="text-center py-20"><Calendar className="mx-auto text-zinc-600 mb-4" size={48} /><p className="text-zinc-400">No sessions found</p></div>
+            {error && <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">{error}</div>}
+
+            {filtered.length === 0 ? (
+                <Card><EmptyState icon={Calendar} title="No sessions found" description={`No ${filter} sessions at the moment.`} /></Card>
             ) : (
-                <div className="space-y-4">
-                    {sessions.map(session => (
-                        <div key={session.id} className="rounded-2xl border border-zinc-800 bg-black/40 p-5">
-                            <div className="flex flex-wrap items-center justify-between gap-4">
-                                <div className="space-y-1">
-                                    <div className="flex items-center gap-3">
-                                        <User size={16} className="text-zinc-500" />
-                                        <span className="text-white font-medium">{session.memberName || session.memberId.slice(0, 12)}</span>
-                                        {statusBadge(session.status)}
-                                    </div>
-                                    <div className="flex items-center gap-4 text-sm text-zinc-400">
-                                        <span className="flex items-center gap-1"><Calendar size={14} /> {new Date(session.sessionDate).toLocaleDateString('en-LK')}</span>
-                                        <span className="flex items-center gap-1"><Clock size={14} /> {session.startTime} – {session.endTime}</span>
-                                        {session.sessionType && <span>Type: {session.sessionType}</span>}
-                                    </div>
+                <div className="space-y-3 stagger-in">
+                    {filtered.map((session) => (
+                        <Card key={session.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="flex items-start gap-4">
+                                <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex flex-col items-center justify-center shrink-0">
+                                    <span className="text-[10px] text-blue-400">{new Date(session.sessionDate).toLocaleDateString("en-LK", { month: "short" })}</span>
+                                    <span className="text-sm font-bold text-white leading-none">{new Date(session.sessionDate).getDate()}</span>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    {session.status === 'scheduled' && (
-                                        <>
-                                            <button onClick={() => updateStatus(session.id, 'in_progress')} className="p-2 rounded-lg bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 transition" title="Start"><Play size={16} /></button>
-                                            <button onClick={() => updateStatus(session.id, 'no_show')} className="p-2 rounded-lg bg-zinc-500/10 text-zinc-400 hover:bg-zinc-500/20 transition" title="No Show"><X size={16} /></button>
-                                        </>
-                                    )}
-                                    {session.status === 'in_progress' && (
-                                        <button onClick={() => updateStatus(session.id, 'completed')} className="p-2 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition" title="Complete"><Check size={16} /></button>
-                                    )}
-                                    <button onClick={() => { setNotesModal({ sessionId: session.id, existing: session.notes || '' }); setNoteText(session.notes || ''); }} className="p-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition" title="Notes"><FileText size={16} /></button>
+                                <div>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <User size={14} className="text-zinc-500" />
+                                        <span className="text-white font-medium">{session.memberName || session.memberId.slice(0, 12)}</span>
+                                        <Badge variant={statusConfig[session.status]?.variant || "default"}>{statusConfig[session.status]?.label || session.status}</Badge>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-xs text-zinc-500 mt-1">
+                                        <span className="flex items-center gap-1"><Clock size={12} /> {session.startTime} – {session.endTime}</span>
+                                        {session.sessionType && <span className="capitalize">{session.sessionType.replace("_", " ")}</span>}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                {session.status === "scheduled" && (
+                                    <>
+                                        <button
+                                            onClick={() => updateStatus(session.id, "in_progress")}
+                                            disabled={updatingId === session.id}
+                                            className="p-2 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition disabled:opacity-50"
+                                            title="Start"
+                                        >
+                                            <Play size={16} />
+                                        </button>
+                                        <button
+                                            onClick={() => updateStatus(session.id, "no_show")}
+                                            disabled={updatingId === session.id}
+                                            className="p-2 rounded-lg bg-zinc-500/10 text-zinc-400 hover:bg-zinc-500/20 transition disabled:opacity-50"
+                                            title="No Show"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </>
+                                )}
+                                {session.status === "in_progress" && (
+                                    <button
+                                        onClick={() => updateStatus(session.id, "completed")}
+                                        disabled={updatingId === session.id}
+                                        className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition disabled:opacity-50"
+                                        title="Complete"
+                                    >
+                                        <Check size={16} />
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => { setNotesModal(session); setNoteText(session.notes || ""); }}
+                                    className="p-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition"
+                                    title="Notes"
+                                >
+                                    <FileText size={16} />
+                                </button>
+                            </div>
+                        </Card>
                     ))}
                 </div>
             )}
 
-            {notesModal && (
-                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-                    <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 w-full max-w-lg space-y-4">
-                        <h3 className="text-lg font-semibold text-white">Session Notes</h3>
-                        <textarea value={noteText} onChange={e => setNoteText(e.target.value)} rows={5} className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-red-600 focus:outline-none" placeholder="Add notes about this session..." />
-                        <div className="flex justify-end gap-2">
-                            <button onClick={() => setNotesModal(null)} className="px-4 py-2 rounded-lg text-zinc-400 hover:text-white transition">Cancel</button>
-                            <button onClick={saveNotes} disabled={saving} className="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50">{saving ? 'Saving...' : 'Save Notes'}</button>
-                        </div>
+            {/* Notes Modal */}
+            <Modal isOpen={!!notesModal} onClose={() => setNotesModal(null)} title="Session Notes" description={`Notes for ${notesModal?.memberName || "session"}`}>
+                <div className="space-y-4">
+                    <textarea
+                        value={noteText}
+                        onChange={(e) => setNoteText(e.target.value)}
+                        rows={5}
+                        className="w-full px-4 py-2.5 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 transition-all resize-none"
+                        placeholder="Add session notes, progress updates, exercises performed..."
+                    />
+                    <div className="flex justify-end gap-3">
+                        <button onClick={() => setNotesModal(null)} className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">Cancel</button>
+                        <LoadingButton loading={saving} onClick={saveNotes}>Save Notes</LoadingButton>
                     </div>
                 </div>
-            )}
+            </Modal>
         </div>
     );
 }

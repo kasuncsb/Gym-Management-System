@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-    Dumbbell, Loader2, AlertTriangle, Wrench, Plus, X,
+    Dumbbell, AlertTriangle, Wrench, Plus, X,
     CheckCircle2, Clock, Search, Filter, ChevronDown
 } from 'lucide-react';
-import { equipmentAPI } from '@/lib/api';
+import { equipmentAPI, getErrorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/Toast';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 interface Equipment {
     id: string;
@@ -48,6 +50,7 @@ const SEVERITY_CONFIG: Record<string, { color: string; bg: string; border: strin
 };
 
 export default function ManagerEquipmentPage() {
+    const toast = useToast();
     const [tab, setTab] = useState<Tab>('inventory');
     const [equipment, setEquipment] = useState<Equipment[]>([]);
     const [issues, setIssues] = useState<EquipmentIssue[]>([]);
@@ -78,7 +81,7 @@ export default function ManagerEquipmentPage() {
             setEquipment(equipRes.data.data || []);
             setIssues(issuesRes.data.data || []);
         } catch (e) {
-            console.error('Failed to load equipment data:', e);
+            toast.error('Failed to load equipment data', getErrorMessage(e));
         } finally {
             setLoading(false);
         }
@@ -91,11 +94,12 @@ export default function ManagerEquipmentPage() {
         setSubmitting(true);
         try {
             await equipmentAPI.create(addForm);
+            toast.success('Equipment added successfully');
             setShowAddForm(false);
             setAddForm({ name: '', category: 'cardio', status: 'operational', notes: '' });
             fetchData();
         } catch (e) {
-            console.error('Failed to add equipment:', e);
+            toast.error('Failed to add equipment', getErrorMessage(e));
         } finally {
             setSubmitting(false);
         }
@@ -105,11 +109,12 @@ export default function ManagerEquipmentPage() {
         setSubmitting(true);
         try {
             await equipmentAPI.reportIssue(equipmentId, issueForm);
+            toast.success('Issue reported successfully');
             setShowIssueForm(null);
             setIssueForm({ description: '', severity: 'medium' });
             fetchData();
         } catch (e) {
-            console.error('Failed to report issue:', e);
+            toast.error('Failed to report issue', getErrorMessage(e));
         } finally {
             setSubmitting(false);
         }
@@ -122,11 +127,12 @@ export default function ManagerEquipmentPage() {
                 ...maintenanceForm,
                 cost: maintenanceForm.cost ? parseFloat(maintenanceForm.cost) : undefined,
             });
+            toast.success('Maintenance logged successfully');
             setShowMaintenanceForm(null);
             setMaintenanceForm({ maintenanceType: 'routine', description: '', cost: '' });
             fetchData();
         } catch (e) {
-            console.error('Failed to log maintenance:', e);
+            toast.error('Failed to log maintenance', getErrorMessage(e));
         } finally {
             setSubmitting(false);
         }
@@ -151,14 +157,16 @@ export default function ManagerEquipmentPage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-64">
-                <Loader2 className="animate-spin text-red-500" size={32} />
+            <div className="space-y-8 page-enter">
+                <div className="flex justify-between items-center"><Skeleton className="h-8 w-40" /><Skeleton className="h-10 w-36 rounded-xl" /></div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)}</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-56 rounded-2xl" />)}</div>
             </div>
         );
     }
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="space-y-8 page-enter">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>

@@ -1,141 +1,176 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, DollarSign, Search, Check } from "lucide-react";
-import { paymentAPI, memberAPI } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { DollarSign, Search, Check } from "lucide-react";
+import { paymentAPI, memberAPI, getErrorMessage } from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { PageHeader, Card, LoadingButton } from "@/components/ui/SharedComponents";
+import { useDebounce } from "@/lib/hooks";
+
+const inputClass = "w-full px-4 py-2.5 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 transition-all";
 
 export default function StaffPaymentsPage() {
+    const toast = useToast();
     const [todayRevenue, setTodayRevenue] = useState<number>(0);
     const [loading, setLoading] = useState(true);
-    const [form, setForm] = useState({ memberId: '', subscriptionId: '', amount: '', paymentMethod: 'cash', paymentType: 'subscription', transactionRef: '', notes: '' });
     const [submitting, setSubmitting] = useState(false);
-    const [success, setSuccess] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<any[]>([]);
-    const [searching, setSearching] = useState(false);
+    const [selectedMember, setSelectedMember] = useState<any>(null);
+    const debouncedSearch = useDebounce(searchQuery, 300);
+    const [form, setForm] = useState({
+        amount: "", paymentMethod: "cash", paymentType: "subscription",
+        transactionRef: "", notes: "",
+    });
 
     useEffect(() => {
         paymentAPI.getTodayRevenue()
-            .then(res => setTodayRevenue(res.data.data?.todayRevenue || 0))
+            .then((res) => setTodayRevenue(res.data.data?.todayRevenue || 0))
             .catch(() => {})
             .finally(() => setLoading(false));
     }, []);
 
-    const handleSearch = async () => {
-        if (!searchQuery.trim()) return;
-        setSearching(true);
-        try {
-            const res = await memberAPI.search(searchQuery);
-            setSearchResults(res.data.data || []);
-        } catch (e) { console.error(e); }
-        finally { setSearching(false); }
-    };
+    useEffect(() => {
+        if (debouncedSearch.length < 2) { setSearchResults([]); return; }
+        memberAPI.search(debouncedSearch)
+            .then((res) => setSearchResults(res.data.data || []))
+            .catch(() => {});
+    }, [debouncedSearch]);
 
     const selectMember = (member: any) => {
-        setForm({ ...form, memberId: member.id || member.memberId });
+        setSelectedMember(member);
+        setSearchQuery(member.fullName || member.name || member.email);
         setSearchResults([]);
-        setSearchQuery(member.name || member.email || '');
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!selectedMember) {
+            toast.warning("No member selected", "Search and select a member first.");
+            return;
+        }
         setSubmitting(true);
-        setSuccess(false);
         try {
             const payload: Record<string, unknown> = {
-                memberId: form.memberId,
+                memberId: selectedMember.id || selectedMember.memberId,
                 amount: form.amount,
                 paymentMethod: form.paymentMethod,
                 paymentType: form.paymentType,
             };
-            if (form.subscriptionId) payload.subscriptionId = form.subscriptionId;
             if (form.transactionRef) payload.transactionRef = form.transactionRef;
             if (form.notes) payload.notes = form.notes;
 
             await paymentAPI.record(payload);
-            setSuccess(true);
-            setForm({ memberId: '', subscriptionId: '', amount: '', paymentMethod: 'cash', paymentType: 'subscription', transactionRef: '', notes: '' });
-            setSearchQuery('');
-            // Refresh revenue
+            toast.success("Payment recorded", `Rs. ${Number(form.amount).toLocaleString("en-LK")} from ${selectedMember.fullName || "member"}`);
+            setForm({ amount: "", paymentMethod: "cash", paymentType: "subscription", transactionRef: "", notes: "" });
+            setSelectedMember(null);
+            setSearchQuery("");
             const rev = await paymentAPI.getTodayRevenue().catch(() => ({ data: { data: { todayRevenue: 0 } } }));
             setTodayRevenue(rev.data.data?.todayRevenue || 0);
-        } catch (e) { console.error(e); }
-        finally { setSubmitting(false); }
+        } catch (err) {
+            toast.error("Payment failed", getErrorMessage(err));
+        } finally {
+            setSubmitting(false);
+        }
     };
 
-    const formatCurrency = (amount: number) => `Rs. ${new Intl.NumberFormat('en-LK').format(amount)}`;
+    const formatCurrency = (amount: number) => `Rs. ${new Intl.NumberFormat("en-LK").format(amount)}`;
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div><h2 className="text-3xl font-bold text-white">Record Payment</h2><p className="text-zinc-400 mt-1">Process member payments at the front desk</p></div>
+        <div className="space-y-8 page-enter">
+            <PageHeader title="Record Payment" subtitle="Process member payments at the front desk" />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="p-6 rounded-2xl border border-zinc-800 bg-black/40">
-                    <div className="flex items-center gap-3 mb-3"><div className="p-2 rounded-xl bg-green-500/10 text-green-400"><DollarSign size={20} /></div><span className="text-sm text-zinc-400">Today&apos;s Revenue</span></div>
-                    <div className="text-3xl font-bold text-green-400">{loading ? '...' : formatCurrency(todayRevenue)}</div>
+            {/* Revenue Card */}
+            <Card className="max-w-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl" />
+                <div className="relative">
+                    <div className="flex items-center gap-2 mb-3">
+                        <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                            <DollarSign size={18} className="text-emerald-400" />
+                        </div>
+                        <span className="text-xs text-zinc-500 font-medium">Today&apos;s Revenue</span>
+                    </div>
+                    <span className="text-3xl font-bold text-emerald-400">
+                        {loading ? <Skeleton className="h-9 w-40 inline-block" /> : formatCurrency(todayRevenue)}
+                    </span>
                 </div>
-            </div>
+            </Card>
 
-            {success && (
-                <div className="flex items-center gap-2 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400">
-                    <Check size={18} /> Payment recorded successfully!
-                </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="rounded-2xl border border-zinc-800 bg-black/40 p-6 space-y-4 max-w-2xl">
-                {/* Member Search */}
-                <div>
-                    <label className="block text-sm text-zinc-400 mb-1">Member *</label>
+            {/* Payment Form */}
+            <Card className="max-w-2xl">
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    {/* Member Search */}
                     <div className="relative">
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={e => { setSearchQuery(e.target.value); if (e.target.value.length >= 2) handleSearch(); }}
-                            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-red-600 focus:outline-none"
-                            placeholder="Search member by name or email..."
-                        />
+                        <label className="block text-sm font-medium text-zinc-300 mb-1.5">Member *</label>
+                        <div className="relative">
+                            <Search size={16} className="absolute left-4 top-3 text-zinc-500" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => { setSearchQuery(e.target.value); setSelectedMember(null); }}
+                                className={inputClass + " pl-10"}
+                                placeholder="Search member by name or email..."
+                            />
+                        </div>
                         {searchResults.length > 0 && (
-                            <div className="absolute top-full mt-1 w-full bg-zinc-900 border border-zinc-700 rounded-lg z-10 max-h-48 overflow-y-auto">
+                            <div className="absolute top-full mt-1 w-full bg-zinc-900 border border-zinc-700 rounded-xl z-20 max-h-48 overflow-y-auto shadow-lg">
                                 {searchResults.map((m: any, i: number) => (
-                                    <button key={i} type="button" onClick={() => selectMember(m)} className="w-full px-3 py-2 text-left text-white hover:bg-zinc-800 text-sm">
-                                        {m.name || m.fullName} — {m.email}
+                                    <button key={i} type="button" onClick={() => selectMember(m)} className="w-full px-4 py-2.5 text-left text-white hover:bg-zinc-800 text-sm transition-colors flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 font-bold text-xs shrink-0">{(m.fullName || m.name || "?").charAt(0)}</div>
+                                        <div>
+                                            <p className="font-medium">{m.fullName || m.name}</p>
+                                            <p className="text-xs text-zinc-500">{m.email}</p>
+                                        </div>
                                     </button>
                                 ))}
                             </div>
                         )}
+                        {selectedMember && (
+                            <p className="text-xs text-emerald-400 mt-1.5 flex items-center gap-1"><Check size={12} /> Selected: {selectedMember.fullName || selectedMember.name}</p>
+                        )}
                     </div>
-                    {form.memberId && <p className="text-xs text-green-400 mt-1">Member selected: {form.memberId.slice(0, 12)}...</p>}
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block text-sm text-zinc-400 mb-1">Amount (LKR) *</label><input required type="number" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-red-600 focus:outline-none" placeholder="5000" /></div>
-                    <div>
-                        <label className="block text-sm text-zinc-400 mb-1">Payment Method</label>
-                        <select value={form.paymentMethod} onChange={e => setForm({...form, paymentMethod: e.target.value})} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-red-600 focus:outline-none">
-                            <option value="cash">Cash</option>
-                            <option value="credit_card">Credit Card</option>
-                            <option value="debit_card">Debit Card</option>
-                            <option value="bank_transfer">Bank Transfer</option>
-                            <option value="online">Online</option>
-                        </select>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-300 mb-1.5">Amount (LKR) *</label>
+                            <input required type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={inputClass} placeholder="5000" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-300 mb-1.5">Payment Method</label>
+                            <select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })} className={inputClass}>
+                                <option value="cash">Cash</option>
+                                <option value="credit_card">Credit Card</option>
+                                <option value="debit_card">Debit Card</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="online">Online</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-300 mb-1.5">Payment Type</label>
+                            <select value={form.paymentType} onChange={(e) => setForm({ ...form, paymentType: e.target.value })} className={inputClass}>
+                                <option value="subscription">Subscription</option>
+                                <option value="pt_session">PT Session</option>
+                                <option value="product">Product</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-300 mb-1.5">Transaction Ref</label>
+                            <input value={form.transactionRef} onChange={(e) => setForm({ ...form, transactionRef: e.target.value })} className={inputClass} placeholder="Optional" />
+                        </div>
                     </div>
                     <div>
-                        <label className="block text-sm text-zinc-400 mb-1">Payment Type</label>
-                        <select value={form.paymentType} onChange={e => setForm({...form, paymentType: e.target.value})} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-red-600 focus:outline-none">
-                            <option value="subscription">Subscription</option>
-                            <option value="pt_session">PT Session</option>
-                            <option value="product">Product</option>
-                            <option value="other">Other</option>
-                        </select>
+                        <label className="block text-sm font-medium text-zinc-300 mb-1.5">Notes</label>
+                        <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className={inputClass + " resize-none"} placeholder="Optional payment notes" />
                     </div>
-                    <div><label className="block text-sm text-zinc-400 mb-1">Transaction Ref</label><input value={form.transactionRef} onChange={e => setForm({...form, transactionRef: e.target.value})} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-red-600 focus:outline-none" /></div>
-                </div>
-                <div><label className="block text-sm text-zinc-400 mb-1">Notes</label><textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} rows={2} className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:border-red-600 focus:outline-none" /></div>
-                <button type="submit" disabled={submitting || !form.memberId} className="px-6 py-2.5 bg-red-700 text-white rounded-xl hover:bg-red-600 transition font-medium disabled:opacity-50">
-                    {submitting ? 'Processing...' : 'Record Payment'}
-                </button>
-            </form>
+                    <div className="flex justify-end pt-4 border-t border-zinc-800">
+                        <LoadingButton loading={submitting} disabled={selectedMember!} type="submit">
+                            Record Payment
+                        </LoadingButton>
+                    </div>
+                </form>
+            </Card>
         </div>
     );
 }

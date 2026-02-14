@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { analyticsAPI, getErrorMessage } from '@/lib/api';
 import {
     LineChart, Users, TrendingUp, TrendingDown, Activity,
-    Loader2, BarChart3, Clock, Trophy, CreditCard
+    BarChart3, Clock, Trophy, CreditCard
 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 interface GrowthData { month: string; newMembers: number; totalMembers: number }
 interface RevenueTrend { month: string; revenue: number }
@@ -62,8 +63,11 @@ export default function AnalyticsPage() {
 
     if (loading) {
         return (
-            <div className="flex h-64 items-center justify-center">
-                <Loader2 className="animate-spin text-red-500" size={32} />
+            <div className="space-y-8 page-enter">
+                <div className="space-y-2"><Skeleton className="h-8 w-48" /><Skeleton className="h-4 w-64" /></div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-64 rounded-2xl" />)}</div>
+                <Skeleton className="h-48 rounded-2xl" />
             </div>
         );
     }

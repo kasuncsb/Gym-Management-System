@@ -33,7 +33,7 @@ function ResetPasswordContent() {
             return;
         }
 
-        if (!validatePassword(password)) {
+        if (validatePassword!(password)) {
             setError('Password must be at least 8 characters with one uppercase letter and one number.');
             return;
         }

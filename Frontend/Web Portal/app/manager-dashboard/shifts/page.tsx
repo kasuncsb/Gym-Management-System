@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Plus, Clock, Calendar, X, Users } from "lucide-react";
-import { shiftAPI } from "@/lib/api";
+import { Plus, Clock, Calendar, X, Users } from "lucide-react";
+import { shiftAPI, getErrorMessage } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/ui/Toast";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { LoadingButton } from "@/components/ui/SharedComponents";
 
 interface Shift {
     id: string;
@@ -26,6 +29,7 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DEFAULT_BRANCH = 'branch-colombo-001';
 
 export default function ShiftsPage() {
+    const toast = useToast();
     const [schedules, setSchedules] = useState<StaffSchedule[]>([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -54,21 +58,28 @@ export default function ShiftsPage() {
                 endTime: form.endTime,
                 shiftType: form.shiftType,
             });
+            toast.success("Shift created successfully");
             setShowForm(false);
             fetchSchedules();
-        } catch (e) { console.error(e); }
+        } catch (e) { toast.error("Failed to create shift", getErrorMessage(e)); }
         finally { setSubmitting(false); }
     };
 
     const handleDeactivate = async (shiftId: string) => {
         try {
             await shiftAPI.deactivate(shiftId);
+            toast.success("Shift deactivated");
             fetchSchedules();
-        } catch (e) { console.error(e); }
+        } catch (e) { toast.error("Failed to deactivate shift", getErrorMessage(e)); }
     };
 
     if (loading) {
-        return <div className="flex items-center justify-center h-64"><Loader2 className="animate-spin text-red-500" size={32} /></div>;
+        return (
+            <div className="space-y-8 page-enter">
+                <div className="space-y-2"><Skeleton className="h-8 w-40" /><Skeleton className="h-4 w-60" /></div>
+                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-40 rounded-2xl" />)}
+            </div>
+        );
     }
 
     return (

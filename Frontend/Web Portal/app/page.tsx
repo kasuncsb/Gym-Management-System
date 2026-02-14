@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/ui/Navbar";
 import { ArrowRight, Check, Zap, Users, Trophy } from "lucide-react";
 import { publicService, Plan, Branch, Stats, Trainer } from "@/lib/api/public.service";
 
 export default function Home() {
+  const router = useRouter();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -205,7 +207,9 @@ export default function Home() {
                       ))}
                     </div>
 
-                    <button className={`w-full py-4 rounded-xl font-bold transition-all ${isPopular
+                    <button
+                      onClick={() => router.push(`/register?plan=${encodeURIComponent(plan.id)}`)}
+                      className={`w-full py-4 rounded-xl font-bold transition-all ${isPopular
                       ? "bg-red-700 hover:bg-red-700 text-white shadow-lg shadow-red-600/25"
                       : "bg-zinc-100 hover:bg-white text-black"
                       }`}>

@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-    CreditCard, Loader2, TrendingUp, Users, Calendar,
+    CreditCard, TrendingUp, Users, Calendar,
     RefreshCw, Star, ArrowUpRight, Clock, CheckCircle2
 } from 'lucide-react';
-import { subscriptionAPI, reportingAPI } from '@/lib/api';
+import { subscriptionAPI, reportingAPI, getErrorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/Toast';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 interface SubscriptionPlan {
     id: string;
@@ -39,6 +41,7 @@ const formatCurrency = (amount: number | string): string => {
 };
 
 export default function ManagerSubscriptionsPage() {
+    const toast = useToast();
     const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
     const [renewals, setRenewals] = useState<UpcomingRenewal[]>([]);
     const [popularity, setPopularity] = useState<PlanPopularity[]>([]);
@@ -57,7 +60,7 @@ export default function ManagerSubscriptionsPage() {
             setRenewals(renewalsRes.data.data || []);
             setPopularity(popularityRes.data.data || []);
         } catch (e) {
-            console.error('Failed to load subscription data:', e);
+            toast.error('Failed to load subscription data', getErrorMessage(e));
         } finally {
             setLoading(false);
         }
@@ -72,14 +75,16 @@ export default function ManagerSubscriptionsPage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-64">
-                <Loader2 className="animate-spin text-red-500" size={32} />
+            <div className="space-y-8 page-enter">
+                <div className="space-y-2"><Skeleton className="h-8 w-48" /><Skeleton className="h-4 w-64" /></div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}</div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-48 rounded-2xl" />)}</div>
             </div>
         );
     }
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="space-y-8 page-enter">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>

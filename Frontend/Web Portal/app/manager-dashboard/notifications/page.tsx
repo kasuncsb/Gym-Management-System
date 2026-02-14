@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-    Bell, Loader2, CheckCircle2, Check, CheckCheck,
+    Bell, CheckCircle2, Check, CheckCheck,
     Mail, AlertCircle, Info, MessageSquare, RefreshCw
 } from 'lucide-react';
-import { notificationAPI } from '@/lib/api';
+import { notificationAPI, getErrorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/Toast';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 interface Notification {
     id: string;
@@ -26,6 +28,7 @@ const TYPE_CONFIG: Record<string, { icon: typeof Bell; color: string; bg: string
 };
 
 export default function ManagerNotificationsPage() {
+    const toast = useToast();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -41,7 +44,7 @@ export default function ManagerNotificationsPage() {
             setNotifications(notifsRes.data.data || []);
             setUnreadCount(countRes.data.data?.unreadCount || 0);
         } catch (e) {
-            console.error('Failed to load notifications:', e);
+            toast.error('Failed to load notifications', getErrorMessage(e));
         } finally {
             setLoading(false);
         }
@@ -55,7 +58,7 @@ export default function ManagerNotificationsPage() {
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
             setUnreadCount(prev => Math.max(0, prev - 1));
         } catch (e) {
-            console.error('Failed to mark notification as read:', e);
+            toast.error('Failed to mark as read', getErrorMessage(e));
         }
     };
 
@@ -65,7 +68,7 @@ export default function ManagerNotificationsPage() {
             setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
             setUnreadCount(0);
         } catch (e) {
-            console.error('Failed to mark all as read:', e);
+            toast.error('Failed to mark all as read', getErrorMessage(e));
         }
     };
 
@@ -83,8 +86,9 @@ export default function ManagerNotificationsPage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-64">
-                <Loader2 className="animate-spin text-red-500" size={32} />
+            <div className="space-y-6 page-enter">
+                <div className="flex justify-between items-center"><Skeleton className="h-8 w-48" /><Skeleton className="h-10 w-32 rounded-xl" /></div>
+                <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)}</div>
             </div>
         );
     }
@@ -189,7 +193,7 @@ export default function ManagerNotificationsPage() {
                                                 <span className="text-xs text-zinc-600">
                                                     {formatRelativeTime(notification.createdAt)}
                                                 </span>
-                                                {!notification.isRead && (
+                                                {notification.isRead! && (
                                                     <button
                                                         onClick={() => handleMarkRead(notification.id)}
                                                         className="p-1.5 rounded-lg text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition opacity-0 group-hover:opacity-100"
@@ -201,7 +205,7 @@ export default function ManagerNotificationsPage() {
                                             </div>
                                         </div>
                                     </div>
-                                    {!notification.isRead && (
+                                    {notification.isRead! && (
                                         <div className="w-2 h-2 rounded-full bg-red-500 shrink-0 mt-2" />
                                     )}
                                 </div>

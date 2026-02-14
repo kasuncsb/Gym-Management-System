@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { managerAPI } from '@/lib/api';
+import { managerAPI, getErrorMessage } from '@/lib/api';
 import { Mail, Phone, Calendar, UserCheck } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/ui/Toast';
+import { Badge } from '@/components/ui/SharedComponents';
 
 interface Member {
     id: string;
@@ -16,10 +17,9 @@ interface Member {
 }
 
 export default function ManagerMembersPage() {
-    const router = useRouter();
+    const toast = useToast();
     const [members, setMembers] = useState<Member[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
 
@@ -34,10 +34,10 @@ export default function ManagerMembersPage() {
                     setTotalPages(Math.ceil(pagination.total / pagination.limit));
                 }
             } else {
-                setError('Failed to load members');
+                toast.error('Failed to load members');
             }
         } catch (err: any) {
-            setError(err.message || 'Error loading members');
+            toast.error('Failed to load members', getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -48,7 +48,7 @@ export default function ManagerMembersPage() {
     }, [page]);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 page-enter">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r from-white to-gray-400">
                     Branch Members
@@ -60,12 +60,6 @@ export default function ManagerMembersPage() {
                     Refresh
                 </button>
             </div>
-
-            {error && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-xl">
-                    {error}
-                </div>
-            )}
 
             <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">

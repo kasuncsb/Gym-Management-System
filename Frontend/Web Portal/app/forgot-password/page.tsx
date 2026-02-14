@@ -115,7 +115,7 @@ export default function ForgotPassword() {
                             )}
                         >
                             {isLoading ? <Loader2 className="animate-spin" size={20} /> : "Send Reset Link"}
-                            {!isLoading && <ArrowRight size={18} />}
+                            {isLoading! && <ArrowRight size={18} />}
                         </button>
                     </form>
 

@@ -1,167 +1,310 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { memberAPI, authAPI } from "@/lib/api";
-import { User, Mail, Phone, Camera, Save, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { User, Mail, Phone, MapPin, Save, Lock, Eye, EyeOff, Shield, Calendar, Target } from "lucide-react";
+import { memberAPI, authAPI, getErrorMessage } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { cn } from "@/lib/utils";
+import { useToast } from "@/components/ui/Toast";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { PageHeader, Card, ErrorAlert, Tabs, LoadingButton } from "@/components/ui/SharedComponents";
 
 export default function ProfilePage() {
-    const { user: authUser } = useAuth();
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
-    const [formData, setFormData] = useState({
-        name: "",
-        email: "",
-        phone: "",
-    });
+    const toast = useToast();
+    const { user } = useAuth();
+    const [activeTab, setActiveTab] = useState("profile");
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+    const [profile, setProfile] = useState<any>(null);
+    const [form, setForm] = useState({ fullName: '', phone: '', emergencyContact: '', address: '' });
+    const [pwForm, setPwForm] = useState({ oldPassword: '', newPassword: '', confirm: '' });
+    const [pwSaving, setPwSaving] = useState(false);
+    const [showOld, setShowOld] = useState(false);
+    const [showNew, setShowNew] = useState(false);
 
     useEffect(() => {
+        async function fetchProfile() {
+            setLoading(true);
+            try {
+                const res = await memberAPI.getProfile();
+                const data = res.data.data;
+                setProfile(data);
+                setForm({
+                    fullName: data.fullName || data.user?.fullName || '',
+                    phone: data.phone || data.user?.phone || '',
+                    emergencyContact: data.emergencyContact || '',
+                    address: data.address || '',
+                });
+            } catch (err) {
+                setError(getErrorMessage(err));
+            } finally {
+                setLoading(false);
+            }
+        }
         fetchProfile();
     }, []);
 
-    const fetchProfile = async () => {
+    const handleSaveProfile = async () => {
+        setSaving(true);
         try {
-            setIsLoading(true);
-            // Decide which API to call based on role or just use generic authAPI.getProfile if available
-            // authAPI.getProfile is defined in lib/api.ts
-            const response = await authAPI.getProfile();
-            const data = response.data.data;
-            setFormData({
-                name: data.fullName || "",
-                email: data.email || "",
-                phone: data.phone || "",
-            });
-        } catch (error) {
-            console.error("Failed to fetch profile:", error);
+            await memberAPI.updateProfile(form);
+            toast.success("Profile updated", "Your changes have been saved.");
+        } catch (err) {
+            toast.error("Update failed", getErrorMessage(err));
         } finally {
-            setIsLoading(false);
+            setSaving(false);
         }
     };
 
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleChangePassword = async () => {
+        if (pwForm.newPassword !== pwForm.confirm) {
+            toast.error("Passwords don't match", "New password and confirmation must be the same.");
+            return;
+        }
+        if (pwForm.newPassword.length < 8) {
+            toast.warning("Weak password", "Password must be at least 8 characters.");
+            return;
+        }
+        setPwSaving(true);
         try {
-            setIsSaving(true);
-            await memberAPI.updateProfile(formData);
-            // Show success message (toast ideally)
-            alert("Profile updated successfully!");
-        } catch (error) {
-            console.error("Failed to update profile:", error);
-            alert("Failed to update profile.");
+            await authAPI.changePassword(pwForm.oldPassword, pwForm.newPassword);
+            toast.success("Password changed", "Your password has been updated successfully.");
+            setPwForm({ oldPassword: '', newPassword: '', confirm: '' });
+        } catch (err) {
+            toast.error("Failed to change password", getErrorMessage(err));
         } finally {
-            setIsSaving(false);
+            setPwSaving(false);
         }
     };
 
-    if (isLoading) {
+    const tabs = [
+        { key: "profile", label: "Profile" },
+        { key: "security", label: "Security" },
+    ];
+
+    if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-125">
-                <Loader2 className="animate-spin text-red-600" size={32} />
+            <div className="space-y-8 page-enter">
+                <div className="space-y-2">
+                    <Skeleton className="h-8 w-32" />
+                    <Skeleton className="h-4 w-56" />
+                </div>
+                <div className="space-y-4">
+                    {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div>
-                <h2 className="text-3xl font-bold text-white">Profile Settings</h2>
-                <p className="text-zinc-400 mt-1">Manage your personal information</p>
-            </div>
+        <div className="space-y-8 page-enter">
+            <PageHeader title="Profile" subtitle="Manage your personal information and account security" />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {/* Profile Card */}
-                <div className="md:col-span-1">
-                    <div className="p-6 rounded-2xl bg-black/40 border border-zinc-800 backdrop-blur-md flex flex-col items-center text-center">
-                        <div className="relative group cursor-pointer">
-                            <div className="w-24 h-24 rounded-full bg-linear-to-br from-red-700 to-purple-600 p-0.5">
-                                <div className="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden">
-                                    <span className="text-3xl font-bold text-white uppercase">
-                                        {formData.name.charAt(0)}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Camera size={20} className="text-white" />
-                            </div>
-                        </div>
-                        <h3 className="mt-4 text-xl font-bold text-white">{formData.name}</h3>
-                        <p className="text-sm text-zinc-500 capitalize">{authUser?.role || 'Member'}</p>
+            {error && <ErrorAlert message={error} />}
 
-                        <div className="mt-6 w-full space-y-3">
-                            <div className="flex items-center gap-3 text-sm text-zinc-400 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800/50">
-                                <Mail size={16} className="text-red-500" />
-                                <span className="truncate">{formData.email}</span>
-                            </div>
-                            {formData.phone && (
-                                <div className="flex items-center gap-3 text-sm text-zinc-400 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800/50">
-                                    <Phone size={16} className="text-green-400" />
-                                    <span>{formData.phone}</span>
-                                </div>
+            {/* Profile Header Card */}
+            <Card className="relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-red-600/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="relative flex items-center gap-5">
+                    <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-red-700 to-red-600 flex items-center justify-center border border-red-600/30 shadow-lg shadow-red-900/20">
+                        <span className="text-2xl font-bold text-white uppercase">
+                            {(form.fullName || user?.fullName || 'U').charAt(0)}
+                        </span>
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-bold text-white">{form.fullName || 'Member'}</h3>
+                        <p className="text-sm text-zinc-400">{user?.email}</p>
+                        <div className="flex items-center gap-3 mt-2">
+                            {profile?.experienceLevel && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                    {profile.experienceLevel}
+                                </span>
+                            )}
+                            {profile?.membershipStatus && (
+                                <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                                    profile.membershipStatus === 'active'
+                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                        : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
+                                }`}>
+                                    {profile.membershipStatus}
+                                </span>
                             )}
                         </div>
                     </div>
                 </div>
+            </Card>
 
-                {/* Edit Form */}
-                <div className="md:col-span-2">
-                    <form onSubmit={handleSave} className="p-6 rounded-2xl bg-black/40 border border-zinc-800 backdrop-blur-md space-y-6">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-zinc-300">Full Name</label>
-                            <div className="relative group">
-                                <User className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={18} />
-                                <input
-                                    type="text"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
-                                />
-                            </div>
+            <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+
+            {/* Profile Tab */}
+            {activeTab === "profile" && (
+                <Card>
+                    <h3 className="text-lg font-bold text-white mb-6">Personal Information</h3>
+                    <div className="space-y-5">
+                        <div>
+                            <label className="flex items-center gap-2 text-sm font-medium text-zinc-300 mb-1.5">
+                                <User size={14} className="text-zinc-500" />
+                                Full Name
+                            </label>
+                            <input
+                                type="text"
+                                value={form.fullName}
+                                onChange={(e) => setForm(prev => ({ ...prev, fullName: e.target.value }))}
+                                className="w-full px-4 py-2.5 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 transition-all"
+                            />
                         </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-zinc-300">Email Address</label>
-                            <div className="relative group">
-                                <Mail className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={18} />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label className="flex items-center gap-2 text-sm font-medium text-zinc-300 mb-1.5">
+                                    <Mail size={14} className="text-zinc-500" />
+                                    Email
+                                </label>
                                 <input
                                     type="email"
-                                    value={formData.email}
+                                    value={user?.email || ''}
                                     disabled
-                                    className="w-full bg-zinc-900/30 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-zinc-400 cursor-not-allowed"
+                                    className="w-full px-4 py-2.5 bg-zinc-800/30 border border-zinc-800 rounded-xl text-zinc-500 text-sm cursor-not-allowed"
                                 />
                             </div>
-                            <p className="text-xs text-zinc-500">Email cannot be changed directly.</p>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-zinc-300">Phone Number</label>
-                            <div className="relative group">
-                                <Phone className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={18} />
+                            <div>
+                                <label className="flex items-center gap-2 text-sm font-medium text-zinc-300 mb-1.5">
+                                    <Phone size={14} className="text-zinc-500" />
+                                    Phone
+                                </label>
                                 <input
                                     type="tel"
-                                    value={formData.phone}
-                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                    className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
+                                    value={form.phone}
+                                    onChange={(e) => setForm(prev => ({ ...prev, phone: e.target.value }))}
+                                    placeholder="+94 7X XXX XXXX"
+                                    className="w-full px-4 py-2.5 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 transition-all"
                                 />
                             </div>
                         </div>
-
-                        <div className="pt-4 flex justify-end">
-                            <button
-                                type="submit"
-                                disabled={isSaving}
-                                className={cn(
-                                    "px-6 py-2.5 bg-red-700 text-white rounded-xl font-medium hover:bg-red-700 focus:ring-4 focus:ring-red-600/20 transition-all flex items-center gap-2 shadow-lg shadow-red-600/20",
-                                    isSaving && "opacity-70 cursor-not-allowed"
-                                )}
-                            >
-                                {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-                                <span>Save Changes</span>
-                            </button>
+                        <div>
+                            <label className="flex items-center gap-2 text-sm font-medium text-zinc-300 mb-1.5">
+                                <Phone size={14} className="text-zinc-500" />
+                                Emergency Contact
+                            </label>
+                            <input
+                                type="tel"
+                                value={form.emergencyContact}
+                                onChange={(e) => setForm(prev => ({ ...prev, emergencyContact: e.target.value }))}
+                                placeholder="Emergency contact number"
+                                className="w-full px-4 py-2.5 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 transition-all"
+                            />
                         </div>
-                    </form>
-                </div>
-            </div>
+                        <div>
+                            <label className="flex items-center gap-2 text-sm font-medium text-zinc-300 mb-1.5">
+                                <MapPin size={14} className="text-zinc-500" />
+                                Address
+                            </label>
+                            <textarea
+                                value={form.address}
+                                onChange={(e) => setForm(prev => ({ ...prev, address: e.target.value }))}
+                                placeholder="Your address"
+                                rows={2}
+                                className="w-full px-4 py-2.5 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 transition-all resize-none"
+                            />
+                        </div>
+
+                        {/* Fitness Info (read-only summary) */}
+                        {profile?.fitnessGoals && (
+                            <div>
+                                <label className="flex items-center gap-2 text-sm font-medium text-zinc-300 mb-1.5">
+                                    <Target size={14} className="text-zinc-500" />
+                                    Fitness Goals
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                    {(Array.isArray(profile.fitnessGoals) ? profile.fitnessGoals : []).map((goal: string, i: number) => (
+                                        <span key={i} className="text-xs px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                            {goal}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end pt-4 border-t border-zinc-800">
+                            <LoadingButton loading={saving} icon={Save} onClick={handleSaveProfile}>
+                                Save Changes
+                            </LoadingButton>
+                        </div>
+                    </div>
+                </Card>
+            )}
+
+            {/* Security Tab */}
+            {activeTab === "security" && (
+                <Card>
+                    <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                        <Shield size={20} className="text-red-400" />
+                        Change Password
+                    </h3>
+                    <div className="max-w-md space-y-5">
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-300 mb-1.5">Current Password</label>
+                            <div className="relative">
+                                <input
+                                    type={showOld ? "text" : "password"}
+                                    value={pwForm.oldPassword}
+                                    onChange={(e) => setPwForm(prev => ({ ...prev, oldPassword: e.target.value }))}
+                                    className="w-full px-4 py-2.5 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 transition-all pr-10"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowOld(!showOld)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                                >
+                                    {showOld ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-300 mb-1.5">New Password</label>
+                            <div className="relative">
+                                <input
+                                    type={showNew ? "text" : "password"}
+                                    value={pwForm.newPassword}
+                                    onChange={(e) => setPwForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                                    className="w-full px-4 py-2.5 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 transition-all pr-10"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowNew(!showNew)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                                >
+                                    {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
+                            {pwForm.newPassword && pwForm.newPassword.length < 8 && (
+                                <p className="text-xs text-amber-400 mt-1">Password must be at least 8 characters</p>
+                            )}
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-300 mb-1.5">Confirm New Password</label>
+                            <input
+                                type="password"
+                                value={pwForm.confirm}
+                                onChange={(e) => setPwForm(prev => ({ ...prev, confirm: e.target.value }))}
+                                className="w-full px-4 py-2.5 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 transition-all"
+                            />
+                            {pwForm.confirm && pwForm.confirm !== pwForm.newPassword && (
+                                <p className="text-xs text-red-400 mt-1">Passwords do not match</p>
+                            )}
+                        </div>
+                        <div className="flex justify-end pt-4 border-t border-zinc-800">
+                            <LoadingButton
+                                loading={pwSaving}
+                                icon={Lock}
+                                onClick={handleChangePassword}
+                                disabled={!pwForm.oldPassword || !pwForm.newPassword || pwForm.newPassword !== pwForm.confirm}
+                            >
+                                Change Password
+                            </LoadingButton>
+                        </div>
+                    </div>
+                </Card>
+            )}
         </div>
     );
 }
