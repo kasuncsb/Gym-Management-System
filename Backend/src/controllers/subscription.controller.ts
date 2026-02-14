@@ -56,4 +56,49 @@ export class SubscriptionController {
     const renewals = await SubscriptionService.checkUpcomingRenewals(days);
     res.json(successResponse(renewals, 'Upcoming renewals retrieved'));
   });
+
+  /** Admin: Create plan */
+  static createPlan = asyncHandler(async (req: Request, res: Response) => {
+    const plan = await SubscriptionService.createPlan(req.body);
+    res.status(201).json(successResponse(plan, 'Plan created'));
+  });
+
+  /** Admin: Update plan */
+  static updatePlan = asyncHandler(async (req: Request, res: Response) => {
+    const plan = await SubscriptionService.updatePlan(req.params.id as string, req.body);
+    res.json(successResponse(plan, 'Plan updated'));
+  });
+
+  /** Admin: delete plan (soft) */
+  static deletePlan = asyncHandler(async (req: Request, res: Response) => {
+    await SubscriptionService.deletePlan(req.params.id as string);
+    res.json(successResponse(null, 'Plan deleted'));
+  });
+
+  /** Member: purchase subscription */
+  static purchaseSubscription = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const [m] = await db.select({ id: members.id }).from(members).where(eq(members.userId, req.user!.userId)).limit(1);
+    const sub = await SubscriptionService.purchaseSubscription({
+      memberId: m?.id,
+      ...req.body,
+    });
+    res.status(201).json(successResponse(sub, 'Subscription purchased — pending payment'));
+  });
+
+  /** Freeze subscription */
+  static freezeSubscription = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await SubscriptionService.freezeSubscription(req.params.id as string, {
+      freezeStart: req.body.freezeStart,
+      freezeEnd: req.body.freezeEnd,
+      reason: req.body.reason,
+      requestedBy: req.user!.userId,
+    });
+    res.json(successResponse(result, 'Subscription frozen'));
+  });
+
+  /** Unfreeze subscription */
+  static unfreezeSubscription = asyncHandler(async (req: Request, res: Response) => {
+    const result = await SubscriptionService.unfreezeSubscription(req.params.id as string);
+    res.json(successResponse(result, 'Subscription unfrozen'));
+  });
 }

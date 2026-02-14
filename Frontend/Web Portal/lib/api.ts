@@ -142,6 +142,18 @@ export const subscriptionAPI = {
     getAllPlans: () => apiClient.get('/subscriptions/plans'),
     getPlan: (id: string) => apiClient.get(`/subscriptions/plans/${id}`),
     getUpcomingRenewals: () => apiClient.get('/subscriptions/renewals/upcoming'),
+    purchase: (planId: string, branchId: string) =>
+        apiClient.post('/subscriptions/purchase', { planId, branchId }),
+    freeze: (subscriptionId: string, freezeStart: string, freezeEnd: string, reason?: string) =>
+        apiClient.post(`/subscriptions/${subscriptionId}/freeze`, { freezeStart, freezeEnd, reason }),
+    unfreeze: (subscriptionId: string) =>
+        apiClient.post(`/subscriptions/${subscriptionId}/unfreeze`),
+    // Admin CRUD
+    createPlan: (data: any) => apiClient.post('/subscriptions/plans', data),
+    updatePlan: (id: string, data: any) => apiClient.put(`/subscriptions/plans/${id}`, data),
+    deletePlan: (id: string) => apiClient.delete(`/subscriptions/plans/${id}`),
+    getMemberSubscriptions: (memberId: string) =>
+        apiClient.get(`/subscriptions/member/${memberId}`),
 };
 
 // ── QR / Access ────────────────────────────────────
@@ -202,6 +214,89 @@ export const publicAPI = {
     getBranches: () => apiClient.get('/public/branches'),
     getStats: () => apiClient.get('/public/stats'),
     getFeaturedTrainers: () => apiClient.get('/public/trainers'),
+};
+
+// ── Vitals ─────────────────────────────────────────
+export const vitalsAPI = {
+    recordOwn: (data: any) => apiClient.post('/vitals/me', data),
+    getOwnHistory: (limit = 50) => apiClient.get('/vitals/me', { params: { limit } }),
+    record: (memberId: string, data: any) => apiClient.post(`/vitals/${memberId}`, data),
+    getHistory: (memberId: string, limit = 50) => apiClient.get(`/vitals/${memberId}`, { params: { limit } }),
+    getLatest: (memberId: string) => apiClient.get(`/vitals/${memberId}/latest`),
+    getTrend: (memberId: string, startDate?: string, endDate?: string) =>
+        apiClient.get(`/vitals/${memberId}/trend`, { params: { startDate, endDate } }),
+    completeOnboarding: (memberId: string) => apiClient.post(`/vitals/${memberId}/complete-onboarding`),
+};
+
+// ── Workouts ───────────────────────────────────────
+export const workoutAPI = {
+    getMyPlans: () => apiClient.get('/workouts/my-plans'),
+    getLibrary: () => apiClient.get('/workouts/library'),
+    getPlan: (planId: string) => apiClient.get(`/workouts/plans/${planId}`),
+    createPlan: (data: any) => apiClient.post('/workouts/plans', data),
+    assignLibraryPlan: (planId: string, memberId: string, trainerId?: string) =>
+        apiClient.post('/workouts/plans/assign', { planId, memberId, trainerId }),
+    deactivatePlan: (planId: string) => apiClient.patch(`/workouts/plans/${planId}/deactivate`),
+    generateAIPlan: (memberId?: string, trainerId?: string) =>
+        apiClient.post('/workouts/generate', { memberId, trainerId }),
+    logWorkout: (data: any) => apiClient.post('/workouts/log', data),
+    getWorkoutHistory: (limit = 30) => apiClient.get('/workouts/history', { params: { limit } }),
+    getMemberWorkoutHistory: (memberId: string, limit = 30) =>
+        apiClient.get(`/workouts/member/${memberId}/history`, { params: { limit } }),
+};
+
+// ── Trainers ───────────────────────────────────────
+export const trainerAPI = {
+    list: () => apiClient.get('/trainers'),
+    getById: (id: string) => apiClient.get(`/trainers/${id}`),
+    getAvailability: (trainerId: string, startDate?: string, endDate?: string) =>
+        apiClient.get(`/trainers/${trainerId}/availability`, { params: { startDate, endDate } }),
+    setAvailability: (data: any) => apiClient.post('/trainers/availability', data),
+    removeAvailability: (slotId: string) => apiClient.delete(`/trainers/availability/${slotId}`),
+    getMyMembers: () => apiClient.get('/trainers/my/members'),
+    getMySessions: () => apiClient.get('/trainers/my/sessions'),
+    bookSession: (data: any) => apiClient.post('/trainers/sessions', data),
+    getMemberSessions: (memberId: string) => apiClient.get(`/trainers/sessions/member/${memberId}`),
+    updateSessionStatus: (sessionId: string, status: string, reason?: string) =>
+        apiClient.patch(`/trainers/sessions/${sessionId}/status`, { status, reason }),
+    addSessionNotes: (sessionId: string, data: any) =>
+        apiClient.post(`/trainers/sessions/${sessionId}/notes`, data),
+    getSessionNotes: (sessionId: string) => apiClient.get(`/trainers/sessions/${sessionId}/notes`),
+};
+
+// ── Payments ───────────────────────────────────────
+export const paymentAPI = {
+    record: (data: any) => apiClient.post('/payments', data),
+    getAll: (page = 1, limit = 20, startDate?: string, endDate?: string) =>
+        apiClient.get('/payments/all', { params: { page, limit, startDate, endDate } }),
+    getMemberPayments: (memberId: string, limit = 50) =>
+        apiClient.get(`/payments/member/${memberId}`, { params: { limit } }),
+    refund: (paymentId: string, reason: string) =>
+        apiClient.post(`/payments/${paymentId}/refund`, { reason }),
+    getTodayRevenue: () => apiClient.get('/payments/today-revenue'),
+};
+
+// ── Shifts ─────────────────────────────────────────
+export const shiftAPI = {
+    getMyShifts: () => apiClient.get('/shifts/my'),
+    create: (data: any) => apiClient.post('/shifts', data),
+    getBranchSchedules: (branchId: string) =>
+        apiClient.get('/shifts/branch', { params: { branchId } }),
+    getStaffShifts: (staffId: string) => apiClient.get(`/shifts/staff/${staffId}`),
+    update: (shiftId: string, data: any) => apiClient.patch(`/shifts/${shiftId}`, data),
+    deactivate: (shiftId: string) => apiClient.delete(`/shifts/${shiftId}`),
+    createOverride: (data: any) => apiClient.post('/shifts/overrides', data),
+    getOverrides: (staffId: string, startDate?: string, endDate?: string) =>
+        apiClient.get(`/shifts/overrides/${staffId}`, { params: { startDate, endDate } }),
+};
+
+// ── Notifications ──────────────────────────────────
+export const notificationAPI = {
+    getAll: (limit = 50, unreadOnly = false) =>
+        apiClient.get('/notifications', { params: { limit, unreadOnly } }),
+    getUnreadCount: () => apiClient.get('/notifications/unread-count'),
+    markRead: (id: string) => apiClient.patch(`/notifications/${id}/read`),
+    markAllRead: () => apiClient.patch('/notifications/read-all'),
 };
 
 export default apiClient;

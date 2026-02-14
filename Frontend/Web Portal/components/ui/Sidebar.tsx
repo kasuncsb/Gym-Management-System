@@ -13,7 +13,13 @@ import {
     CreditCard,
     Menu,
     X,
-    QrCode
+    QrCode,
+    Heart,
+    ClipboardList,
+    DollarSign,
+    Clock,
+    Bell,
+    UserCheck
 } from "lucide-react";
 import { useState } from "react";
 import { clsx, type ClassValue } from "clsx";
@@ -25,6 +31,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 import { useAuth } from "@/context/AuthContext";
+import { NotificationBell } from "@/components/ui/NotificationBell";
 
 export function Sidebar() {
     const pathname = usePathname();
@@ -38,6 +45,8 @@ export function Sidebar() {
         const adminItems = [
             { name: "Dashboard", href: "/admin-dashboard", icon: LayoutDashboard },
             { name: "Members", href: "/admin-dashboard/members", icon: Users },
+            { name: "Plans", href: "/admin-dashboard/plans", icon: ClipboardList },
+            { name: "Payments", href: "/admin-dashboard/payments", icon: DollarSign },
             { name: "Equipment", href: "/admin-dashboard/equipment", icon: Dumbbell },
             { name: "Billing", href: "/admin-dashboard/billing", icon: CreditCard },
             { name: "Settings", href: "/admin-dashboard/settings", icon: Settings },
@@ -46,19 +55,23 @@ export function Sidebar() {
         const managerItems = [
             { name: "Dashboard", href: "/manager-dashboard", icon: LayoutDashboard },
             { name: "Members", href: "/manager-dashboard/members", icon: Users },
-            { name: "Equipment", href: "/manager-dashboard/equipment", icon: Dumbbell },
             { name: "Staff", href: "/manager-dashboard/staff", icon: CalendarDays },
+            { name: "Shifts", href: "/manager-dashboard/shifts", icon: Clock },
+            { name: "Payments", href: "/manager-dashboard/payments", icon: DollarSign },
+            { name: "Equipment", href: "/manager-dashboard/equipment", icon: Dumbbell },
         ];
 
         const staffItems = [
             { name: "Dashboard", href: "/staff-dashboard", icon: LayoutDashboard },
             { name: "Check-in", href: "/staff-dashboard/check-in", icon: QrCode },
+            { name: "Payments", href: "/staff-dashboard/payments", icon: DollarSign },
         ];
 
         const trainerItems = [
             { name: "Dashboard", href: "/staff-dashboard", icon: LayoutDashboard },
-            { name: "Check-in", href: "/staff-dashboard/check-in", icon: QrCode },
             { name: "My Clients", href: "/staff-dashboard/clients", icon: Users },
+            { name: "Sessions", href: "/staff-dashboard/sessions", icon: CalendarDays },
+            { name: "Availability", href: "/staff-dashboard/availability", icon: Clock },
         ];
 
         const memberItems = [
@@ -66,6 +79,8 @@ export function Sidebar() {
             { name: "My Plan", href: "/member/subscription", icon: CreditCard },
             { name: "Access Pass", href: "/member/qr-code", icon: QrCode },
             { name: "Workouts", href: "/member/workouts", icon: Dumbbell },
+            { name: "Vitals", href: "/member/vitals", icon: Heart },
+            { name: "Trainers", href: "/member/trainers", icon: UserCheck },
             { name: "Profile", href: "/member/profile", icon: Settings },
         ];
 
@@ -158,10 +173,11 @@ export function Sidebar() {
                                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-700 to-red-600 flex items-center justify-center border border-red-600/30">
                                     <span className="text-sm font-bold text-white uppercase">{user.fullName?.charAt(0) || 'U'}</span>
                                 </div>
-                                <div className="overflow-hidden">
+                                <div className="overflow-hidden flex-1">
                                     <p className="text-sm font-medium text-white truncate">{user.fullName}</p>
                                     <p className="text-xs text-zinc-500 capitalize">{user.role}</p>
                                 </div>
+                                <NotificationBell />
                             </div>
                         )}
                         <button

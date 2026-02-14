@@ -18,6 +18,12 @@ import dashboardRoutes from './routes/dashboard.routes';
 import adminRoutes from './routes/admin.routes';
 import managerRoutes from './routes/manager.routes';
 import staffRoutes from './routes/staff.routes';
+import vitalsRoutes from './routes/vitals.routes';
+import workoutRoutes from './routes/workout.routes';
+import trainerRoutes from './routes/trainer.routes';
+import paymentRoutes from './routes/payment.routes';
+import shiftRoutes from './routes/shift.routes';
+import notificationRoutes from './routes/notification.routes';
 
 const app: Application = express();
 
@@ -62,6 +68,12 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/manager', managerRoutes);
 app.use('/api/staff', staffRoutes);
+app.use('/api/vitals', vitalsRoutes);
+app.use('/api/workouts', workoutRoutes);
+app.use('/api/trainers', trainerRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/shifts', shiftRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // 404 handler
 app.use((req, res) => {
