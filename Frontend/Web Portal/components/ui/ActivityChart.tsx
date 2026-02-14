@@ -29,10 +29,10 @@ export function ActivityChart() {
         setMounted(true);
     }, []);
 
-    if (!mounted) return <div className="w-full h-[300px] p-4 bg-black/40 rounded-2xl border border-zinc-800 backdrop-blur-md animate-pulse" />;
+    if (!mounted) return <div className="w-full h-75 p-4 bg-black/40 rounded-2xl border border-zinc-800 backdrop-blur-md animate-pulse" />;
 
     return (
-        <div className="w-full h-[300px] p-4 bg-black/40 rounded-2xl border border-zinc-800 backdrop-blur-md">
+        <div className="w-full h-75 p-4 bg-black/40 rounded-2xl border border-zinc-800 backdrop-blur-md">
             <div className="mb-6 flex items-center justify-between">
                 <div>
                     <h3 className="text-lg font-semibold text-white">Weekly Activity</h3>
@@ -44,7 +44,7 @@ export function ActivityChart() {
                 </select>
             </div>
 
-            <div className="h-[200px] w-full">
+            <div className="h-50 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                         <defs>

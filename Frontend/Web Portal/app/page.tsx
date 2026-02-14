@@ -73,7 +73,7 @@ export default function Home() {
           <div className="absolute top-0 left-1/4 w-96 h-96 bg-red-700/30 rounded-full blur-[128px]" />
           <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-red-600/20 rounded-full blur-[128px]" />
           {/* Grid Pattern Overlay */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808024_1px,transparent_1px),linear-gradient(to_bottom,#80808024_1px,transparent_1px)] bg-[size:24px_24px]" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808024_1px,transparent_1px),linear-gradient(to_bottom,#80808024_1px,transparent_1px)] bg-size-[24px_24px]" />
         </div>
 
         <div className="container relative z-10 px-6 mx-auto text-center">
@@ -87,7 +87,7 @@ export default function Home() {
           )}
 
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-            Forging <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-500">Elite</span>
+            Forging <span className="text-transparent bg-clip-text bg-linear-to-r from-red-500 to-red-500">Elite</span>
             <br />
             Fitness in Sri Lanka
           </h1>
@@ -197,7 +197,7 @@ export default function Home() {
                     <div className="flex-1 space-y-4 mb-8">
                       {getPlanBenefits(plan).map((feat, j) => (
                         <div key={j} className="flex items-center gap-3">
-                          <div className="w-5 h-5 rounded-full bg-red-600/20 flex items-center justify-center flex-shrink-0">
+                          <div className="w-5 h-5 rounded-full bg-red-600/20 flex items-center justify-center shrink-0">
                             <Check size={12} className="text-red-500" />
                           </div>
                           <span className="text-zinc-300 text-sm">{feat}</span>

@@ -97,7 +97,7 @@ export default function TrainersPage() {
                                         : "border-zinc-800 bg-black/40 hover:border-zinc-700"
                                 )}
                             >
-                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center text-white font-bold text-lg">
+                                <div className="w-12 h-12 rounded-full bg-linear-to-br from-red-600 to-orange-500 flex items-center justify-center text-white font-bold text-lg">
                                     {t.users?.fullName?.charAt(0) || 'T'}
                                 </div>
                                 <div className="flex-1 min-w-0">

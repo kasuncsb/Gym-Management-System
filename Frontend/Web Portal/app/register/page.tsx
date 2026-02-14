@@ -59,8 +59,8 @@ export default function Register() {
         return (
             <div className="min-h-screen bg-black text-white flex items-center justify-center p-6 relative overflow-hidden">
                 <div className="absolute inset-0 z-0">
-                    <div className="absolute top-0 right-[-10%] w-[500px] h-[500px] bg-red-700/20 rounded-full blur-[128px]" />
-                    <div className="absolute bottom-0 left-[-10%] w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[128px]" />
+                    <div className="absolute top-0 right-[-10%] w-125 h-125 bg-red-700/20 rounded-full blur-[128px]" />
+                    <div className="absolute bottom-0 left-[-10%] w-125 h-125 bg-red-600/10 rounded-full blur-[128px]" />
                 </div>
 
                 <div className="w-full max-w-md bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-8 rounded-3xl shadow-2xl relative z-10 text-center">
@@ -89,16 +89,16 @@ export default function Register() {
         <div className="min-h-screen bg-black text-white flex relative overflow-hidden selection:bg-red-600/30">
             {/* Background Effects */}
             <div className="absolute inset-0 z-0">
-                <div className="absolute top-0 right-[-10%] w-[500px] h-[500px] bg-red-700/30 rounded-full blur-[128px]" />
-                <div className="absolute bottom-0 left-[-10%] w-[500px] h-[500px] bg-red-600/20 rounded-full blur-[128px]" />
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808024_1px,transparent_1px),linear-gradient(to_bottom,#80808024_1px,transparent_1px)] bg-[size:24px_24px]" />
+                <div className="absolute top-0 right-[-10%] w-125 h-125 bg-red-700/30 rounded-full blur-[128px]" />
+                <div className="absolute bottom-0 left-[-10%] w-125 h-125 bg-red-600/20 rounded-full blur-[128px]" />
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808024_1px,transparent_1px),linear-gradient(to_bottom,#80808024_1px,transparent_1px)] bg-size-[24px_24px]" />
             </div>
 
             {/* Left Side - Visual */}
             <div className="hidden lg:flex lg:w-1/2 relative z-10 flex-col justify-between p-12 lg:p-16 order-last">
                 <div className="flex justify-end">
                     <Link href="/" className="inline-flex items-center gap-2 group mb-12">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-700 to-red-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                        <div className="w-10 h-10 rounded-xl bg-linear-to-br from-red-700 to-red-600 flex items-center justify-center group-hover:scale-105 transition-transform">
                             <Dumbbell className="text-white" size={24} />
                         </div>
                         <span className="text-xl font-bold tracking-tight">Power<span className="text-red-500">World</span></span>
@@ -108,7 +108,7 @@ export default function Register() {
                 <div className="max-w-xl text-right ml-auto">
                     <h1 className="text-5xl font-bold mb-6 leading-tight">
                         Start your <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-l from-red-500 to-red-500">Transformation.</span>
+                        <span className="text-transparent bg-clip-text bg-linear-to-l from-red-500 to-red-500">Transformation.</span>
                     </h1>
                     <p className="text-xl text-zinc-400 leading-relaxed">
                         Join thousands of members forging their best selves. Premium facilities, expert coding, and result-driven community.
@@ -215,8 +215,8 @@ export default function Register() {
                                 <div className="absolute top-full left-0 mt-4 w-full lg:top-1/2 lg:-translate-y-1/2 lg:left-full lg:ml-6 lg:mt-0 lg:w-72 p-4 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-50 animate-in fade-in slide-in-from-top-2 lg:slide-in-from-left-2 transition-all">
                                     {/* Tooltip Arrow/Tail */}
                                     <div className="absolute w-3 h-3 bg-zinc-900 border-zinc-800 transform rotate-45 
-                                        top-[-7px] left-1/2 -translate-x-1/2 border-t border-l
-                                        lg:top-1/2 lg:left-[-7px] lg:-translate-y-1/2 lg:translate-x-0 lg:border-t-0 lg:border-l lg:border-b"
+                                        -top-1.75 left-1/2 -translate-x-1/2 border-t border-l
+                                        lg:top-1/2 lg:-left-1.75 lg:-translate-y-1/2 lg:translate-x-0 lg:border-t-0 lg:border-l lg:border-b"
                                     />
 
                                     <h4 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">

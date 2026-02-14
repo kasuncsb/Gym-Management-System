@@ -114,7 +114,7 @@ export default function HealthConnectPage() {
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div>
-                <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 flex items-center gap-3">
+                <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r from-white to-gray-400 flex items-center gap-3">
                     <Smartphone className="text-green-400" size={28} /> Health Connect
                 </h1>
                 <p className="text-gray-400 text-sm mt-1">Sync health data from Google Health Connect</p>
@@ -228,7 +228,7 @@ export default function HealthConnectPage() {
 function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
     return (
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-zinc-800/50 flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-zinc-800/50 flex items-center justify-center shrink-0">
                 {icon}
             </div>
             <div>

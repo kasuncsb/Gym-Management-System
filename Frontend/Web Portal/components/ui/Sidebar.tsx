@@ -130,7 +130,7 @@ export function Sidebar() {
                 <div className="flex flex-col h-full">
                     {/* Logo Section */}
                     <Link href="/" className="h-20 flex items-center px-6 border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-700 to-red-600 flex items-center justify-center mr-3 group-hover:scale-105 transition-transform">
+                        <div className="w-10 h-10 rounded-xl bg-linear-to-br from-red-700 to-red-600 flex items-center justify-center mr-3 group-hover:scale-105 transition-transform">
                             <Dumbbell className="text-white" size={24} />
                         </div>
                         <h1 className="text-xl font-bold tracking-tight text-white group-hover:text-red-100 transition-colors">
@@ -183,7 +183,7 @@ export function Sidebar() {
                     <div className="p-4 border-t border-zinc-800 bg-zinc-900/30">
                         {user && (
                             <div className="mb-4 flex items-center gap-3 px-2">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-700 to-red-600 flex items-center justify-center border border-red-600/30">
+                                <div className="w-10 h-10 rounded-full bg-linear-to-br from-red-700 to-red-600 flex items-center justify-center border border-red-600/30">
                                     <span className="text-sm font-bold text-white uppercase">{user.fullName?.charAt(0) || 'U'}</span>
                                 </div>
                                 <div className="overflow-hidden flex-1">

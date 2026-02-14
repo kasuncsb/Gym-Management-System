@@ -117,7 +117,7 @@ export default function QRScannerPage() {
             <nav className="bg-zinc-900/50 backdrop-blur-xl border-b border-zinc-800 py-4 px-6 sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
                     <Link href="/" className="flex items-center space-x-3 group">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-700 to-red-900 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-linear-to-br from-red-700 to-red-900 flex items-center justify-center">
                             <Dumbbell className="text-white" size={20} />
                         </div>
                         <span className="text-xl font-bold text-white group-hover:text-red-500 transition-colors">PowerWorld</span>
@@ -145,7 +145,7 @@ export default function QRScannerPage() {
                     {showDoorAnimation && (
                         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
                             <div className="text-center">
-                                <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center animate-pulse">
+                                <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-linear-to-br from-green-500 to-green-600 flex items-center justify-center animate-pulse">
                                     <DoorOpen className="text-white" size={60} />
                                 </div>
                                 <h2 className="text-3xl font-bold text-green-400 mb-2">Door Unlocked</h2>
@@ -177,7 +177,7 @@ export default function QRScannerPage() {
                                 <div className="flex gap-4 justify-center">
                                     <button
                                         onClick={startScanning}
-                                        className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 py-3 rounded-xl font-semibold transition-all"
+                                        className="bg-linear-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 py-3 rounded-xl font-semibold transition-all"
                                     >
                                         Start Camera
                                     </button>

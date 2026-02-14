@@ -57,16 +57,16 @@ export default function Login() {
         <div className="min-h-screen bg-black text-white flex relative overflow-hidden selection:bg-red-600/30">
             {/* Background Effects */}
             <div className="absolute inset-0 z-0">
-                <div className="absolute top-0 left-[-10%] w-[500px] h-[500px] bg-red-700/30 rounded-full blur-[128px]" />
-                <div className="absolute bottom-0 right-[-10%] w-[500px] h-[500px] bg-red-600/20 rounded-full blur-[128px]" />
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808024_1px,transparent_1px),linear-gradient(to_bottom,#80808024_1px,transparent_1px)] bg-[size:24px_24px]" />
+                <div className="absolute top-0 left-[-10%] w-125 h-125 bg-red-700/30 rounded-full blur-[128px]" />
+                <div className="absolute bottom-0 right-[-10%] w-125 h-125 bg-red-600/20 rounded-full blur-[128px]" />
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808024_1px,transparent_1px),linear-gradient(to_bottom,#80808024_1px,transparent_1px)] bg-size-[24px_24px]" />
             </div>
 
             {/* Left Side - Visual */}
             <div className="hidden lg:flex lg:w-1/2 relative z-10 flex-col justify-between p-12 lg:p-16">
                 <div>
                     <Link href="/" className="inline-flex items-center gap-2 group mb-12">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-700 to-red-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                        <div className="w-10 h-10 rounded-xl bg-linear-to-br from-red-700 to-red-600 flex items-center justify-center group-hover:scale-105 transition-transform">
                             <Dumbbell className="text-white" size={24} />
                         </div>
                         <span className="text-xl font-bold tracking-tight">Power<span className="text-red-500">World</span></span>
@@ -76,7 +76,7 @@ export default function Login() {
                 <div className="max-w-xl">
                     <h1 className="text-5xl font-bold mb-6 leading-tight">
                         Welcome back to <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-500">Elite Fitness.</span>
+                        <span className="text-transparent bg-clip-text bg-linear-to-r from-red-500 to-red-500">Elite Fitness.</span>
                     </h1>
                     <p className="text-xl text-zinc-400 leading-relaxed">
                         Track your progress, book classes, and crush your goals with our premium management platform.

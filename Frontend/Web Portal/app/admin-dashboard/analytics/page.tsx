@@ -83,7 +83,7 @@ export default function AnalyticsPage() {
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div>
-                <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+                <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r from-white to-gray-400">
                     Analytics Dashboard
                 </h1>
                 <p className="text-gray-400 text-sm mt-1">Real-time insights and trends</p>
@@ -95,7 +95,7 @@ export default function AnalyticsPage() {
 
             {/* Occupancy Card */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-gradient-to-br from-red-900/30 to-red-800/10 border border-red-800/30 rounded-2xl p-5">
+                <div className="bg-linear-to-br from-red-900/30 to-red-800/10 border border-red-800/30 rounded-2xl p-5">
                     <div className="flex items-center gap-3 mb-2">
                         <Activity className="text-red-400" size={20} />
                         <span className="text-sm text-zinc-400">Current Occupancy</span>
@@ -134,8 +134,8 @@ export default function AnalyticsPage() {
                         const maxVal = Math.max(...revTrend.map((x) => Number(x.revenue)), 1);
                         const pct = (Number(r.revenue) / maxVal) * 100;
                         return (
-                            <div key={r.month} className="flex flex-col items-center flex-1 min-w-[36px]" title={`${r.month}: Rs. ${Number(r.revenue).toLocaleString('en-LK')}`}>
-                                <div className="w-full bg-gradient-to-t from-green-700 to-green-500 rounded-t opacity-80" style={{ height: `${Math.max(pct, 3)}%` }} />
+                            <div key={r.month} className="flex flex-col items-center flex-1 min-w-9" title={`${r.month}: Rs. ${Number(r.revenue).toLocaleString('en-LK')}`}>
+                                <div className="w-full bg-linear-to-t from-green-700 to-green-500 rounded-t opacity-80" style={{ height: `${Math.max(pct, 3)}%` }} />
                                 <span className="text-[10px] text-zinc-500 mt-2 whitespace-nowrap">{r.month.slice(5)}</span>
                             </div>
                         );
@@ -153,8 +153,8 @@ export default function AnalyticsPage() {
                         const maxVal = Math.max(...growth.map((x) => x.newMembers), 1);
                         const pct = (g.newMembers / maxVal) * 100;
                         return (
-                            <div key={g.month} className="flex flex-col items-center flex-1 min-w-[36px]" title={`${g.month}: ${g.newMembers} new, ${g.totalMembers} total`}>
-                                <div className="w-full bg-gradient-to-t from-blue-700 to-blue-500 rounded-t opacity-80" style={{ height: `${Math.max(pct, 3)}%` }} />
+                            <div key={g.month} className="flex flex-col items-center flex-1 min-w-9" title={`${g.month}: ${g.newMembers} new, ${g.totalMembers} total`}>
+                                <div className="w-full bg-linear-to-t from-blue-700 to-blue-500 rounded-t opacity-80" style={{ height: `${Math.max(pct, 3)}%` }} />
                                 <span className="text-[10px] text-zinc-500 mt-2 whitespace-nowrap">{g.month.slice(5)}</span>
                             </div>
                         );
@@ -168,7 +168,7 @@ export default function AnalyticsPage() {
                     <Clock size={16} /> Attendance Heatmap (Last 90 Days)
                 </h3>
                 <div className="overflow-x-auto">
-                    <div className="min-w-[600px]">
+                    <div className="min-w-150">
                         {/* Hour headers */}
                         <div className="flex">
                             <div className="w-12" />
@@ -231,7 +231,7 @@ export default function AnalyticsPage() {
                                             <span className="text-zinc-400">{s.active_count || s.activeCount} active</span>
                                         </div>
                                         <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                                            <div className="h-full bg-gradient-to-r from-red-600 to-red-400 rounded-full"
+                                            <div className="h-full bg-linear-to-r from-red-600 to-red-400 rounded-full"
                                                 style={{ width: `${Math.max(pct, 2)}%` }} />
                                         </div>
                                     </div>
@@ -252,7 +252,7 @@ export default function AnalyticsPage() {
                         <div className="space-y-2">
                             {topMembers.map((m, i) => (
                                 <div key={m.memberId} className="flex items-center gap-3 py-2">
-                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${i < 3 ? 'bg-gradient-to-br from-yellow-600 to-yellow-500 text-black' : 'bg-zinc-800 text-zinc-400'
+                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${i < 3 ? 'bg-linear-to-br from-yellow-600 to-yellow-500 text-black' : 'bg-zinc-800 text-zinc-400'
                                         }`}>
                                         {i + 1}
                                     </div>
@@ -312,8 +312,8 @@ export default function AnalyticsPage() {
                         const maxVal = Math.max(...churn.map((x) => x.expired), 1);
                         const pct = (c.expired / maxVal) * 100;
                         return (
-                            <div key={c.month} className="flex flex-col items-center flex-1 min-w-[36px]" title={`${c.month}: ${c.expired} expired`}>
-                                <div className="w-full bg-gradient-to-t from-red-800 to-red-500 rounded-t opacity-70" style={{ height: `${Math.max(pct, 3)}%` }} />
+                            <div key={c.month} className="flex flex-col items-center flex-1 min-w-9" title={`${c.month}: ${c.expired} expired`}>
+                                <div className="w-full bg-linear-to-t from-red-800 to-red-500 rounded-t opacity-70" style={{ height: `${Math.max(pct, 3)}%` }} />
                                 <span className="text-[10px] text-zinc-500 mt-2 whitespace-nowrap">{c.month.slice(5)}</span>
                             </div>
                         );

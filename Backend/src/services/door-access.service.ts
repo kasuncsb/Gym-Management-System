@@ -10,6 +10,7 @@ import {
 import { validateQRPayload } from '../utils/qr-generator';
 import logger from '../config/logger';
 import { randomUUID } from 'crypto';
+import { env } from '../config/env';
 
 export interface ScanResult {
   success: boolean;
@@ -131,10 +132,13 @@ export class DoorAccessService {
           : user.role === 'manager' ? 'manager_visit'
           : 'admin_visit';
 
+        // Resolve branch ID
+        const branchId = await this.resolveBranchId(gateId);
+
         await db.insert(visitSessions).values({
           id: sessionId,
           userId: user.id,
-          branchId: 'default', // TODO: resolve from gate → zone → branch
+          branchId,
           checkInAt: new Date(),
           status: 'active',
           visitType,
@@ -175,6 +179,31 @@ export class DoorAccessService {
   }
 
   // ---- Helpers -------------------------------------------------------------
+
+  /**
+   * Resolve the branch ID from environment or database
+   */
+  private static async resolveBranchId(gateId?: string): Promise<string> {
+    // Option 1: Use environment variable if set
+    if (env.DEFAULT_BRANCH_ID) {
+      return env.DEFAULT_BRANCH_ID;
+    }
+
+    // Option 2: Query first active branch (for Kiribathgoda-only deployment)
+    const [branch] = await db
+      .select({ id: branches.id })
+      .from(branches)
+      .where(eq(branches.isActive, true))
+      .limit(1);
+
+    if (branch) {
+      return branch.id;
+    }
+
+    // Fallback: Should not happen in production
+    logger.error('No branch found for access logging', { gateId });
+    throw new Error('Branch configuration error');
+  }
 
   private static async logAccess(
     userId: string | null,

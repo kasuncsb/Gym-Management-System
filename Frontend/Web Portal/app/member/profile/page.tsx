@@ -56,7 +56,7 @@ export default function ProfilePage() {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-[500px]">
+            <div className="flex items-center justify-center min-h-125">
                 <Loader2 className="animate-spin text-red-600" size={32} />
             </div>
         );
@@ -74,7 +74,7 @@ export default function ProfilePage() {
                 <div className="md:col-span-1">
                     <div className="p-6 rounded-2xl bg-black/40 border border-zinc-800 backdrop-blur-md flex flex-col items-center text-center">
                         <div className="relative group cursor-pointer">
-                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-red-700 to-purple-600 p-0.5">
+                            <div className="w-24 h-24 rounded-full bg-linear-to-br from-red-700 to-purple-600 p-0.5">
                                 <div className="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden">
                                     <span className="text-3xl font-bold text-white uppercase">
                                         {formData.name.charAt(0)}

@@ -82,7 +82,7 @@ export default function DocumentUploadPage() {
                             <Upload size={24} />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+                            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r from-white to-gray-400">
                                 Verify Identity
                             </h1>
                             <p className="text-sm text-gray-500">Upload documents to unlock full access</p>

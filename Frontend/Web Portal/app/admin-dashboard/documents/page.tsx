@@ -87,7 +87,7 @@ export default function AdminDocumentsPage() {
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+                <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r from-white to-gray-400">
                     Document Approvals
                 </h1>
                 <button
@@ -124,7 +124,7 @@ export default function AdminDocumentsPage() {
                                 <div>
                                     <h3 className="font-semibold text-white text-lg">{doc.member.fullName}</h3>
                                     <p className="text-sm text-gray-400">{doc.member.email}</p>
-                                    <p className="text-xs text-xs text-gray-500 mt-1">{doc.member.memberCode}</p>
+                                    <p className="text-xs text-gray-500 mt-1">{doc.member.memberCode}</p>
                                 </div>
                                 <span className="px-2 py-1 bg-yellow-500/10 text-yellow-500 text-xs font-medium rounded-lg border border-yellow-500/20">
                                     {getTypeLabel(doc.type)}

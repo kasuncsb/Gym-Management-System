@@ -60,7 +60,7 @@ export default function DoorSimulatorPage() {
         <div className="min-h-screen bg-black text-white flex flex-col items-center p-4 md:p-8">
             {/* Header */}
             <div className="flex items-center gap-3 mb-8">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-700 to-red-600 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-red-700 to-red-600 flex items-center justify-center">
                     <Dumbbell className="text-white" size={28} />
                 </div>
                 <div>
@@ -89,7 +89,7 @@ export default function DoorSimulatorPage() {
                     <button
                         onClick={handleScan}
                         disabled={scanning || !qrInput.trim()}
-                        className="mt-3 w-full py-3 rounded-xl bg-gradient-to-r from-red-700 to-red-600 text-white font-semibold hover:from-red-600 hover:to-red-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                        className="mt-3 w-full py-3 rounded-xl bg-linear-to-r from-red-700 to-red-600 text-white font-semibold hover:from-red-600 hover:to-red-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                     >
                         {scanning ? (
                             <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -142,7 +142,7 @@ export default function DoorSimulatorPage() {
                     {history.length === 0 ? (
                         <p className="text-zinc-600 text-sm text-center py-8">No scans yet. Paste a QR payload above.</p>
                     ) : (
-                        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+                        <div className="space-y-2 max-h-100 overflow-y-auto pr-1">
                             {history.map((h, i) => (
                                 <div key={i} className={`flex items-center gap-3 p-3 rounded-lg border ${h.accessGranted
                                     ? 'border-emerald-500/20 bg-emerald-500/5'

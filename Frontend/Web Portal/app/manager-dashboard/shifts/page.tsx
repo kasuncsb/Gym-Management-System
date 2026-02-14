@@ -130,7 +130,7 @@ export default function ShiftsPage() {
                                 {DAYS.map((day, dayIdx) => {
                                     const dayShifts = staff.shifts.filter(s => s.dayOfWeek === dayIdx && s.isActive);
                                     return (
-                                        <div key={dayIdx} className="bg-black/60 p-3 min-h-[80px]">
+                                        <div key={dayIdx} className="bg-black/60 p-3 min-h-20">
                                             <div className="text-xs text-zinc-500 font-medium mb-2">{day}</div>
                                             {dayShifts.map(shift => (
                                                 <div key={shift.id} className="text-xs p-1.5 rounded-lg bg-red-600/10 border border-red-600/20 text-red-300 mb-1 flex items-center justify-between">

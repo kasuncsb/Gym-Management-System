@@ -161,7 +161,7 @@ export default function WorkoutsPage() {
                     <h2 className="text-3xl font-bold text-white">My Workouts</h2>
                     <p className="text-zinc-400 mt-1">Your workout plans, curated library, and logging</p>
                 </div>
-                <button onClick={handleGenerate} disabled={generating} className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-red-600 text-white rounded-xl hover:opacity-90 transition font-medium disabled:opacity-50">
+                <button onClick={handleGenerate} disabled={generating} className="flex items-center gap-2 px-4 py-2.5 bg-linear-to-r from-purple-600 to-red-600 text-white rounded-xl hover:opacity-90 transition font-medium disabled:opacity-50">
                     <Sparkles size={18} /> {generating ? 'Generating...' : 'AI Generate Plan'}
                 </button>
             </div>
@@ -181,7 +181,7 @@ export default function WorkoutsPage() {
                         <Target className="mx-auto mb-4 text-zinc-600" size={40} />
                         <h3 className="text-xl font-semibold text-zinc-300 mb-2">No Workout Plans Yet</h3>
                         <p className="text-zinc-500 max-w-md mx-auto mb-6">Generate an AI plan or ask your trainer to assign one.</p>
-                        <button onClick={handleGenerate} disabled={generating} className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-red-600 text-white rounded-xl font-medium">
+                        <button onClick={handleGenerate} disabled={generating} className="px-6 py-2.5 bg-linear-to-r from-purple-600 to-red-600 text-white rounded-xl font-medium">
                             <Sparkles size={16} className="inline mr-2" /> Generate AI Plan
                         </button>
                     </div>
