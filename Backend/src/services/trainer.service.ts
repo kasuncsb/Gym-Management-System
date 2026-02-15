@@ -162,7 +162,11 @@ export class TrainerService {
 
   /** Get sessions for a trainer */
   static async getTrainerSessions(trainerId: string, startDate?: string, endDate?: string) {
-    let query = db
+    const conditions = [eq(trainingSessions.trainerId, trainerId)];
+    if (startDate) conditions.push(gte(trainingSessions.sessionDate, new Date(startDate)));
+    if (endDate) conditions.push(lte(trainingSessions.sessionDate, new Date(endDate)));
+
+    return db
       .select({
         session: trainingSessions,
         memberName: users.fullName,
@@ -171,10 +175,8 @@ export class TrainerService {
       .from(trainingSessions)
       .innerJoin(members, eq(trainingSessions.memberId, members.id))
       .innerJoin(users, eq(members.userId, users.id))
-      .where(eq(trainingSessions.trainerId, trainerId))
+      .where(and(...conditions))
       .orderBy(trainingSessions.sessionDate, trainingSessions.startTime);
-
-    return query;
   }
 
   /** Get sessions for a member */

@@ -45,8 +45,10 @@ export class ManagerController {
     const [staffCount] = await db.select({ count: count() }).from(staff).where(eq(staff.status, 'active'));
 
     const currentRev = Number(currentMonthRevenue?.total) || 0;
-    const lastRev = Number(lastMonthRevenue?.total) || 1;
-    const revenueGrowth = ((currentRev - lastRev) / lastRev * 100).toFixed(1);
+    const lastRev = Number(lastMonthRevenue?.total) || 0;
+    const revenueGrowth = lastRev === 0
+      ? (currentRev > 0 ? '100.0' : '0.0')
+      : ((currentRev - lastRev) / lastRev * 100).toFixed(1);
 
     res.json(successResponse({
       revenue: { currentMonth: currentRev, lastMonth: Number(lastMonthRevenue?.total) || 0, growth: `${revenueGrowth}%` },

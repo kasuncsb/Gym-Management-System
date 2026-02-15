@@ -76,7 +76,7 @@ export default function Register() {
 
                     <Link
                         href="/login"
-                        className="w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-700 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2"
+                        className="w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-800 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2"
                     >
                         Go to Login <ArrowRight size={18} />
                     </Link>
@@ -111,7 +111,7 @@ export default function Register() {
                         <span className="text-transparent bg-clip-text bg-linear-to-l from-red-500 to-red-500">Transformation.</span>
                     </h1>
                     <p className="text-xl text-zinc-400 leading-relaxed">
-                        Join thousands of members forging their best selves. Premium facilities, expert coding, and result-driven community.
+                        Join thousands of members forging their best selves. Premium facilities, expert coaching, and result-driven community.
                     </p>
                 </div>
 
@@ -264,7 +264,7 @@ export default function Register() {
                             type="submit"
                             disabled={isLoading}
                             className={cn(
-                                "w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-700 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2 mt-4",
+                                "w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-800 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2 mt-4",
                                 isLoading && "opacity-70 cursor-not-allowed"
                             )}
                         >

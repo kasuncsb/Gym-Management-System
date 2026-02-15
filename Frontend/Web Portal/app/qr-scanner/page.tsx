@@ -246,7 +246,7 @@ export default function QRScannerPage() {
                             />
                             <button
                                 onClick={() => manualCode.trim() && handleScan(manualCode.trim())}
-                                disabled={loading || manualCode.trim!()}
+                                disabled={loading || !manualCode.trim()}
                                 className="rounded-xl bg-red-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 {loading ? <Loader2 className="animate-spin" size={18} /> : 'Validate'}

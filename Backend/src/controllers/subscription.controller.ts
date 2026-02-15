@@ -14,7 +14,8 @@ export class SubscriptionController {
     let memberId = req.params.memberId as string;
     if (!memberId) {
       const [m] = await db.select({ id: members.id }).from(members).where(eq(members.userId, req.user!.userId)).limit(1);
-      memberId = m?.id;
+      if (!m) return void res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Member profile not found' } });
+      memberId = m.id;
     }
     const result = await SubscriptionService.validateSubscription(memberId);
     res.json(successResponse(result, result.valid ? 'Subscription valid' : result.reason || 'Subscription invalid'));
@@ -25,7 +26,8 @@ export class SubscriptionController {
     let memberId = req.params.memberId as string;
     if (!memberId) {
       const [m] = await db.select({ id: members.id }).from(members).where(eq(members.userId, req.user!.userId)).limit(1);
-      memberId = m?.id;
+      if (!m) return void res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Member profile not found' } });
+      memberId = m.id;
     }
     const subs = await SubscriptionService.getMemberSubscriptions(memberId);
     res.json(successResponse(subs, 'Subscriptions retrieved'));
@@ -34,7 +36,8 @@ export class SubscriptionController {
   /** Get active subscription (self) */
   static getActiveSubscription = asyncHandler(async (req: AuthRequest, res: Response) => {
     const [m] = await db.select({ id: members.id }).from(members).where(eq(members.userId, req.user!.userId)).limit(1);
-    const sub = await SubscriptionService.getActiveSubscription(m?.id);
+    if (!m) return void res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Member profile not found' } });
+    const sub = await SubscriptionService.getActiveSubscription(m.id);
     res.json(successResponse(sub, 'Active subscription retrieved'));
   });
 
@@ -78,8 +81,9 @@ export class SubscriptionController {
   /** Member: purchase subscription */
   static purchaseSubscription = asyncHandler(async (req: AuthRequest, res: Response) => {
     const [m] = await db.select({ id: members.id }).from(members).where(eq(members.userId, req.user!.userId)).limit(1);
+    if (!m) return void res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Member profile not found' } });
     const sub = await SubscriptionService.purchaseSubscription({
-      memberId: m?.id,
+      memberId: m.id,
       ...req.body,
     });
     res.status(201).json(successResponse(sub, 'Subscription purchased — pending payment'));

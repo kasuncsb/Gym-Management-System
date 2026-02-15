@@ -210,7 +210,7 @@ export default function Home() {
                     <button
                       onClick={() => router.push(`/register?plan=${encodeURIComponent(plan.id)}`)}
                       className={`w-full py-4 rounded-xl font-bold transition-all ${isPopular
-                      ? "bg-red-700 hover:bg-red-700 text-white shadow-lg shadow-red-600/25"
+                      ? "bg-red-700 hover:bg-red-800 text-white shadow-lg shadow-red-600/25"
                       : "bg-zinc-100 hover:bg-white text-black"
                       }`}>
                       Select {plan.name}

@@ -10,7 +10,7 @@ export const errorHandler = (
     _next: NextFunction
 ) => {
     // Log error
-    logger.error(err.message);
+    logger.error(err.message, { stack: err.stack });
 
     // Handle known operational errors
     if (err instanceof AppError) {
@@ -75,7 +75,7 @@ export const errorHandler = (
 }
 
 // Async error wrapper
-export function asyncHandler(fn: Function) {
+export function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) {
     return (req: Request, res: Response, next: NextFunction) => {
         Promise.resolve(fn(req, res, next)).catch(next);
     };

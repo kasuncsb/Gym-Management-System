@@ -100,13 +100,6 @@ export class EmailService {
     // Send Generic Email (for notifications, reminders, etc.)
     static async sendGenericEmail(to: string, subject: string, textBody: string): Promise<boolean> {
         try {
-            const transporter = nodemailer.createTransport({
-                host: env.SMTP_HOST,
-                port: env.SMTP_PORT,
-                secure: env.SMTP_PORT === 465,
-                auth: { user: env.SMTP_USER, pass: env.SMTP_PASSWORD },
-            });
-
             const html = `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
                     <div style="background: linear-gradient(135deg, #dc2626, #991b1b); padding: 20px; border-radius: 12px 12px 0 0; text-align: center;">

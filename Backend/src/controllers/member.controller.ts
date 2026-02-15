@@ -38,7 +38,8 @@ export class MemberController {
     let memberId = req.params.id as string;
     if (!memberId) {
       const [m] = await db.select({ id: members.id }).from(members).where(eq(members.userId, req.user!.userId)).limit(1);
-      memberId = m?.id;
+      if (!m) return void res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Member profile not found' } });
+      memberId = m.id;
     }
     const member = await MemberService.updateMember(memberId, req.body);
     res.json(successResponse(member, 'Profile updated'));

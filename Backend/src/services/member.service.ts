@@ -39,8 +39,8 @@ export class MemberService {
     const memberCode = generateMemberId();
     const emailVerificationToken = randomUUID();
 
-    // @ts-ignore — transaction type inference issue
-    await db.transaction(async (tx: any) => {
+    // Transaction for atomic user + member creation
+    await db.transaction(async (tx) => {
       await tx.insert(users).values({
         id: userId,
         email: data.email,
@@ -53,7 +53,7 @@ export class MemberService {
         isEmailVerified: false,
         emailVerificationToken,
         emailVerificationExpires: new Date(Date.now() + 24 * 3600_000),
-      });
+      } as any);
 
       await tx.insert(members).values({
         id: memberId,
@@ -63,7 +63,7 @@ export class MemberService {
         emergencyContactPhone: data.emergencyContactPhone ?? null,
         status: 'incomplete',
         joinDate: new Date().toISOString().split('T')[0],
-      });
+      } as any);
     });
 
     try { await EmailService.sendVerificationEmail(data.email, emailVerificationToken); }

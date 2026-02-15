@@ -107,7 +107,7 @@ export function ActivityChart() {
                         />
                         <Tooltip
                             contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', borderRadius: '8px', color: '#fafafa' }}
-                            formatter={(value: number) => [`${value} visits`, "Visits"]}
+                            formatter={(value: number | string | undefined) => [`${value ?? 0} visits`, "Visits"]}
                         />
                         <Area
                             type="monotone"

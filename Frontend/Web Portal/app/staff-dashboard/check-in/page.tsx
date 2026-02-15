@@ -50,7 +50,7 @@ export default function CheckInPage() {
 
     const handleManualSearch = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (searchInput.trim!()) return;
+        if (!searchInput.trim()) return;
         setScanState("scanning");
         setError(null);
         try {

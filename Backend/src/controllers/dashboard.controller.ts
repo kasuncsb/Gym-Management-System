@@ -1,5 +1,6 @@
 // Dashboard Controller — Phase 1
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middleware/auth.middleware';
 import { db } from '../config/database';
 import { members, users, subscriptions, subscriptionPlans, payments, visitSessions } from '../db/schema';
 import { eq, desc, count, sql, gte, and } from 'drizzle-orm';
@@ -78,8 +79,8 @@ export class DashboardController {
   });
 
   /** Member portal stats */
-  static getMemberStats = asyncHandler(async (req: Request, res: Response) => {
-    const userId = (req as any).user?.userId;
+  static getMemberStats = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const userId = req.user?.userId;
     if (!userId) return void res.status(401).json(errorResponse('UNAUTHORIZED', 'User not authenticated'));
 
     const [member] = await db.select().from(members).where(eq(members.userId, userId)).limit(1);

@@ -24,7 +24,7 @@ export default function DocumentUploadPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (fileUrl.trim!()) {
+        if (!fileUrl.trim()) {
             setError('Please provide a public file URL');
             return;
         }
@@ -157,7 +157,7 @@ export default function DocumentUploadPage() {
 
                         <button
                             type="submit"
-                            disabled={loading || fileUrl.trim!()}
+                            disabled={loading || !fileUrl.trim()}
                             className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-600/20"
                         >
                             {loading ? (

@@ -80,8 +80,15 @@ export class VitalsController {
   static async getTrend(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { memberId } = req.params;
-      const startDate = new Date(req.query.startDate as string || new Date(Date.now() - 30 * 86400000).toISOString());
-      const endDate = new Date(req.query.endDate as string || new Date().toISOString());
+      const rawStart = req.query.startDate as string | undefined;
+      const rawEnd = req.query.endDate as string | undefined;
+      const startDate = rawStart ? new Date(rawStart) : new Date(Date.now() - 30 * 86400000);
+      const endDate = rawEnd ? new Date(rawEnd) : new Date();
+
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        return void res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid date format for startDate or endDate' } });
+      }
+
       const data = await VitalsService.getVitalsTrend(memberId as string, startDate, endDate);
       res.json({ success: true, data });
     } catch (error) { next(error); }

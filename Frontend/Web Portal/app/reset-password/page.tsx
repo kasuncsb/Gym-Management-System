@@ -33,7 +33,7 @@ function ResetPasswordContent() {
             return;
         }
 
-        if (validatePassword!(password)) {
+        if (!validatePassword(password)) {
             setError('Password must be at least 8 characters with one uppercase letter and one number.');
             return;
         }
@@ -70,7 +70,7 @@ function ResetPasswordContent() {
 
                 <Link
                     href="/login"
-                    className="w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-700 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2"
+                    className="w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-800 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2"
                 >
                     Go to Login <ArrowRight size={18} />
                 </Link>
@@ -176,7 +176,7 @@ function ResetPasswordContent() {
                     type="submit"
                     disabled={isLoading}
                     className={cn(
-                        "w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-700 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2 mt-4",
+                        "w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-800 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2 mt-4",
                         isLoading && "opacity-70 cursor-not-allowed"
                     )}
                 >

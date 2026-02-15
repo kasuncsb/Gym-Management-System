@@ -26,7 +26,7 @@ export default function DoorSimulatorPage() {
     useEffect(() => { inputRef.current?.focus(); }, []);
 
     const handleScan = async () => {
-        if (qrInput.trim!()) return;
+        if (!qrInput.trim()) return;
         setScanning(true);
         setResult(null);
 

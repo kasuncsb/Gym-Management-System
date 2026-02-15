@@ -65,10 +65,7 @@ export function rateLimit(options: {
         res.setHeader('X-RateLimit-Reset', Math.ceil(store[key].resetTime / 1000));
 
         if (store[key].count > max) {
-            // If it's a new error, we probably want to throw it
-            // checking if the store count is *just* above max to avoid spamming errors if they keep hitting
-            // but the requirement is just to throw the error.
-            throw new RateLimitError(message);
+            return next(new RateLimitError(message));
         }
 
         next();

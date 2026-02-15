@@ -147,7 +147,7 @@ export default function Login() {
                             type="submit"
                             disabled={isLoading}
                             className={cn(
-                                "w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-700 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2",
+                                "w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-800 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2",
                                 isLoading && "opacity-70 cursor-not-allowed"
                             )}
                         >

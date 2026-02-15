@@ -15,7 +15,7 @@ export class QRScanController {
 
   /** Attendance history (member self or admin lookup) */
   static getAttendanceHistory = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = req.user!.role === 'member' ? req.user!.userId : (req.query.userId as string);
+    const userId = req.user!.role === 'member' ? req.user!.userId : (req.query.userId as string || req.user!.userId);
     const limit = parseInt(req.query.limit as string) || 50;
     const history = await DoorAccessService.getAttendanceHistory(userId, limit);
     res.json(successResponse(history, 'Attendance history retrieved'));

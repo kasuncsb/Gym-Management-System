@@ -55,6 +55,15 @@ export default function StaffDashboard() {
         { href: "/staff-dashboard/availability", label: "Availability", desc: "Set your weekly schedule", icon: Clock, color: "cyan" },
     ];
 
+    const colorMap: Record<string, { bg5: string; bg10: string; text: string }> = {
+        emerald: { bg5: "bg-emerald-500/5", bg10: "bg-emerald-500/10", text: "text-emerald-400" },
+        blue: { bg5: "bg-blue-500/5", bg10: "bg-blue-500/10", text: "text-blue-400" },
+        purple: { bg5: "bg-purple-500/5", bg10: "bg-purple-500/10", text: "text-purple-400" },
+        red: { bg5: "bg-red-500/5", bg10: "bg-red-500/10", text: "text-red-400" },
+        amber: { bg5: "bg-amber-500/5", bg10: "bg-amber-500/10", text: "text-amber-400" },
+        cyan: { bg5: "bg-cyan-500/5", bg10: "bg-cyan-500/10", text: "text-cyan-400" },
+    };
+
     if (loading) {
         return (
             <div className="space-y-8 page-enter">
@@ -76,32 +85,37 @@ export default function StaffDashboard() {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-in">
-                {stats.map(({ label, value, icon: Icon, color }, i) => (
+                {stats.map(({ label, value, icon: Icon, color }, i) => {
+                    const c = colorMap[color] || colorMap.emerald;
+                    return (
                     <Card key={i} className="relative overflow-hidden">
-                        <div className={`absolute top-0 right-0 w-20 h-20 bg-${color}-500/5 rounded-full blur-2xl`} />
+                        <div className={`absolute top-0 right-0 w-20 h-20 ${c.bg5} rounded-full blur-2xl`} />
                         <div className="relative">
                             <div className="flex items-center gap-2 mb-3">
-                                <div className={`w-9 h-9 rounded-lg bg-${color}-500/10 flex items-center justify-center`}>
-                                    <Icon size={18} className={`text-${color}-400`} />
+                                <div className={`w-9 h-9 rounded-lg ${c.bg10} flex items-center justify-center`}>
+                                    <Icon size={18} className={c.text} />
                                 </div>
                                 <span className="text-xs text-zinc-500 font-medium">{label}</span>
                             </div>
                             <span className={`text-3xl font-bold ${color === "red" && value > 0 ? "text-red-400" : "text-white"}`}>{value}</span>
                         </div>
                     </Card>
-                ))}
+                    );
+                })}
             </div>
 
             {/* Quick Actions */}
             <div>
                 <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 stagger-in">
-                    {quickActions.map(({ href, label, desc, icon: Icon, color }) => (
+                    {quickActions.map(({ href, label, desc, icon: Icon, color }) => {
+                        const c = colorMap[color] || colorMap.emerald;
+                        return (
                         <Link key={href} href={href}>
                             <Card className="group hover:border-zinc-700 cursor-pointer transition-all">
                                 <div className="flex items-center gap-4">
-                                    <div className={`w-12 h-12 rounded-xl bg-${color}-500/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform`}>
-                                        <Icon size={22} className={`text-${color}-400`} />
+                                    <div className={`w-12 h-12 rounded-xl ${c.bg10} flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform`}>
+                                        <Icon size={22} className={c.text} />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="font-semibold text-white group-hover:text-red-400 transition-colors">{label}</p>
@@ -111,7 +125,8 @@ export default function StaffDashboard() {
                                 </div>
                             </Card>
                         </Link>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </div>

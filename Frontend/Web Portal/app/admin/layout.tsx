@@ -2,13 +2,13 @@
 
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
-export default function ManagerLayout({
+export default function AdminLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
     return (
-        <ProtectedRoute allowedRoles={['manager']}>
+        <ProtectedRoute allowedRoles={['admin']}>
             {children}
         </ProtectedRoute>
     );
