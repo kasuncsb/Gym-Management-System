@@ -62,7 +62,7 @@ export default function StaffPaymentsPage() {
             if (form.notes) payload.notes = form.notes;
 
             await paymentAPI.record(payload);
-            toast.success("Payment recorded", `Rs. ${Number(form.amount).toLocaleString("en-LK")} from ${selectedMember.fullName || "member"}`);
+            toast.success("Payment recorded", `Rs. ${Number(form.amount).toLocaleString("en-LK")} from ${selectedMember.fullName || "N/A"}`);
             setForm({ amount: "", paymentMethod: "cash", paymentType: "subscription", transactionRef: "", notes: "" });
             setSelectedMember(null);
             setSearchQuery("");

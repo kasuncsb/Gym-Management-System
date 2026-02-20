@@ -137,7 +137,7 @@ export default function ManagerDashboard() {
                     </div>
                     <div className="text-2xl font-bold text-white">{formatCurrency(metrics?.revenue?.currentMonth || 0)}</div>
                     <div className={cn('text-xs mt-1', revenueGrowth >= 0 ? 'text-green-400' : 'text-red-400')}>
-                        {metrics?.revenue?.growth || '0%'} vs last month
+                        {metrics?.revenue?.growth || 'N/A'} vs last month
                     </div>
                 </div>
 

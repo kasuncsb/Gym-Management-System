@@ -43,8 +43,8 @@ export default function AdminSettingsPage() {
                         {profile?.fullName?.charAt(0) || "A"}
                     </div>
                     <div>
-                        <h2 className="text-xl font-semibold text-white">{profile?.fullName || "Administrator"}</h2>
-                        <p className="text-sm text-zinc-500">Role: {profile?.role || "admin"}</p>
+                        <h2 className="text-xl font-semibold text-white">{profile?.fullName || "N/A"}</h2>
+                        <p className="text-sm text-zinc-500">Role: {profile?.role || "N/A"}</p>
                     </div>
                 </div>
 

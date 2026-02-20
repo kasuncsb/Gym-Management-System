@@ -112,7 +112,7 @@ export default function ProfilePage() {
                         </span>
                     </div>
                     <div>
-                        <h3 className="text-xl font-bold text-white">{form.fullName || 'Member'}</h3>
+                        <h3 className="text-xl font-bold text-white">{form.fullName || 'N/A'}</h3>
                         <p className="text-sm text-zinc-400">{user?.email}</p>
                         <div className="flex items-center gap-3 mt-2">
                             {profile?.experienceLevel && (

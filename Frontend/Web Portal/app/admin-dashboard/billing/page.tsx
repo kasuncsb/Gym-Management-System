@@ -79,7 +79,7 @@ export default function BillingPage() {
                         </div>
                         <div className="relative z-10 mt-8 flex flex-wrap gap-4">
                             <LoadingButton
-                                onClick={() => toast.info("Coming soon", "Plan upgrades will be available in a future update.")}
+                                onClick={() => toast.info("Not available", "Plan upgrades are not yet implemented.")}
                                 className="bg-white text-black hover:bg-zinc-200 font-bold shadow-lg shadow-white/10"
                             >
                                 Upgrade Plan
@@ -87,7 +87,7 @@ export default function BillingPage() {
                             {subscription && (
                                 <LoadingButton
                                     variant="secondary"
-                                    onClick={() => toast.info("Coming soon", "Subscription cancellation will be available in a future update.")}
+                                    onClick={() => toast.info("Not available", "Subscription cancellation is not yet implemented.")}
                                 >
                                     Cancel Subscription
                                 </LoadingButton>
@@ -100,7 +100,7 @@ export default function BillingPage() {
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-lg font-bold text-white">Payment Method</h3>
                             <button
-                                onClick={() => toast.info("Coming soon", "Payment methods will be available in a future update.")}
+                                onClick={() => toast.info("Not available", "Payment methods are not yet implemented.")}
                                 className="text-sm text-red-500 hover:text-red-400 font-medium"
                             >
                                 Add
@@ -126,7 +126,7 @@ export default function BillingPage() {
                             <p className="text-sm text-zinc-500 text-center py-8">No billing history available yet.</p>
                         </div>
                         <button
-                            onClick={() => toast.info("Coming soon", "Invoice history will be available in a future update.")}
+                            onClick={() => toast.info("Not available", "Invoice history is not yet implemented.")}
                             className="w-full mt-4 py-2.5 text-sm font-medium text-zinc-400 hover:text-white border border-zinc-800 rounded-xl hover:bg-zinc-800 transition"
                         >
                             View All Invoices

@@ -35,7 +35,7 @@ export default function QRCodePage() {
         if (qrCode) return;
         const link = document.createElement("a");
         link.href = qrCode;
-        link.download = `powerworld-qr-${user?.fullName || "member"}.png`;
+        link.download = `powerworld-qr-${user?.fullName || "user"}.png`;
         link.click();
         toast.success("Downloaded", "QR code saved to your device.");
     };

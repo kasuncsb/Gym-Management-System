@@ -78,7 +78,7 @@ export default function StaffDashboard() {
         <div className="space-y-8 page-enter">
             <PageHeader
                 title="Operations Dashboard"
-                subtitle={`${currentTime.toLocaleDateString("en-LK", { weekday: "long", month: "long", day: "numeric" })} · Welcome back, ${user?.fullName?.split(" ")[0] || "Staff"}`}
+                subtitle={`${currentTime.toLocaleDateString("en-LK", { weekday: "long", month: "long", day: "numeric" })} · Welcome back, ${user?.fullName?.split(" ")[0] || "N/A"}`}
             />
 
             {error && <ErrorAlert message={error} />}

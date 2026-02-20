@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Plus, Clock, Calendar, X, Users } from "lucide-react";
-import { shiftAPI, getErrorMessage } from "@/lib/api";
+import { shiftAPI, authAPI, getErrorMessage } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -26,7 +26,6 @@ interface StaffSchedule {
 }
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const DEFAULT_BRANCH = 'branch-colombo-001';
 
 export default function ShiftsPage() {
     const toast = useToast();
@@ -34,13 +33,21 @@ export default function ShiftsPage() {
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [branchId, setBranchId] = useState<string>('');
     const [form, setForm] = useState({ staffId: '', dayOfWeek: '1', startTime: '06:00', endTime: '14:00', shiftType: 'morning' });
 
-    useEffect(() => { fetchSchedules(); }, []);
+    useEffect(() => {
+        authAPI.getProfile().then(res => {
+            const bid = res.data?.data?.branchId || res.data?.data?.staff?.branchId || '';
+            setBranchId(bid);
+        }).catch(() => {});
+    }, []);
+
+    useEffect(() => { if (branchId) fetchSchedules(); }, [branchId]);
 
     const fetchSchedules = async () => {
         try {
-            const res = await shiftAPI.getBranchSchedules(DEFAULT_BRANCH);
+            const res = await shiftAPI.getBranchSchedules(branchId);
             setSchedules(res.data.data || []);
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
@@ -52,7 +59,7 @@ export default function ShiftsPage() {
         try {
             await shiftAPI.create({
                 staffId: form.staffId,
-                branchId: DEFAULT_BRANCH,
+                branchId: branchId,
                 dayOfWeek: parseInt(form.dayOfWeek),
                 startTime: form.startTime,
                 endTime: form.endTime,

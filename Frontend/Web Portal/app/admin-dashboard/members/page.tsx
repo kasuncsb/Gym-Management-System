@@ -83,7 +83,7 @@ export default function AdminMembersPage() {
                 subtitle="Manage all gym members"
                 action={
                     <button
-                        onClick={() => toast.info("Coming soon", "Member registration from admin panel will be available in a future update.")}
+                        onClick={() => toast.info("Not available", "Member registration from admin panel is not yet implemented.")}
                         className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition"
                     >
                         Add New Member
@@ -149,7 +149,7 @@ export default function AdminMembersPage() {
                                                 </div>
                                                 <div>
                                                     <p className="font-medium text-white">{m.firstName} {m.lastName}</p>
-                                                    <p className="text-xs text-zinc-500">{m.role || "member"}</p>
+                                                    <p className="text-xs text-zinc-500">{m.role || "N/A"}</p>
                                                 </div>
                                             </div>
                                         </td>
@@ -221,7 +221,7 @@ export default function AdminMembersPage() {
                                     <Badge variant={statusVariant(selectedMember.status || "")}>
                                         {selectedMember.status || "unknown"}
                                     </Badge>
-                                    <span className="text-xs text-zinc-500 flex items-center gap-1"><Shield size={10} /> {selectedMember.role || "member"}</span>
+                                    <span className="text-xs text-zinc-500 flex items-center gap-1"><Shield size={10} /> {selectedMember.role || "N/A"}</span>
                                 </div>
                             </div>
                         </div>

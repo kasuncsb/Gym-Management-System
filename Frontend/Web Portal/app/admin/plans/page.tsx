@@ -59,7 +59,7 @@ export default function AdminPlansPage() {
                                 <h2 className="text-lg font-semibold text-white">{plan.name}</h2>
                                 {plan.isActive !== false && <BadgeCheck className="text-emerald-400" size={18} />}
                             </div>
-                            <p className="text-sm text-zinc-400 mt-2">{plan.description || "Premium access package."}</p>
+                            <p className="text-sm text-zinc-400 mt-2">{plan.description || "No description available."}</p>
                             <div className="mt-4 flex items-baseline gap-2">
                                 <span className="text-3xl font-bold text-white">Rs. {Number(plan.price).toLocaleString()}</span>
                                 <span className="text-xs text-zinc-500">/{plan.durationDays} days</span>

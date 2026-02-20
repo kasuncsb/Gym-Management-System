@@ -95,9 +95,9 @@ export default function AdminActivitiesPage() {
                                     )}
                                     <div>
                                         <p className="text-sm font-semibold text-white">
-                                            {log.memberName || "Member"} • {log.direction?.toUpperCase() || "ACCESS"}
+                                            {log.memberName || "N/A"} • {log.direction?.toUpperCase() || "N/A"}
                                         </p>
-                                        <p className="text-xs text-zinc-500">{log.gateId || "Main Entrance"}</p>
+                                        <p className="text-xs text-zinc-500">{log.gateId || "N/A"}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 text-xs text-zinc-500">

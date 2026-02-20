@@ -64,7 +64,7 @@ export default function ManagerStaffPage() {
                                 <p className="font-semibold text-white">{member.name}</p>
                                 <p className="text-xs text-zinc-500">{member.employeeCode}</p>
                             </div>
-                            <div>{member.designation || "Team Member"}</div>
+                            <div>{member.designation || "N/A"}</div>
                             <div>{member.email}</div>
                             <div>{new Date(member.hireDate).toLocaleDateString("en-LK")}</div>
                             <div className="flex items-center gap-2">

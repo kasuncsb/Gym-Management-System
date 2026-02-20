@@ -1,8 +1,7 @@
 
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
-import path from 'path';
-import fs from 'fs';
+
 import { exec } from 'child_process';
 import util from 'util';
 
@@ -77,38 +76,7 @@ async function resetDatabase() {
             throw pushError;
         }
 
-        // 4. Seed Data
-        console.log('INFO:   Seeding Data...');
-        const seedFilePath = path.join(__dirname, '../../Database/seed.sql');
-
-        if (!fs.existsSync(seedFilePath)) {
-            throw new Error(`Seed file not found at: ${seedFilePath}`);
-        }
-
-        const seedSql = fs.readFileSync(seedFilePath, 'utf8');
-
-        // Split by semicolon, but be careful about semicolons in strings/comments? 
-        // Since seed.sql is standard inserts, splitting by ';' usually works for simple scripts.
-        // However, enabling multipleStatements: true in connection config allows executing the whole chunk.
-        // Let's try executing broadly first, or split if too large.
-        // The seed file is ~400 lines, so it should be fine to execute in blocks or as one large script if multipleStatements is supported.
-
-        // Attempt 1: Execute as single script (if supported) or limited chunks. 
-        // 'mysql2' supports multipleStatements.
-
-        // We need to re-establish connection with database selected? 
-        // We already ran "USE dbname".
-
-        // Let's disable foreign key checks temporarily to avoid ordering issues during insert
-        await connection.query('SET FOREIGN_KEY_CHECKS = 0;');
-
-        // Execute seed SQL
-        // We can just run the whole file content if it's valid SQL script.
-        await connection.query(seedSql);
-
-        await connection.query('SET FOREIGN_KEY_CHECKS = 1;');
-
-        console.log('INFO:   Data Seeding Completed');
+        console.log('INFO:   Database schema is ready (no seed data).');
 
     } catch (error) {
         console.error('ERROR:  Database Reset Failed:', error);

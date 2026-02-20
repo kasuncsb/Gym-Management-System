@@ -287,7 +287,7 @@ export default function SubscriptionPage() {
                                 <tbody>
                                     {allSubs.map((sub: any) => (
                                         <tr key={sub.id} className="border-b border-zinc-800/50 last:border-0 hover:bg-zinc-800/20 transition-colors">
-                                            <td className="p-4 text-zinc-200 font-medium">{sub.planName || 'Plan'}</td>
+                                            <td className="p-4 text-zinc-200 font-medium">{sub.planName || 'N/A'}</td>
                                             <td className="p-4">{getStatusBadge(sub.status)}</td>
                                             <td className="p-4 text-zinc-400">{sub.startDate ? new Date(sub.startDate).toLocaleDateString() : 'N/A'}</td>
                                             <td className="p-4 text-zinc-400">{sub.endDate ? new Date(sub.endDate).toLocaleDateString() : 'N/A'}</td>

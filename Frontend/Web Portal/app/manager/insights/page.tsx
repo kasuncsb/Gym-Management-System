@@ -49,7 +49,7 @@ export default function ManagerInsightsPage() {
                         Revenue (Month)
                     </div>
                     <p className="text-2xl font-bold text-white mt-3">Rs. {metrics?.revenue?.currentMonth || 0}</p>
-                    <p className="text-xs text-emerald-400 mt-1">{metrics?.revenue?.growth || "0%"} vs last month</p>
+                    <p className="text-xs text-emerald-400 mt-1">{metrics?.revenue?.growth || "N/A"} vs last month</p>
                 </div>
                 <div className="rounded-2xl border border-zinc-800 bg-black/40 p-6">
                     <div className="flex items-center gap-2 text-zinc-500 text-xs uppercase">
@@ -89,8 +89,8 @@ export default function ManagerInsightsPage() {
                         {renewals.map((renewal) => (
                             <div key={renewal.id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-4">
                                 <div>
-                                    <p className="text-sm font-semibold text-white">{renewal.member?.name || "Member"}</p>
-                                    <p className="text-xs text-zinc-500">Plan: {renewal.plan?.name || "Subscription"}</p>
+                                    <p className="text-sm font-semibold text-white">{renewal.member?.name || "N/A"}</p>
+                                    <p className="text-xs text-zinc-500">Plan: {renewal.plan?.name || "N/A"}</p>
                                 </div>
                                 <p className="text-xs text-zinc-400">
                                     Renew by {new Date(renewal.endDate).toLocaleDateString("en-LK")}

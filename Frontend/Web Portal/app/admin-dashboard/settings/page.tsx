@@ -14,10 +14,12 @@ export default function SettingsPage() {
 
     const handleSave = async () => {
         setSaving(true);
-        // Simulate save
-        await new Promise(r => setTimeout(r, 800));
-        setSaving(false);
-        toast.success("Settings saved", "Your preferences have been updated.");
+        try {
+            // TODO: integrate with backend settings API when available
+            toast.info("Not available", "Settings management is not yet implemented.");
+        } finally {
+            setSaving(false);
+        }
     };
 
     const Toggle = ({ enabled, onChange }: { enabled: boolean; onChange: () => void }) => (
@@ -66,7 +68,7 @@ export default function SettingsPage() {
                     </div>
                     <div className="space-y-4">
                         <button
-                            onClick={() => toast.info("Coming soon", "Two-factor authentication will be available in a future update.")}
+                            onClick={() => toast.info("Not available", "Two-factor authentication is not yet implemented.")}
                             className="w-full flex items-center justify-between p-4 rounded-xl bg-zinc-900/30 border border-zinc-800/50 hover:border-zinc-700 transition group text-left"
                         >
                             <div className="flex items-center gap-4">
@@ -82,7 +84,7 @@ export default function SettingsPage() {
                             </div>
                         </button>
                         <button
-                            onClick={() => toast.info("Coming soon", "Session management will be available in a future update.")}
+                            onClick={() => toast.info("Not available", "Session management is not yet implemented.")}
                             className="w-full flex items-center justify-between p-4 rounded-xl bg-zinc-900/30 border border-zinc-800/50 hover:border-zinc-700 transition group text-left"
                         >
                             <div className="flex items-center gap-4">

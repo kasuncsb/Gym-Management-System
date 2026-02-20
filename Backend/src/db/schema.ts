@@ -45,6 +45,9 @@ export const users = mysqlTable('users', {
   lastLoginAt: timestamp('last_login_at'),
   failedLoginAttempts: int('failed_login_attempts').default(0).notNull(),
   lockedUntil: timestamp('locked_until'),
+  lastPasswordChangedAt: timestamp('last_password_changed_at'),
+  preferredLanguage: mysqlEnum('preferred_language', ['en', 'si', 'ta']).default('en').notNull(),
+  twoFactorEnabled: boolean('two_factor_enabled').default(false).notNull(),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp('updated_at').onUpdateNow(),
   deletedAt: timestamp('deleted_at'),
@@ -52,6 +55,7 @@ export const users = mysqlTable('users', {
   emailIdx: index('users_email_idx').on(t.email),
   roleIdx: index('users_role_idx').on(t.role),
   phoneIdx: index('users_phone_idx').on(t.phone),
+  activeRoleIdx: index('idx_users_active').on(t.isActive, t.role, t.deletedAt),
 }));
 
 export const refreshTokens = mysqlTable('refresh_tokens', {
@@ -97,6 +101,10 @@ export const branches = mysqlTable('branches', {
   operatingDays: json('operating_days').$type<string[]>().notNull(),
   capacity: int('capacity').default(100),
   gracePeriodDays: int('grace_period_days').default(3).notNull(),
+  timezone: varchar('timezone', { length: 50 }).default('Asia/Colombo').notNull(),
+  facilityType: mysqlEnum('facility_type', ['ac', 'non_ac', 'mixed']).default('non_ac').notNull(),
+  emergencyContactPhone: varchar('emergency_contact_phone', { length: 20 }),
+  autoCloseTime: time('auto_close_time').notNull().default('23:00:00'),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp('updated_at').onUpdateNow(),
@@ -148,9 +156,14 @@ export const members = mysqlTable('members', {
   experienceLevel: mysqlEnum('experience_level', ['beginner', 'intermediate', 'advanced', 'returning']),
   fitnessGoals: json('fitness_goals').$type<string[]>(),
   assignedTrainerId: varchar('assigned_trainer_id', { length: 36 }),
+  referralSource: mysqlEnum('referral_source', ['facebook', 'walk_in', 'friend', 'website', 'sampath_promo', 'other']),
+  referredByMemberId: varchar('referred_by_member_id', { length: 36 }),
+  bloodType: mysqlEnum('blood_type', ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']),
+  occupation: varchar('occupation', { length: 100 }),
   isOnboarded: boolean('is_onboarded').default(false).notNull(),
   onboardedAt: timestamp('onboarded_at'),
   status: mysqlEnum('member_status', ['active', 'inactive', 'suspended', 'incomplete']).default('active').notNull(),
+  version: int('version').default(1).notNull(),
   deletedAt: timestamp('deleted_at'),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp('updated_at').onUpdateNow(),
@@ -159,6 +172,7 @@ export const members = mysqlTable('members', {
   codeIdx: index('members_code_idx').on(t.memberCode),
   branchIdx: index('members_branch_idx').on(t.homeBranchId),
   trainerIdx: index('members_trainer_idx').on(t.assignedTrainerId),
+  branchStatusIdx: index('idx_members_branch_status').on(t.homeBranchId, t.status),
 }));
 
 export const memberDocuments = mysqlTable('member_documents', {
@@ -214,6 +228,7 @@ export const staff = mysqlTable('staff', {
   baseSalary: decimal('base_salary', { precision: 10, scale: 2 }),
   isKeyHolder: boolean('is_key_holder').default(false).notNull(),
   status: mysqlEnum('staff_status', ['active', 'inactive', 'on_leave', 'terminated']).default('active').notNull(),
+  version: int('version').default(1).notNull(),
   deletedAt: timestamp('deleted_at'),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp('updated_at').onUpdateNow(),
@@ -259,6 +274,8 @@ export const staffShifts = mysqlTable('staff_shifts', {
   isActive: boolean('is_active').default(true).notNull(),
   effectiveFrom: date('effective_from').notNull(),
   effectiveUntil: date('effective_until'),
+  breakDurationMinutes: int('break_duration_minutes').default(60),
+  shiftNotes: varchar('shift_notes', { length: 255 }),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 }, (t) => ({
   staffIdx: index('staff_shifts_staff_idx').on(t.staffId),
@@ -288,6 +305,7 @@ export const zones = mysqlTable('zones', {
   branchId: varchar('branch_id', { length: 36 }).notNull().references(() => branches.id),
   name: varchar('name', { length: 50 }).notNull(),
   capacity: int('capacity'),
+  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 export const gates = mysqlTable('gates', {
@@ -298,6 +316,7 @@ export const gates = mysqlTable('gates', {
   ipAddress: varchar('ip_address', { length: 50 }),
   lastHeartbeat: timestamp('last_heartbeat'),
   status: mysqlEnum('gate_status', ['active', 'inactive', 'maintenance']).default('active').notNull(),
+  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 export const visitSessions = mysqlTable('visit_sessions', {
@@ -316,6 +335,7 @@ export const visitSessions = mysqlTable('visit_sessions', {
   branchIdx: index('visit_sessions_branch_idx').on(t.branchId),
   statusIdx: index('visit_sessions_status_idx').on(t.status),
   checkInIdx: index('visit_sessions_checkin_idx').on(t.checkInAt),
+  branchStatusCheckinIdx: index('idx_visits_branch_status_checkin').on(t.branchId, t.status, t.checkInAt),
 }));
 
 export const accessLogs = mysqlTable('access_logs', {
@@ -330,11 +350,13 @@ export const accessLogs = mysqlTable('access_logs', {
   isSynthetic: boolean('is_synthetic').default(false).notNull(),
   metadata: json('metadata').$type<Record<string, any>>(),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
 }, (t) => ({
   userIdx: index('access_logs_user_idx').on(t.userId),
   sessionIdx: index('access_logs_session_idx').on(t.sessionId),
   scannedIdx: index('access_logs_scanned_idx').on(t.scannedAt),
   directionIdx: index('access_logs_direction_idx').on(t.direction),
+  userTimeIdx: index('idx_access_user_time').on(t.userId, t.scannedAt),
 }));
 
 // ============================================================================
@@ -343,16 +365,22 @@ export const accessLogs = mysqlTable('access_logs', {
 
 export const subscriptionPlans = mysqlTable('subscription_plans', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  planCode: varchar('plan_code', { length: 30 }).notNull().unique(),
   name: varchar('name', { length: 100 }).notNull(),
   description: text('description'),
+  planType: mysqlEnum('plan_type', ['individual', 'couple', 'student', 'corporate', 'daily_pass']).default('individual').notNull(),
   price: decimal('price', { precision: 10, scale: 2 }).notNull(),
   durationDays: int('duration_days').notNull(),
   features: json('features').$type<string[]>(),
   includedPtSessions: int('included_pt_sessions').default(0).notNull(),
   maxMembers: int('max_members').default(1).notNull(),
   requiresDocument: varchar('requires_document', { length: 50 }),
+  minAge: int('min_age'),
+  maxAge: int('max_age'),
+  branchId: varchar('branch_id', { length: 36 }).references(() => branches.id),
   isActive: boolean('is_active').default(true).notNull(),
   sortOrder: int('sort_order').default(0).notNull(),
+  version: int('version').default(1).notNull(),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp('updated_at').onUpdateNow(),
   deletedAt: timestamp('deleted_at'),
@@ -368,9 +396,16 @@ export const subscriptions = mysqlTable('subscriptions', {
     'pending_payment', 'active', 'frozen', 'expired', 'grace_period', 'inactive', 'cancelled',
   ]).default('pending_payment').notNull(),
   pricePaid: decimal('price_paid', { precision: 10, scale: 2 }),
+  originalPrice: decimal('original_price', { precision: 10, scale: 2 }),
+  discountAmount: decimal('discount_amount', { precision: 10, scale: 2 }).default('0.00'),
+  promotionId: varchar('promotion_id', { length: 36 }),
+  renewedFromId: varchar('renewed_from_id', { length: 36 }),
+  graceExpiresAt: date('grace_expires_at'),
+  planSnapshot: json('plan_snapshot'),
   ptSessionsRemaining: int('pt_sessions_remaining').default(0).notNull(),
   autoRenew: boolean('auto_renew').default(false).notNull(),
   notes: text('notes'),
+  version: int('version').default(1).notNull(),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp('updated_at').onUpdateNow(),
   deletedAt: timestamp('deleted_at'),
@@ -378,6 +413,7 @@ export const subscriptions = mysqlTable('subscriptions', {
   memberIdx: index('subscriptions_member_idx').on(t.memberId),
   statusIdx: index('subscriptions_status_idx').on(t.status),
   endDateIdx: index('subscriptions_end_date_idx').on(t.endDate),
+  memberStatusIdx: index('idx_sub_member_status').on(t.memberId, t.status),
 }));
 
 export const subscriptionFreezes = mysqlTable('subscription_freezes', {
@@ -389,6 +425,7 @@ export const subscriptionFreezes = mysqlTable('subscription_freezes', {
   reason: varchar('reason', { length: 255 }),
   requestedBy: varchar('requested_by', { length: 36 }).references(() => users.id),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
 }, (t) => ({
   subIdx: index('sub_freezes_sub_idx').on(t.subscriptionId),
 }));
@@ -400,15 +437,26 @@ export const payments = mysqlTable('payments', {
   amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
   paymentMethod: mysqlEnum('payment_method', ['cash', 'card', 'bank_transfer', 'online']).notNull(),
   referenceNumber: varchar('reference_number', { length: 100 }),
+  receiptNumber: varchar('receipt_number', { length: 50 }).unique(),
+  cardType: varchar('card_type', { length: 50 }),
+  cardLastFour: varchar('card_last_four', { length: 4 }),
+  promotionId: varchar('promotion_id', { length: 36 }),
+  discountAmount: decimal('discount_amount', { precision: 10, scale: 2 }).default('0.00'),
   paymentDate: date('payment_date').notNull(),
-  status: mysqlEnum('payment_status', ['completed', 'refunded', 'disputed']).default('completed').notNull(),
+  status: mysqlEnum('payment_status', ['completed', 'partially_refunded', 'refunded', 'disputed']).default('completed').notNull(),
+  refundAmount: decimal('refund_amount', { precision: 10, scale: 2 }),
+  refundedAt: timestamp('refunded_at'),
+  refundReason: varchar('refund_reason', { length: 255 }),
+  originalPaymentId: varchar('original_payment_id', { length: 36 }),
   recordedBy: varchar('recorded_by', { length: 36 }).references(() => users.id),
   notes: text('notes'),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
 }, (t) => ({
   memberIdx: index('payments_member_idx').on(t.memberId),
   subIdx: index('payments_sub_idx').on(t.subscriptionId),
   dateIdx: index('payments_date_idx').on(t.paymentDate),
+  dateMethodIdx: index('idx_pay_date_method').on(t.paymentDate, t.paymentMethod),
 }));
 
 // ============================================================================
@@ -471,6 +519,7 @@ export const workoutLogs = mysqlTable('workout_logs', {
 }, (t) => ({
   memberIdx: index('workout_logs_member_idx').on(t.memberId),
   dateIdx: index('workout_logs_date_idx').on(t.workoutDate),
+  memberDateIdx: index('idx_wlogs_member_date').on(t.memberId, t.workoutDate),
 }));
 
 // ============================================================================
@@ -485,6 +534,7 @@ export const trainerAvailability = mysqlTable('trainer_availability', {
   endTime: time('end_time').notNull(),
   slotDurationMinutes: int('slot_duration_minutes').default(60).notNull(),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
 }, (t) => ({
   trainerDateIdx: index('trainer_avail_trainer_date_idx').on(t.trainerId, t.availableDate),
 }));
@@ -509,6 +559,7 @@ export const trainingSessions = mysqlTable('training_sessions', {
   trainerIdx: index('training_sessions_trainer_idx').on(t.trainerId),
   dateIdx: index('training_sessions_date_idx').on(t.sessionDate),
   trainerDateTimeIdx: uniqueIndex('training_sessions_trainer_slot_idx').on(t.trainerId, t.sessionDate, t.startTime),
+  trainerDateStatusIdx: index('idx_tsess_trainer_date_status').on(t.trainerId, t.sessionDate, t.status),
 }));
 
 export const sessionNotes = mysqlTable('session_notes', {
@@ -543,6 +594,10 @@ export const equipment = mysqlTable('equipment', {
   purchaseDate: date('purchase_date'),
   purchasePrice: decimal('purchase_price', { precision: 10, scale: 2 }),
   warrantyExpiry: date('warranty_expiry'),
+  assetTag: varchar('asset_tag', { length: 50 }).unique(),
+  expectedLifespanYears: int('expected_lifespan_years'),
+  depreciatedValue: decimal('depreciated_value', { precision: 10, scale: 2 }),
+  quantity: int('quantity').default(1).notNull(),
   status: mysqlEnum('equipment_status', [
     'operational', 'needs_maintenance', 'under_maintenance', 'retired',
   ]).default('operational').notNull(),
@@ -552,6 +607,7 @@ export const equipment = mysqlTable('equipment', {
   maintenanceIntervalDays: int('maintenance_interval_days'),
   notes: text('notes'),
   qrCode: varchar('qr_code', { length: 100 }),
+  version: int('version').default(1).notNull(),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp('updated_at').onUpdateNow(),
 }, (t) => ({
@@ -577,6 +633,7 @@ export const equipmentIssues = mysqlTable('equipment_issues', {
 }, (t) => ({
   equipmentIdx: index('equip_issues_equipment_idx').on(t.equipmentId),
   statusIdx: index('equip_issues_status_idx').on(t.status),
+  statusSevIdx: index('idx_equip_issues_status_sev').on(t.status, t.severity),
 }));
 
 export const maintenanceLogs = mysqlTable('maintenance_logs', {
@@ -648,6 +705,7 @@ export const notifications = mysqlTable('notifications', {
   userIdx: index('notifications_user_idx').on(t.userId),
   readIdx: index('notifications_read_idx').on(t.isRead),
   typeIdx: index('notifications_type_idx').on(t.type),
+  userUnreadIdx: index('idx_notif_user_unread').on(t.userId, t.isRead, t.createdAt),
 }));
 
 // ============================================================================
@@ -693,6 +751,149 @@ export const cronJobRuns = mysqlTable('cron_job_runs', {
 }));
 
 // ============================================================================
+// 13. PROMOTIONS & DISCOUNTS
+// ============================================================================
+
+export const promotions = mysqlTable('promotions', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  code: varchar('code', { length: 50 }).notNull().unique(),
+  name: varchar('name', { length: 100 }).notNull(),
+  discountType: mysqlEnum('discount_type', ['percentage', 'fixed_amount']).notNull(),
+  discountValue: decimal('discount_value', { precision: 10, scale: 2 }).notNull(),
+  minPurchaseAmount: decimal('min_purchase_amount', { precision: 10, scale: 2 }),
+  applicablePlanIds: json('applicable_plan_ids').$type<string[]>(),
+  cardType: varchar('card_type', { length: 50 }),
+  usageLimit: int('usage_limit'),
+  usedCount: int('used_count').default(0).notNull(),
+  validFrom: date('valid_from').notNull(),
+  validUntil: date('valid_until'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdBy: varchar('created_by', { length: 36 }).references(() => users.id),
+  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
+}, (t) => ({
+  codeIdx: index('promotions_code_idx').on(t.code),
+  activeIdx: index('promotions_active_idx').on(t.isActive, t.validFrom, t.validUntil),
+}));
+
+// ============================================================================
+// 14. SUBSCRIPTION LINKS (COUPLE PLANS)
+// ============================================================================
+
+export const subscriptionLinks = mysqlTable('subscription_links', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  subscriptionId: varchar('subscription_id', { length: 36 }).notNull().references(() => subscriptions.id),
+  memberId: varchar('member_id', { length: 36 }).notNull().references(() => members.id),
+  role: mysqlEnum('link_role', ['primary', 'secondary']).notNull(),
+  linkedAt: timestamp('linked_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (t) => ({
+  subMemberIdx: uniqueIndex('sub_links_sub_member_idx').on(t.subscriptionId, t.memberId),
+  memberIdx: index('sub_links_member_idx').on(t.memberId),
+}));
+
+// ============================================================================
+// 15. SUBSCRIPTION TRANSITIONS (PLAN CHANGE AUDIT)
+// ============================================================================
+
+export const subscriptionTransitions = mysqlTable('subscription_transitions', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  memberId: varchar('member_id', { length: 36 }).notNull().references(() => members.id),
+  fromSubscriptionId: varchar('from_subscription_id', { length: 36 }).references(() => subscriptions.id),
+  toSubscriptionId: varchar('to_subscription_id', { length: 36 }).references(() => subscriptions.id),
+  transitionType: mysqlEnum('transition_type', ['renewal', 'upgrade', 'downgrade', 'cancellation', 'freeze', 'unfreeze']).notNull(),
+  proratedCredit: decimal('prorated_credit', { precision: 10, scale: 2 }),
+  effectiveDate: date('effective_date').notNull(),
+  processedBy: varchar('processed_by', { length: 36 }).references(() => users.id),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (t) => ({
+  memberIdx: index('sub_transitions_member_idx').on(t.memberId),
+  typeIdx: index('sub_transitions_type_idx').on(t.transitionType),
+}));
+
+// ============================================================================
+// 16. TRAINER REVIEWS
+// ============================================================================
+
+export const trainerReviews = mysqlTable('trainer_reviews', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  trainingSessionId: varchar('training_session_id', { length: 36 }).notNull().unique().references(() => trainingSessions.id),
+  memberId: varchar('member_id', { length: 36 }).notNull().references(() => members.id),
+  trainerId: varchar('trainer_id', { length: 36 }).notNull().references(() => trainers.id),
+  rating: int('rating').notNull(),
+  comment: text('comment'),
+  isAnonymous: boolean('is_anonymous').default(true).notNull(),
+  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (t) => ({
+  trainerIdx: index('trainer_reviews_trainer_idx').on(t.trainerId),
+  memberIdx: index('trainer_reviews_member_idx').on(t.memberId),
+}));
+
+// ============================================================================
+// 17. NOTIFICATION TEMPLATES
+// ============================================================================
+
+export const notificationTemplates = mysqlTable('notification_templates', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  code: varchar('code', { length: 50 }).notNull().unique(),
+  titleTemplate: varchar('title_template', { length: 200 }).notNull(),
+  bodyTemplate: text('body_template').notNull(),
+  channel: mysqlEnum('channel', ['in_app', 'email', 'sms']).default('in_app').notNull(),
+  defaultPriority: mysqlEnum('default_priority', ['low', 'normal', 'high', 'critical']).default('normal').notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  updatedBy: varchar('updated_by', { length: 36 }).references(() => users.id),
+  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
+});
+
+// ============================================================================
+// 18. EMAIL QUEUE
+// ============================================================================
+
+export const emailQueue = mysqlTable('email_queue', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  toEmail: varchar('to_email', { length: 255 }).notNull(),
+  subject: varchar('subject', { length: 255 }).notNull(),
+  bodyHtml: text('body_html'),
+  templateCode: varchar('template_code', { length: 50 }),
+  templateData: json('template_data'),
+  status: mysqlEnum('email_status', ['queued', 'sending', 'sent', 'failed', 'bounced']).default('queued').notNull(),
+  attempts: int('attempts').default(0).notNull(),
+  maxAttempts: int('max_attempts').default(3).notNull(),
+  lastAttemptedAt: timestamp('last_attempted_at'),
+  sentAt: timestamp('sent_at'),
+  errorMessage: text('error_message'),
+  scheduledFor: timestamp('scheduled_for'),
+  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (t) => ({
+  statusIdx: index('email_queue_status_idx').on(t.status),
+  scheduledIdx: index('email_queue_scheduled_idx').on(t.scheduledFor),
+}));
+
+// ============================================================================
+// 19. DAILY BRANCH SNAPSHOTS (PRE-AGGREGATED ANALYTICS)
+// ============================================================================
+
+export const dailyBranchSnapshots = mysqlTable('daily_branch_snapshots', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  branchId: varchar('branch_id', { length: 36 }).notNull().references(() => branches.id),
+  snapshotDate: date('snapshot_date').notNull(),
+  totalCheckins: int('total_checkins').default(0).notNull(),
+  uniqueVisitors: int('unique_visitors').default(0).notNull(),
+  peakOccupancy: int('peak_occupancy').default(0).notNull(),
+  revenueTotal: decimal('revenue_total', { precision: 12, scale: 2 }).default('0.00').notNull(),
+  revenueCash: decimal('revenue_cash', { precision: 12, scale: 2 }).default('0.00').notNull(),
+  revenueCard: decimal('revenue_card', { precision: 12, scale: 2 }).default('0.00').notNull(),
+  newMembers: int('new_members').default(0).notNull(),
+  expiredSubscriptions: int('expired_subscriptions').default(0).notNull(),
+  activeMembersCount: int('active_members_count').default(0).notNull(),
+  avgVisitDurationMin: int('avg_visit_duration_min'),
+  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (t) => ({
+  branchDateIdx: uniqueIndex('daily_snap_branch_date_idx').on(t.branchId, t.snapshotDate),
+}));
+
+// ============================================================================
 // TYPE EXPORTS
 // ============================================================================
 
@@ -724,3 +925,10 @@ export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type RefreshToken = typeof refreshTokens.$inferSelect;
 export type StaffShift = typeof staffShifts.$inferSelect;
 export type SubscriptionFreeze = typeof subscriptionFreezes.$inferSelect;
+export type Promotion = typeof promotions.$inferSelect;
+export type SubscriptionLink = typeof subscriptionLinks.$inferSelect;
+export type SubscriptionTransition = typeof subscriptionTransitions.$inferSelect;
+export type TrainerReview = typeof trainerReviews.$inferSelect;
+export type NotificationTemplate = typeof notificationTemplates.$inferSelect;
+export type EmailQueueItem = typeof emailQueue.$inferSelect;
+export type DailyBranchSnapshot = typeof dailyBranchSnapshots.$inferSelect;

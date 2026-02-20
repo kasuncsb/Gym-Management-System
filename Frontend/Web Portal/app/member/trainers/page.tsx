@@ -144,8 +144,8 @@ export default function TrainersPage() {
                                         {t.users?.fullName?.charAt(0) || "T"}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-semibold text-white truncate">{t.users?.fullName || "Trainer"}</p>
-                                        <p className="text-xs text-zinc-500 truncate">{t.specialization || "General Fitness"}</p>
+                                        <p className="font-semibold text-white truncate">{t.users?.fullName || "N/A"}</p>
+                                        <p className="text-xs text-zinc-500 truncate">{t.specialization || "N/A"}</p>
                                     </div>
                                     <ChevronRight size={16} className="text-zinc-600 group-hover:text-zinc-400 transition-colors" />
                                 </button>
@@ -172,7 +172,7 @@ export default function TrainersPage() {
                                     <div className="flex-1 min-w-0">
                                         <h3 className="text-xl font-bold text-white">{selectedTrainer.users?.fullName}</h3>
                                         <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                                            <Badge variant="info">{selectedTrainer.specialization || "General Fitness"}</Badge>
+                                            <Badge variant="info">{selectedTrainer.specialization || "N/A"}</Badge>
                                             {selectedTrainer.experienceYears && <Badge variant="default">{selectedTrainer.experienceYears} years exp</Badge>}
                                             {selectedTrainer.rating && (
                                                 <div className="flex items-center gap-1 text-xs text-amber-400">

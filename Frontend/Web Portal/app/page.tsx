@@ -121,10 +121,10 @@ export default function Home() {
         <div className="container px-6 mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
             {[
-              { label: "Active Members", value: stats?.activeMembers ? `${(stats.activeMembers / 1000).toFixed(1)}k+` : "25k+" },
-              { label: "Locations", value: stats?.locations || "24+" },
-              { label: "Expert Trainers", value: stats?.expertTrainers || "150+" },
-              { label: "Total Staff", value: stats?.totalStaff || "50+" },
+              { label: "Active Members", value: stats?.activeMembers ? `${stats.activeMembers.toLocaleString()}` : "0" },
+              { label: "Locations", value: stats?.locations || "0" },
+              { label: "Expert Trainers", value: stats?.expertTrainers || "0" },
+              { label: "Total Staff", value: stats?.totalStaff || "0" },
             ].map((stat, i) => (
               <div key={i} className="text-center">
                 <h3 className="text-4xl md:text-5xl font-bold text-white mb-2">{stat.value}</h3>
@@ -145,9 +145,9 @@ export default function Home() {
 
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { title: "Premium Equipment", icon: Zap, desc: "Latest TechnoGym & LifeFitness machines maintained daily." },
-              { title: "Expert Coaching", icon: Users, desc: "Certified personal trainers to guide your transformation." },
-              { title: "Smart Tracking", icon: Trophy, desc: "Track workouts and progress with our dedicated mobile app." },
+              { title: "Premium Equipment", icon: Zap, desc: "Top-of-the-line gym machines maintained to the highest standards." },
+              { title: "Expert Coaching", icon: Users, desc: "Certified personal trainers to guide your fitness journey." },
+              { title: "Smart Tracking", icon: Trophy, desc: "Track workouts, progress, and attendance in real time." },
             ].map((feature, i) => (
               <div key={i} className="p-8 rounded-2xl bg-zinc-900/50 border border-zinc-800 hover:border-red-600/50 hover:bg-zinc-900 transition-all group">
                 <div className="w-14 h-14 rounded-xl bg-zinc-800 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">

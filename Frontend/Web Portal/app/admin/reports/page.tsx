@@ -75,8 +75,8 @@ export default function AdminReportsPage() {
                         {renewals.map((renewal) => (
                             <div key={renewal.id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-4">
                                 <div>
-                                    <p className="text-sm font-semibold text-white">{renewal.member?.name || "Member"}</p>
-                                    <p className="text-xs text-zinc-500">Plan: {renewal.plan?.name || "Subscription"}</p>
+                                    <p className="text-sm font-semibold text-white">{renewal.member?.name || "N/A"}</p>
+                                    <p className="text-xs text-zinc-500">Plan: {renewal.plan?.name || "N/A"}</p>
                                 </div>
                                 <div className="flex items-center gap-2 text-xs text-zinc-500">
                                     <TrendingUp size={14} />

@@ -185,26 +185,36 @@ export class SubscriptionService {
   /** Create a new subscription plan (Admin) */
   static async createPlan(data: {
     name: string;
+    planCode: string;
     description?: string;
+    planType?: 'individual' | 'couple' | 'student' | 'corporate' | 'daily_pass';
     price: number;
     durationDays: number;
     features?: string[];
     includedPtSessions?: number;
     maxMembers?: number;
     requiresDocument?: string;
+    minAge?: number;
+    maxAge?: number;
+    branchId?: string;
     sortOrder?: number;
   }) {
     const id = randomUUID();
     await db.insert(subscriptionPlans).values({
       id,
+      planCode: data.planCode,
       name: data.name,
       description: data.description ?? null,
+      planType: data.planType ?? 'individual',
       price: data.price.toString(),
       durationDays: data.durationDays,
       features: data.features ?? null,
       includedPtSessions: data.includedPtSessions ?? 0,
       maxMembers: data.maxMembers ?? 1,
       requiresDocument: data.requiresDocument ?? null,
+      minAge: data.minAge ?? null,
+      maxAge: data.maxAge ?? null,
+      branchId: data.branchId ?? null,
       isActive: true,
       sortOrder: data.sortOrder ?? 0,
     });

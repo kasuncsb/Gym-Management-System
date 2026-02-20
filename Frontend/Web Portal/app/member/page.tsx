@@ -102,7 +102,7 @@ export default function MemberDashboard() {
             <div>
                 <h2 className="text-3xl font-bold text-white">Dashboard</h2>
                 <p className="text-zinc-400 mt-1">
-                    Welcome back, <span className="text-red-500 font-medium">{user?.fullName || 'Member'}</span>!
+                    Welcome back, <span className="text-red-500 font-medium">{user?.fullName || 'N/A'}</span>!
                     Ready to crush your goals?
                 </p>
             </div>
@@ -200,7 +200,7 @@ export default function MemberDashboard() {
                     <StatCard
                         title="Next Session"
                         value={nextSession ? formatDate(nextSession.sessionDate).split(',')[0] : 'None'}
-                        trend={nextSession ? `with ${nextSession.trainerName || 'Trainer'}` : "Book a trainer"}
+                        trend={nextSession ? `with ${nextSession.trainerName || 'N/A'}` : "No upcoming session"}
                         trendUp={!!nextSession}
                         icon={CalendarDays}
                         color="purple"
@@ -283,7 +283,7 @@ export default function MemberDashboard() {
                                         </div>
                                         <div>
                                             <p className="text-sm font-medium text-zinc-200">
-                                                {session.trainerName || 'Training Session'}
+                                                {session.trainerName || 'N/A'}
                                             </p>
                                             <p className="text-xs text-zinc-500">
                                                 {formatDate(session.sessionDate)}

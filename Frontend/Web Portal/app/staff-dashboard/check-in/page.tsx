@@ -31,16 +31,16 @@ export default function CheckInPage() {
             if (data?.accessGranted) {
                 setScanState("success");
                 setLastScan({
-                    name: data.userName || "Member",
+                    name: data.userName || "N/A",
                     direction: data.direction || "in",
                     sessionId: data.sessionId,
                     time: new Date().toLocaleTimeString("en-LK", { hour: "2-digit", minute: "2-digit" }),
                 });
-                toast.success("Access Granted", `${data.userName || "Member"} checked ${data.direction === "in" ? "in" : "out"}`);
+                toast.success("Access Granted", `${data.userName || "N/A"} checked ${data.direction === "in" ? "in" : "out"}`);
             } else {
                 setScanState("error");
                 setError(data?.message || "Access denied");
-                toast.error("Access Denied", data?.message || "Member check-in denied");
+                toast.error("Access Denied", data?.message || "Check-in denied");
             }
         } catch (err: any) {
             setScanState("error");
@@ -63,7 +63,7 @@ export default function CheckInPage() {
                 if (data?.accessGranted) {
                     setScanState("success");
                     setLastScan({
-                        name: data.userName || member.fullName || "Member",
+                        name: data.userName || member.fullName || "N/A",
                         direction: data.direction || "in",
                         sessionId: data.sessionId,
                         time: new Date().toLocaleTimeString("en-LK", { hour: "2-digit", minute: "2-digit" }),

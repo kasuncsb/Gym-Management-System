@@ -161,10 +161,10 @@ export default function WorkoutsPage() {
                                                 <Target className="text-red-400" size={20} />
                                             </div>
                                             <div>
-                                                <h3 className="text-base font-bold text-white">{plan.name || 'Workout Plan'}</h3>
+                                                <h3 className="text-base font-bold text-white">{plan.name || 'N/A'}</h3>
                                                 <div className="flex items-center gap-3 mt-1">
                                                     <Badge variant={plan.planSource === 'ai_generated' ? 'info' : 'default'}>
-                                                        {plan.planSource === 'ai_generated' ? 'AI Generated' : plan.planSource || 'Manual'}
+                                                        {plan.planSource === 'ai_generated' ? 'AI Generated' : plan.planSource || 'N/A'}
                                                     </Badge>
                                                     <span className="text-xs text-zinc-500">
                                                         {plan.exercises?.length || 0} exercises
@@ -304,7 +304,7 @@ export default function WorkoutsPage() {
                             >
                                 <option value="">Free workout</option>
                                 {activePlans.map((p: any) => (
-                                    <option key={p.id} value={p.id}>{p.name || 'Plan'}</option>
+                                    <option key={p.id} value={p.id}>{p.name || 'N/A'}</option>
                                 ))}
                             </select>
                         </div>
