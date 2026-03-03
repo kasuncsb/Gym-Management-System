@@ -1,34 +1,29 @@
-// Database connection for Drizzle ORM
 import { drizzle } from 'drizzle-orm/mysql2';
 import mysql from 'mysql2/promise';
-import * as schema from '../db/schema';
-import logger from './logger';
-import dotenv from 'dotenv';
+import { env } from './env.js';
+import * as schema from '../db/schema.js';
 
-// Load environment variables
-dotenv.config();
+const pool = mysql.createPool({
+  host: env.DB_HOST,
+  port: env.DB_PORT,
+  user: env.DB_USER,
+  password: env.DB_PASSWORD,
+  database: env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+});
 
-const DATABASE_URL = process.env.DATABASE_URL;
+export const db = drizzle(pool, { schema, mode: 'default' });
 
-if (!DATABASE_URL) {
-  throw new Error('DATABASE_URL environment variable is not set');
+export async function testConnection(): Promise<boolean> {
+  try {
+    const conn = await pool.getConnection();
+    await conn.ping();
+    conn.release();
+    console.log('✅ Database connected');
+    return true;
+  } catch (err) {
+    console.error('❌ Database connection failed:', err);
+    return false;
+  }
 }
-
-// Create MySQL connection pool
-const poolConnection = mysql.createPool(DATABASE_URL);
-
-// Create Drizzle instance
-export const db = drizzle(poolConnection, { schema, mode: 'default' });
-
-// Test connection
-poolConnection.getConnection()
-  .then(connection => {
-    logger.info('Database connected successfully');
-    connection.release();
-  })
-  .catch(err => {
-    logger.error('Database connection failed:', err);
-    process.exit(1);
-  });
-
-export default db;

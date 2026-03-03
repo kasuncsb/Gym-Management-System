@@ -1,104 +1,89 @@
-"use client";
+'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { authAPI } from '../lib/api';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { api } from '@/lib/api';
 
-export type Role = 'admin' | 'manager' | 'staff' | 'trainer' | 'member';
-
-export interface User {
-    id: string;
-    fullName: string;
-    email: string;
-    role: Role;
-    avatarUrl?: string;
-    phone?: string;
+interface User {
+  id: string;
+  email: string;
+  role: string;
+  fullName: string;
+  memberCode?: string;
 }
 
 interface AuthContextType {
-    user: User | null;
-    token: string | null;
-    login: (accessToken: string, refreshToken: string, user: User) => void;
-    logout: () => void;
-    isLoading: boolean;
-    loading: boolean;
-    isAuthenticated: boolean;
-    hasRole: (...roles: Role[]) => boolean;
+  user: User | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (data: { email: string; password: string; fullName: string; phone?: string; gender?: string }) => Promise<void>;
+  logout: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | null>(null);
 
-/** Map backend role to dashboard base path */
-export function dashboardPathForRole(role: string): string {
-    switch (role) {
-        case 'admin': return '/admin-dashboard';
-        case 'manager': return '/manager-dashboard';
-        case 'staff':
-        case 'trainer': return '/staff-dashboard';
-        case 'member':
-        default: return '/member';
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Check for existing session on mount
+  useEffect(() => {
+    const token = api.getAccessToken();
+    if (token) {
+      api.getProfile()
+        .then(profile => setUser(profile))
+        .catch(() => {
+          api.clearTokens();
+          setUser(null);
+        })
+        .finally(() => setIsLoading(false));
+    } else {
+      setIsLoading(false);
     }
-}
+  }, []);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
-    const [token, setToken] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const router = useRouter();
+  const login = useCallback(async (email: string, password: string) => {
+    const userData = await api.login(email, password);
+    setUser(userData);
+  }, []);
 
-    useEffect(() => {
-        const storedToken = localStorage.getItem('accessToken');
-        const storedUser = localStorage.getItem('user');
+  const register = useCallback(async (data: { email: string; password: string; fullName: string; phone?: string; gender?: string }) => {
+    const userData = await api.register(data);
+    setUser(userData);
+  }, []);
 
-        if (storedToken && storedUser) {
-            try {
-                setToken(storedToken);
-                setUser(JSON.parse(storedUser));
-            } catch {
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('refreshToken');
-                localStorage.removeItem('user');
-            }
-        }
-        setIsLoading(false);
-    }, []);
+  const logout = useCallback(async () => {
+    await api.logout();
+    setUser(null);
+  }, []);
 
-    const login = useCallback((accessToken: string, refreshToken: string, newUser: User) => {
-        setToken(accessToken);
-        setUser(newUser);
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('refreshToken', refreshToken);
-        localStorage.setItem('user', JSON.stringify(newUser));
-    }, []);
+  const refreshProfile = useCallback(async () => {
+    const profile = await api.getProfile();
+    setUser(profile);
+  }, []);
 
-    const logout = useCallback(async () => {
-        try { await authAPI.logout(); } catch { /* ignore */ }
-        setToken(null);
-        setUser(null);
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
-        router.push('/login');
-    }, [router]);
-
-    const hasRole = useCallback((...roles: Role[]) => {
-        return !!user && roles.includes(user.role);
-    }, [user]);
-
-    return (
-        <AuthContext.Provider value={{
-            user, token, login, logout,
-            isLoading, loading: isLoading,
-            isAuthenticated: !!token && !!user,
-            hasRole,
-        }}>
-            {children}
-        </AuthContext.Provider>
-    );
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        isAuthenticated: !!user,
+        login,
+        register,
+        logout,
+        refreshProfile,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
-    const context = useContext(AuthContext);
-    if (!context) throw new Error('useAuth must be used within an AuthProvider');
-    return context;
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
 }

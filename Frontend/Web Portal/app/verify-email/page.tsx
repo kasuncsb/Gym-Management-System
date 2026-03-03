@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { authAPI } from "@/lib/api";
-import { Dumbbell, Loader2, CheckCircle, XCircle, ArrowRight } from "lucide-react";
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { api } from '@/lib/api';
+import { Loader2, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
 
 function VerifyEmailContent() {
     const searchParams = useSearchParams();
@@ -21,11 +21,11 @@ function VerifyEmailContent() {
 
         const verify = async () => {
             try {
-                await authAPI.verifyEmail(token);
+                await api.verifyEmail(token);
                 setStatus('success');
-            } catch (err: any) {
+            } catch (err: unknown) {
                 setStatus('error');
-                setMessage(err.response?.data?.message || 'Verification failed. The link may be expired or invalid.');
+                setMessage(err instanceof Error ? err.message : 'Verification failed. The link may be expired or invalid.');
             }
         };
 
@@ -83,18 +83,18 @@ function VerifyEmailContent() {
     );
 }
 
-export default function VerifyEmail() {
+export default function VerifyEmailPage() {
     return (
         <div className="min-h-screen bg-black text-white flex items-center justify-center p-6 relative overflow-hidden">
             {/* Background Effects */}
             <div className="absolute inset-0 z-0">
-                <div className="absolute top-0 right-[-10%] w-125 h-125 bg-red-700/20 rounded-full blur-[128px]" />
-                <div className="absolute bottom-0 left-[-10%] w-125 h-125 bg-red-600/10 rounded-full blur-[128px]" />
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-size-[24px_24px]" />
+                <div className="absolute top-0 right-[-10%] w-[500px] h-[500px] bg-red-700/20 rounded-full blur-[128px]" />
+                <div className="absolute bottom-0 left-[-10%] w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[128px]" />
+                <div className="absolute inset-0 bg-grid" />
             </div>
 
             <Suspense fallback={
-                <div className="w-full max-w-md bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-8 rounded-3xl shadow-2xl relative z-10 text-center">
+                <div className="w-full max-w-md bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-8 rounded-3xl shadow-2xl relative z-10">
                     <Loader2 className="text-red-600 animate-spin mx-auto" size={32} />
                 </div>
             }>

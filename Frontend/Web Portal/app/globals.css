@@ -1,140 +1,118 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  /* Pure Black Theme */
   --background: #000000;
   --foreground: #ffffff;
-
-  /* Primary Accent */
   --primary: #dc2626;
-  --primary-foreground: #ffffff;
-
-  /* Secondary / Card Backgrounds - very dark zinc */
-  --card: #09090b;
-  --card-foreground: #fafafa;
-
-  /* Muted / Border */
-  --muted: #27272a;
-  --muted-foreground: #a1a1aa;
-
+  --primary-light: #ef4444;
+  --primary-dark: #b91c1c;
+  --muted: #71717a;
   --border: #27272a;
+  --card: #18181b;
+  --card-muted: #09090b;
+}
+
+* {
+  border-color: var(--border);
 }
 
 body {
-  background: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  background: var(--background);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* Glassmorphism Utilities - darker tint */
-.glass {
-  background: rgba(9, 9, 11, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-/* Custom Scrollbar for Dark Theme */
+/* Dark theme scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--card);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
-}
-
-/* Page transition animations */
-@keyframes page-enter {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.page-enter {
-  animation: page-enter 0.4s ease-out;
-}
-
-/* Smooth focus styles */
-*:focus-visible {
-  outline: 2px solid rgba(220, 38, 38, 0.5);
-  outline-offset: 2px;
+  background: var(--border);
   border-radius: 4px;
 }
 
-/* Disable focus outline for mouse users */
-:focus:not(:focus-visible) {
-  outline: none;
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
 }
 
-/* Selection color */
-::selection {
-  background-color: rgba(220, 38, 38, 0.25);
+/* Glassmorphism utilities */
+.glass {
+  background: rgba(24, 24, 27, 0.5);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
 }
 
-/* Table styles */
-table {
-  border-collapse: separate;
-  border-spacing: 0;
+.glass-dark {
+  background: rgba(9, 9, 11, 0.8);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
 }
 
-/* Transition utilities */
-.transition-default {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary-light), var(--primary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-/* Number input spinners hidden */
-input[type='number']::-webkit-outer-spin-button,
-input[type='number']::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+/* Background grid pattern */
+.bg-grid {
+  background-image: linear-gradient(to right, #80808012 1px, transparent 1px),
+    linear-gradient(to bottom, #80808012 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
-input[type='number'] {
-  -moz-appearance: textfield;
+/* Red glow effect */
+.glow-red {
+  box-shadow: 0 0 60px rgba(220, 38, 38, 0.3);
 }
 
-/* Staggered animation for lists */
-@keyframes stagger-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* Form input styles for dark theme */
+.input-dark {
+  @apply w-full px-4 py-3.5 bg-zinc-900 border border-zinc-800 rounded-xl text-white placeholder-zinc-500 focus:ring-2 focus:ring-red-600/50 focus:border-red-600/50 outline-none transition-all;
 }
 
-.stagger-in > * {
-  opacity: 0;
-  animation: stagger-in 0.3s ease-out forwards;
+.input-dark:disabled {
+  @apply bg-zinc-950 cursor-not-allowed opacity-60;
 }
 
-.stagger-in > *:nth-child(1) { animation-delay: 0ms; }
-.stagger-in > *:nth-child(2) { animation-delay: 50ms; }
-.stagger-in > *:nth-child(3) { animation-delay: 100ms; }
-.stagger-in > *:nth-child(4) { animation-delay: 150ms; }
-.stagger-in > *:nth-child(5) { animation-delay: 200ms; }
-.stagger-in > *:nth-child(6) { animation-delay: 250ms; }
-.stagger-in > *:nth-child(7) { animation-delay: 300ms; }
-.stagger-in > *:nth-child(8) { animation-delay: 350ms; }
-.stagger-in > *:nth-child(9) { animation-delay: 400ms; }
-.stagger-in > *:nth-child(10) { animation-delay: 450ms; }
-.stagger-in > *:nth-child(n+11) { animation-delay: 500ms; }
+/* Button styles */
+.btn {
+  @apply px-6 py-3 rounded-xl font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-primary {
+  @apply bg-red-700 text-white hover:bg-red-800 active:bg-red-900 shadow-lg shadow-red-600/25;
+}
+
+.btn-secondary {
+  @apply bg-zinc-800 text-zinc-300 hover:bg-zinc-700;
+}
+
+/* Animation utilities */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 4s ease-in-out infinite;
+}

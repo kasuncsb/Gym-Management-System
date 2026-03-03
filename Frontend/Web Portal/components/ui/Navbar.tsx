@@ -1,122 +1,167 @@
 'use client';
 
-import Link from "next/link";
-import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { cn } from "../../lib/utils";
-import { Menu, X } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Dumbbell, Menu, X, LogOut, User } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { cn } from '@/lib/utils';
 
-export function Navbar() {
-    const [isOpen, setIsOpen] = useState(false);
+export default function Navbar() {
+    const { user, isAuthenticated, logout } = useAuth();
     const [scrolled, setScrolled] = useState(false);
-    const pathname = usePathname();
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     useEffect(() => {
-        const handleScroll = () => {
-            setScrolled(window.scrollY > 20);
-        };
+        const handleScroll = () => setScrolled(window.scrollY > 20);
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    const navLinks = [
-        { name: "Home", href: "/" },
-        { name: "Features", href: "/#features" },
-        { name: "Classes", href: "/#classes" },
-        { name: "Pricing", href: "/#pricing" },
-    ];
+    const handleLogout = async () => {
+        await logout();
+        setMobileMenuOpen(false);
+    };
 
     return (
-        <nav className={cn(
-            "fixed top-0 w-full z-50 transition-all duration-500 border-b",
-            scrolled ? "bg-black/60 backdrop-blur-xl border-white/10 shadow-2xl shadow-red-900/5" : "bg-transparent border-transparent"
-        )}>
-            <div className="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
-                {/* Logo - Just the SVG image */}
-                <Link href="/" className="flex items-center group relative">
-                    <div className="absolute inset-0 bg-red-600/20 blur-xl rounded-full group-hover:bg-red-600/40 transition-all duration-500 opacity-0 group-hover:opacity-100" />
-                    <div className="relative h-14 w-auto group-hover:scale-105 transition-all duration-300">
-                        <Image
-                            src="/logo.svg"
-                            alt="PowerWorld"
-                            width={180}
-                            height={56}
-                            className="h-14 w-auto object-contain"
-                            priority
-                        />
+        <nav
+            className={cn(
+                'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
+                scrolled
+                    ? 'bg-black/80 backdrop-blur-xl border-b border-zinc-800/50 py-3'
+                    : 'bg-transparent py-5'
+            )}
+        >
+            <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+                {/* Logo */}
+                <Link href="/" className="flex items-center gap-2 group">
+                    <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-700 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105 group-hover:rotate-3">
+                        <Dumbbell className="text-white" size={20} />
                     </div>
+                    <span className="text-xl font-bold text-white">
+                        Power<span className="text-red-600">World</span>
+                    </span>
                 </Link>
 
-                {/* Desktop Nav */}
-                <div className="hidden md:flex items-center gap-10">
-                    {navLinks.map((link) => (
-                        <Link
-                            key={link.name}
-                            href={link.href}
-                            className="relative text-sm font-semibold uppercase tracking-wide text-zinc-400 hover:text-white transition-colors py-2 group overflow-hidden"
-                        >
-                            <span className="relative z-10">{link.name}</span>
-                            <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-red-600 to-red-800 group-hover:w-full transition-all duration-300 ease-out" />
-                        </Link>
-                    ))}
+                {/* Desktop Navigation */}
+                <div className="hidden md:flex items-center gap-8">
+                    <Link href="/#features" className="text-zinc-400 hover:text-white transition-colors">
+                        Features
+                    </Link>
+                    <Link href="/#pricing" className="text-zinc-400 hover:text-white transition-colors">
+                        Pricing
+                    </Link>
+                    <Link href="/#about" className="text-zinc-400 hover:text-white transition-colors">
+                        About
+                    </Link>
                 </div>
 
                 {/* Auth Buttons */}
-                <div className="hidden md:flex items-center gap-6">
-                    <Link
-                        href="/login"
-                        className="text-sm font-bold text-zinc-300 hover:text-white transition-colors relative group"
-                    >
-                        Login
-                        <span className="absolute -bottom-1 left-0 w-0 h-px bg-white group-hover:w-full transition-all duration-300" />
-                    </Link>
-                    <Link
-                        href="/register"
-                        className="relative px-8 py-3 bg-gradient-to-r from-red-700 to-red-900 text-white font-bold rounded-full hover:from-red-600 hover:to-red-800 transition-all duration-300 transform hover:scale-105 hover:shadow-[0_0_20px_rgba(220,38,38,0.4)] overflow-hidden group"
-                    >
-                        <span className="relative z-10">JOIN NOW</span>
-                        <div className="absolute inset-0 bg-gradient-to-r from-red-500/0 via-white/20 to-red-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-                    </Link>
+                <div className="hidden md:flex items-center gap-4">
+                    {isAuthenticated ? (
+                        <>
+                            <Link
+                                href="/dashboard"
+                                className="text-zinc-400 hover:text-white transition-colors flex items-center gap-2"
+                            >
+                                <User size={18} />
+                                {user?.fullName || 'Dashboard'}
+                            </Link>
+                            <button
+                                onClick={handleLogout}
+                                className="px-4 py-2 text-zinc-400 hover:text-white transition-colors flex items-center gap-2"
+                            >
+                                <LogOut size={18} />
+                                Logout
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <Link
+                                href="/login"
+                                className="px-4 py-2 text-zinc-400 hover:text-white transition-colors"
+                            >
+                                Login
+                            </Link>
+                            <Link
+                                href="/register"
+                                className="px-5 py-2.5 bg-red-700 hover:bg-red-800 text-white rounded-xl font-medium transition-all shadow-lg shadow-red-600/25"
+                            >
+                                Get Started
+                            </Link>
+                        </>
+                    )}
                 </div>
 
                 {/* Mobile Menu Button */}
                 <button
-                    className="md:hidden p-2 text-zinc-400 hover:text-white transition-colors"
-                    onClick={() => setIsOpen(!isOpen)}
+                    className="md:hidden text-white p-2"
+                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 >
-                    {isOpen ? <X size={28} /> : <Menu size={28} />}
+                    {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                 </button>
             </div>
 
-            {/* Mobile Nav */}
-            {isOpen && (
-                <div className="md:hidden absolute top-24 left-0 w-full bg-black/95 backdrop-blur-xl border-b border-white/10 p-6 flex flex-col gap-6 shadow-2xl animate-in slide-in-from-top-4">
-                    {navLinks.map((link) => (
+            {/* Mobile Menu */}
+            {mobileMenuOpen && (
+                <div className="md:hidden absolute top-full left-0 right-0 bg-black/95 backdrop-blur-xl border-b border-zinc-800">
+                    <div className="px-6 py-6 space-y-4">
                         <Link
-                            key={link.name}
-                            href={link.href}
-                            className="text-2xl font-bold text-zinc-400 hover:text-white tracking-tight"
-                            onClick={() => setIsOpen(false)}
+                            href="/#features"
+                            className="block text-zinc-400 hover:text-white py-2"
+                            onClick={() => setMobileMenuOpen(false)}
                         >
-                            {link.name}
+                            Features
                         </Link>
-                    ))}
-                    <div className="h-px bg-white/10 my-2" />
-                    <Link
-                        href="/login"
-                        className="text-2xl font-bold text-zinc-400 hover:text-white"
-                        onClick={() => setIsOpen(false)}
-                    >
-                        Sign In
-                    </Link>
-                    <Link
-                        href="/register"
-                        className="px-6 py-4 bg-gradient-to-r from-red-700 to-red-900 text-white text-center font-bold rounded-xl text-lg hover:from-red-600 hover:to-red-800"
-                        onClick={() => setIsOpen(false)}
-                    >
-                        Create Account
-                    </Link>
+                        <Link
+                            href="/#pricing"
+                            className="block text-zinc-400 hover:text-white py-2"
+                            onClick={() => setMobileMenuOpen(false)}
+                        >
+                            Pricing
+                        </Link>
+                        <Link
+                            href="/#about"
+                            className="block text-zinc-400 hover:text-white py-2"
+                            onClick={() => setMobileMenuOpen(false)}
+                        >
+                            About
+                        </Link>
+                        <hr className="border-zinc-800" />
+                        {isAuthenticated ? (
+                            <>
+                                <Link
+                                    href="/dashboard"
+                                    className="block text-zinc-400 hover:text-white py-2"
+                                    onClick={() => setMobileMenuOpen(false)}
+                                >
+                                    Dashboard
+                                </Link>
+                                <button
+                                    onClick={handleLogout}
+                                    className="block w-full text-left text-zinc-400 hover:text-white py-2"
+                                >
+                                    Logout
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <Link
+                                    href="/login"
+                                    className="block text-zinc-400 hover:text-white py-2"
+                                    onClick={() => setMobileMenuOpen(false)}
+                                >
+                                    Login
+                                </Link>
+                                <Link
+                                    href="/register"
+                                    className="block w-full text-center py-3 bg-red-700 hover:bg-red-800 text-white rounded-xl font-medium"
+                                    onClick={() => setMobileMenuOpen(false)}
+                                >
+                                    Get Started
+                                </Link>
+                            </>
+                        )}
+                    </div>
                 </div>
             )}
         </nav>

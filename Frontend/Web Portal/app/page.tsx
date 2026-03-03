@@ -1,239 +1,191 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Navbar } from "@/components/ui/Navbar";
-import { ArrowRight, Check, Zap, Users, Trophy } from "lucide-react";
-import { publicService, Plan, Branch, Stats, Trainer } from "@/lib/api/public.service";
+import Link from 'next/link';
+import Navbar from '@/components/ui/Navbar';
+import { Dumbbell, Users, Calendar, BarChart3, Shield, Clock, ArrowRight } from 'lucide-react';
 
-export default function Home() {
-  const router = useRouter();
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [activeTab, setActiveTab] = useState('monthly');
-  const [loading, setLoading] = useState(true);
+const features = [
+    {
+        icon: Users,
+        title: 'Member Management',
+        description: 'Complete member lifecycle tracking from registration to renewal.',
+    },
+    {
+        icon: Calendar,
+        title: 'Class Scheduling',
+        description: 'Smart scheduling system for classes, trainers, and equipment.',
+    },
+    {
+        icon: BarChart3,
+        title: 'Analytics Dashboard',
+        description: 'Real-time insights into attendance, revenue, and growth metrics.',
+    },
+    {
+        icon: Shield,
+        title: 'Secure Access',
+        description: 'QR code-based check-in with role-based access control.',
+    },
+    {
+        icon: Clock,
+        title: 'Staff Management',
+        description: 'Shift scheduling, attendance tracking, and performance monitoring.',
+    },
+    {
+        icon: Dumbbell,
+        title: 'Equipment Tracking',
+        description: 'Maintain equipment inventory and schedule preventive maintenance.',
+    },
+];
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [plansData, branchesData, statsData] = await Promise.all([
-          publicService.getSubscriptionPlans(),
-          publicService.getBranches(),
-          publicService.getStats()
-        ]);
+const stats = [
+    { value: '5K+', label: 'Active Members' },
+    { value: '50+', label: 'Expert Trainers' },
+    { value: '15', label: 'Locations Island-wide' },
+    { value: '99.9%', label: 'System Uptime' },
+];
 
-        // Parse features JSON if it's a string
-        const parsedPlans = plansData.map((plan: Plan) => ({
-          ...plan,
-          features: typeof plan.features === 'string' ? JSON.parse(plan.features) : plan.features
-        }));
+export default function HomePage() {
+    return (
+        <div className="min-h-screen bg-black text-white">
+            <Navbar />
 
-        setPlans(parsedPlans);
-        setBranches(branchesData);
-        setStats(statsData);
-      } catch (error) {
-        console.error('Failed to fetch public data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  // Format currency
-  const formatCurrency = (amount: string | number) => {
-    return new Intl.NumberFormat('en-LK', {
-      style: 'currency',
-      currency: 'LKR',
-      maximumFractionDigits: 0
-    }).format(Number(amount)).replace('LKR', 'Rs.');
-  };
-
-  // Helper to get benefits list from plan features
-  const getPlanBenefits = (plan: Plan) => {
-    const benefits = [];
-    if (plan.features?.gym) benefits.push("Full Gym Access");
-    if (plan.features?.pool) benefits.push("Swimming Pool Access");
-    if (plan.features?.classes) benefits.push("Group Classes Included");
-    if (plan.features?.personal_training) benefits.push("Personal Training Sessions");
-    if (plan.features?.guest_passes > 0) benefits.push(`${plan.features.guest_passes} Guest Passes`);
-    if (plan.features?.ladies_only) benefits.push("Ladies Only Section Access");
-    return benefits;
-  };
-
-  return (
-    <div className="min-h-screen bg-black text-white selection:bg-red-600/30">
-      <Navbar />
-
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
-        {/* Abstract Background */}
-        <div className="absolute inset-0 z-0">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-red-700/30 rounded-full blur-[128px]" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-red-600/20 rounded-full blur-[128px]" />
-          {/* Grid Pattern Overlay */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808024_1px,transparent_1px),linear-gradient(to_bottom,#80808024_1px,transparent_1px)] bg-size-[24px_24px]" />
-        </div>
-
-        <div className="container relative z-10 px-6 mx-auto text-center">
-          {branches.length > 0 && (
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-900/50 border border-zinc-800 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
-              <span className="text-sm font-medium text-zinc-300">
-                New Location Open in {branches[branches.length - 1].name.replace('Power World ', '')}
-              </span>
-            </div>
-          )}
-
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-            Forging <span className="text-transparent bg-clip-text bg-linear-to-r from-red-500 to-red-500">Elite</span>
-            <br />
-            Fitness in Sri Lanka
-          </h1>
-
-          <p className="text-xl text-zinc-400 max-w-2xl mx-auto mb-12 leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
-            Experience the next evolution of fitness. State-of-the-art equipment, world-class trainers,
-            and a community that pushes you to exceed your limits.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
-            <Link
-              href="/register"
-              className="w-full sm:w-auto px-8 py-4 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-all transform hover:scale-105 flex items-center justify-center gap-2"
-            >
-              Start Your Journey <ArrowRight size={20} />
-            </Link>
-            <Link
-              href="/login"
-              className="w-full sm:w-auto px-8 py-4 bg-zinc-900 text-white font-bold rounded-xl hover:bg-zinc-800 border border-zinc-800 transition-all flex items-center justify-center"
-            >
-              Member Login
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-20 border-y border-zinc-900 bg-zinc-950/50">
-        <div className="container px-6 mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
-            {[
-              { label: "Active Members", value: stats?.activeMembers ? `${stats.activeMembers.toLocaleString()}` : "0" },
-              { label: "Locations", value: stats?.locations || "0" },
-              { label: "Expert Trainers", value: stats?.expertTrainers || "0" },
-              { label: "Total Staff", value: stats?.totalStaff || "0" },
-            ].map((stat, i) => (
-              <div key={i} className="text-center">
-                <h3 className="text-4xl md:text-5xl font-bold text-white mb-2">{stat.value}</h3>
-                <p className="text-zinc-500 font-medium uppercase tracking-wider text-sm">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-32 relative">
-        <div className="container px-6 mx-auto">
-          <div className="text-center mb-24">
-            <h2 className="text-3xl md:text-5xl font-bold mb-6">Built for <span className="text-red-600">Performance</span></h2>
-            <p className="text-zinc-400 max-w-2xl mx-auto text-lg">Everything you need to crush your fitness goals, all in one premium ecosystem.</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              { title: "Premium Equipment", icon: Zap, desc: "Top-of-the-line gym machines maintained to the highest standards." },
-              { title: "Expert Coaching", icon: Users, desc: "Certified personal trainers to guide your fitness journey." },
-              { title: "Smart Tracking", icon: Trophy, desc: "Track workouts, progress, and attendance in real time." },
-            ].map((feature, i) => (
-              <div key={i} className="p-8 rounded-2xl bg-zinc-900/50 border border-zinc-800 hover:border-red-600/50 hover:bg-zinc-900 transition-all group">
-                <div className="w-14 h-14 rounded-xl bg-zinc-800 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                  <feature.icon className="text-red-500" size={28} />
+            {/* Hero Section */}
+            <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
+                {/* Background Effects */}
+                <div className="absolute inset-0 z-0">
+                    <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-red-700/30 rounded-full blur-[128px] animate-pulse-glow" />
+                    <div className="absolute bottom-[-20%] left-[-10%] w-[500px] h-[500px] bg-red-600/20 rounded-full blur-[128px]" />
+                    <div className="absolute inset-0 bg-grid opacity-30" />
                 </div>
-                <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
-                <p className="text-zinc-400 leading-relaxed">{feature.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* Pricing Section */}
-      <section id="pricing" className="py-32 bg-zinc-900/20 border-t border-zinc-900">
-        <div className="container px-6 mx-auto">
-          <div className="text-center mb-24">
-            <h2 className="text-3xl md:text-5xl font-bold mb-6">Simple, Transparent <span className="text-red-600">Pricing</span></h2>
-            <p className="text-zinc-400">No joining fees. Cancel anytime.</p>
-          </div>
-
-          {loading ? (
-            <div className="flex justify-center text-zinc-500">Loading plans...</div>
-          ) : (
-            <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-              {plans.map((plan, i) => {
-                const isPopular = plan.name.includes("Annual") || plan.name.includes("Gold");
-                return (
-                  <div
-                    key={i}
-                    className={`relative p-8 rounded-3xl border flex flex-col ${isPopular
-                      ? "bg-zinc-900/80 border-red-600 shadow-2xl shadow-red-600/10 scale-105 z-10"
-                      : "bg-black border-zinc-800 hover:border-zinc-700"
-                      }`}
-                  >
-                    {isPopular && (
-                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-red-700 text-white text-xs font-bold uppercase tracking-wide rounded-full">
-                        Best Value
-                      </div>
-                    )}
-                    <div className="mb-8">
-                      <h3 className="text-xl font-medium text-zinc-300 mb-2">{plan.name}</h3>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-5xl font-bold text-white tracking-tight">{formatCurrency(plan.price).replace('.00', '')}</span>
-                        <span className="text-zinc-500">/{plan.durationDays > 30 ? 'yr' : 'mo'}</span>
-                      </div>
+                <div className="max-w-7xl mx-auto px-6 py-20 relative z-10 text-center">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-600/10 border border-red-600/20 rounded-full mb-8">
+                        <Dumbbell size={16} className="text-red-500" />
+                        <span className="text-sm text-red-400">Sri Lanka's Leading Gym Network</span>
                     </div>
 
-                    <div className="flex-1 space-y-4 mb-8">
-                      {getPlanBenefits(plan).map((feat, j) => (
-                        <div key={j} className="flex items-center gap-3">
-                          <div className="w-5 h-5 rounded-full bg-red-600/20 flex items-center justify-center shrink-0">
-                            <Check size={12} className="text-red-500" />
-                          </div>
-                          <span className="text-zinc-300 text-sm">{feat}</span>
+                    <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+                        Transform Your Body,
+                        <br />
+                        <span className="text-red-600">Elevate Your Life</span>
+                    </h1>
+
+                    <p className="text-xl text-zinc-400 max-w-2xl mx-auto mb-12">
+                        Join PowerWorld Gyms and access state-of-the-art facilities, expert trainers,
+                        and a community dedicated to helping you achieve your fitness goals.
+                    </p>
+
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                        <Link
+                            href="/register"
+                            className="px-8 py-4 bg-red-700 hover:bg-red-800 text-white rounded-xl font-bold transition-all shadow-lg shadow-red-600/30 flex items-center justify-center gap-2"
+                        >
+                            Start Your Journey <ArrowRight size={20} />
+                        </Link>
+                        <Link
+                            href="/login"
+                            className="px-8 py-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-all flex items-center justify-center"
+                        >
+                            Member Login
+                        </Link>
+                    </div>
+                </div>
+            </section>
+
+            {/* Stats Section */}
+            <section className="py-20 border-y border-zinc-800">
+                <div className="max-w-7xl mx-auto px-6">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                        {stats.map((stat) => (
+                            <div key={stat.label} className="text-center">
+                                <p className="text-4xl md:text-5xl font-bold text-red-600 mb-2">{stat.value}</p>
+                                <p className="text-zinc-400">{stat.label}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* Features Section */}
+            <section id="features" className="py-24 relative">
+                <div className="absolute inset-0 z-0">
+                    <div className="absolute top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-red-700/10 rounded-full blur-[200px]" />
+                </div>
+
+                <div className="max-w-7xl mx-auto px-6 relative z-10">
+                    <div className="text-center mb-16">
+                        <h2 className="text-4xl font-bold mb-4">Powerful Features</h2>
+                        <p className="text-zinc-400 max-w-2xl mx-auto">
+                            Everything you need to manage a modern gym, all in one integrated platform.
+                        </p>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {features.map((feature) => (
+                            <div
+                                key={feature.title}
+                                className="bg-zinc-900/50 backdrop-blur border border-zinc-800 rounded-2xl p-6 hover:border-red-600/30 transition-all group"
+                            >
+                                <div className="w-12 h-12 bg-red-600/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-red-600/20 transition-colors">
+                                    <feature.icon className="text-red-500" size={24} />
+                                </div>
+                                <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
+                                <p className="text-zinc-400 text-sm">{feature.description}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* CTA Section */}
+            <section className="py-24 relative overflow-hidden">
+                <div className="absolute inset-0">
+                    <div className="absolute inset-0 bg-gradient-to-b from-red-700/10 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-red-600/50 to-transparent" />
+                </div>
+
+                <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
+                    <h2 className="text-4xl md:text-5xl font-bold mb-6">
+                        Ready to Transform Your Life?
+                    </h2>
+                    <p className="text-xl text-zinc-400 mb-10">
+                        Join thousands of members who have already started their fitness journey with PowerWorld.
+                    </p>
+                    <Link
+                        href="/register"
+                        className="inline-flex items-center gap-2 px-10 py-4 bg-red-700 hover:bg-red-800 text-white rounded-xl font-bold transition-all shadow-lg shadow-red-600/30"
+                    >
+                        Get Started Today <ArrowRight size={20} />
+                    </Link>
+                </div>
+            </section>
+
+            {/* Footer */}
+            <footer className="border-t border-zinc-800 py-12">
+                <div className="max-w-7xl mx-auto px-6">
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div className="flex items-center gap-2">
+                            <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-700 rounded-xl flex items-center justify-center">
+                                <Dumbbell className="text-white" size={20} />
+                            </div>
+                            <span className="text-xl font-bold">
+                                Power<span className="text-red-600">World</span>
+                            </span>
                         </div>
-                      ))}
+
+                        <div className="flex gap-8 text-sm text-zinc-400">
+                            <Link href="/#features" className="hover:text-white transition-colors">Features</Link>
+                            <Link href="/#pricing" className="hover:text-white transition-colors">Pricing</Link>
+                            <Link href="/#about" className="hover:text-white transition-colors">About</Link>
+                            <Link href="/login" className="hover:text-white transition-colors">Login</Link>
+                        </div>
+
+                        <p className="text-sm text-zinc-500">
+                            &copy; {new Date().getFullYear()} PowerWorld Gyms. All rights reserved.
+                        </p>
                     </div>
-
-                    <button
-                      onClick={() => router.push(`/register?plan=${encodeURIComponent(plan.id)}`)}
-                      className={`w-full py-4 rounded-xl font-bold transition-all ${isPopular
-                      ? "bg-red-700 hover:bg-red-800 text-white shadow-lg shadow-red-600/25"
-                      : "bg-zinc-100 hover:bg-white text-black"
-                      }`}>
-                      Select {plan.name}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                </div>
+            </footer>
         </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="py-12 border-t border-zinc-900 bg-black">
-        <div className="container px-6 mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <p className="text-zinc-500 text-sm">© {new Date().getFullYear()} PowerWorld Gyms. All rights reserved.</p>
-          <div className="flex gap-8">
-            <Link href="#" className="text-zinc-500 hover:text-white text-sm transition-colors">Privacy Policy</Link>
-            <Link href="#" className="text-zinc-500 hover:text-white text-sm transition-colors">Terms of Service</Link>
-            <Link href="#" className="text-zinc-500 hover:text-white text-sm transition-colors">Contact Support</Link>
-          </div>
-        </div>
-      </footer>
-    </div>
-  );
+    );
 }

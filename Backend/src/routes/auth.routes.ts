@@ -1,65 +1,32 @@
-// Authentication Routes — Phase 1
 import { Router } from 'express';
-import Joi from 'joi';
-import { AuthController } from '../controllers/auth.controller';
-import { authenticate } from '../middleware/auth.middleware';
-import { validate } from '../middleware/validation.middleware';
-import { loginRateLimit } from '../middleware/rate-limit.middleware';
+import * as auth from '../controllers/auth.controller.js';
+import { authenticate } from '../middleware/auth.js';
+import { validate } from '../middleware/error.js';
+import { authLimiter, passwordResetLimiter } from '../middleware/rate-limit.js';
+import {
+  loginSchema,
+  registerSchema,
+  refreshSchema,
+  changePasswordSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  verifyEmailSchema,
+} from '../validators/auth.validator.js';
 
 const router = Router();
 
-// Validation schemas
-const loginSchema = {
-  body: Joi.object({
-    email: Joi.string().email().required(),
-    password: Joi.string().required(),
-  }),
-};
+// Public - with rate limiting
+router.post('/login', authLimiter, validate(loginSchema), auth.login);
+router.post('/register', authLimiter, validate(registerSchema), auth.register);
+router.post('/refresh', validate(refreshSchema), auth.refresh);
+router.post('/verify-email', validate(verifyEmailSchema), auth.verifyEmail);
+router.post('/forgot-password', passwordResetLimiter, validate(forgotPasswordSchema), auth.forgotPassword);
+router.post('/reset-password', passwordResetLimiter, validate(resetPasswordSchema), auth.resetPassword);
 
-const refreshTokenSchema = {
-  body: Joi.object({
-    refreshToken: Joi.string().required(),
-  }),
-};
-
-const changePasswordSchema = {
-  body: Joi.object({
-    oldPassword: Joi.string().required(),
-    newPassword: Joi.string().min(8).required(),
-  }),
-};
-
-const verifyEmailSchema = {
-  body: Joi.object({
-    token: Joi.string().required(),
-  }),
-};
-
-const forgotPasswordSchema = {
-  body: Joi.object({
-    email: Joi.string().email().required(),
-  }),
-};
-
-const resetPasswordSchema = {
-  body: Joi.object({
-    token: Joi.string().required(),
-    newPassword: Joi.string().min(8).required(),
-  }),
-};
-
-// Public routes
-router.post('/login', loginRateLimit, validate(loginSchema), AuthController.login);
-router.post('/refresh', validate(refreshTokenSchema), AuthController.refreshToken);
-router.post('/verify-email', validate(verifyEmailSchema), AuthController.verifyEmail);
-router.post('/forgot-password', loginRateLimit, validate(forgotPasswordSchema), AuthController.forgotPassword);
-router.post('/reset-password', validate(resetPasswordSchema), AuthController.resetPassword);
-
-// Protected routes
-router.get('/profile', authenticate, AuthController.getProfile);
-router.post('/change-password', authenticate, validate(changePasswordSchema), AuthController.changePassword);
-router.post('/logout', authenticate, AuthController.logout);
-router.get('/qr-code', authenticate, AuthController.generateQR);
+// Protected
+router.get('/profile', authenticate, auth.getProfile);
+router.post('/send-verification', authenticate, auth.sendVerificationEmail);
+router.post('/change-password', authenticate, validate(changePasswordSchema), auth.changePassword);
+router.post('/logout', authenticate, auth.logout);
 
 export default router;
-
