@@ -50,3 +50,6 @@ yarn-error.log*
 # OS
 Thumbs.db
 Desktop.ini
+
+# Text files
+*.txt

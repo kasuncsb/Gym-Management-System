@@ -28,7 +28,7 @@ echo ""
 
 # Frontend
 echo "📦 Cleaning Frontend..."
-cd "$ROOT_DIR/Frontend/Web Portal"
+cd "$ROOT_DIR/Frontend"
 rm -rf .next node_modules package-lock.json
 echo "✓ Frontend cleaned"
 echo ""
@@ -44,4 +44,4 @@ echo "============================================"
 echo ""
 echo "Next steps:"
 echo "  1. Backend: cd Backend && npm run dev"
-echo "  2. Frontend: cd 'Frontend/Web Portal' && npm run dev"
+echo "  2. Frontend: cd 'Frontend' && npm run dev"
