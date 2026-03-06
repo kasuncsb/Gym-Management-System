@@ -13,8 +13,12 @@ export const registerSchema = z.object({
     .regex(/[a-z]/, 'Must contain lowercase')
     .regex(/\d/, 'Must contain number'),
   fullName: z.string().min(2).max(100),
-  phone: z.string().regex(/^\+?[\d\s-]{10,20}$/).optional(),
+  phone: z.string().regex(/^\+?[\d\s-]{10,20}$/, 'Invalid phone number format'),
   gender: z.enum(['male', 'female', 'other']).optional(),
+  // Emergency contact — mandatory at registration for member safety
+  emergencyName: z.string().min(2).max(100),
+  emergencyPhone: z.string().regex(/^\+?[\d\s-]{10,20}$/, 'Invalid emergency phone number'),
+  emergencyRelation: z.string().min(2).max(50),
 });
 
 export const refreshSchema = z.object({
@@ -59,6 +63,11 @@ export const onboardingSchema = z.object({
   emergencyRelation: z.string().max(50).optional(),
 });
 
+export const idVerificationSchema = z.object({
+  status: z.enum(['approved', 'rejected']),
+  note: z.string().max(500).optional(),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;
@@ -67,3 +76,4 @@ export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
 export type OnboardingInput = z.infer<typeof onboardingSchema>;
+export type IdVerificationInput = z.infer<typeof idVerificationSchema>;

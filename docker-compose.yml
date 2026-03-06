@@ -1,0 +1,68 @@
+version: '3.9'
+
+# MySQL and Redis run natively on the host server (not in containers).
+# Backend and Frontend containers connect via host.docker.internal.
+# On Linux, extra_hosts maps host.docker.internal to the host gateway.
+
+services:
+
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      # DB and Redis → native on host
+      DB_HOST: host.docker.internal
+      DB_PORT: "3306"
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      REDIS_URL: redis://host.docker.internal:6379
+      # JWT
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      # Frontend (for CORS + email links)
+      FRONTEND_URL: ${FRONTEND_URL}
+      # SMTP
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      EMAIL_FROM: ${EMAIL_FROM}
+      # Oracle OCI
+      OCI_NAMESPACE: ${OCI_NAMESPACE}
+      OCI_BUCKET: ${OCI_BUCKET}
+      OCI_REGION: ${OCI_REGION}
+      OCI_TENANCY_ID: ${OCI_TENANCY_ID}
+      OCI_USER_ID: ${OCI_USER_ID}
+      OCI_FINGERPRINT: ${OCI_FINGERPRINT}
+      OCI_PRIVATE_KEY: ${OCI_PRIVATE_KEY}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # Linux host networking
+    networks:
+      - app
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      # Backend URL for Next.js server-side proxy (internal Docker network)
+      BACKEND_URL: http://backend:5000
+    depends_on:
+      - backend
+    networks:
+      - app
+
+networks:
+  app:
+    driver: bridge

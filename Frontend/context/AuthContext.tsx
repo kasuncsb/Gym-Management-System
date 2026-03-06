@@ -7,91 +7,90 @@ import { authAPI } from '../lib/api';
 export type Role = 'admin' | 'manager' | 'staff' | 'trainer' | 'member';
 
 export interface User {
-    id: string;
-    fullName: string;
-    email: string;
-    role: Role;
-    avatarUrl?: string;
-    phone?: string;
+  id: string;
+  fullName: string;
+  email: string;
+  role: Role;
+  avatarUrl?: string;
+  phone?: string;
 }
 
 interface AuthContextType {
-    user: User | null;
-    token: string | null;
-    login: (accessToken: string, refreshToken: string, user: User) => void;
-    logout: () => void;
-    isLoading: boolean;
-    loading: boolean;
-    isAuthenticated: boolean;
-    hasRole: (...roles: Role[]) => boolean;
+  user: User | null;
+  login: (user: User) => void;
+  logout: () => void;
+  isLoading: boolean;
+  loading: boolean;
+  isAuthenticated: boolean;
+  hasRole: (...roles: Role[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/** Map backend role to dashboard base path */
 export function dashboardPathForRole(_role: string): string {
-    return '/dashboard';
+  return '/dashboard';
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
-    const [token, setToken] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
-    useEffect(() => {
-        const storedToken = localStorage.getItem('accessToken');
-        const storedUser = localStorage.getItem('user');
+  useEffect(() => {
+    // On mount: restore user from localStorage (display only, not auth)
+    // then validate with backend to confirm cookie is still valid
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try { setUser(JSON.parse(storedUser)); } catch { localStorage.removeItem('user'); }
+    }
 
-        if (storedToken && storedUser) {
-            try {
-                setToken(storedToken);
-                setUser(JSON.parse(storedUser));
-            } catch {
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('refreshToken');
-                localStorage.removeItem('user');
-            }
-        }
-        setIsLoading(false);
-    }, []);
-
-    const login = useCallback((accessToken: string, refreshToken: string, newUser: User) => {
-        setToken(accessToken);
-        setUser(newUser);
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('refreshToken', refreshToken);
-        localStorage.setItem('user', JSON.stringify(newUser));
-    }, []);
-
-    const logout = useCallback(async () => {
-        try { await authAPI.logout(); } catch { /* ignore */ }
-        setToken(null);
+    // Confirm session is valid by calling profile endpoint
+    authAPI.getProfile()
+      .then(res => {
+        const { id, fullName, email, role, phone } = res.data.data;
+        const freshUser: User = { id, fullName, email, role, phone };
+        setUser(freshUser);
+        localStorage.setItem('user', JSON.stringify(freshUser));
+      })
+      .catch(() => {
+        // Not authenticated (or refresh also failed via interceptor)
         setUser(null);
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
-        router.push('/login');
-    }, [router]);
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
 
-    const hasRole = useCallback((...roles: Role[]) => {
-        return !!user && roles.includes(user.role);
-    }, [user]);
+  /** Call after login/register — user object from server response */
+  const login = useCallback((newUser: User) => {
+    setUser(newUser);
+    localStorage.setItem('user', JSON.stringify(newUser));
+  }, []);
 
-    return (
-        <AuthContext.Provider value={{
-            user, token, login, logout,
-            isLoading, loading: isLoading,
-            isAuthenticated: !!token && !!user,
-            hasRole,
-        }}>
-            {children}
-        </AuthContext.Provider>
-    );
+  const logout = useCallback(async () => {
+    try { await authAPI.logout(); } catch { /* ignore */ }
+    setUser(null);
+    localStorage.removeItem('user');
+    router.push('/');
+  }, [router]);
+
+  const hasRole = useCallback((...roles: Role[]) => {
+    return !!user && roles.includes(user.role);
+  }, [user]);
+
+  return (
+    <AuthContext.Provider value={{
+      user, login, logout,
+      isLoading, loading: isLoading,
+      isAuthenticated: !!user,
+      hasRole,
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
-    const context = useContext(AuthContext);
-    if (!context) throw new Error('useAuth must be used within an AuthProvider');
-    return context;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
+  return context;
 }

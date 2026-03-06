@@ -1,131 +1,128 @@
-// API Client for PowerWorld Gyms — Auth Only
+/**
+ * API client — axios instance using Next.js proxy at /api.
+ * Authentication is handled entirely via httpOnly cookies set by the backend.
+ * No tokens are stored or managed client-side.
+ */
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-
-export const apiClient = axios.create({
-    baseURL: API_BASE_URL,
-    headers: { 'Content-Type': 'application/json' },
+const apiClient = axios.create({
+  baseURL: '/api',
+  timeout: 15_000,
+  headers: { 'Content-Type': 'application/json' },
+  // No withCredentials needed — requests go to same origin via Next.js rewrite
 });
 
-// Attach access token to every request
-apiClient.interceptors.request.use(
-    (config) => {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-        if (token) config.headers.Authorization = `Bearer ${token}`;
-        return config;
-    },
-    (error) => Promise.reject(error),
-);
-
-// Handle 401 — attempt refresh once, then redirect to login
+// ── Response interceptor: handle token expiry ─────────────────────────────────
 let isRefreshing = false;
-let refreshQueue: Array<(token: string) => void> = [];
+let failedQueue: Array<{ resolve: (v: unknown) => void; reject: (e: unknown) => void }> = [];
+
+function processQueue(error: unknown) {
+  failedQueue.forEach(({ resolve, reject }) => error ? reject(error) : resolve(null));
+  failedQueue = [];
+}
 
 apiClient.interceptors.response.use(
-    (res) => res,
-    async (error) => {
-        const original = error.config;
+  (response) => response,
+  async (error) => {
+    const original = error.config;
 
-        if (error.response?.status === 401 && !original._retry) {
-            if (isRefreshing) {
-                return new Promise((resolve) => {
-                    refreshQueue.push((newToken: string) => {
-                        original.headers.Authorization = `Bearer ${newToken}`;
-                        resolve(apiClient(original));
-                    });
-                });
-            }
+    // Don't retry refresh or login/register requests
+    if (
+      error.response?.status !== 401 ||
+      original._retry ||
+      original.url?.includes('/auth/refresh') ||
+      original.url?.includes('/auth/login') ||
+      original.url?.includes('/auth/register')
+    ) {
+      return Promise.reject(error);
+    }
 
-            original._retry = true;
-            isRefreshing = true;
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      }).then(() => apiClient(original));
+    }
 
-            try {
-                const rt = localStorage.getItem('refreshToken');
-                if (!rt) throw new Error('No refresh token');
+    original._retry = true;
+    isRefreshing = true;
 
-                const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken: rt });
-                const newAccess = data.data.accessToken;
-                const newRefresh = data.data.refreshToken;
-
-                localStorage.setItem('accessToken', newAccess);
-                localStorage.setItem('refreshToken', newRefresh);
-
-                refreshQueue.forEach((cb) => cb(newAccess));
-                refreshQueue = [];
-                isRefreshing = false;
-
-                original.headers.Authorization = `Bearer ${newAccess}`;
-                return apiClient(original);
-            } catch {
-                isRefreshing = false;
-                refreshQueue = [];
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('refreshToken');
-                localStorage.removeItem('user');
-                if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-                    window.location.href = '/login';
-                }
-            }
-        }
-
-        // Normalize error message
-        if (error.response?.data?.error?.message) {
-            error.message = error.response.data.error.message;
-        } else if (error.response?.data?.message) {
-            error.message = error.response.data.message;
-        }
-
-        return Promise.reject(error);
-    },
+    try {
+      // Refresh — cookies sent automatically (same origin)
+      await apiClient.post('/auth/refresh');
+      processQueue(null);
+      return apiClient(original);
+    } catch (refreshError) {
+      processQueue(refreshError);
+      // Refresh failed — redirect to home (clears client state)
+      if (typeof window !== 'undefined') window.location.href = '/';
+      return Promise.reject(refreshError);
+    } finally {
+      isRefreshing = false;
+    }
+  },
 );
 
-export const getErrorMessage = (error: any): string => {
-    if (error.response?.data?.error?.message) return error.response.data.error.message;
-    if (error.response?.data?.message) return error.response.data.message;
-    return error.message || 'An unexpected error occurred';
-};
-
-// ── Auth ───────────────────────────────────────────
+// ── Auth API ──────────────────────────────────────────────────────────────────
 export const authAPI = {
-    login: (email: string, password: string) =>
-        apiClient.post('/auth/login', { email, password }),
+  register: (data: {
+    fullName: string;
+    email: string;
+    phone: string;
+    password: string;
+    gender?: string;
+  }) => apiClient.post('/auth/register', data),
 
-    logout: () => apiClient.post('/auth/logout'),
+  login: (email: string, password: string) =>
+    apiClient.post('/auth/login', { email, password }),
 
-    register: (data: { fullName: string; email: string; password: string; phone?: string; gender?: string }) =>
-        apiClient.post('/auth/register', data),
+  logout: () => apiClient.post('/auth/logout'),
 
-    getProfile: () => apiClient.get('/auth/profile'),
+  refresh: () => apiClient.post('/auth/refresh'),
 
-    changePassword: (currentPassword: string, newPassword: string) =>
-        apiClient.post('/auth/change-password', { currentPassword, newPassword }),
+  getProfile: () => apiClient.get('/auth/profile'),
 
-    refreshToken: (refreshToken: string) =>
-        apiClient.post('/auth/refresh', { refreshToken }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    apiClient.post('/auth/change-password', { currentPassword, newPassword }),
 
-    sendVerificationEmail: () => apiClient.post('/auth/send-verification'),
+  sendVerificationEmail: () => apiClient.post('/auth/send-verification'),
 
-    verifyEmail: (token: string) =>
-        apiClient.post('/auth/verify-email', { token }),
+  verifyEmail: (token: string) => apiClient.post('/auth/verify-email', { token }),
 
-    forgotPassword: (email: string) =>
-        apiClient.post('/auth/forgot-password', { email }),
+  forgotPassword: (email: string) => apiClient.post('/auth/forgot-password', { email }),
 
-    resetPassword: (token: string, newPassword: string) =>
-        apiClient.post('/auth/reset-password', { token, newPassword }),
+  resetPassword: (token: string, newPassword: string) =>
+    apiClient.post('/auth/reset-password', { token, newPassword }),
 
-    completeOnboarding: (data: {
-        experienceLevel: 'beginner' | 'intermediate' | 'advanced';
-        previousWorkouts?: string;
-        fitnessGoals?: string;
-        bloodType?: string;
-        medicalConditions?: string;
-        allergies?: string;
-        emergencyName?: string;
-        emergencyPhone?: string;
-        emergencyRelation?: string;
-    }) => apiClient.post('/auth/onboarding', data),
+  completeOnboarding: (data: {
+    experienceLevel: 'beginner' | 'intermediate' | 'advanced';
+    previousWorkouts?: string;
+    fitnessGoals?: string;
+    bloodType?: string;
+    medicalConditions?: string;
+    allergies?: string;
+    emergencyName?: string;
+    emergencyPhone?: string;
+    emergencyRelation?: string;
+  }) => apiClient.post('/auth/onboarding', data),
+
+  uploadIdDocuments: (formData: FormData) =>
+    apiClient.post('/auth/upload-id', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+
+  // Admin endpoints
+  getIdSubmissions: () => apiClient.get('/auth/admin/id-submissions'),
+
+  adminVerifyId: (userId: string, status: 'approved' | 'rejected', note?: string) =>
+    apiClient.post(`/auth/admin/verify-id/${userId}`, { status, note }),
 };
+
+export function getErrorMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    return error.response?.data?.message ?? error.message;
+  }
+  if (error instanceof Error) return error.message;
+  return 'An unexpected error occurred';
+}
 
 export default apiClient;

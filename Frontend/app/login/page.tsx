@@ -23,15 +23,15 @@ export default function Login() {
 
         try {
             const response = await authAPI.login(email, password);
-            const { accessToken, refreshToken, user } = response.data.data;
+            const { user } = response.data.data;
 
-            login(accessToken, refreshToken, {
+            // Cookies set by backend — just update client state
+            login({
                 id: user.id,
                 fullName: user.fullName,
                 email: user.email,
                 role: user.role,
                 phone: user.phone,
-                avatarUrl: user.avatarUrl,
             });
 
             // Redirect to unified dashboard

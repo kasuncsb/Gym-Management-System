@@ -1,9 +1,11 @@
 /**
- * Auth Service - handles all authentication logic
- * FIXES: Separate JWT secrets, proper password validation, unified users table
+ * Auth Service — handles all authentication logic.
+ * Uses Redis for server-side refresh token revocation.
+ * JTI (JWT ID) embedded in refresh tokens for reuse detection.
  */
 
 import jwt from 'jsonwebtoken';
+import { nanoid } from 'nanoid';
 import { db } from '../config/database.js';
 import { users, memberProfiles } from '../db/schema.js';
 import { eq, and, isNull, gt } from 'drizzle-orm';
@@ -12,30 +14,23 @@ import { ids } from '../utils/id.js';
 import { hashPassword, verifyPassword, validatePassword } from '../utils/password.js';
 import { errors } from '../utils/errors.js';
 import { sendEmail, generateVerifyEmailHTML, generateResetPasswordHTML } from '../utils/email.js';
-import type { LoginInput, RegisterInput, ChangePasswordInput, OnboardingInput } from '../validators/auth.validator.js';
+import { setRefreshToken, getRefreshToken, deleteRefreshToken, deleteAllUserTokens } from '../utils/redis.js';
+import { uploadFile } from '../utils/oci-storage.js';
+import type {
+  LoginInput,
+  RegisterInput,
+  ChangePasswordInput,
+  OnboardingInput,
+  IdVerificationInput,
+} from '../validators/auth.validator.js';
 
-export async function completeOnboarding(userId: string, input: OnboardingInput): Promise<void> {
-  const [person] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
-  if (!person) throw errors.notFound('User');
-  if (person.role !== 'member') throw errors.forbidden('Onboarding is only for members');
-
-  await db.update(memberProfiles).set({
-    experienceLevel: input.experienceLevel,
-    fitnessGoals: input.fitnessGoals,
-    medicalConditions: input.medicalConditions,
-    allergies: input.allergies,
-    bloodType: input.bloodType,
-    emergencyName: input.emergencyName,
-    emergencyPhone: input.emergencyRelation ? input.emergencyPhone : undefined,
-    emergencyRelation: input.emergencyRelation,
-    isOnboarded: true,
-    onboardedAt: new Date(),
-  }).where(eq(memberProfiles.personId, userId));
-}
-
-export interface AuthResponse {
+// ── Token shape returned to controller ────────────────────────────────────────
+export interface TokenPair {
   accessToken: string;
   refreshToken: string;
+}
+
+export interface AuthResult extends TokenPair {
   user: {
     id: string;
     email: string;
@@ -45,13 +40,32 @@ export interface AuthResponse {
   };
 }
 
-function generateTokens(payload: { sub: string; email: string; role: string; fullName: string }) {
+// ── Token generation ──────────────────────────────────────────────────────────
+interface TokenPayload {
+  sub: string;
+  email: string;
+  role: string;
+  fullName: string;
+  emailVerified: boolean;
+}
+
+async function generateTokens(payload: TokenPayload): Promise<TokenPair> {
   const accessToken = jwt.sign(payload, env.JWT_ACCESS_SECRET, { expiresIn: '15m' });
-  const refreshToken = jwt.sign({ sub: payload.sub, type: 'refresh' }, env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
+
+  // jti (JWT ID) stored in Redis to enable single-use revocation
+  const jti = nanoid(32);
+  const refreshToken = jwt.sign(
+    { sub: payload.sub, jti, type: 'refresh' },
+    env.JWT_REFRESH_SECRET,
+    { expiresIn: '7d' },
+  );
+
+  await setRefreshToken(jti, payload.sub);
   return { accessToken, refreshToken };
 }
 
-export async function login(input: LoginInput): Promise<AuthResponse> {
+// ── Login ─────────────────────────────────────────────────────────────────────
+export async function login(input: LoginInput): Promise<AuthResult> {
   const [person] = await db
     .select()
     .from(users)
@@ -60,10 +74,9 @@ export async function login(input: LoginInput): Promise<AuthResponse> {
 
   if (!person) throw errors.unauthorized('Invalid email or password');
 
-  // Check lock
   if (person.lockedUntil && new Date(person.lockedUntil) > new Date()) {
     const mins = Math.ceil((new Date(person.lockedUntil).getTime() - Date.now()) / 60000);
-    throw errors.unauthorized(`Account locked. Try in ${mins} minutes`);
+    throw errors.unauthorized(`Account locked. Try again in ${mins} minute${mins > 1 ? 's' : ''}`);
   }
 
   if (!person.isActive) throw errors.forbidden('Account is deactivated');
@@ -71,31 +84,35 @@ export async function login(input: LoginInput): Promise<AuthResponse> {
   const valid = await verifyPassword(input.password, person.passwordHash);
   if (!valid) {
     const attempts = person.failedAttempts + 1;
-    if (attempts >= 5) {
-      await db.update(users).set({ lockedUntil: new Date(Date.now() + 15 * 60000), failedAttempts: 0 }).where(eq(users.id, person.id));
-    } else {
-      await db.update(users).set({ failedAttempts: attempts }).where(eq(users.id, person.id));
-    }
+    await db.update(users)
+      .set(attempts >= 5
+        ? { lockedUntil: new Date(Date.now() + 15 * 60_000), failedAttempts: 0 }
+        : { failedAttempts: attempts }
+      )
+      .where(eq(users.id, person.id));
     throw errors.unauthorized('Invalid email or password');
   }
 
-  await db.update(users).set({ failedAttempts: 0, lockedUntil: null, lastLoginAt: new Date() }).where(eq(users.id, person.id));
+  await db.update(users)
+    .set({ failedAttempts: 0, lockedUntil: null, lastLoginAt: new Date() })
+    .where(eq(users.id, person.id));
 
-  const { accessToken, refreshToken } = generateTokens({
+  const tokens = await generateTokens({
     sub: person.id,
     email: person.email,
     role: person.role,
     fullName: person.fullName,
+    emailVerified: person.emailVerified,
   });
 
   return {
-    accessToken,
-    refreshToken,
+    ...tokens,
     user: { id: person.id, email: person.email, role: person.role, fullName: person.fullName, memberCode: person.memberCode },
   };
 }
 
-export async function register(input: RegisterInput): Promise<AuthResponse> {
+// ── Register ──────────────────────────────────────────────────────────────────
+export async function register(input: RegisterInput): Promise<AuthResult> {
   const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, input.email)).limit(1);
   if (existing) throw errors.conflict('Email already registered');
 
@@ -124,61 +141,88 @@ export async function register(input: RegisterInput): Promise<AuthResponse> {
     personId,
     referralSource: 'website',
     isOnboarded: false,
+    emergencyName: input.emergencyName,
+    emergencyPhone: input.emergencyPhone,
+    emergencyRelation: input.emergencyRelation,
   });
 
-  // Send verification email (fire-and-forget)
   const verifyUrl = `${env.FRONTEND_URL}/verify-email?token=${emailVerifyToken}`;
   sendEmail(
     input.email,
-    'Verify Your Email - PowerWorld Gyms',
-    generateVerifyEmailHTML(input.fullName, verifyUrl)
+    'Verify Your Email — PowerWorld Gyms',
+    generateVerifyEmailHTML(input.fullName, verifyUrl),
   ).catch(err => console.error('Failed to send verification email:', err));
 
-  const { accessToken, refreshToken } = generateTokens({
+  const tokens = await generateTokens({
     sub: personId,
     email: input.email,
     role: 'member',
     fullName: input.fullName,
+    emailVerified: false,
   });
 
   return {
-    accessToken,
-    refreshToken,
+    ...tokens,
     user: { id: personId, email: input.email, role: 'member', fullName: input.fullName, memberCode },
   };
 }
 
-export async function refresh(refreshToken: string): Promise<AuthResponse> {
+// ── Refresh ───────────────────────────────────────────────────────────────────
+export async function refresh(refreshToken: string): Promise<AuthResult> {
+  let decoded: { sub: string; jti: string; type: string };
+
   try {
-    const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as { sub: string; type: string };
-    if (decoded.type !== 'refresh') throw errors.unauthorized('Invalid token type');
-
-    const [person] = await db
-      .select()
-      .from(users)
-      .where(and(eq(users.id, decoded.sub), eq(users.isActive, true), isNull(users.deletedAt)))
-      .limit(1);
-
-    if (!person) throw errors.unauthorized('User not found');
-
-    const tokens = generateTokens({
-      sub: person.id,
-      email: person.email,
-      role: person.role,
-      fullName: person.fullName,
-    });
-
-    return {
-      ...tokens,
-      user: { id: person.id, email: person.email, role: person.role, fullName: person.fullName, memberCode: person.memberCode },
-    };
+    decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as any;
   } catch (err) {
     if (err instanceof jwt.TokenExpiredError) throw errors.unauthorized('Refresh token expired');
-    if (err instanceof jwt.JsonWebTokenError) throw errors.unauthorized('Invalid refresh token');
-    throw err;
+    throw errors.unauthorized('Invalid refresh token');
+  }
+
+  if (decoded.type !== 'refresh') throw errors.unauthorized('Invalid token type');
+
+  // Verify JTI exists in Redis — single-use enforcement with automatic reuse detection
+  const userId = await getRefreshToken(decoded.jti);
+  if (!userId) {
+    // Token reuse detected — another process already used this JTI — revoke all sessions
+    await deleteAllUserTokens(decoded.sub);
+    throw errors.unauthorized('Refresh token already used or revoked. Please log in again.');
+  }
+  await deleteRefreshToken(decoded.jti);
+
+  const [person] = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.id, decoded.sub), eq(users.isActive, true), isNull(users.deletedAt)))
+    .limit(1);
+
+  if (!person) throw errors.unauthorized('User not found');
+
+  const tokens = await generateTokens({
+    sub: person.id,
+    email: person.email,
+    role: person.role,
+    fullName: person.fullName,
+    emailVerified: person.emailVerified,
+  });
+
+  return {
+    ...tokens,
+    user: { id: person.id, email: person.email, role: person.role, fullName: person.fullName, memberCode: person.memberCode },
+  };
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────────
+export async function logout(refreshToken: string | undefined): Promise<void> {
+  if (!refreshToken) return;
+  try {
+    const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as { jti: string };
+    await deleteRefreshToken(decoded.jti);
+  } catch {
+    // Token already expired or invalid — nothing to revoke
   }
 }
 
+// ── Change Password ───────────────────────────────────────────────────────────
 export async function changePassword(userId: string, input: ChangePasswordInput): Promise<void> {
   const validation = validatePassword(input.newPassword);
   if (!validation.valid) throw errors.validation('Invalid password', validation.errors);
@@ -191,8 +235,12 @@ export async function changePassword(userId: string, input: ChangePasswordInput)
 
   const newHash = await hashPassword(input.newPassword);
   await db.update(users).set({ passwordHash: newHash }).where(eq(users.id, userId));
+
+  // Revoke all refresh tokens — force re-login on all devices
+  await deleteAllUserTokens(userId);
 }
 
+// ── Get Profile ───────────────────────────────────────────────────────────────
 export async function getProfile(userId: string) {
   const [person] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   if (!person) throw errors.notFound('User');
@@ -213,10 +261,14 @@ export async function getProfile(userId: string) {
     memberStatus: person.memberStatus,
     joinDate: person.joinDate,
     emailVerified: person.emailVerified,
+    idVerificationStatus: person.idVerificationStatus,
+    idVerificationNote: person.idVerificationNote,
+    idSubmittedAt: person.idSubmittedAt,
     profile,
   };
 }
 
+// ── Email Verification ────────────────────────────────────────────────────────
 export async function sendVerificationEmail(userId: string): Promise<void> {
   const [person] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   if (!person) throw errors.notFound('User');
@@ -228,8 +280,8 @@ export async function sendVerificationEmail(userId: string): Promise<void> {
   const verifyUrl = `${env.FRONTEND_URL}/verify-email?token=${verifyToken}`;
   await sendEmail(
     person.email,
-    'Verify Your Email - PowerWorld Gyms',
-    generateVerifyEmailHTML(person.fullName, verifyUrl)
+    'Verify Your Email — PowerWorld Gyms',
+    generateVerifyEmailHTML(person.fullName, verifyUrl),
   );
 }
 
@@ -246,6 +298,7 @@ export async function verifyEmail(token: string): Promise<void> {
   await db.update(users).set({ emailVerified: true, emailVerifyToken: null }).where(eq(users.id, person.id));
 }
 
+// ── Forgot / Reset Password ───────────────────────────────────────────────────
 export async function forgotPassword(email: string): Promise<void> {
   const [person] = await db
     .select()
@@ -253,8 +306,7 @@ export async function forgotPassword(email: string): Promise<void> {
     .where(and(eq(users.email, email), isNull(users.deletedAt)))
     .limit(1);
 
-  // Don't reveal if user exists (security best practice)
-  if (!person) return;
+  if (!person) return; // Don't reveal user existence
 
   const resetToken = ids.resetToken();
   const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
@@ -264,8 +316,8 @@ export async function forgotPassword(email: string): Promise<void> {
   const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${resetToken}`;
   await sendEmail(
     person.email,
-    'Reset Your Password - PowerWorld Gyms',
-    generateResetPasswordHTML(person.fullName, resetUrl)
+    'Reset Your Password — PowerWorld Gyms',
+    generateResetPasswordHTML(person.fullName, resetUrl),
   );
 }
 
@@ -276,11 +328,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
   const [person] = await db
     .select()
     .from(users)
-    .where(and(
-      eq(users.resetToken, token),
-      gt(users.resetExpires, new Date()),
-      isNull(users.deletedAt)
-    ))
+    .where(and(eq(users.resetToken, token), gt(users.resetExpires!, new Date()), isNull(users.deletedAt)))
     .limit(1);
 
   if (!person) throw errors.badRequest('Invalid or expired reset token');
@@ -293,4 +341,101 @@ export async function resetPassword(token: string, newPassword: string): Promise
     failedAttempts: 0,
     lockedUntil: null,
   }).where(eq(users.id, person.id));
+
+  await deleteAllUserTokens(person.id);
+}
+
+// ── Onboarding ────────────────────────────────────────────────────────────────
+export async function completeOnboarding(userId: string, input: OnboardingInput): Promise<void> {
+  const [person] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!person) throw errors.notFound('User');
+  if (person.role !== 'member') throw errors.forbidden('Onboarding is only for members');
+
+  await db.update(memberProfiles).set({
+    experienceLevel: input.experienceLevel,
+    fitnessGoals: input.fitnessGoals,
+    medicalConditions: input.medicalConditions,
+    allergies: input.allergies,
+    bloodType: input.bloodType,
+    emergencyName: input.emergencyName,
+    emergencyPhone: input.emergencyPhone,
+    emergencyRelation: input.emergencyRelation,
+    isOnboarded: true,
+    onboardedAt: new Date(),
+  }).where(eq(memberProfiles.personId, userId));
+}
+
+// ── ID Document Upload ────────────────────────────────────────────────────────
+export async function uploadIdDocuments(
+  userId: string,
+  nicFrontBuffer: Buffer,
+  nicBackBuffer: Buffer,
+): Promise<void> {
+  const ts = Date.now();
+  const nicFrontUrl = await uploadFile(nicFrontBuffer, `id/${userId}/nic_front_${ts}.jpg`, 'image/jpeg');
+  const nicBackUrl = await uploadFile(nicBackBuffer, `id/${userId}/nic_back_${ts}.jpg`, 'image/jpeg');
+
+  await db.update(users).set({
+    idNicFront: nicFrontUrl,
+    idNicBack: nicBackUrl,
+    idVerificationStatus: 'pending',
+    idSubmittedAt: new Date(),
+    idVerificationNote: null,
+  }).where(eq(users.id, userId));
+}
+
+// ── Admin: Get Pending ID Submissions ─────────────────────────────────────────
+export async function getIdSubmissions() {
+  return db
+    .select({
+      id: users.id,
+      fullName: users.fullName,
+      email: users.email,
+      memberCode: users.memberCode,
+      idNicFront: users.idNicFront,
+      idNicBack: users.idNicBack,
+      idVerificationStatus: users.idVerificationStatus,
+      idVerificationNote: users.idVerificationNote,
+      idSubmittedAt: users.idSubmittedAt,
+    })
+    .from(users)
+    .where(and(eq(users.role, 'member'), isNull(users.deletedAt)));
+}
+
+// ── Admin: Get Object Name for Private OCI Download ──────────────────────────
+export async function getIdDocumentObjectName(
+  userId: string,
+  type: 'front' | 'back',
+): Promise<{ data: string | null }> {
+  const [person] = await db
+    .select({ idNicFront: users.idNicFront, idNicBack: users.idNicBack })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!person) throw errors.notFound('User');
+  return { data: type === 'front' ? person.idNicFront ?? null : person.idNicBack ?? null };
+}
+export async function adminVerifyId(
+  targetUserId: string,
+  input: IdVerificationInput,
+): Promise<void> {
+  const [person] = await db.select().from(users).where(eq(users.id, targetUserId)).limit(1);
+  if (!person) throw errors.notFound('User');
+
+  await db.update(users).set({
+    idVerificationStatus: input.status,
+    idVerificationNote: input.note ?? null,
+  }).where(eq(users.id, targetUserId));
+
+  // Notify member via email
+  const subject = input.status === 'approved'
+    ? 'Identity Verified — PowerWorld Gyms'
+    : 'Identity Verification Update — PowerWorld Gyms';
+
+  const body = input.status === 'approved'
+    ? `<p>Hi ${person.fullName},</p><p>Your identity has been verified. Welcome to PowerWorld Gyms!</p>`
+    : `<p>Hi ${person.fullName},</p><p>Your identity verification was not approved.</p>${input.note ? `<p>Reason: ${input.note}</p>` : ''}<p>Please re-upload your documents via the app.</p>`;
+
+  sendEmail(person.email, subject, body).catch(err => console.error('ID verification email failed:', err));
 }

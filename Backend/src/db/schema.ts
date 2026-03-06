@@ -15,6 +15,7 @@ import {
   timestamp,
   mysqlEnum,
   index,
+  int,
 } from 'drizzle-orm/mysql-core';
 import { relations } from 'drizzle-orm';
 
@@ -71,6 +72,13 @@ export const users = mysqlTable('users', {
   joinDate: date('join_date'),
   memberStatus: mysqlEnum('member_status', ['active', 'inactive', 'suspended']),
   assignedTrainerId: varchar('assigned_trainer', { length: 36 }),
+
+  // ID Verification (NIC documents uploaded to OCI Object Storage)
+  idNicFront: varchar('id_nic_front', { length: 500 }),
+  idNicBack: varchar('id_nic_back', { length: 500 }),
+  idVerificationStatus: mysqlEnum('id_verification_status', ['pending', 'approved', 'rejected']),
+  idVerificationNote: text('id_verification_note'),
+  idSubmittedAt: timestamp('id_submitted_at'),
 
   // Audit
   createdAt: timestamp('created_at').notNull().defaultNow(),

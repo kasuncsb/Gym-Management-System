@@ -1,29 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI, getErrorMessage } from '@/lib/api';
 import {
     Dumbbell, ChevronRight, ChevronLeft, Loader2, CheckCircle,
-    AlertCircle, Flame, Zap, Wind, Activity, Heart
+    AlertCircle, Flame, Zap, Wind, Activity, Heart, Upload, FileImage
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Step = 1 | 2 | 3;
 
 interface OnboardData {
-    // Step 1 – Experience
+    // Step 2 – Experience
     experienceLevel: 'beginner' | 'intermediate' | 'advanced' | '';
     previousWorkouts: string;
-    // Step 2 – Goals & Vitals
+    // Step 3 – Goals & Vitals
     fitnessGoals: string;
     bloodType: string;
     medicalConditions: string;
     allergies: string;
-    // Step 3 – Emergency Contact
-    emergencyName: string;
-    emergencyPhone: string;
-    emergencyRelation: string;
 }
 
 const GOALS = [
@@ -48,9 +44,6 @@ export default function Onboard() {
         bloodType: '',
         medicalConditions: '',
         allergies: '',
-        emergencyName: '',
-        emergencyPhone: '',
-        emergencyRelation: '',
     });
 
     const update = (field: keyof OnboardData, value: string) =>
@@ -59,19 +52,34 @@ export default function Onboard() {
     const canProceedStep1 = data.experienceLevel !== '';
     const canProceedStep2 = data.fitnessGoals !== '';
 
+    // Step 4 — NIC document state
+    const [nicFront, setNicFront] = useState<File | null>(null);
+    const [nicBack, setNicBack] = useState<File | null>(null);
+    const [nicFrontPreview, setNicFrontPreview] = useState('');
+    const [nicBackPreview, setNicBackPreview] = useState('');
+
+    const handleFile = (field: 'front' | 'back', file: File | null) => {
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) { setError('File must be under 5MB'); return; }
+        const url = URL.createObjectURL(file);
+        if (field === 'front') { setNicFront(file); setNicFrontPreview(url); }
+        else { setNicBack(file); setNicBackPreview(url); }
+        setError('');
+    };
+
+    const canProceedStep2 = data.experienceLevel !== '';
+    const canProceedStep3 = data.fitnessGoals !== '';
+
     const handleNext = () => {
-        if (step === 1 && !canProceedStep1) {
-            setError('Please select your experience level.');
-            return;
-        }
-        if (step === 2 && !canProceedStep2) {
-            setError('Please select at least one fitness goal.');
-            return;
-        }
+        if (step === 1 && (!nicFront || !nicBack)) { setError('Please upload both NIC front and back images.'); return; }
+        if (step === 2 && !canProceedStep2) { setError('Please select your experience level.'); return; }
+        if (step === 3 && !canProceedStep3) { setError('Please select at least one fitness goal.'); return; }
         setError('');
         setStep(prev => (prev + 1) as Step);
     };
 
+    // Two-phase submit: NIC upload already done on step 1 advance (we hold files)
+    // Final phase: save profile data → redirect
     const handleSubmit = async () => {
         setIsLoading(true);
         setError('');
@@ -83,10 +91,12 @@ export default function Onboard() {
                 bloodType: data.bloodType || undefined,
                 medicalConditions: data.medicalConditions || undefined,
                 allergies: data.allergies || undefined,
-                emergencyName: data.emergencyName || undefined,
-                emergencyPhone: data.emergencyPhone || undefined,
-                emergencyRelation: data.emergencyRelation || undefined,
             });
+            // Upload NIC docs (files held from step 1)
+            const formData = new FormData();
+            formData.append('nic_front', nicFront!);
+            formData.append('nic_back', nicBack!);
+            await authAPI.uploadIdDocuments(formData);
             router.push('/dashboard');
         } catch (err) {
             setError(getErrorMessage(err));
@@ -94,7 +104,7 @@ export default function Onboard() {
         }
     };
 
-    const stepLabels = ['Experience', 'Your Goals', 'Emergency Contact'];
+const stepLabels = ['ID Verification', 'Experience', 'Goals & Vitals'];
 
     return (
         <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 relative overflow-hidden selection:bg-red-600/30">
@@ -151,11 +161,73 @@ export default function Onboard() {
                         </div>
                     )}
 
-                    {/* ── STEP 1: Experience ── */}
+                    {/* ── STEP 1: ID Verification ── */}
                     {step === 1 && (
                         <div className="space-y-6">
                             <div>
-                                <h2 className="text-2xl font-bold text-white mb-1">Welcome to PowerWorld! 💪</h2>
+                                <h2 className="text-2xl font-bold text-white mb-1">Identity Verification 🪪</h2>
+                                <p className="text-zinc-400">Upload your National Identity Card (NIC) front and back. Files must be clear, well-lit, and under 5MB each.</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {/* NIC Front */}
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-zinc-300">NIC Front <span className="text-red-500">*</span></label>
+                                    <label className={cn(
+                                        'flex flex-col items-center justify-center h-40 rounded-2xl border-2 border-dashed cursor-pointer transition-all overflow-hidden relative',
+                                        nicFront ? 'border-emerald-500/50' : 'border-zinc-700 hover:border-zinc-500'
+                                    )}>
+                                        {nicFrontPreview ? (
+                                            <img src={nicFrontPreview} alt="NIC Front" className="absolute inset-0 w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="flex flex-col items-center gap-2 text-zinc-500">
+                                                <Upload size={28} />
+                                                <span className="text-xs">Click to upload</span>
+                                                <span className="text-xs">JPEG / PNG / WebP</span>
+                                            </div>
+                                        )}
+                                        <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only"
+                                            onChange={e => handleFile('front', e.target.files?.[0] ?? null)} />
+                                    </label>
+                                    {nicFront && <p className="text-xs text-emerald-400 flex items-center gap-1"><CheckCircle size={12} /> {nicFront.name}</p>}
+                                </div>
+
+                                {/* NIC Back */}
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-zinc-300">NIC Back <span className="text-red-500">*</span></label>
+                                    <label className={cn(
+                                        'flex flex-col items-center justify-center h-40 rounded-2xl border-2 border-dashed cursor-pointer transition-all overflow-hidden relative',
+                                        nicBack ? 'border-emerald-500/50' : 'border-zinc-700 hover:border-zinc-500'
+                                    )}>
+                                        {nicBackPreview ? (
+                                            <img src={nicBackPreview} alt="NIC Back" className="absolute inset-0 w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="flex flex-col items-center gap-2 text-zinc-500">
+                                                <FileImage size={28} />
+                                                <span className="text-xs">Click to upload</span>
+                                                <span className="text-xs">JPEG / PNG / WebP</span>
+                                            </div>
+                                        )}
+                                        <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only"
+                                            onChange={e => handleFile('back', e.target.files?.[0] ?? null)} />
+                                    </label>
+                                    {nicBack && <p className="text-xs text-emerald-400 flex items-center gap-1"><CheckCircle size={12} /> {nicBack.name}</p>}
+                                </div>
+                            </div>
+
+                            <div className="p-4 rounded-2xl bg-zinc-800/50 border border-zinc-700">
+                                <p className="text-xs text-zinc-400 leading-relaxed">
+                                    Documents are stored securely and only reviewed by authorised PowerWorld Gyms staff.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── STEP 2: Experience ── */}
+                    {step === 2 && (
+                        <div className="space-y-6">
+                            <div>
+                                <h2 className="text-2xl font-bold text-white mb-1">Your Experience 💪</h2>
                                 <p className="text-zinc-400">Tell us about your gym experience so we can tailor your workout plan.</p>
                             </div>
 
@@ -197,7 +269,7 @@ export default function Onboard() {
                                         value={data.previousWorkouts}
                                         onChange={e => update('previousWorkouts', e.target.value)}
                                         rows={3}
-                                        placeholder="e.g., 2 years of weightlifting, focused on hypertrophy. Comfortable with compound lifts..."
+                                        placeholder="e.g., 2 years of weightlifting, focused on hypertrophy..."
                                         className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 px-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all resize-none"
                                     />
                                 </div>
@@ -205,15 +277,14 @@ export default function Onboard() {
                         </div>
                     )}
 
-                    {/* ── STEP 2: Goals & Vitals ── */}
-                    {step === 2 && (
+                    {/* ── STEP 3: Goals & Vitals ── */}
+                    {step === 3 && (
                         <div className="space-y-6">
                             <div>
                                 <h2 className="text-2xl font-bold text-white mb-1">What's your goal? 🎯</h2>
-                                <p className="text-zinc-400">We'll use this to generate the perfect workout plan for you.</p>
+                                <p className="text-zinc-400">We'll use this to personalise your workout plan.</p>
                             </div>
 
-                            {/* Goal Selection */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {GOALS.map(goal => (
                                     <button
@@ -236,7 +307,6 @@ export default function Onboard() {
                                 ))}
                             </div>
 
-                            {/* Optional Vitals */}
                             <div className="border-t border-zinc-800 pt-5 space-y-4">
                                 <p className="text-sm text-zinc-500 font-medium uppercase tracking-wider">Optional — Health Info</p>
 
@@ -277,58 +347,13 @@ export default function Onboard() {
                                         className="w-full bg-black/50 border border-zinc-800 rounded-xl py-2.5 px-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all text-sm"
                                     />
                                 </div>
-                            </div>
-                        </div>
-                    )}
 
-                    {/* ── STEP 3: Emergency Contact ── */}
-                    {step === 3 && (
-                        <div className="space-y-6">
-                            <div>
-                                <h2 className="text-2xl font-bold text-white mb-1">Emergency Contact 🛡️</h2>
-                                <p className="text-zinc-400">Provide someone we can reach in case of an emergency. <span className="text-zinc-500">(Optional but recommended)</span></p>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-zinc-300">Contact Name</label>
-                                    <input
-                                        type="text"
-                                        value={data.emergencyName}
-                                        onChange={e => update('emergencyName', e.target.value)}
-                                        placeholder="e.g., Nimal Perera"
-                                        className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 px-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
-                                    />
+                                <div className="p-4 rounded-2xl bg-zinc-800/50 border border-zinc-700">
+                                    <p className="text-xs text-zinc-400 leading-relaxed">
+                                        By completing onboarding, you confirm that the information provided is accurate.
+                                        Your data is only used to personalise your fitness experience.
+                                    </p>
                                 </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-zinc-300">Phone Number</label>
-                                    <input
-                                        type="tel"
-                                        value={data.emergencyPhone}
-                                        onChange={e => update('emergencyPhone', e.target.value)}
-                                        placeholder="+94 77 123 4567"
-                                        className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 px-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-zinc-300">Relationship</label>
-                                    <input
-                                        type="text"
-                                        value={data.emergencyRelation}
-                                        onChange={e => update('emergencyRelation', e.target.value)}
-                                        placeholder="e.g., Spouse, Parent, Sibling"
-                                        className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 px-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="p-4 rounded-2xl bg-zinc-800/50 border border-zinc-700">
-                                <p className="text-xs text-zinc-400 leading-relaxed">
-                                    By completing onboarding, you confirm that the information provided is accurate.
-                                    Your data is only used to personalise your fitness experience and ensure your safety at our facility.
-                                </p>
                             </div>
                         </div>
                     )}
@@ -371,9 +396,9 @@ export default function Onboard() {
                     </div>
                 </div>
 
-                <p className="text-center text-zinc-600 text-sm mt-6">
-                    Step {step} of 3 · PowerWorld Gyms, Kiribathgoda
-                </p>
+                    <p className="text-center text-zinc-600 text-sm mt-6">
+                        Step {step} of 3 · PowerWorld Gyms, Kiribathgoda
+                    </p>
             </div>
         </div>
     );

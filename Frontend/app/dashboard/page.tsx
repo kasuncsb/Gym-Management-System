@@ -6,7 +6,7 @@ import { authAPI, getErrorMessage } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import {
     User, Mail, Shield, Calendar, Hash, CheckCircle,
-    AlertCircle, Lock, Send, Loader2, Eye, EyeOff
+    AlertCircle, Lock, Send, Loader2, Eye, EyeOff, FileCheck2, ShieldCheck, XCircle, Clock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +20,9 @@ interface Profile {
     memberStatus: string | null;
     joinDate: string | null;
     emailVerified: boolean;
+    idVerificationStatus: 'pending' | 'approved' | 'rejected' | null;
+    idVerificationNote: string | null;
+    idSubmittedAt: string | null;
     profile: {
         fitnessGoals: string | null;
         experienceLevel: string | null;
@@ -49,6 +52,19 @@ export default function Dashboard() {
     const [verifyLoading, setVerifyLoading] = useState(false);
     const [verifyMessage, setVerifyMessage] = useState('');
 
+    // Admin: ID submissions state
+    type IdSubmission = {
+        id: string; fullName: string; email: string; memberCode: string | null;
+        idNicFront: string; idNicBack: string;
+        idVerificationStatus: string | null;
+        idVerificationNote: string | null;
+        idSubmittedAt: string | null;
+    };
+    const [idSubmissions, setIdSubmissions] = useState<IdSubmission[]>([]);
+    const [adminLoading, setAdminLoading] = useState(false);
+    const [reviewNote, setReviewNote] = useState<Record<string, string>>({});
+    const [reviewingId, setReviewingId] = useState<string | null>(null);
+
     useEffect(() => {
         async function fetchProfile() {
             try {
@@ -60,6 +76,12 @@ export default function Dashboard() {
                     return;
                 }
                 setProfile(data);
+                // Admins fetch ID submissions list
+                if (data.role === 'admin') {
+                    const { authAPI: api } = await import('@/lib/api');
+                    const subRes = await api.getIdSubmissions();
+                    setIdSubmissions(subRes.data.data ?? []);
+                }
             } catch (err) {
                 setError(getErrorMessage(err));
             } finally {
@@ -108,6 +130,20 @@ export default function Dashboard() {
             setVerifyMessage(getErrorMessage(err));
         } finally {
             setVerifyLoading(false);
+        }
+    };
+
+    const handleAdminVerify = async (userId: string, status: 'approved' | 'rejected') => {
+        setReviewingId(userId);
+        try {
+            await authAPI.adminVerifyId(userId, status, reviewNote[userId]);
+            setIdSubmissions(prev => prev.map(s =>
+                s.id === userId ? { ...s, idVerificationStatus: status, idVerificationNote: reviewNote[userId] ?? null } : s
+            ));
+        } catch (err) {
+            alert(getErrorMessage(err));
+        } finally {
+            setReviewingId(null);
         }
     };
 
@@ -188,6 +224,44 @@ export default function Dashboard() {
             {verifyMessage && (
                 <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-sm text-zinc-300">
                     {verifyMessage}
+                </div>
+            )}
+
+            {/* ID Verification Status Card */}
+            {p.role === 'member' && (
+                <div className={cn(
+                    'p-4 rounded-2xl border flex items-start gap-4',
+                    p.idVerificationStatus === 'approved'  ? 'bg-emerald-500/10 border-emerald-500/20' :
+                    p.idVerificationStatus === 'rejected'  ? 'bg-red-500/10 border-red-500/20' :
+                    p.idVerificationStatus === 'pending'   ? 'bg-amber-500/10 border-amber-500/20' :
+                    'bg-zinc-900/50 border-zinc-800'
+                )}>
+                    <div className="shrink-0 mt-0.5">
+                        {p.idVerificationStatus === 'approved'  && <ShieldCheck size={20} className="text-emerald-400" />}
+                        {p.idVerificationStatus === 'rejected'  && <XCircle size={20} className="text-red-400" />}
+                        {p.idVerificationStatus === 'pending'   && <Clock size={20} className="text-amber-400" />}
+                        {!p.idVerificationStatus               && <FileCheck2 size={20} className="text-zinc-500" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className={cn('text-sm font-semibold',
+                            p.idVerificationStatus === 'approved' ? 'text-emerald-300' :
+                            p.idVerificationStatus === 'rejected' ? 'text-red-300' :
+                            p.idVerificationStatus === 'pending'  ? 'text-amber-300' : 'text-zinc-400'
+                        )}>
+                            {p.idVerificationStatus === 'approved' && 'Identity Verified ✓'}
+                            {p.idVerificationStatus === 'rejected' && 'Identity Verification Failed'}
+                            {p.idVerificationStatus === 'pending'  && 'Identity Verification Pending Review'}
+                            {!p.idVerificationStatus              && 'Identity Not Submitted'}
+                        </p>
+                        {p.idVerificationNote && (
+                            <p className="text-xs text-red-300 mt-1">{p.idVerificationNote}</p>
+                        )}
+                        {p.idVerificationStatus === 'rejected' && (
+                            <a href="/onboard" className="inline-block mt-2 text-xs font-medium text-red-400 underline underline-offset-2">
+                                Re-upload documents →
+                            </a>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -358,6 +432,102 @@ export default function Dashboard() {
                     </form>
                 )}
             </div>
+
+            {/* ── Admin: ID Verification Review ──────────────────────────────── */}
+            {p.role === 'admin' && (
+                <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                        <ShieldCheck size={20} className="text-purple-400" />
+                        <h2 className="text-xl font-bold text-white">ID Verification Queue</h2>
+                        <span className="ml-auto text-sm text-zinc-500">
+                            {idSubmissions.filter(s => s.idVerificationStatus === 'pending').length} pending
+                        </span>
+                    </div>
+
+                    {idSubmissions.length === 0 ? (
+                        <div className="p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 text-center text-zinc-500 text-sm">
+                            No submissions yet.
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {idSubmissions.map(sub => (
+                                <div key={sub.id} className={cn(
+                                    'p-5 rounded-2xl border bg-zinc-900/50',
+                                    sub.idVerificationStatus === 'pending' ? 'border-amber-500/30' :
+                                    sub.idVerificationStatus === 'approved' ? 'border-emerald-500/20' :
+                                    'border-red-500/20'
+                                )}>
+                                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                                        <div>
+                                            <p className="font-semibold text-white">{sub.fullName}</p>
+                                            <p className="text-xs text-zinc-500">{sub.email} · {sub.memberCode ?? 'No code'}</p>
+                                            {sub.idSubmittedAt && (
+                                                <p className="text-xs text-zinc-600 mt-1">
+                                                    Submitted {new Date(sub.idSubmittedAt).toLocaleString()}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <span className={cn(
+                                            'text-xs font-bold px-2.5 py-1 rounded-full border',
+                                            sub.idVerificationStatus === 'pending'  ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' :
+                                            sub.idVerificationStatus === 'approved' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' :
+                                            sub.idVerificationStatus === 'rejected' ? 'bg-red-500/15 text-red-400 border-red-500/30' :
+                                            'bg-zinc-500/15 text-zinc-400 border-zinc-500/30'
+                                        )}>
+                                            {sub.idVerificationStatus ?? 'not submitted'}
+                                        </span>
+                                    </div>
+
+                                    {/* Document image links — proxy through backend, no OCI URL to browser */}
+                                    {(sub.idNicFront || sub.idNicBack) && (
+                                        <div className="flex gap-3 mt-3">
+                                            {sub.idNicFront && (
+                                                <a href={`/api/auth/admin/id-document/${sub.id}/front`} target="_blank" rel="noopener noreferrer"
+                                                    className="text-xs text-blue-400 underline underline-offset-2">
+                                                    View NIC Front ↗
+                                                </a>
+                                            )}
+                                            {sub.idNicBack && (
+                                                <a href={`/api/auth/admin/id-document/${sub.id}/back`} target="_blank" rel="noopener noreferrer"
+                                                    className="text-xs text-blue-400 underline underline-offset-2">
+                                                    View NIC Back ↗
+                                                </a>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Approve / Reject controls */}
+                                    <div className="flex items-center gap-3 mt-4 pt-4 border-t border-zinc-800 flex-wrap">
+                                        <input
+                                            type="text"
+                                            placeholder="Optional note (shown to member on rejection)"
+                                            value={reviewNote[sub.id] ?? ''}
+                                            onChange={e => setReviewNote(prev => ({ ...prev, [sub.id]: e.target.value }))}
+                                            className="flex-1 min-w-48 bg-black/50 border border-zinc-700 rounded-xl py-2 px-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 transition-all"
+                                        />
+                                        <button
+                                            onClick={() => handleAdminVerify(sub.id, 'approved')}
+                                            disabled={reviewingId === sub.id}
+                                            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-all flex items-center gap-2 disabled:opacity-60"
+                                        >
+                                            {reviewingId === sub.id ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                                            Approve
+                                        </button>
+                                        <button
+                                            onClick={() => handleAdminVerify(sub.id, 'rejected')}
+                                            disabled={reviewingId === sub.id}
+                                            className="px-4 py-2 rounded-xl bg-red-700 hover:bg-red-800 text-white text-sm font-semibold transition-all flex items-center gap-2 disabled:opacity-60"
+                                        >
+                                            {reviewingId === sub.id ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
+                                            Reject
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

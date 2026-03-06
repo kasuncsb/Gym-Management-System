@@ -20,6 +20,10 @@ export default function Register() {
     const [passwordFocused, setPasswordFocused] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    // Emergency contact (mandatory)
+    const [emergencyName, setEmergencyName] = useState('');
+    const [emergencyPhone, setEmergencyPhone] = useState('');
+    const [emergencyRelation, setEmergencyRelation] = useState('');
     const router = useRouter();
     const { login } = useAuth();
 
@@ -41,18 +45,19 @@ export default function Register() {
                 password,
                 phone,
                 gender: gender as 'male' | 'female' | 'other' | undefined || undefined,
+                emergencyName,
+                emergencyPhone,
+                emergencyRelation,
             });
 
-            const { accessToken, refreshToken, user } = response.data.data;
+            const { user } = response.data.data;
 
-            // Auto-login on successful registration
-            login(accessToken, refreshToken, {
+            // Auto-login — cookies already set by backend
+            login({
                 id: user.id,
                 fullName: user.fullName,
                 email: user.email,
                 role: user.role,
-                phone: undefined,
-                avatarUrl: undefined,
             });
 
             // New member → go to onboarding
@@ -254,6 +259,44 @@ export default function Register() {
                                 >
                                     {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
+                            </div>
+                        </div>
+
+                        {/* Emergency Contact — Mandatory */}
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                                <div className="h-px flex-1 bg-zinc-800" />
+                                <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Emergency Contact</span>
+                                <div className="h-px flex-1 bg-zinc-800" />
+                            </div>
+                            <p className="text-xs text-zinc-600">Required for your safety — must be reachable in emergencies.</p>
+
+                            <input
+                                type="text"
+                                value={emergencyName}
+                                onChange={e => setEmergencyName(e.target.value)}
+                                placeholder="Contact full name *"
+                                required
+                                className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 px-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
+                            />
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <input
+                                    type="tel"
+                                    value={emergencyPhone}
+                                    onChange={e => setEmergencyPhone(e.target.value)}
+                                    placeholder="Phone *"
+                                    required
+                                    className="bg-black/50 border border-zinc-800 rounded-xl py-3 px-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
+                                />
+                                <input
+                                    type="text"
+                                    value={emergencyRelation}
+                                    onChange={e => setEmergencyRelation(e.target.value)}
+                                    placeholder="Relationship *"
+                                    required
+                                    className="bg-black/50 border border-zinc-800 rounded-xl py-3 px-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
+                                />
                             </div>
                         </div>
 
