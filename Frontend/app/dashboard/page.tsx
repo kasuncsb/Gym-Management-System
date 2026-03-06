@@ -61,7 +61,6 @@ export default function Dashboard() {
         idSubmittedAt: string | null;
     };
     const [idSubmissions, setIdSubmissions] = useState<IdSubmission[]>([]);
-    const [adminLoading, setAdminLoading] = useState(false);
     const [reviewNote, setReviewNote] = useState<Record<string, string>>({});
     const [reviewingId, setReviewingId] = useState<string | null>(null);
 

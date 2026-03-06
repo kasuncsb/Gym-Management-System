@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI, getErrorMessage } from '@/lib/api';
 import {
@@ -49,8 +49,6 @@ export default function Onboard() {
     const update = (field: keyof OnboardData, value: string) =>
         setData(prev => ({ ...prev, [field]: value }));
 
-    const canProceedStep1 = data.experienceLevel !== '';
-    const canProceedStep2 = data.fitnessGoals !== '';
 
     // Step 4 — NIC document state
     const [nicFront, setNicFront] = useState<File | null>(null);

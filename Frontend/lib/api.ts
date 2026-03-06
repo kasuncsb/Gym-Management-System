@@ -70,6 +70,9 @@ export const authAPI = {
     phone: string;
     password: string;
     gender?: string;
+    emergencyName: string;
+    emergencyPhone: string;
+    emergencyRelation: string;
   }) => apiClient.post('/auth/register', data),
 
   login: (email: string, password: string) =>
