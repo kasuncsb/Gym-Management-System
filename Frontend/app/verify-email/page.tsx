@@ -2,12 +2,15 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { authAPI } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { Dumbbell, Loader2, CheckCircle, XCircle, ArrowRight } from "lucide-react";
 
 function VerifyEmailContent() {
     const searchParams = useSearchParams();
+    const router = useRouter();
+    const { isAuthenticated } = useAuth();
     const token = searchParams.get('token');
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
     const [message, setMessage] = useState('');
@@ -23,6 +26,10 @@ function VerifyEmailContent() {
             try {
                 await authAPI.verifyEmail(token);
                 setStatus('success');
+                // Auto-redirect after 2s if already logged in
+                if (isAuthenticated) {
+                    setTimeout(() => router.push('/dashboard'), 2000);
+                }
             } catch (err: any) {
                 setStatus('error');
                 setMessage(err.response?.data?.message || 'Verification failed. The link may be expired or invalid.');
@@ -30,7 +37,7 @@ function VerifyEmailContent() {
         };
 
         verify();
-    }, [token]);
+    }, [token, isAuthenticated, router]);
 
     return (
         <div className="w-full max-w-md bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-8 rounded-3xl shadow-2xl relative z-10 text-center">
@@ -51,14 +58,24 @@ function VerifyEmailContent() {
                     </div>
                     <h2 className="text-2xl font-bold mb-4">Email Verified!</h2>
                     <p className="text-zinc-400 mb-8 leading-relaxed">
-                        Your account has been successfully verified. You can now access your dashboard.
+                        Your account has been successfully verified.{' '}
+                        {isAuthenticated ? 'Redirecting you to your dashboard...' : 'You can now log in to access your dashboard.'}
                     </p>
-                    <Link
-                        href="/login"
-                        className="w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-800 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2"
-                    >
-                        Go to Login <ArrowRight size={18} />
-                    </Link>
+                    {isAuthenticated ? (
+                        <button
+                            onClick={() => router.push('/dashboard')}
+                            className="w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-800 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2"
+                        >
+                            Go to Dashboard <ArrowRight size={18} />
+                        </button>
+                    ) : (
+                        <Link
+                            href="/login"
+                            className="w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-800 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2"
+                        >
+                            Go to Login <ArrowRight size={18} />
+                        </Link>
+                    )}
                 </>
             )}
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { authAPI, getErrorMessage } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -28,6 +29,7 @@ interface Profile {
 
 export default function Dashboard() {
     const { user } = useAuth();
+    const router = useRouter();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -51,7 +53,13 @@ export default function Dashboard() {
         async function fetchProfile() {
             try {
                 const res = await authAPI.getProfile();
-                setProfile(res.data.data);
+                const data = res.data.data;
+                // Guard: member must complete onboarding
+                if (data.role === 'member' && data.profile && !data.profile.isOnboarded) {
+                    router.replace('/onboard');
+                    return;
+                }
+                setProfile(data);
             } catch (err) {
                 setError(getErrorMessage(err));
             } finally {
@@ -59,7 +67,7 @@ export default function Dashboard() {
             }
         }
         fetchProfile();
-    }, []);
+    }, [router]);
 
     const handleChangePassword = async (e: React.FormEvent) => {
         e.preventDefault();

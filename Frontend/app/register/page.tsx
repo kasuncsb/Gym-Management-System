@@ -4,13 +4,15 @@ import { useState } from 'react';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authAPI, getErrorMessage } from "@/lib/api";
-import { Dumbbell, User, Mail, Lock, Phone, Loader2, CheckCircle, ArrowRight, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { Dumbbell, User, Mail, Lock, Phone, Loader2, ArrowRight, Eye, EyeOff, AlertCircle, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Register() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
+    const [gender, setGender] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -18,8 +20,8 @@ export default function Register() {
     const [passwordFocused, setPasswordFocused] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
-    const [isSuccess, setIsSuccess] = useState(false);
     const router = useRouter();
+    const { login } = useAuth();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -32,21 +34,29 @@ export default function Register() {
             return;
         }
 
-        if (password.length < 8) {
-            setError('Password must be at least 8 characters');
-            setIsLoading(false);
-            return;
-        }
-
         try {
-            await authAPI.register({
+            const response = await authAPI.register({
                 fullName: name,
                 email,
                 password,
-                phone
+                phone,
+                gender: gender as 'male' | 'female' | 'other' | undefined || undefined,
             });
 
-            setIsSuccess(true);
+            const { accessToken, refreshToken, user } = response.data.data;
+
+            // Auto-login on successful registration
+            login(accessToken, refreshToken, {
+                id: user.id,
+                fullName: user.fullName,
+                email: user.email,
+                role: user.role,
+                phone: undefined,
+                avatarUrl: undefined,
+            });
+
+            // New member → go to onboarding
+            router.push('/onboard');
         } catch (err: any) {
             console.error('Registration failed:', err);
             setError(getErrorMessage(err));
@@ -54,36 +64,6 @@ export default function Register() {
             setIsLoading(false);
         }
     };
-
-    if (isSuccess) {
-        return (
-            <div className="min-h-screen bg-black text-white flex items-center justify-center p-6 relative overflow-hidden">
-                <div className="absolute inset-0 z-0">
-                    <div className="absolute top-0 right-[-10%] w-125 h-125 bg-red-700/20 rounded-full blur-[128px]" />
-                    <div className="absolute bottom-0 left-[-10%] w-125 h-125 bg-red-600/10 rounded-full blur-[128px]" />
-                </div>
-
-                <div className="w-full max-w-md bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-8 rounded-3xl shadow-2xl relative z-10 text-center">
-                    <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <CheckCircle className="text-green-500" size={32} />
-                    </div>
-
-                    <h2 className="text-2xl font-bold mb-4">Account Created!</h2>
-                    <p className="text-zinc-400 mb-8 leading-relaxed">
-                        We've sent a verification link to <span className="text-white font-medium">{email}</span>.
-                        Please check your inbox to verify your account and access the dashboard.
-                    </p>
-
-                    <Link
-                        href="/login"
-                        className="w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-800 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2"
-                    >
-                        Go to Login <ArrowRight size={18} />
-                    </Link>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="min-h-screen bg-black text-white flex relative overflow-hidden selection:bg-red-600/30">
@@ -142,6 +122,7 @@ export default function Register() {
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        {/* Full Name */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-zinc-300">Full Name</label>
                             <div className="relative group">
@@ -157,6 +138,7 @@ export default function Register() {
                             </div>
                         </div>
 
+                        {/* Email */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-zinc-300">Email Address</label>
                             <div className="relative group">
@@ -172,21 +154,41 @@ export default function Register() {
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-zinc-300">Phone Number</label>
-                            <div className="relative group">
-                                <Phone className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={18} />
-                                <input
-                                    type="tel"
-                                    value={phone}
-                                    onChange={(e) => setPhone(e.target.value)}
-                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
-                                    placeholder="+94 77 123 4567"
-                                    required
-                                />
+                        {/* Phone + Gender row */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-zinc-300">Phone Number</label>
+                                <div className="relative group">
+                                    <Phone className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={18} />
+                                    <input
+                                        type="tel"
+                                        value={phone}
+                                        onChange={(e) => setPhone(e.target.value)}
+                                        className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
+                                        placeholder="+94 77 123 4567"
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-zinc-300">Gender</label>
+                                <div className="relative group">
+                                    <ChevronDown className="absolute right-3 top-3.5 text-zinc-500 pointer-events-none" size={18} />
+                                    <select
+                                        value={gender}
+                                        onChange={(e) => setGender(e.target.value)}
+                                        className="w-full appearance-none bg-black/50 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all cursor-pointer"
+                                    >
+                                        <option value="" className="bg-zinc-900">Select</option>
+                                        <option value="male" className="bg-zinc-900">Male</option>
+                                        <option value="female" className="bg-zinc-900">Female</option>
+                                        <option value="other" className="bg-zinc-900">Other</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
 
+                        {/* Password */}
                         <div className="space-y-2 relative">
                             <label className="text-sm font-medium text-zinc-300">Password</label>
                             <div className="relative group">
@@ -212,13 +214,7 @@ export default function Register() {
 
                             {/* Password Requirements Tooltip */}
                             {passwordFocused && (
-                                <div className="absolute top-full left-0 mt-4 w-full lg:top-1/2 lg:-translate-y-1/2 lg:left-full lg:ml-6 lg:mt-0 lg:w-72 p-4 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-50 animate-in fade-in slide-in-from-top-2 lg:slide-in-from-left-2 transition-all">
-                                    {/* Tooltip Arrow/Tail */}
-                                    <div className="absolute w-3 h-3 bg-zinc-900 border-zinc-800 transform rotate-45 
-                                        -top-1.75 left-1/2 -translate-x-1/2 border-t border-l
-                                        lg:top-1/2 lg:-left-1.75 lg:-translate-y-1/2 lg:translate-x-0 lg:border-t-0 lg:border-l lg:border-b"
-                                    />
-
+                                <div className="absolute top-full left-0 mt-2 w-full p-4 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-50">
                                     <h4 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
                                         <AlertCircle size={14} className="text-red-500" /> Password Requirements
                                     </h4>
@@ -238,6 +234,7 @@ export default function Register() {
                             )}
                         </div>
 
+                        {/* Confirm Password */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-zinc-300">Confirm Password</label>
                             <div className="relative group">
@@ -268,7 +265,7 @@ export default function Register() {
                                 isLoading && "opacity-70 cursor-not-allowed"
                             )}
                         >
-                            {isLoading ? <Loader2 className="animate-spin" size={20} /> : "Create Account"}
+                            {isLoading ? <Loader2 className="animate-spin" size={20} /> : <>Create Account <ArrowRight size={18} /></>}
                         </button>
                     </form>
 

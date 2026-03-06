@@ -12,7 +12,26 @@ import { ids } from '../utils/id.js';
 import { hashPassword, verifyPassword, validatePassword } from '../utils/password.js';
 import { errors } from '../utils/errors.js';
 import { sendEmail, generateVerifyEmailHTML, generateResetPasswordHTML } from '../utils/email.js';
-import type { LoginInput, RegisterInput, ChangePasswordInput } from '../validators/auth.validator.js';
+import type { LoginInput, RegisterInput, ChangePasswordInput, OnboardingInput } from '../validators/auth.validator.js';
+
+export async function completeOnboarding(userId: string, input: OnboardingInput): Promise<void> {
+  const [person] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!person) throw errors.notFound('User');
+  if (person.role !== 'member') throw errors.forbidden('Onboarding is only for members');
+
+  await db.update(memberProfiles).set({
+    experienceLevel: input.experienceLevel,
+    fitnessGoals: input.fitnessGoals,
+    medicalConditions: input.medicalConditions,
+    allergies: input.allergies,
+    bloodType: input.bloodType,
+    emergencyName: input.emergencyName,
+    emergencyPhone: input.emergencyRelation ? input.emergencyPhone : undefined,
+    emergencyRelation: input.emergencyRelation,
+    isOnboarded: true,
+    onboardedAt: new Date(),
+  }).where(eq(memberProfiles.personId, userId));
+}
 
 export interface AuthResponse {
   accessToken: string;

@@ -11,6 +11,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   verifyEmailSchema,
+  onboardingSchema,
 } from '../validators/auth.validator.js';
 
 const router = Router();
@@ -28,5 +29,6 @@ router.get('/profile', authenticate, auth.getProfile);
 router.post('/send-verification', authenticate, auth.sendVerificationEmail);
 router.post('/change-password', authenticate, validate(changePasswordSchema), auth.changePassword);
 router.post('/logout', authenticate, auth.logout);
+router.post('/onboarding', authenticate, validate(onboardingSchema), auth.completeOnboarding);
 
 export default router;

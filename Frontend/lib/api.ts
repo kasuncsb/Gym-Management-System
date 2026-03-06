@@ -114,6 +114,18 @@ export const authAPI = {
 
     resetPassword: (token: string, newPassword: string) =>
         apiClient.post('/auth/reset-password', { token, newPassword }),
+
+    completeOnboarding: (data: {
+        experienceLevel: 'beginner' | 'intermediate' | 'advanced';
+        previousWorkouts?: string;
+        fitnessGoals?: string;
+        bloodType?: string;
+        medicalConditions?: string;
+        allergies?: string;
+        emergencyName?: string;
+        emergencyPhone?: string;
+        emergencyRelation?: string;
+    }) => apiClient.post('/auth/onboarding', data),
 };
 
 export default apiClient;

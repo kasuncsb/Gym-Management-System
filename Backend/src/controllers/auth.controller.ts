@@ -11,7 +11,13 @@ import type {
   ForgotPasswordInput,
   ResetPasswordInput,
   VerifyEmailInput,
+  OnboardingInput,
 } from '../validators/auth.validator.js';
+
+export const completeOnboarding = asyncHandler(async (req: AuthRequest, res: Response) => {
+  await authService.completeOnboarding(req.user!.id, req.body as OnboardingInput);
+  res.json(response.success(null, 'Onboarding complete'));
+});
 
 export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
   const result = await authService.login(req.body as LoginInput);
