@@ -43,5 +43,8 @@ else
   echo "Database schema already exists. Skipping migration and seed."
 fi
 
+echo "Starting Redis server in background..."
+cd /tmp && redis-server --daemonize yes && cd /app
+
 echo "Starting server..."
 exec "$@"

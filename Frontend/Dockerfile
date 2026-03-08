@@ -31,11 +31,20 @@ COPY --from=builder /app/.next         ./.next
 COPY --from=builder /app/node_modules  ./node_modules
 COPY --from=builder /app/package.json  ./package.json
 
+USER root
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY entrypoint.sh ./
+RUN apk add --no-cache nginx && \
+    chmod +x ./entrypoint.sh && \
+    mkdir -p /var/log/nginx /var/lib/nginx && \
+    chown -R appuser:appgroup /var/log/nginx /var/lib/nginx /etc/nginx
+
 USER appuser
 
 EXPOSE 3000
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:3000/ || exit 1
+  CMD wget -qO- http://localhost:8080/ || exit 1
 
-CMD ["node_modules/.bin/next", "start"]
+ENTRYPOINT ["./entrypoint.sh"]
