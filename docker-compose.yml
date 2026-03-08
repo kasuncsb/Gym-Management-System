@@ -43,6 +43,15 @@ services:
       timeout: 5s
       start_period: 15s
       retries: 3
+    depends_on:
+      redis:
+        condition: service_started
+    networks:
+      - app
+
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
     networks:
       - app
 
