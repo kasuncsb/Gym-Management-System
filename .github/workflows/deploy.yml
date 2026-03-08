@@ -14,6 +14,9 @@ jobs:
   deploy:
     name: Deploy on Server
     runs-on: ubuntu-latest
+    environment:
+      name: Production
+      url: https://gms.kasunc.uk
     
     steps:
       - name: Checkout code
