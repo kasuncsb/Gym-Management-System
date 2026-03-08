@@ -63,6 +63,7 @@ jobs:
           port: ${{ secrets.SERVER_PORT || 22 }}
           script_stop: true
           script: |
+            cd ~/Hosted/gms
             echo "Waiting for backend to respond..."
             # Wait up to 50 seconds (10 attempts * 5 seconds)
             for i in $(seq 1 10); do

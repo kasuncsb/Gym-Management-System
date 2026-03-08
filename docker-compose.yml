@@ -1,4 +1,3 @@
-version: '3.9'
 
 # MySQL and Redis run natively on the host server — NOT in containers.
 # Backend and Frontend containers reach them via host.docker.internal.
