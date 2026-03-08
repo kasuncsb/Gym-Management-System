@@ -6,6 +6,7 @@ import { Response, CookieOptions } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import { asyncHandler, validate } from '../middleware/error.js';
 import * as response from '../utils/response.js';
+import { errors } from '../utils/errors.js';
 import * as authService from '../services/auth.service.js';
 import { downloadFile } from '../utils/oci-storage.js';
 import type {
@@ -58,7 +59,7 @@ export const register = asyncHandler(async (req: AuthRequest, res: Response) => 
 
 export const refresh = asyncHandler(async (req: AuthRequest, res: Response) => {
   const refreshToken = req.cookies?.refresh_token;
-  if (!refreshToken) throw { status: 401, message: 'No refresh token' };
+  if (!refreshToken) throw errors.unauthorized('No refresh token');
   const result = await authService.refresh(refreshToken);
   setAuthCookies(res, result.accessToken, result.refreshToken);
   res.json(response.success({ user: result.user }, 'Token refreshed'));
@@ -111,7 +112,7 @@ export const completeOnboarding = asyncHandler(async (req: AuthRequest, res: Res
 export const uploadIdDocuments = asyncHandler(async (req: AuthRequest, res: Response) => {
   const files = (req as any).files as { [fieldname: string]: Express.Multer.File[] };
   if (!files?.nic_front?.[0] || !files?.nic_back?.[0]) {
-    throw { status: 400, message: 'NIC front and back images are required' };
+    throw errors.badRequest('NIC front and back images are required');
   }
   await authService.uploadIdDocuments(
     req.user!.id,
@@ -135,10 +136,10 @@ export const adminVerifyId = asyncHandler(async (req: AuthRequest, res: Response
 /** Stream a private OCI NIC document to the admin — never exposes OCI URLs to browser */
 export const downloadIdDocument = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { userId, type } = req.params;
-  if (type !== 'front' && type !== 'back') throw { status: 400, message: 'Invalid document type' };
+  if (type !== 'front' && type !== 'back') throw errors.badRequest('Invalid document type');
 
   const { data } = await authService.getIdDocumentObjectName(userId, type as 'front' | 'back');
-  if (!data) throw { status: 404, message: 'Document not found' };
+  if (!data) throw errors.notFound('Document not found');
 
   const { body, contentType } = await downloadFile(data);
 

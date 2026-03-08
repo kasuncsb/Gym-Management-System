@@ -1,4 +1,4 @@
-# PowerWorld Gyms Management System
+# PowerWorld Gym Management System
 
 A web-based gym management system developed for PowerWorld Gyms (Kiribathgoda Branch). This software is designed to handle membership registration, subscription management, staff operations, and secure identity verification.
 

@@ -53,8 +53,14 @@ apiClient.interceptors.response.use(
       return apiClient(original);
     } catch (refreshError) {
       processQueue(refreshError);
-      // Refresh failed — redirect to home (clears client state)
-      if (typeof window !== 'undefined') window.location.href = '/';
+      
+      // Refresh failed. Only forcefully redirect if on a protected route.
+      if (typeof window !== 'undefined') {
+        const path = window.location.pathname;
+        if (path !== '/' && path !== '/login' && path !== '/register') {
+          window.location.href = '/login';
+        }
+      }
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;
