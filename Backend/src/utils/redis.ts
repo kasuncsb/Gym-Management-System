@@ -66,10 +66,16 @@ export async function consumeRefreshToken(jti: string): Promise<string | null> {
 
 /** Delete a single refresh token (on logout) */
 export async function deleteRefreshToken(jti: string): Promise<void> {
-  // Look up userId first so we can clean the index too
-  const userId = await redis.get(`${REFRESH_PREFIX}${jti}`);
+  const key = `${REFRESH_PREFIX}${jti}`;
+  // Look up userId so we can also clean the per-user index.
+  // If the token is not in the index (e.g. issued before the index was
+  // introduced), userId will be null — still delete the token key itself.
+  const userId = await redis.get(key).catch(() => null);
+
   const pipeline = redis.pipeline();
-  pipeline.del(`${REFRESH_PREFIX}${jti}`);
+  pipeline.del(key);
+  // Only clean the index if we found a userId — prevents writing to a
+  // Redis key with the literal string 'null'.
   if (userId) pipeline.srem(`${USER_TOKENS_PREFIX}${userId}`, jti);
   await pipeline.exec();
 }

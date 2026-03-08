@@ -10,12 +10,20 @@ import { useState, useEffect } from "react";
 export function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
+    // Hydration fix: suppress scroll-dependent classes until the client has
+    // mounted. Without this, SSR renders 'bg-transparent' but the client
+    // immediately applies 'bg-black/60' if the page is already scrolled,
+    // causing a React #418 hydration mismatch.
+    const [mounted, setMounted] = useState(false);
     const pathname = usePathname();
 
     useEffect(() => {
+        setMounted(true);
         const handleScroll = () => {
             setScrolled(window.scrollY > 20);
         };
+        // Set initial scroll position after mount
+        handleScroll();
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
