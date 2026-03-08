@@ -74,7 +74,7 @@ export function Sidebar() {
                 <div className="px-4 py-4 border-b border-zinc-800/50">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center text-white font-bold text-sm">
-                            {user.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                            {user.fullName?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
                         </div>
                         <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold text-white truncate">{user.fullName}</p>

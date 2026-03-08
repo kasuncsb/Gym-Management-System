@@ -7,6 +7,7 @@ import { AuthRequest } from '../middleware/auth.js';
 import { asyncHandler, validate } from '../middleware/error.js';
 import * as response from '../utils/response.js';
 import { errors } from '../utils/errors.js';
+import { env } from '../config/env.js';
 import * as authService from '../services/auth.service.js';
 import { downloadFile } from '../utils/oci-storage.js';
 import type {
@@ -24,7 +25,7 @@ import type {
 // ── Cookie config ─────────────────────────────────────────────────────────────
 const BASE_COOKIE: CookieOptions = {
   httpOnly: true,
-  secure: true,        // Always secure — HTTPS enforced in production
+  secure: env.NODE_ENV === 'production',
   sameSite: 'lax',
   path: '/',
 };

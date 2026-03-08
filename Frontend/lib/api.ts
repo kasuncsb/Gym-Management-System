@@ -9,7 +9,7 @@ const apiClient = axios.create({
   baseURL: '/api',
   timeout: 15_000,
   headers: { 'Content-Type': 'application/json' },
-  // No withCredentials needed — requests go to same origin via Next.js rewrite
+  withCredentials: true,
 });
 
 // ── Response interceptor: handle token expiry ─────────────────────────────────
