@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authAPI, getErrorMessage } from "@/lib/api";
@@ -8,7 +8,11 @@ import { Dumbbell, ArrowLeft, Mail, Lock, Loader2, CheckCircle } from "lucide-re
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 
-export default function Login() {
+// ── Inner form component ─────────────────────────────────────────────────────
+// useSearchParams() MUST live inside a component that is wrapped in <Suspense>
+// at the page boundary. Putting it at the top level breaks Next.js static
+// generation (build fails with "missing-suspense-with-csr-bailout" error).
+function LoginForm() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -19,8 +23,6 @@ export default function Login() {
     const searchParams = useSearchParams();
 
     // BUG-23 fix: Redirect already-authenticated users away from the login page.
-    // Without this, an authenticated user could re-login, issuing new tokens
-    // while old refresh tokens are never revoked in Redis (ghost sessions).
     useEffect(() => {
         if (!authLoading && isAuthenticated) router.replace('/dashboard');
     }, [authLoading, isAuthenticated, router]);
@@ -179,5 +181,20 @@ export default function Login() {
                 </div>
             </div>
         </div>
+    );
+}
+
+// ── Page export ──────────────────────────────────────────────────────────────
+// LoginForm is wrapped in Suspense so that useSearchParams() inside it
+// satisfies Next.js's requirement for a Suspense boundary during SSG.
+export default function Login() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-black flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+        }>
+            <LoginForm />
+        </Suspense>
     );
 }
