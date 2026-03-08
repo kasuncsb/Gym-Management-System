@@ -57,7 +57,8 @@ apiClient.interceptors.response.use(
       // Refresh failed. Only forcefully redirect if on a protected route.
       if (typeof window !== 'undefined') {
         const path = window.location.pathname;
-        if (path !== '/' && path !== '/login' && path !== '/register') {
+        const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/verify-email'];
+        if (!publicRoutes.includes(path)) {
           window.location.href = '/login';
         }
       }
