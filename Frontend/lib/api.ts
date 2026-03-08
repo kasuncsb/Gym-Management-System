@@ -104,7 +104,6 @@ export const authAPI = {
 
   completeOnboarding: (data: {
     experienceLevel: 'beginner' | 'intermediate' | 'advanced';
-    previousWorkouts?: string;
     fitnessGoals?: string;
     bloodType?: string;
     medicalConditions?: string;

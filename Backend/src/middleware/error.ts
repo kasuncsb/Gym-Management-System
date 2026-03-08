@@ -8,7 +8,13 @@ export function notFound(req: Request, res: Response): void {
 }
 
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
-  console.error('Error:', err);
+  if (err instanceof AppError) {
+    if (err.statusCode >= 500) {
+      console.error('Error:', err);
+    }
+    res.status(err.statusCode).json(response.error(err.code, err.message, err.details));
+    return;
+  }
 
   if (err instanceof ZodError) {
     const details = err.errors.map(e => ({ field: e.path.join('.'), message: e.message }));
@@ -16,11 +22,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     return;
   }
 
-  if (err instanceof AppError) {
-    res.status(err.statusCode).json(response.error(err.code, err.message, err.details));
-    return;
-  }
-
+  console.error('Error:', err);
   res.status(500).json(response.error('INTERNAL_ERROR', 'An unexpected error occurred'));
 };
 

@@ -14,7 +14,6 @@ type Step = 1 | 2 | 3;
 interface OnboardData {
     // Step 2 – Experience
     experienceLevel: 'beginner' | 'intermediate' | 'advanced' | '';
-    previousWorkouts: string;
     // Step 3 – Goals & Vitals
     fitnessGoals: string;
     bloodType: string;
@@ -39,7 +38,6 @@ export default function Onboard() {
     const [error, setError] = useState('');
     const [data, setData] = useState<OnboardData>({
         experienceLevel: '',
-        previousWorkouts: '',
         fitnessGoals: '',
         bloodType: '',
         medicalConditions: '',
@@ -84,7 +82,6 @@ export default function Onboard() {
         try {
             await authAPI.completeOnboarding({
                 experienceLevel: data.experienceLevel as 'beginner' | 'intermediate' | 'advanced',
-                previousWorkouts: data.previousWorkouts || undefined,
                 fitnessGoals: data.fitnessGoals || undefined,
                 bloodType: data.bloodType || undefined,
                 medicalConditions: data.medicalConditions || undefined,
@@ -257,21 +254,6 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals & Vitals'];
                                     </button>
                                 ))}
                             </div>
-
-                            {(data.experienceLevel === 'intermediate' || data.experienceLevel === 'advanced') && (
-                                <div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                                    <label className="text-sm font-medium text-zinc-300">
-                                        Tell us about your previous training <span className="text-zinc-500">(optional)</span>
-                                    </label>
-                                    <textarea
-                                        value={data.previousWorkouts}
-                                        onChange={e => update('previousWorkouts', e.target.value)}
-                                        rows={3}
-                                        placeholder="e.g., 2 years of weightlifting, focused on hypertrophy..."
-                                        className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 px-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all resize-none"
-                                    />
-                                </div>
-                            )}
                         </div>
                     )}
 

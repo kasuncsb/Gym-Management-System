@@ -29,6 +29,20 @@ export async function getRefreshToken(jti: string): Promise<string | null> {
   return redis.get(`${REFRESH_PREFIX}${jti}`);
 }
 
+/** Consumes a refresh token by getting and deleting it in one step (simulate or use getdel) */
+export async function consumeRefreshToken(jti: string): Promise<string | null> {
+  // Using a Lua script ensures atomic check-and-delete
+  const script = `
+    local val = redis.call("GET", KEYS[1])
+    if val then
+      redis.call("DEL", KEYS[1])
+    end
+    return val
+  `;
+  const result = await redis.eval(script, 1, `${REFRESH_PREFIX}${jti}`);
+  return typeof result === 'string' ? result : null;
+}
+
 /** Delete a single refresh token (on use or logout) */
 export async function deleteRefreshToken(jti: string): Promise<void> {
   await redis.del(`${REFRESH_PREFIX}${jti}`);

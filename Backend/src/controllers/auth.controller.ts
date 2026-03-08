@@ -146,6 +146,16 @@ export const downloadIdDocument = asyncHandler(async (req: AuthRequest, res: Res
   res.setHeader('Content-Type', contentType);
   res.setHeader('Content-Disposition', `inline; filename="nic_${type}_${userId}.jpg"`);
   res.setHeader('Cache-Control', 'private, max-age=300');
-  // Stream directly — no buffer in memory
-  (body as any).pipe(res);
+  
+  // Stream directly — handle errors to prevent unhandled rejections
+  const stream = body as NodeJS.ReadableStream;
+  stream.on('error', (err) => {
+    console.error(`OCI download stream error for user ${userId}:`, err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to download document' });
+    } else {
+      res.end();
+    }
+  });
+  stream.pipe(res);
 });

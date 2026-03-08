@@ -8,13 +8,13 @@ import jwt from 'jsonwebtoken';
 import { nanoid } from 'nanoid';
 import { db } from '../config/database.js';
 import { users, memberProfiles } from '../db/schema.js';
-import { eq, and, isNull, gt } from 'drizzle-orm';
+import { eq, and, isNull, gt, sql } from 'drizzle-orm';
 import { env } from '../config/env.js';
 import { ids } from '../utils/id.js';
 import { hashPassword, verifyPassword, validatePassword } from '../utils/password.js';
 import { errors } from '../utils/errors.js';
 import { sendEmail, generateVerifyEmailHTML, generateResetPasswordHTML } from '../utils/email.js';
-import { setRefreshToken, getRefreshToken, deleteRefreshToken, deleteAllUserTokens } from '../utils/redis.js';
+import { setRefreshToken, getRefreshToken, consumeRefreshToken, deleteRefreshToken, deleteAllUserTokens } from '../utils/redis.js';
 import { uploadFile } from '../utils/oci-storage.js';
 import type {
   LoginInput,
@@ -84,12 +84,15 @@ export async function login(input: LoginInput): Promise<AuthResult> {
   const valid = await verifyPassword(input.password, person.passwordHash);
   if (!valid) {
     const attempts = person.failedAttempts + 1;
-    await db.update(users)
-      .set(attempts >= 5
-        ? { lockedUntil: new Date(Date.now() + 15 * 60_000), failedAttempts: 0 }
-        : { failedAttempts: attempts }
-      )
-      .where(eq(users.id, person.id));
+    if (attempts >= 5) {
+      await db.update(users)
+        .set({ lockedUntil: new Date(Date.now() + 15 * 60_000), failedAttempts: 0 })
+        .where(eq(users.id, person.id));
+    } else {
+      await db.update(users)
+        .set({ failedAttempts: sql`${users.failedAttempts} + 1` })
+        .where(eq(users.id, person.id));
+    }
     throw errors.unauthorized('Invalid email or password');
   }
 
@@ -121,29 +124,31 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
   const passwordHash = await hashPassword(input.password);
   const emailVerifyToken = ids.resetToken();
 
-  await db.insert(users).values({
-    id: personId,
-    email: input.email,
-    passwordHash,
-    fullName: input.fullName,
-    phone: input.phone,
-    gender: input.gender,
-    role: 'member',
-    memberCode,
-    qrSecret: ids.qrSecret(),
-    memberStatus: 'active',
-    joinDate: new Date(),
-    isActive: true,
-    emailVerifyToken,
-  });
+  await db.transaction(async (tx) => {
+    await tx.insert(users).values({
+      id: personId,
+      email: input.email,
+      passwordHash,
+      fullName: input.fullName,
+      phone: input.phone,
+      gender: input.gender,
+      role: 'member',
+      memberCode,
+      qrSecret: ids.qrSecret(),
+      memberStatus: 'active',
+      joinDate: new Date(),
+      isActive: true,
+      emailVerifyToken,
+    });
 
-  await db.insert(memberProfiles).values({
-    personId,
-    referralSource: 'website',
-    isOnboarded: false,
-    emergencyName: input.emergencyName,
-    emergencyPhone: input.emergencyPhone,
-    emergencyRelation: input.emergencyRelation,
+    await tx.insert(memberProfiles).values({
+      personId,
+      referralSource: 'website',
+      isOnboarded: false,
+      emergencyName: input.emergencyName,
+      emergencyPhone: input.emergencyPhone,
+      emergencyRelation: input.emergencyRelation,
+    });
   });
 
   const verifyUrl = `${env.FRONTEND_URL}/verify-email?token=${emailVerifyToken}`;
@@ -181,13 +186,12 @@ export async function refresh(refreshToken: string): Promise<AuthResult> {
   if (decoded.type !== 'refresh') throw errors.unauthorized('Invalid token type');
 
   // Verify JTI exists in Redis — single-use enforcement with automatic reuse detection
-  const userId = await getRefreshToken(decoded.jti);
+  const userId = await consumeRefreshToken(decoded.jti);
   if (!userId) {
     // Token reuse detected — another process already used this JTI — revoke all sessions
     await deleteAllUserTokens(decoded.sub);
     throw errors.unauthorized('Refresh token already used or revoked. Please log in again.');
   }
-  await deleteRefreshToken(decoded.jti);
 
   const [person] = await db
     .select()
