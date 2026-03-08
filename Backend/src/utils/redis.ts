@@ -16,7 +16,7 @@ redis.on('error', (err: Error) => console.error('❌ Redis error:', err.message)
 
 export default redis;
 
-const REFRESH_PREFIX = 'rt:';
+const REFRESH_PREFIX = 'gms:rt:';
 const REFRESH_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 /** Store a refresh token JTI → userId mapping with 7d TTL */
