@@ -46,11 +46,11 @@ jobs:
           script: |
             cd ~/Hosted/gms
             
-            # Stop and remove old containers
-            docker compose down || true
+            # Stop and remove old containers and orphans
+            docker compose down --remove-orphans || true
             
             # Build the new images and start containers in the background
-            docker compose up --build -d
+            docker compose up --build -d --remove-orphans
             
             # Remove dangling images
             docker image prune -f
