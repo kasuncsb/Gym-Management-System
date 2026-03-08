@@ -9,16 +9,13 @@ import { env } from '../config/env.js';
 
 let client: objectstorage.ObjectStorageClient | null = null;
 
-function getClient(): objectstorage.ObjectStorageClient {
+async function getClient(): Promise<objectstorage.ObjectStorageClient> {
   if (client) return client;
-  const provider = new common.SimpleAuthenticationDetailsProvider(
-    env.OCI_TENANCY_ID,
-    env.OCI_USER_ID,
-    env.OCI_FINGERPRINT,
-    env.OCI_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    null,
-    common.Region.fromRegionId(env.OCI_REGION),
-  );
+
+  // Recommended for production on OCI VMs — no secret keys in .env
+  const authProviderBuilder = new common.InstancePrincipalsAuthenticationDetailsProviderBuilder();
+  const provider = await authProviderBuilder.build();
+
   client = new objectstorage.ObjectStorageClient({ authenticationDetailsProvider: provider });
   return client;
 }
@@ -33,7 +30,7 @@ export async function uploadFile(
   objectName: string,
   contentType: string,
 ): Promise<string> {
-  const ociClient = getClient();
+  const ociClient = await getClient();
   await ociClient.putObject({
     namespaceName: env.OCI_NAMESPACE,
     bucketName: env.OCI_BUCKET,
@@ -53,7 +50,7 @@ export async function uploadFile(
 export async function downloadFile(
   objectName: string,
 ): Promise<{ body: NodeJS.ReadableStream; contentType: string }> {
-  const ociClient = getClient();
+  const ociClient = await getClient();
   const response = await ociClient.getObject({
     namespaceName: env.OCI_NAMESPACE,
     bucketName: env.OCI_BUCKET,

@@ -39,10 +39,6 @@ const envSchema = z.object({
   OCI_NAMESPACE:   z.string().min(1),
   OCI_BUCKET:      z.string().min(1),
   OCI_REGION:      z.string().min(1),
-  OCI_TENANCY_ID:  z.string().min(1),
-  OCI_USER_ID:     z.string().min(1),
-  OCI_FINGERPRINT: z.string().min(1),
-  OCI_PRIVATE_KEY: z.string().min(1),
 });
 
 const parsed = envSchema.safeParse(process.env);
