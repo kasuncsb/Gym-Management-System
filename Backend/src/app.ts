@@ -4,7 +4,6 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { env } from './config/env.js';
 import { notFound, errorHandler } from './middleware/error.js';
-import { globalLimiter } from './middleware/rate-limit.js';
 import authRoutes from './routes/auth.routes.js';
 
 const app = express();
@@ -14,7 +13,6 @@ app.set('trust proxy', 1);
 
 // Security
 app.use(helmet());
-app.use(globalLimiter);
 app.use(cors({
   origin: env.FRONTEND_URL,
   credentials: true,
