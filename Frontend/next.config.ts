@@ -5,14 +5,7 @@ if (!process.env.BACKEND_URL) {
 }
 
 const nextConfig: NextConfig = {
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${process.env.BACKEND_URL}/api/:path*`,
-      },
-    ];
-  },
+  // Rewrites handled by dedicated Nginx proxy in Docker Compose
 };
 
 export default nextConfig;

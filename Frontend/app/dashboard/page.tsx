@@ -168,7 +168,7 @@ export default function Dashboard() {
         return map[role] || 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30';
     };
 
-    if (loading) {
+    if (loading || !profile) {
         return (
             <div className="space-y-6 animate-pulse">
                 <div className="h-8 w-64 bg-zinc-800 rounded-lg" />
