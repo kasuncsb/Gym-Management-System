@@ -1,12 +1,15 @@
 import type { NextConfig } from "next";
 
+if (!process.env.BACKEND_URL) {
+  throw new Error('❌  BACKEND_URL is not set in the Frontend .env file.');
+}
+
 const nextConfig: NextConfig = {
   async rewrites() {
-    const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:5000';
     return [
       {
         source: '/api/:path*',
-        destination: `${backendUrl}/api/:path*`,
+        destination: `${process.env.BACKEND_URL}/api/:path*`,
       },
     ];
   },

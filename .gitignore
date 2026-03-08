@@ -51,5 +51,6 @@ yarn-error.log*
 Thumbs.db
 Desktop.ini
 
-# Text files
-*.txt
+
+# ── Docker secrets (never commit actual .env used at runtime) ──────────────────
+# .env at root is the production secret file — already excluded above

@@ -1,0 +1,9 @@
+# Exclude files that don't belong in the backend Docker image
+node_modules/
+dist/
+drizzle/
+.env
+.env.*
+*.md
+.git/
+.gitignore

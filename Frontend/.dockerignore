@@ -1,0 +1,9 @@
+# Exclude files that don't belong in the frontend Docker image
+node_modules/
+.next/
+out/
+.env
+.env.*
+*.md
+.git/
+.gitignore

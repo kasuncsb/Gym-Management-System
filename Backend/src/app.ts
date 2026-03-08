@@ -9,6 +9,9 @@ import authRoutes from './routes/auth.routes.js';
 
 const app = express();
 
+// Trust the first proxy hop (OpenResty/nginx) so rate limiters see real client IPs
+app.set('trust proxy', 1);
+
 // Security
 app.use(helmet());
 app.use(globalLimiter);
@@ -17,9 +20,9 @@ app.use(cors({
   credentials: true,
 }));
 
-// Parsing
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Parsing (10 kb JSON limit to prevent payload abuse)
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
 
 // Health check
