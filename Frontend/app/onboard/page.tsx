@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI, getErrorMessage } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 import {
     Dumbbell, ChevronRight, ChevronLeft, Loader2, CheckCircle,
     AlertCircle, Flame, Zap, Wind, Activity, Heart, Upload, FileImage
@@ -33,8 +34,9 @@ const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export default function Onboard() {
     const router = useRouter();
+    const { isLoading: authLoading, isAuthenticated, user } = useAuth();
     const [step, setStep] = useState<Step>(1);
-    const [isLoading, setIsLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [data, setData] = useState<OnboardData>({
         experienceLevel: '',
@@ -47,6 +49,13 @@ export default function Onboard() {
     const update = (field: keyof OnboardData, value: string) =>
         setData(prev => ({ ...prev, [field]: value }));
 
+    // BUG-11 fix: Guard against unauthenticated access and non-member roles.
+    // The onboard page was fully public — anyone could hit it without a session.
+    useEffect(() => {
+        if (authLoading) return;
+        if (!isAuthenticated) { router.replace('/login'); return; }
+        if (user && user.role !== 'member') { router.replace('/dashboard'); }
+    }, [authLoading, isAuthenticated, user, router]);
 
     // Step 4 — NIC document state
     const [nicFront, setNicFront] = useState<File | null>(null);
@@ -77,9 +86,17 @@ export default function Onboard() {
     // Two-phase submit: NIC upload already done on step 1 advance (we hold files)
     // Final phase: save profile data → redirect
     const handleSubmit = async () => {
-        setIsLoading(true);
+        setSubmitting(true);
         setError('');
         try {
+            // BUG-12 fix: Upload NIC documents FIRST, then mark onboarding complete.
+            // Previously, onboarding was saved first — if OCI upload failed, the
+            // DB would have isOnboarded=true but no ID documents (inconsistent state).
+            const formData = new FormData();
+            formData.append('nic_front', nicFront!);
+            formData.append('nic_back', nicBack!);
+            await authAPI.uploadIdDocuments(formData);
+
             await authAPI.completeOnboarding({
                 experienceLevel: data.experienceLevel as 'beginner' | 'intermediate' | 'advanced',
                 fitnessGoals: data.fitnessGoals || undefined,
@@ -87,15 +104,10 @@ export default function Onboard() {
                 medicalConditions: data.medicalConditions || undefined,
                 allergies: data.allergies || undefined,
             });
-            // Upload NIC docs (files held from step 1)
-            const formData = new FormData();
-            formData.append('nic_front', nicFront!);
-            formData.append('nic_back', nicBack!);
-            await authAPI.uploadIdDocuments(formData);
             router.push('/dashboard');
         } catch (err) {
             setError(getErrorMessage(err));
-            setIsLoading(false);
+            setSubmitting(false);
         }
     };
 
@@ -364,13 +376,13 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals & Vitals'];
                             <button
                                 type="button"
                                 onClick={handleSubmit}
-                                disabled={isLoading}
+                                disabled={submitting}
                                 className={cn(
                                     'flex items-center gap-2 px-6 py-3 rounded-xl bg-red-700 hover:bg-red-800 text-white font-bold shadow-lg shadow-red-600/25 transition-all',
-                                    isLoading && 'opacity-70 cursor-not-allowed'
+                                    submitting && 'opacity-70 cursor-not-allowed'
                                 )}
                             >
-                                {isLoading ? <Loader2 className="animate-spin" size={18} /> : <><CheckCircle size={18} /> Complete Setup</>}
+                                {submitting ? <Loader2 className="animate-spin" size={18} /> : <><CheckCircle size={18} /> Complete Setup</>}
                             </button>
                         )}
                     </div>

@@ -8,7 +8,7 @@ import jwt from 'jsonwebtoken';
 import { nanoid } from 'nanoid';
 import { db } from '../config/database.js';
 import { users, memberProfiles } from '../db/schema.js';
-import { eq, and, isNull, gt, sql } from 'drizzle-orm';
+import { eq, and, isNull, isNotNull, gt, sql } from 'drizzle-orm';
 import { env } from '../config/env.js';
 import { ids } from '../utils/id.js';
 import { hashPassword, verifyPassword, validatePassword } from '../utils/password.js';
@@ -251,8 +251,19 @@ export async function getProfile(userId: string) {
 
   let profile = null;
   if (person.role === 'member') {
-    const [mp] = await db.select().from(memberProfiles).where(eq(memberProfiles.personId, userId)).limit(1);
-    profile = mp;
+    // BUG-16 fix: Explicitly select only the fields the frontend needs.
+    // Using db.select() with no column spec returns ALL columns including
+    // sensitive fields like medicalConditions, allergies, and emergency contacts.
+    const [mp] = await db
+      .select({
+        isOnboarded: memberProfiles.isOnboarded,
+        fitnessGoals: memberProfiles.fitnessGoals,
+        experienceLevel: memberProfiles.experienceLevel,
+      })
+      .from(memberProfiles)
+      .where(eq(memberProfiles.personId, userId))
+      .limit(1);
+    profile = mp ?? null;
   }
 
   return {
@@ -355,6 +366,11 @@ export async function completeOnboarding(userId: string, input: OnboardingInput)
   if (!person) throw errors.notFound('User');
   if (person.role !== 'member') throw errors.forbidden('Onboarding is only for members');
 
+  // BUG-17 fix: Prevent re-submitting onboarding once completed.
+  const [mp] = await db.select({ isOnboarded: memberProfiles.isOnboarded })
+    .from(memberProfiles).where(eq(memberProfiles.personId, userId)).limit(1);
+  if (mp?.isOnboarded) throw errors.conflict('Onboarding already completed');
+
   await db.update(memberProfiles).set({
     experienceLevel: input.experienceLevel,
     fitnessGoals: input.fitnessGoals,
@@ -375,6 +391,16 @@ export async function uploadIdDocuments(
   nicFrontBuffer: Buffer,
   nicBackBuffer: Buffer,
 ): Promise<void> {
+  // BUG-18 fix: Prevent re-uploading if identity already approved.
+  // Without this, an approved member re-uploading would silently reset
+  // their verified status back to 'pending'.
+  const [current] = await db
+    .select({ idVerificationStatus: users.idVerificationStatus })
+    .from(users).where(eq(users.id, userId)).limit(1);
+  if (current?.idVerificationStatus === 'approved') {
+    throw errors.conflict('Identity already verified. Contact support to update your documents.');
+  }
+
   const ts = Date.now();
   const nicFrontUrl = await uploadFile(nicFrontBuffer, `id/${userId}/nic_front_${ts}.jpg`, 'image/jpeg');
   const nicBackUrl = await uploadFile(nicBackBuffer, `id/${userId}/nic_back_${ts}.jpg`, 'image/jpeg');
@@ -390,6 +416,8 @@ export async function uploadIdDocuments(
 
 // ── Admin: Get Pending ID Submissions ─────────────────────────────────────────
 export async function getIdSubmissions() {
+  // BUG-07 fix: Previously returned ALL members. Now filters to only those
+  // who have submitted at least one ID document (idNicFront IS NOT NULL).
   return db
     .select({
       id: users.id,
@@ -403,7 +431,11 @@ export async function getIdSubmissions() {
       idSubmittedAt: users.idSubmittedAt,
     })
     .from(users)
-    .where(and(eq(users.role, 'member'), isNull(users.deletedAt)));
+    .where(and(
+      eq(users.role, 'member'),
+      isNull(users.deletedAt),
+      isNotNull(users.idNicFront),
+    ));
 }
 
 // ── Admin: Get Object Name for Private OCI Download ──────────────────────────

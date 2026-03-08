@@ -34,27 +34,45 @@ export function dashboardPathForRole(_role: string): string {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // BUG-14 fix: isAuthenticated only becomes true after the server confirms the
+  // session via the profile API. Never trust localStorage alone — prevents the
+  // flash where stale cache shows protected content before session validation.
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    // On mount: restore user from localStorage (display only, not auth)
-    // then validate with backend to confirm cookie is still valid
+    // BUG-01 fix: Only attempt profile validation if we have a stored user hint.
+    // Anonymous/public-page visitors (homepage, /login, /forgot-password, etc.)
+    // skip the API call entirely. This eliminates the 401 → refresh → 401 cascade
+    // that was the root cause of React Hydration Error #418.
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try { setUser(JSON.parse(storedUser)); } catch { localStorage.removeItem('user'); }
+    if (!storedUser) {
+      setIsLoading(false);
+      return;
     }
 
-    // Confirm session is valid by calling profile endpoint
+    // Optimistically populate display name from cache for instant UI render,
+    // but isAuthenticated stays false until the server confirms below.
+    try {
+      setUser(JSON.parse(storedUser));
+    } catch {
+      localStorage.removeItem('user');
+      setIsLoading(false);
+      return;
+    }
+
     authAPI.getProfile()
       .then(res => {
         const { id, fullName, email, role, phone } = res.data.data;
         const freshUser: User = { id, fullName, email, role, phone };
         setUser(freshUser);
+        setIsAuthenticated(true);
         localStorage.setItem('user', JSON.stringify(freshUser));
       })
       .catch(() => {
-        // Not authenticated (or refresh also failed via interceptor)
+        // Session invalid or expired — clear everything
         setUser(null);
+        setIsAuthenticated(false);
         localStorage.removeItem('user');
       })
       .finally(() => setIsLoading(false));
@@ -63,12 +81,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /** Call after login/register — user object from server response */
   const login = useCallback((newUser: User) => {
     setUser(newUser);
+    setIsAuthenticated(true);
     localStorage.setItem('user', JSON.stringify(newUser));
   }, []);
 
+  // BUG-22 fix: Previously, logout() called authAPI.logout() through the standard
+  // Axios interceptor. If the access token was expired the interceptor tried to
+  // refresh, failed, and triggered window.location.href='/login'. Then router.push('/')
+  // fired on top, creating a navigation conflict/double-redirect. Now we always
+  // clean up local state first, and ignore server errors gracefully.
   const logout = useCallback(async () => {
-    try { await authAPI.logout(); } catch { /* ignore */ }
+    try {
+      await authAPI.logout();
+    } catch {
+      // Server-side token revocation is best-effort only.
+      // Local cleanup below is what actually matters for UX.
+    }
     setUser(null);
+    setIsAuthenticated(false);
     localStorage.removeItem('user');
     router.push('/');
   }, [router]);
@@ -81,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider value={{
       user, login, logout,
       isLoading, loading: isLoading,
-      isAuthenticated: !!user,
+      isAuthenticated,
       hasRole,
     }}>
       {children}

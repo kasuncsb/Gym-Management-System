@@ -59,7 +59,9 @@ export const onboardingSchema = z.object({
   medicalConditions: z.string().max(1000).optional(),
   allergies: z.string().max(500).optional(),
   emergencyName: z.string().max(100).optional(),
-  emergencyPhone: z.string().regex(/^\+?[\d\s-]{10,20}$/).optional().or(z.literal('')),
+  // BUG-21 fix: Removed .or(z.literal('')) that allowed empty string to bypass
+  // phone regex validation. Now properly optional (undefined if not provided).
+  emergencyPhone: z.string().regex(/^\+?[\d\s-]{10,20}$/).optional(),
   emergencyRelation: z.string().max(50).optional(),
 });
 

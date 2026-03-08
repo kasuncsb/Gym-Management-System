@@ -20,9 +20,10 @@ function ResetPasswordContent() {
     const [isSuccess, setIsSuccess] = useState(false);
     const router = useRouter();
 
-    const validatePassword = (pwd: string): boolean => {
-        return pwd.length >= 8 && /[A-Z]/.test(pwd) && /[0-9]/.test(pwd);
-    };
+    // BUG-09 fix: Added lowercase check to match backend validator (regex /[a-z]/).
+    const validatePassword = (pwd: string): boolean =>
+        pwd.length >= 8 && /[A-Z]/.test(pwd) && /[0-9]/.test(pwd) && /[a-z]/.test(pwd);
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -138,6 +139,7 @@ function ResetPasswordContent() {
                                 {[
                                     { label: "At least 8 characters", valid: password.length >= 8 },
                                     { label: "One uppercase letter", valid: /[A-Z]/.test(password) },
+                                    { label: "One lowercase letter", valid: /[a-z]/.test(password) },
                                     { label: "One number", valid: /[0-9]/.test(password) },
                                 ].map((req, i) => (
                                     <li key={i} className={cn("text-xs flex items-center gap-2", req.valid ? "text-green-400" : "text-zinc-500")}>

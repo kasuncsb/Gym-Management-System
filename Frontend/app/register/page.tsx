@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authAPI, getErrorMessage } from "@/lib/api";
@@ -25,7 +25,12 @@ export default function Register() {
     const [emergencyPhone, setEmergencyPhone] = useState('');
     const [emergencyRelation, setEmergencyRelation] = useState('');
     const router = useRouter();
-    const { login } = useAuth();
+    const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+
+    // BUG-23 fix: Redirect already-authenticated users away from the register page.
+    useEffect(() => {
+        if (!authLoading && isAuthenticated) router.replace('/dashboard');
+    }, [authLoading, isAuthenticated, router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

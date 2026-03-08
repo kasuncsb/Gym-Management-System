@@ -31,7 +31,7 @@ interface Profile {
 }
 
 export default function Dashboard() {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const router = useRouter();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
@@ -107,11 +107,13 @@ export default function Dashboard() {
         setPwLoading(true);
         try {
             await authAPI.changePassword(currentPassword, newPassword);
-            setPwSuccess('Password changed successfully');
-            setCurrentPassword('');
-            setNewPassword('');
-            setConfirmNewPassword('');
-            setShowChangePassword(false);
+            // BUG-03 fix: The backend clears ALL cookies on password change (correct
+            // security behaviour). We must reflect this client-side immediately.
+            // Staying on the dashboard would silently trigger 401s on the next call.
+            // Logout clears local state and redirects cleanly.
+            await logout();
+            // Pass a query param so the login page can show a success message.
+            router.replace('/login?pwchanged=1');
         } catch (err) {
             setPwError(getErrorMessage(err));
         } finally {
@@ -199,7 +201,7 @@ export default function Dashboard() {
             <div>
                 <h1 className="text-3xl font-bold text-white">Dashboard</h1>
                 <p className="text-zinc-400 mt-1">
-                    Welcome back, {p.fullName.split(' ')[0]}
+                    Welcome back, {p.fullName?.split(' ')[0] || 'there'}
                 </p>
             </div>
 
@@ -351,10 +353,17 @@ export default function Dashboard() {
             </div>
 
             {/* Change Password Section */}
+            {/* BUG-19 fix: Password change requires email verification (backend enforces
+                requireVerified middleware). Show a clear blocked notice instead of
+                letting the user try and get a confusing 403 error. */}
             <div className="rounded-2xl bg-zinc-900/50 border border-zinc-800 overflow-hidden">
                 <button
-                    onClick={() => { setShowChangePassword(!showChangePassword); setPwError(''); setPwSuccess(''); }}
-                    className="w-full p-5 flex items-center justify-between hover:bg-zinc-800/30 transition-colors"
+                    onClick={() => { if (p.emailVerified) { setShowChangePassword(!showChangePassword); setPwError(''); } }}
+                    disabled={!p.emailVerified}
+                    className={cn(
+                      "w-full p-5 flex items-center justify-between transition-colors",
+                      p.emailVerified ? "hover:bg-zinc-800/30" : "opacity-60 cursor-not-allowed"
+                    )}
                 >
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-lg bg-zinc-800 flex items-center justify-center">
@@ -362,10 +371,14 @@ export default function Dashboard() {
                         </div>
                         <div className="text-left">
                             <p className="text-white font-semibold">Change Password</p>
-                            <p className="text-xs text-zinc-500">Update your account password</p>
+                            <p className="text-xs text-zinc-500">
+                                {p.emailVerified
+                                    ? 'Update your account password'
+                                    : '⚠ Verify your email first to change password'}
+                            </p>
                         </div>
                     </div>
-                    <span className="text-zinc-500 text-sm">{showChangePassword ? '▲' : '▼'}</span>
+                    {p.emailVerified && <span className="text-zinc-500 text-sm">{showChangePassword ? '▲' : '▼'}</span>}
                 </button>
 
                 {showChangePassword && (

@@ -26,10 +26,14 @@ apiClient.interceptors.response.use(
   async (error) => {
     const original = error.config;
 
-    // Don't retry refresh or login/register requests
+    // Don't retry refresh, login/register requests, or endpoints flagged with _noRetry.
+    // BUG-13 fix: Without the _noRetry guard, mutation endpoints (logout,
+    // change-password, send-verification) would be silently re-fired after a
+    // token refresh, potentially triggering side-effects twice.
     if (
       error.response?.status !== 401 ||
       original._retry ||
+      original._noRetry ||
       original.url?.includes('/auth/refresh') ||
       original.url?.includes('/auth/login') ||
       original.url?.includes('/auth/register')
@@ -85,16 +89,16 @@ export const authAPI = {
   login: (email: string, password: string) =>
     apiClient.post('/auth/login', { email, password }),
 
-  logout: () => apiClient.post('/auth/logout'),
+  logout: () => apiClient.post('/auth/logout', null, { _noRetry: true } as any),
 
   refresh: () => apiClient.post('/auth/refresh'),
 
   getProfile: () => apiClient.get('/auth/profile'),
 
   changePassword: (currentPassword: string, newPassword: string) =>
-    apiClient.post('/auth/change-password', { currentPassword, newPassword }),
+    apiClient.post('/auth/change-password', { currentPassword, newPassword }, { _noRetry: true } as any),
 
-  sendVerificationEmail: () => apiClient.post('/auth/send-verification'),
+  sendVerificationEmail: () => apiClient.post('/auth/send-verification', null, { _noRetry: true } as any),
 
   verifyEmail: (token: string) => apiClient.post('/auth/verify-email', { token }),
 

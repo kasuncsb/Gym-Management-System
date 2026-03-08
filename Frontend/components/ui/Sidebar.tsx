@@ -9,7 +9,7 @@ import {
     Menu,
     X,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -24,6 +24,11 @@ export function Sidebar() {
     const { user, logout } = useAuth();
     const pathname = usePathname();
     const [mobileOpen, setMobileOpen] = useState(false);
+    // BUG-02 fix: Suppress user-dependent rendering until after client hydration.
+    // SSR always renders without user info; client syncs after mount.
+    // This prevents the server/client HTML mismatch that caused React Error #418.
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
 
     const navItems = [
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -70,7 +75,7 @@ export function Sidebar() {
             </div>
 
             {/* User Info */}
-            {user && (
+            {mounted && user && (
                 <div className="px-4 py-4 border-b border-zinc-800/50">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center text-white font-bold text-sm">

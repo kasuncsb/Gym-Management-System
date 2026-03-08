@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { authAPI, getErrorMessage } from "@/lib/api";
-import { Dumbbell, ArrowLeft, Mail, Lock, Loader2 } from "lucide-react";
+import { Dumbbell, ArrowLeft, Mail, Lock, Loader2, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 
@@ -13,8 +13,24 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
-    const { login } = useAuth();
+    const [successMsg, setSuccessMsg] = useState('');
+    const { login, isAuthenticated, isLoading: authLoading } = useAuth();
     const router = useRouter();
+    const searchParams = useSearchParams();
+
+    // BUG-23 fix: Redirect already-authenticated users away from the login page.
+    // Without this, an authenticated user could re-login, issuing new tokens
+    // while old refresh tokens are never revoked in Redis (ghost sessions).
+    useEffect(() => {
+        if (!authLoading && isAuthenticated) router.replace('/dashboard');
+    }, [authLoading, isAuthenticated, router]);
+
+    // Show success notice when redirected here after password change (BUG-03)
+    useEffect(() => {
+        if (searchParams.get('pwchanged') === '1') {
+            setSuccessMsg('Password changed successfully. Please log in with your new password.');
+        }
+    }, [searchParams]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -93,6 +109,13 @@ export default function Login() {
                         <h2 className="text-2xl font-bold mb-2">Sign In</h2>
                         <p className="text-zinc-400">Enter your details to access your account.</p>
                     </div>
+
+                    {successMsg && (
+                        <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm flex items-center gap-2">
+                            <CheckCircle size={16} className="shrink-0" />
+                            {successMsg}
+                        </div>
+                    )}
 
                     {error && (
                         <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm flex items-center gap-2">

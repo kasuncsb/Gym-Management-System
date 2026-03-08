@@ -13,8 +13,12 @@ app.set('trust proxy', 1);
 
 // Security
 app.use(helmet());
+// BUG-05 fix: Normalize the FRONTEND_URL — strip trailing slash before using
+// it as the CORS origin. A trailing slash ('https://host/') vs no trailing slash
+// ('https://host') are treated as different origins by browsers.
+const corsOrigin = env.FRONTEND_URL.replace(/\/+$/, '');
 app.use(cors({
-  origin: env.FRONTEND_URL,
+  origin: corsOrigin,
   credentials: true,
 }));
 

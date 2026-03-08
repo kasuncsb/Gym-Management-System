@@ -42,7 +42,9 @@ router.post('/reset-password',  validate(resetPasswordSchema),  auth.resetPasswo
 router.get( '/profile',           authenticate,                                                               auth.getProfile);
 router.post('/send-verification', authenticate,                                                               auth.sendVerificationEmail);
 router.post('/change-password',   authenticate, requireVerified, validate(changePasswordSchema),              auth.changePassword);
-router.post('/logout',            authenticate,                                                               auth.logout);
+// BUG-04 fix: logout must NOT require authenticate. If access token is expired,
+// the old code returned 401 and the refresh cookie was never revoked in Redis.
+router.post('/logout', auth.logout);
 router.post('/onboarding',        authenticate, validate(onboardingSchema),                                   auth.completeOnboarding);
 router.post('/upload-id',         authenticate, upload.fields([{ name: 'nic_front', maxCount: 1 }, { name: 'nic_back', maxCount: 1 }]), auth.uploadIdDocuments);
 
