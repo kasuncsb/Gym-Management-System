@@ -6,7 +6,7 @@ echo "Starting backend entrypoint script..."
 # Check if the users table exists. If it doesn't, we assume the DB is empty.
 # We use mysql command line client (installed in Dockerfile) to check this quietly.
 echo "Checking database schema..."
-DB_CHECK=$(node -e "
+DB_CHECK=$(node --no-deprecation -e "
   const mysql = require('mysql2/promise');
   async function check() {
     try {
