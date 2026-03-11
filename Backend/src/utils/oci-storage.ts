@@ -6,8 +6,11 @@
 import * as common from 'oci-common';
 import * as objectstorage from 'oci-objectstorage';
 import { env } from '../config/env.js';
+import fs from 'fs/promises';
+import path from 'path';
 
 let client: objectstorage.ObjectStorageClient | null = null;
+const UPLOADS_DIR = '/tmp/uploads';
 
 async function getClient(): Promise<objectstorage.ObjectStorageClient> {
   if (client) return client;
@@ -30,6 +33,12 @@ export async function uploadFile(
   objectName: string,
   contentType: string,
 ): Promise<string> {
+  if (env.NODE_ENV === 'development') {
+    await fs.mkdir(UPLOADS_DIR, { recursive: true });
+    await fs.writeFile(path.join(UPLOADS_DIR, objectName), buffer);
+    return objectName;
+  }
+
   const ociClient = await getClient();
   await ociClient.putObject({
     namespaceName: env.OCI_NAMESPACE,
@@ -50,6 +59,16 @@ export async function uploadFile(
 export async function downloadFile(
   objectName: string,
 ): Promise<{ body: NodeJS.ReadableStream; contentType: string }> {
+  if (env.NODE_ENV === 'development') {
+    const filePath = path.join(UPLOADS_DIR, objectName);
+    const fileHandle = await fs.open(filePath, 'r');
+    const stream = fileHandle.createReadStream();
+    return {
+      body: stream as unknown as NodeJS.ReadableStream,
+      contentType: 'application/octet-stream', // In dev, we can just return a generic stream type to safely serve frontend generic download requirements
+    };
+  }
+
   const ociClient = await getClient();
   const response = await ociClient.getObject({
     namespaceName: env.OCI_NAMESPACE,

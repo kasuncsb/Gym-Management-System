@@ -37,7 +37,6 @@ COPY src/utils ./src/utils/
 
 # Make entrypoint executable and ensure permissions
 USER root
-RUN apk add --no-cache redis
 RUN chmod +x ./entrypoint.sh
 USER appuser
 
