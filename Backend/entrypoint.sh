@@ -43,5 +43,17 @@ else
   echo "Database schema already exists. Skipping migration and seed."
 fi
 
+echo "Starting Redis server in background..."
+cd /tmp && redis-server --daemonize yes && cd /app
+
+# BUG-20 fix: Wait until Redis responds to PING before starting Node.js.
+# Previously the server could start before Redis was ready, causing the first
+# setRefreshToken call (during login) to fail with a connection error.
+echo "Waiting for Redis to be ready..."
+until redis-cli ping 2>/dev/null | grep -q PONG; do
+  sleep 0.1
+done
+echo "Redis is ready."
+
 echo "Starting server..."
 exec "$@"
