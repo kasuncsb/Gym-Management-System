@@ -23,7 +23,10 @@ app.use(cors({
 }));
 
 // Parsing (10 kb JSON limit to prevent payload abuse)
-app.use(express.json({ limit: '10kb' }));
+// Allow primitive JSON values (e.g. `null`) for endpoints that accept no body.
+// Some clients send `null` as the request body (axios.post(url, null));
+// body-parser's default `strict: true` rejects top-level primitives with 400.
+app.use(express.json({ limit: '10kb', strict: false }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
 
