@@ -38,7 +38,7 @@ export function Navbar() {
     return (
         <nav className={cn(
             "fixed top-0 w-full z-50 transition-all duration-500 border-b",
-            scrolled ? "bg-black/60 backdrop-blur-xl border-white/10 shadow-2xl shadow-red-900/5" : "bg-transparent border-transparent"
+            mounted && scrolled ? "bg-black/60 backdrop-blur-xl border-white/10 shadow-2xl shadow-red-900/5" : "bg-transparent border-transparent"
         )}>
             <div className="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
                 {/* Logo - Just the SVG image */}
