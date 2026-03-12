@@ -36,7 +36,9 @@ apiClient.interceptors.response.use(
       original._noRetry ||
       original.url?.includes('/auth/refresh') ||
       original.url?.includes('/auth/login') ||
-      original.url?.includes('/auth/register')
+      original.url?.includes('/auth/register') ||
+      // Profile 401s are handled by AuthContext's own catch — don't cascade to refresh
+      original.url?.includes('/auth/profile')
     ) {
       return Promise.reject(error);
     }

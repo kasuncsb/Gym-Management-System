@@ -38,13 +38,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // session via the profile API. Never trust localStorage alone — prevents the
   // flash where stale cache shows protected content before session validation.
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Hydration fix: mounted starts false on both server and client so the first
+  // paint is byte-identical to the SSR output. localStorage is only read after
+  // mount to eliminate React hydration error #418 in production builds.
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
 
+  useEffect(() => { setMounted(true); }, []);
+
   useEffect(() => {
+    // Guard: only run on client after mount. This is the fix for React hydration
+    // error #418 — localStorage must never be read during the initial render that
+    // Next.js compares against the SSR snapshot.
+    if (!mounted) return;
+
     // BUG-01 fix: Only attempt profile validation if we have a stored user hint.
     // Anonymous/public-page visitors (homepage, /login, /forgot-password, etc.)
-    // skip the API call entirely. This eliminates the 401 → refresh → 401 cascade
-    // that was the root cause of React Hydration Error #418.
+    // skip the API call entirely.
     const storedUser = localStorage.getItem('user');
     if (!storedUser) {
       setIsLoading(false);
@@ -76,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('user');
       })
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [mounted]);
 
   /** Call after login/register — user object from server response */
   const login = useCallback((newUser: User) => {
