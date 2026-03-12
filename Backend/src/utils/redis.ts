@@ -12,7 +12,7 @@ import { Redis } from 'ioredis';
 import { env } from '../config/env.js';
 
 const redis = new Redis(env.REDIS_URL, {
-  lazyConnect: true,
+  lazyConnect: false,        // Connect eagerly at startup — Redis is guaranteed ready by entrypoint.sh
   maxRetriesPerRequest: 3,
   enableReadyCheck: true,
 });

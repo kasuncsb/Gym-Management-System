@@ -67,7 +67,13 @@ export const refresh = asyncHandler(async (req: AuthRequest, res: Response) => {
 });
 
 export const logout = asyncHandler(async (req: AuthRequest, res: Response) => {
-  await authService.logout(req.cookies?.refresh_token);
+  // Best-effort server-side revocation — NEVER block logout with a 500.
+  // Cookies are cleared unconditionally; the user is logged out regardless.
+  try {
+    await authService.logout(req.cookies?.refresh_token);
+  } catch (err) {
+    console.error('Logout service error (non-fatal, logging out anyway):', err);
+  }
   clearAuthCookies(res);
   res.json(response.success(null, 'Logged out successfully'));
 });
