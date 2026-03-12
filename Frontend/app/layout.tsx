@@ -1,6 +1,20 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+
+/**
+ * next/font/google downloads Inter at build time and injects it as a
+ * CSS variable — no external <link> tag at runtime. This is the Next.js
+ * idiomatic approach and avoids a <head> management conflict with the
+ * App Router that was causing React hydration error #418.
+ */
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -41,20 +55,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className="min-h-screen bg-black text-white antialiased">
+    <html lang="en" className={`dark ${inter.variable}`}>
+      <body className="min-h-screen bg-black text-white antialiased font-sans">
         <Providers>{children}</Providers>
       </body>
     </html>
