@@ -49,6 +49,12 @@ jobs:
             # Stop and remove old containers and orphans
             docker compose down --remove-orphans || true
             
+            # Wipe Next.js build cache so the new build is completely fresh
+            rm -rf Frontend/.next
+            
+            # Clear Docker build cache to prevent stale layers from being reused
+            docker builder prune -f
+            
             # Build the new images and start containers in the background
             docker compose up --build -d --remove-orphans
             
