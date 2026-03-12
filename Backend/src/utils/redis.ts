@@ -77,7 +77,9 @@ export async function deleteRefreshToken(jti: string): Promise<void> {
   // Only clean the index if we found a userId — prevents writing to a
   // Redis key with the literal string 'null'.
   if (userId) pipeline.srem(`${USER_TOKENS_PREFIX}${userId}`, jti);
-  await pipeline.exec();
+  // Logout is best-effort — a transient Redis error must never 500 the user.
+  // The cookie is cleared by the controller regardless of this outcome.
+  await pipeline.exec().catch((err) => console.error('Redis logout pipeline error (non-fatal):', err));
 }
 
 /**
