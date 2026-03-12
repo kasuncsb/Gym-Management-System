@@ -227,7 +227,13 @@ export async function logout(refreshToken: string | undefined): Promise<void> {
   if (!decoded?.sub || decoded.type !== 'refresh') return;
 
   // Revoke every active session for this user in one shot.
-  await deleteAllUserTokens(decoded.sub);
+  // Wrapped in try/catch: the controller clears cookies regardless, so a Redis
+  // error must never surface as an HTTP 500 to the client.
+  try {
+    await deleteAllUserTokens(decoded.sub);
+  } catch (err) {
+    console.error(`Logout Redis cleanup failed for user ${decoded.sub} (non-fatal):`, err);
+  }
 }
 
 // ── Change Password ───────────────────────────────────────────────────────────

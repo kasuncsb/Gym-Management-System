@@ -44,7 +44,7 @@ else
 fi
 
 echo "Starting Redis server in background..."
-cd /tmp && redis-server --daemonize yes && cd /app
+cd /tmp && redis-server --save "" --daemonize yes && cd /app
 
 # BUG-20 fix: Wait until Redis responds to PING before starting Node.js.
 # Previously the server could start before Redis was ready, causing the first
