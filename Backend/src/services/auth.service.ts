@@ -215,15 +215,19 @@ export async function refresh(refreshToken: string): Promise<AuthResult> {
   };
 }
 
-// ── Logout ────────────────────────────────────────────────────────────────────
+// ── Logout ───────────────────────────────────────────────────────────────────────────────
 export async function logout(refreshToken: string | undefined): Promise<void> {
   if (!refreshToken) return;
-  try {
-    const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as { jti: string };
-    await deleteRefreshToken(decoded.jti);
-  } catch {
-    // Token already expired or invalid — nothing to revoke
-  }
+
+  // Use decode() not verify() — the token may be expired but we still want
+  // its sub (userId) to wipe ALL sessions for that user from Redis, giving a
+  // clean full-logout from all devices. verify() would throw on expiry and
+  // the Redis cleanup would silently be skipped.
+  const decoded = jwt.decode(refreshToken) as { sub?: string; jti?: string; type?: string } | null;
+  if (!decoded?.sub || decoded.type !== 'refresh') return;
+
+  // Revoke every active session for this user in one shot.
+  await deleteAllUserTokens(decoded.sub);
 }
 
 // ── Change Password ───────────────────────────────────────────────────────────

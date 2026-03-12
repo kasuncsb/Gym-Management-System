@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Navbar } from "@/components/ui/Navbar";
-import { CurrentYear } from "@/components/ui/CurrentYear";
 import { ArrowRight, Check, Zap, Users, Trophy } from "lucide-react";
 
 const PLANS = [
@@ -184,7 +183,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="py-12 border-t border-zinc-900 bg-black">
         <div className="container px-6 mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <p className="text-zinc-500 text-sm">© <CurrentYear /> PowerWorld Gyms. All rights reserved.</p>
+          <p className="text-zinc-500 text-sm">&copy; 2026 PowerWorld Gyms. All rights reserved.</p>
           <div className="flex gap-8">
             <Link href="#" className="text-zinc-500 hover:text-white text-sm transition-colors">Privacy Policy</Link>
             <Link href="#" className="text-zinc-500 hover:text-white text-sm transition-colors">Terms of Service</Link>
