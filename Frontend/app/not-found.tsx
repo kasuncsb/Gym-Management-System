@@ -55,7 +55,7 @@ export default function NotFound() {
 
             {/* Footer */}
             <p className="absolute bottom-8 text-zinc-600 text-sm">
-                © {new Date().getFullYear()} PowerWorld Gyms. All rights reserved.
+                © 2026 PowerWorld Gyms. All rights reserved.
             </p>
         </div>
     );

@@ -80,11 +80,12 @@ export function SkeletonChart() {
         <div className="p-6 bg-zinc-900/50 border border-zinc-800 rounded-2xl space-y-4">
             <Skeleton className="h-5 w-32" />
             <div className="flex items-end gap-2 h-48">
-                {Array.from({ length: 12 }).map((_, i) => (
+                {/* Deterministic heights — Math.random() causes hydration mismatch */}
+                {[65, 40, 85, 30, 70, 50, 90, 35, 75, 55, 45, 80].map((h, i) => (
                     <Skeleton
                         key={i}
                         className="flex-1 rounded-t-md"
-                        style={{ height: `${20 + Math.random() * 80}%` }}
+                        style={{ height: `${h}%` }}
                     />
                 ))}
             </div>

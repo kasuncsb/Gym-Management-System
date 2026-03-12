@@ -106,7 +106,7 @@ export default function Register() {
                 </div>
 
                 <div className="text-sm text-zinc-500 text-right">
-                    © {new Date().getFullYear()} PowerWorld Gyms. All rights reserved.
+                    © 2026 PowerWorld Gyms. All rights reserved.
                 </div>
             </div>
 
