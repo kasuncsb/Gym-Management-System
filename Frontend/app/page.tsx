@@ -46,7 +46,8 @@ export default function Home() {
         <div className="absolute inset-0 z-0">
           <HeroVideo
             poster="https://assets.kasunc.uk/images/gms/hero-section-poster.jpg"
-            className="absolute inset-0 w-full h-full grayscale opacity-30"
+            webmSrc="https://assets.kasunc.uk/videos/gms/hero-section.webm"
+            mp4Src="https://assets.kasunc.uk/videos/gms/hero-section.mp4"
           />
 
           {/* Vignette Effect (Reduced by 10% -> opacity from ~0.65 to ~0.55) */}

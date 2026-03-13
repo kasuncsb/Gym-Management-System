@@ -2,115 +2,96 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-const SOURCES = [
-  { src: 'https://assets.kasunc.uk/videos/gms/hero-section.webm', type: 'video/webm' },
-  { src: 'https://assets.kasunc.uk/videos/gms/hero-section.mp4',  type: 'video/mp4'  },
-];
+const MIN_BUFFER_SECONDS = 5;
 
-const MAX_RETRIES   = 4;
-const STALL_TIMEOUT = 8_000;
-const RETRY_BASE_MS = 2_000;
-
-export function HeroVideo({ className, poster }: { className?: string; poster?: string }) {
-  const videoRef   = useRef<HTMLVideoElement>(null);
-  const retryCount = useRef(0);
-  const stallTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Video starts invisible; it fades in only once actually playing.
-  const [videoOpacity, setVideoOpacity] = useState(0);
-
-  const clearStallTimer = () => {
-    if (stallTimer.current) { clearTimeout(stallTimer.current); stallTimer.current = null; }
-  };
-
-  const reload = () => {
-    clearStallTimer();
-    retryCount.current += 1;
-    if (retryCount.current > MAX_RETRIES) return; // give up; poster remains visible
-
-    const delay = RETRY_BASE_MS * 2 ** (retryCount.current - 1);
-    setTimeout(() => {
-      if (!videoRef.current) return;
-      videoRef.current.load();
-      videoRef.current.play().catch(() => {});
-      armStallTimer();
-    }, delay);
-  };
-
-  const armStallTimer = () => {
-    clearStallTimer();
-    stallTimer.current = setTimeout(() => {
-      const video = videoRef.current;
-      if (!video || !video.paused) { clearStallTimer(); return; }
-      reload();
-    }, STALL_TIMEOUT);
-  };
+export function HeroVideo({
+  webmSrc,
+  mp4Src,
+  poster,
+}: {
+  webmSrc: string;
+  mp4Src: string;
+  poster?: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    const onCanPlay  = () => video.play().catch(() => {});
-    const onPlaying  = () => {
-      clearStallTimer();
-      retryCount.current = 0;
-      setVideoOpacity(1); // fade the video in now that it's actually running
+    let bufferInterval: ReturnType<typeof setInterval> | null = null;
+
+    const startVideoLoad = () => {
+      // Dynamically inject sources AFTER page load
+      // so the browser doesn't compete with critical resources on initial paint.
+      const s1 = document.createElement('source');
+      s1.src  = webmSrc;
+      s1.type = 'video/webm';
+
+      const s2 = document.createElement('source');
+      s2.src  = mp4Src;
+      s2.type = 'video/mp4';
+
+      video.appendChild(s1);
+      video.appendChild(s2);
+      video.load();
+
+      // Poll buffered range every 500 ms.
+      // Start playback only once MIN_BUFFER_SECONDS is available.
+      bufferInterval = setInterval(() => {
+        if (video.buffered.length > 0 && video.buffered.end(0) >= MIN_BUFFER_SECONDS) {
+          clearInterval(bufferInterval!);
+          bufferInterval = null;
+          video.play()
+            .then(() => setPlaying(true))
+            .catch(() => {}); // autoplay policy — silent
+        }
+      }, 500);
     };
-    const onStalled  = () => { setVideoOpacity(0); reload(); };
-    const onError    = () => { setVideoOpacity(0); reload(); };
-    const onWaiting  = () => armStallTimer();
-    const onSuspend  = () => { if (video.paused && video.readyState < 3) armStallTimer(); };
 
-    video.addEventListener('canplay',  onCanPlay);
-    video.addEventListener('playing',  onPlaying);
-    video.addEventListener('stalled',  onStalled);
-    video.addEventListener('error',    onError);
-    video.addEventListener('waiting',  onWaiting);
-    video.addEventListener('suspend',  onSuspend);
-
-    armStallTimer();
-    video.load();
-    video.play().catch(() => {});
+    // Wait for the full page load before touching the video.
+    if (document.readyState === 'complete') {
+      startVideoLoad();
+    } else {
+      window.addEventListener('load', startVideoLoad, { once: true });
+    }
 
     return () => {
-      clearStallTimer();
-      video.removeEventListener('canplay',  onCanPlay);
-      video.removeEventListener('playing',  onPlaying);
-      video.removeEventListener('stalled',  onStalled);
-      video.removeEventListener('error',    onError);
-      video.removeEventListener('waiting',  onWaiting);
-      video.removeEventListener('suspend',  onSuspend);
+      if (bufferInterval) clearInterval(bufferInterval);
+      window.removeEventListener('load', startVideoLoad);
+      // Remove dynamically added sources on unmount.
+      video.querySelectorAll('source').forEach((s) => s.remove());
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <div className={className}>
-      {/* Poster — always visible; acts as the permanent fallback */}
+    // Self-contained layer: fills whatever positioned parent it is placed in.
+    <div className="absolute inset-0 overflow-hidden">
+      {/* Rule 1: Poster — always rendered, always visible. Pure img tag, no JS dependency. */}
       {poster && (
         <img
           src={poster}
           alt=""
           aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover object-center"
+          className="absolute inset-0 w-full h-full object-cover object-center grayscale opacity-30"
+          fetchPriority="high"
         />
       )}
 
-      {/* Video — fades in only once playback is confirmed */}
+      {/* Rule 2: Video — invisible until buffered ≥ 5s then fades in over the poster. */}
       <video
         ref={videoRef}
-        autoPlay
         loop
         muted
         playsInline
-        preload="auto"
-        style={{ opacity: videoOpacity, transition: 'opacity 0.6s ease' }}
-        className="absolute inset-0 w-full h-full object-cover object-center"
-      >
-        {SOURCES.map((s) => (
-          <source key={s.type} src={s.src} type={s.type} />
-        ))}
-      </video>
+        className="absolute inset-0 w-full h-full object-cover object-center grayscale"
+        style={{
+          opacity: playing ? 0.3 : 0,
+          transition: 'opacity 1s ease',
+        }}
+      />
     </div>
   );
 }
