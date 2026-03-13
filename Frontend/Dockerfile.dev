@@ -17,4 +17,4 @@ EXPOSE 3000
 
 # next dev provides HMR out of the box; no polling needed — sync writes to
 # the container's native Linux filesystem so inotify fires correctly.
-CMD ["npx", "next", "dev", "--no-turbopack"]
+CMD ["npx", "next", "dev"]
