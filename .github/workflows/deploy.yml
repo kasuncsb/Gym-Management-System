@@ -45,17 +45,21 @@ jobs:
           command_timeout: 20m
           script: |
             cd ~/Hosted/gms
-            
+
             # Stop and remove old containers and orphans
             docker compose down --remove-orphans || true
-            
-            # Build the new images and start containers in the background
-            docker compose up --build -d --remove-orphans
-            
-            # Remove dangling images
-            docker image prune -f
-            
-            echo "Deployment completed successfully!"
+
+            # Build and start — exit immediately on failure so the step turns red
+            if ! docker compose up --build -d --remove-orphans; then
+              echo "❌ docker compose up failed. Container logs:"
+              docker compose logs --tail 50
+              exit 1
+            fi
+
+            # Remove dangling images (best-effort, never fail the deploy over this)
+            docker image prune -f || true
+
+            echo "✅ Containers started successfully."
 
       - name: Health check
         uses: appleboy/ssh-action@v1.0.3
