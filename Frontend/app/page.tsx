@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Navbar } from "@/components/ui/Navbar";
+import { HeroVideo } from "@/components/ui/HeroVideo";
 import { ArrowRight, Check, Zap, Users, Trophy } from "lucide-react";
 
 const PLANS = [
@@ -43,17 +44,11 @@ export default function Home() {
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
         <div className="absolute inset-0 z-0">
-          <video 
-            autoPlay 
-            loop 
-            muted 
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover object-center grayscale opacity-30" 
-          >
-            <source src="https://assets.kasunc.uk/videos/gms/hero-section.webm" type="video/webm" />
-            <source src="https://assets.kasunc.uk/videos/gms/hero-section.mp4" type="video/mp4" />
-          </video>
-          
+          <HeroVideo
+            poster="https://assets.kasunc.uk/images/gms/hero-section-poster.jpg"
+            className="absolute inset-0 w-full h-full grayscale opacity-30"
+          />
+
           {/* Vignette Effect (Reduced by 10% -> opacity from ~0.65 to ~0.55) */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.75)_100%)] z-10 pointer-events-none" />
 
@@ -62,7 +57,7 @@ export default function Home() {
           <div className="absolute -top-20 md:-top-32 -right-20 md:-right-32 w-64 md:w-96 h-64 md:h-96 bg-red-800/10 md:bg-red-800/30 rounded-full blur-[80px] md:blur-[128px] z-0" />
           <div className="absolute -bottom-20 md:-bottom-32 -left-20 md:-left-32 w-64 md:w-96 h-64 md:h-96 bg-red-800/10 md:bg-red-800/30 rounded-full blur-[80px] md:blur-[128px] z-0" />
           <div className="absolute -bottom-20 md:-bottom-32 -right-20 md:-right-32 w-64 md:w-96 h-64 md:h-96 bg-red-700/10 md:bg-red-700/30 rounded-full blur-[80px] md:blur-[128px] z-0" />
-          
+
           {/* Faded Grid Pattern in Corners Using Masks */}
           <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,#80808024_1px,transparent_1px),linear-gradient(to_bottom,#80808024_1px,transparent_1px)] bg-size-[24px_24px] [mask-image:radial-gradient(ellipse_at_center,transparent_56%,black_100%)] md:[mask-image:radial-gradient(ellipse_at_center,transparent_24%,black_100%)] pointer-events-none" />
         </div>
