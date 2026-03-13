@@ -49,6 +49,9 @@ services:
       OCI_NAMESPACE:        ${OCI_NAMESPACE}
       OCI_BUCKET:           ${OCI_BUCKET}
       OCI_REGION:           ${OCI_REGION}
+      # Same reason as frontend: sync doesn't trigger inotify on Docker Desktop.
+      CHOKIDAR_USEPOLLING:  "true"
+      CHOKIDAR_INTERVAL:    "300"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -82,6 +85,9 @@ services:
       # Used by next.config.ts rewrites to proxy /api/* → backend in dev
       BACKEND_URL:               http://backend:5000
       NEXT_TELEMETRY_DISABLED:   "1"
+      # Docker Desktop (Windows) does not fire inotify events when sync writes
+      # files into the container. Polling lets Next.js detect synced changes.
+      WATCHPACK_POLLING:         "true"
     depends_on:
       backend:
         condition: service_healthy

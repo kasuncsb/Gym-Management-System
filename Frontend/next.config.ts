@@ -12,6 +12,11 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "20mb",
     },
   },
+  // Next.js 15/16 dev overlay tries to call the browser's File System Access API
+  // with container paths like /app/... which are illegal on Windows, producing:
+  //   "Unable to add filesystem: <illegal path>"
+  // Disabling devIndicators turns off that feature — HMR still works normally.
+  devIndicators: false,
   async rewrites() {
     // In production, nginx handles /api/* proxying — no rewrites needed here.
     // In development (docker-compose.dev.yml), there is no nginx, so Next.js
