@@ -1,0 +1,24 @@
+# ── Dev image (hot-reload) ─────────────────────────────────────────────────────
+# Source code is NOT copied here — it is bind-mounted by docker-compose.dev.yml.
+# node_modules are baked into the image so they are not shadowed by the mount.
+# Rebuild this image only when package.json changes.
+FROM node:22-alpine
+
+# Install redis (needed by entrypoint.sh) and other native deps
+RUN apk add --no-cache redis
+
+WORKDIR /app
+
+# Install ALL deps (including devDependencies — needed for tsx)
+COPY package*.json ./
+RUN npm ci --ignore-scripts
+
+# Entrypoint handles DB migration + seed then hands off to CMD
+COPY entrypoint.sh ./
+RUN chmod +x ./entrypoint.sh
+
+EXPOSE 5000
+
+ENTRYPOINT ["./entrypoint.sh"]
+# tsx watch gives near-instant restart on any .ts file change
+CMD ["npx", "tsx", "watch", "src/server.ts"]
