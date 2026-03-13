@@ -1,22 +1,20 @@
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  LOCAL DEVELOPMENT ONLY — Hot Reload
+#  LOCAL DEVELOPMENT ONLY — Docker Compose Watch (hot reload)
 # ══════════════════════════════════════════════════════════════════════════════
 #
 #  Usage:
-#    docker compose -f docker-compose.dev.yml up
-#    docker compose -f docker-compose.dev.yml up --build   # after package.json changes
-#    docker compose -f docker-compose.dev.yml down -v      # remove named volumes too
+#    docker compose -f docker-compose.dev.yml up --watch
+#    docker compose -f docker-compose.dev.yml up --watch --build   # first time
+#    docker compose -f docker-compose.dev.yml down
 #
-#  What this does differently from docker-compose.yml:
-#  • Builds lightweight single-stage images (no tsc compile, no nginx).
-#  • Bind-mounts source code so file changes are picked up immediately:
-#      - Backend:  tsx watch  → restarts on any .ts change
-#      - Frontend: next dev   → HMR (hot module replacement) built-in
-#  • Named volumes keep node_modules inside the container so the host mount
-#    does not shadow the container-installed packages.
-#  • Sets CHOKIDAR_USEPOLLING / WATCHPACK_POLLING for reliable file-change
-#    detection on Windows (Docker Desktop bind mounts don't send FS events).
+#  How it works:
+#  • `sync`    — Docker detects saved files on the host and copies them into
+#                the running container's filesystem. The container's own watcher
+#                (tsx watch / next dev) sees native Linux inotify events and
+#                reacts instantly — no polling needed.
+#  • `rebuild` — If package.json changes, the image is automatically rebuilt
+#                and the container restarted.
 #
 #  This file is NEVER used by the CI/CD pipeline (deploy.yml uses
 #  docker-compose.yml + production Dockerfiles only).
@@ -31,11 +29,6 @@ services:
     restart: "no"
     ports:
       - "${BACKEND_PORT}:${BACKEND_INTERNAL_PORT}"
-    volumes:
-      # Source code — changes here reflect instantly inside the container
-      - ./Backend:/app
-      # Keep node_modules from inside the container (don't let host mount shadow them)
-      - backend_node_modules:/app/node_modules
     environment:
       NODE_ENV:             ${NODE_ENV}
       PORT:                 ${BACKEND_INTERNAL_PORT}
@@ -56,9 +49,6 @@ services:
       OCI_NAMESPACE:        ${OCI_NAMESPACE}
       OCI_BUCKET:           ${OCI_BUCKET}
       OCI_REGION:           ${OCI_REGION}
-      # ── Polling: required on Windows/WSL2 so tsx watch sees file changes ───
-      CHOKIDAR_USEPOLLING:  "true"
-      CHOKIDAR_INTERVAL:    "300"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -67,6 +57,15 @@ services:
       timeout: 5s
       start_period: 30s
       retries: 5
+    develop:
+      watch:
+        # Sync source changes into the container instantly (tsx watch reacts via inotify)
+        - action: sync
+          path: ./Backend/src
+          target: /app/src
+        # Rebuild the image if dependencies change
+        - action: rebuild
+          path: ./Backend/package.json
     networks:
       - app
 
@@ -78,31 +77,28 @@ services:
     ports:
       # next dev serves on port 3000 directly — no nginx in dev
       - "${FRONTEND_PORT}:3000"
-    volumes:
-      # Source code
-      - ./Frontend:/app
-      # Preserve container node_modules
-      - frontend_node_modules:/app/node_modules
-      # Preserve Next.js build cache across restarts (optional but speeds up cold starts)
-      - frontend_next_cache:/app/.next
     environment:
       NODE_ENV:                  ${NODE_ENV}
-      # Used by Next.js rewrites (next.config.ts) to proxy /api/* → backend
-      # Container can resolve "backend" via the shared "app" Docker network
+      # Used by next.config.ts rewrites to proxy /api/* → backend in dev
       BACKEND_URL:               http://backend:5000
       NEXT_TELEMETRY_DISABLED:   "1"
-      # ── Polling: required on Windows/WSL2 so next dev HMR detects changes ──
-      WATCHPACK_POLLING:         "true"
     depends_on:
       backend:
         condition: service_healthy
+    develop:
+      watch:
+        # Sync all frontend source changes (app/, components/, lib/, etc.)
+        - action: sync
+          path: ./Frontend
+          target: /app
+          ignore:
+            - node_modules/
+            - .next/
+        # Rebuild the image if dependencies change
+        - action: rebuild
+          path: ./Frontend/package.json
     networks:
       - app
-
-volumes:
-  backend_node_modules:
-  frontend_node_modules:
-  frontend_next_cache:
 
 networks:
   app:

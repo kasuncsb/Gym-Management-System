@@ -1,10 +1,10 @@
-# ── Dev image (hot-reload) ─────────────────────────────────────────────────────
-# Source code is NOT copied here — it is bind-mounted by docker-compose.dev.yml.
-# node_modules are baked into the image so they are not shadowed by the mount.
-# Rebuild this image only when package.json changes.
+# ── Dev image (Docker Compose Watch) ──────────────────────────────────────────
+# Source is baked in at build time; docker compose watch --sync keeps it updated
+# on every save without a container restart or image rebuild.
+# Rebuild this image only when package.json changes (watch action: rebuild).
 FROM node:22-alpine
 
-# Install redis (needed by entrypoint.sh) and other native deps
+# Install redis (needed by entrypoint.sh to start the embedded Redis)
 RUN apk add --no-cache redis
 
 WORKDIR /app
@@ -13,12 +13,13 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --ignore-scripts
 
-# Entrypoint handles DB migration + seed then hands off to CMD
-COPY entrypoint.sh ./
+# Copy source into the image (watch sync will keep it up-to-date at runtime)
+COPY . .
+
 RUN chmod +x ./entrypoint.sh
 
 EXPOSE 5000
 
 ENTRYPOINT ["./entrypoint.sh"]
-# tsx watch gives near-instant restart on any .ts file change
+# tsx watch restarts instantly when any .ts file is changed via sync
 CMD ["npx", "tsx", "watch", "src/server.ts"]
