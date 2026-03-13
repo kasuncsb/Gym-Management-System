@@ -43,9 +43,26 @@ export default function Home() {
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
         <div className="absolute inset-0 z-0">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-red-700/30 rounded-full blur-[128px]" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-red-600/20 rounded-full blur-[128px]" />
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808024_1px,transparent_1px),linear-gradient(to_bottom,#80808024_1px,transparent_1px)] bg-size-[24px_24px]" />
+          <video 
+            src="https://assets.kasunc.uk/videos/gms/hero-section.mp4" 
+            autoPlay 
+            loop 
+            muted 
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover object-center opacity-30" 
+          />
+          
+          {/* Vignette Effect (Reduced by 10% -> opacity from ~0.65 to ~0.55) */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.55)_100%)] z-10 pointer-events-none" />
+
+          {/* Corner Red Glows */}
+          <div className="absolute -top-20 md:-top-32 -left-20 md:-left-32 w-64 md:w-96 h-64 md:h-96 bg-red-700/25 md:bg-red-700/40 rounded-full blur-[80px] md:blur-[128px] z-0" />
+          <div className="absolute -top-20 md:-top-32 -right-20 md:-right-32 w-64 md:w-96 h-64 md:h-96 bg-red-800/25 md:bg-red-800/40 rounded-full blur-[80px] md:blur-[128px] z-0" />
+          <div className="absolute -bottom-20 md:-bottom-32 -left-20 md:-left-32 w-64 md:w-96 h-64 md:h-96 bg-red-800/25 md:bg-red-800/40 rounded-full blur-[80px] md:blur-[128px] z-0" />
+          <div className="absolute -bottom-20 md:-bottom-32 -right-20 md:-right-32 w-64 md:w-96 h-64 md:h-96 bg-red-700/25 md:bg-red-700/40 rounded-full blur-[80px] md:blur-[128px] z-0" />
+          
+          {/* Faded Grid Pattern in Corners Using Masks */}
+          <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,#80808024_1px,transparent_1px),linear-gradient(to_bottom,#80808024_1px,transparent_1px)] bg-size-[24px_24px] [mask-image:radial-gradient(ellipse_at_center,transparent_56%,black_100%)] md:[mask-image:radial-gradient(ellipse_at_center,transparent_24%,black_100%)] pointer-events-none" />
         </div>
 
         <div className="container relative z-10 px-6 mx-auto text-center">
@@ -76,7 +93,7 @@ export default function Home() {
             </Link>
             <Link
               href="/login"
-              className="w-full sm:w-auto px-8 py-4 bg-zinc-900 text-white font-bold rounded-xl hover:bg-zinc-800 border border-zinc-800 transition-all flex items-center justify-center"
+              className="w-full sm:w-auto px-8 py-4 text-white font-bold rounded-xl bg-zinc-900/40 backdrop-blur-md border border-white/10 hover:bg-zinc-800/60 hover:border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.1)] transition-all flex items-center justify-center"
             >
               Member Login
             </Link>

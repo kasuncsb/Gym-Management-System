@@ -90,46 +90,69 @@ export function Navbar() {
 
                 {/* Mobile Menu Button */}
                 <button
-                    className="md:hidden p-2 text-zinc-400 hover:text-white transition-colors"
+                    className="md:hidden p-2 text-zinc-400 hover:text-white transition-all duration-300 active:scale-95"
                     onClick={() => setIsOpen(!isOpen)}
                 >
-                    {isOpen ? <X size={28} /> : <Menu size={28} />}
+                    <div className="relative w-7 h-7 flex items-center justify-center">
+                        <Menu size={28} className={cn("absolute transition-all duration-300", isOpen ? "opacity-0 scale-50" : "opacity-100 scale-100")} />
+                        <X size={28} className={cn("absolute transition-all duration-300", isOpen ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+                    </div>
                 </button>
             </div>
 
-            {/* Mobile Nav */}
-            {isOpen && (
-                <div className="md:hidden absolute top-20 left-0 w-full bg-black/60 backdrop-blur-2xl border-b border-white/10 ring-1 ring-white/5 px-6 py-8 flex flex-col gap-7 shadow-2xl shadow-black/60 animate-in slide-in-from-top-4">
-                    {navLinks.map((link) => (
-                        <Link
-                            key={link.name}
-                            href={link.href}
-                            className="relative text-sm font-semibold uppercase tracking-wide text-zinc-400 hover:text-white transition-colors py-1 group w-fit overflow-hidden"
-                            onClick={() => setIsOpen(false)}
-                        >
-                            <span className="relative z-10">{link.name}</span>
-                            <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-red-600 to-red-800 group-hover:w-full transition-all duration-300 ease-out" />
-                        </Link>
-                    ))}
-                    <div className="h-px bg-white/10" />
+            {/* Mobile Nav (in-flow extension) */}
+            <div
+                className={cn(
+                    "md:hidden relative w-full px-6 flex flex-col items-center gap-5 transition-all duration-500 ease-in-out overflow-hidden border-t",
+                    isOpen ? "max-h-96 py-6 border-white/10 opacity-100" : "max-h-0 py-0 border-transparent opacity-0"
+                )}
+            >
+                <div className="absolute inset-0 bg-gradient-to-b from-red-900/5 to-transparent pointer-events-none" />
+                
+                {navLinks.map((link, i) => (
+                    <Link
+                        key={link.name}
+                        href={link.href}
+                        className={cn(
+                            "relative text-sm font-semibold uppercase tracking-[0.2em] hover:text-white py-1 transition-all duration-500 ease-out group",
+                            isOpen ? "text-zinc-400 translate-y-0 opacity-100" : "text-transparent -translate-y-4 opacity-0"
+                        )}
+                        style={{ transitionDelay: isOpen ? `${i * 75}ms` : '0ms' }}
+                        onClick={() => setIsOpen(false)}
+                    >
+                        <span className="relative z-10 group-hover:text-red-50 transition-colors duration-300">{link.name}</span>
+                        <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-gradient-to-r from-transparent via-red-600 to-transparent group-hover:w-full transition-all duration-300 ease-out" />
+                    </Link>
+                ))}
+                
+                <div className="w-24 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent my-1" />
+                
+                <div 
+                    className={cn(
+                        "flex flex-col items-center gap-5 w-full transition-all duration-500 ease-out",
+                        isOpen ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0"
+                    )}
+                    style={{ transitionDelay: isOpen ? '300ms' : '0ms' }}
+                >
                     <Link
                         href="/login"
-                        className="text-sm font-bold uppercase tracking-wide text-zinc-300 hover:text-white transition-colors relative group w-fit"
+                        className="text-xs font-bold uppercase tracking-widest text-zinc-300 hover:text-white transition-all duration-300 relative group"
                         onClick={() => setIsOpen(false)}
                     >
                         Login
-                        <span className="absolute -bottom-1 left-0 w-0 h-px bg-white group-hover:w-full transition-all duration-300" />
+                        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-0 h-px bg-white group-hover:w-full transition-all duration-300" />
                     </Link>
+                    
                     <Link
                         href="/register"
-                        className="relative px-8 py-3 bg-gradient-to-r from-red-700 to-red-900 text-white font-bold rounded-full hover:from-red-600 hover:to-red-800 transition-all duration-300 hover:shadow-[0_0_20px_rgba(220,38,38,0.4)] overflow-hidden group text-center self-start"
+                        className="relative px-6 py-2 bg-gradient-to-r from-red-700 to-red-900 text-white font-bold rounded-full hover:from-red-600 hover:to-red-800 transition-all duration-300 active:scale-95 overflow-hidden group border border-red-500/30"
                         onClick={() => setIsOpen(false)}
                     >
-                        <span className="relative z-10 uppercase tracking-wide text-sm">JOIN NOW</span>
-                        <div className="absolute inset-0 bg-gradient-to-r from-red-500/0 via-white/20 to-red-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                        <span className="relative z-10 uppercase tracking-widest text-xs">JOIN NOW</span>
+                        <div className="absolute inset-0 bg-gradient-to-r from-red-500/0 via-white/20 to-red-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out" />
                     </Link>
                 </div>
-            )}
+            </div>
         </nav>
     );
 }
