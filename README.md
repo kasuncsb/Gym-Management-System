@@ -76,7 +76,16 @@ Authentication relies on an asymmetric JWT approach. Users receive short-lived a
 Due to the sensitivity of government ID documents (NICs), files are not stored on the local file system. The backend negotiates with Oracle Cloud Infrastructure (OCI) using Instance Principals to securely transmit buffers directly to private Object Storage buckets. These files are never exposed via public URLs; they are streamed securely through a protected backend proxy route, accessible only to authorized administrators.
 
 ### Automated Database Initialization
-The deployment pipeline includes self-healing database initialization scripts. During container startup, the system evaluates the MySQL schema state. If no tables exist, it programmatically pushes the Drizzle schema and seeds vital configuration data alongside an initial administrative user, ensuring the system boots reliably without manual database intervention.
+The deployment pipeline includes self-healing database initialization scripts. During container startup, the system evaluates the MySQL schema state. If no tables exist, it initializes the schema from the bundled `Backend/scripts/schema/init.sql` (synced from `Gym-Management-System-Docs/Database/final_schema.sql`) and seeds vital configuration data alongside four users (one per role), ensuring the system boots reliably without manual database intervention.
+
+**Seed login credentials** (fixed password for all):
+
+| Role    | Email                     | Password   |
+|---------|---------------------------|-------------|
+| Admin   | admin@powerworldgyms.lk   | PWlogin!26  |
+| Manager | manager@powerworldgyms.lk  | PWlogin!26  |
+| Trainer | trainer@powerworldgyms.lk  | PWlogin!26  |
+| Member  | member@powerworldgyms.lk  | PWlogin!26  |
 
 ---
 

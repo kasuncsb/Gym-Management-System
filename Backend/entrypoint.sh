@@ -33,9 +33,9 @@ DB_CHECK=$(node --no-deprecation -e "
 ")
 
 if [ "$DB_CHECK" = "EMPTY" ]; then
-  echo "Database is empty. Pushing schema..."
-  npx drizzle-kit push
-  
+  echo "Database is empty. Initializing schema from final_schema.sql..."
+  npx tsx scripts/init-schema.ts
+
   echo "Seeding database..."
   # Use tsx to run the seed script since it's TypeScript
   npx tsx scripts/seed.ts

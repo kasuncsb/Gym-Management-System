@@ -8,6 +8,8 @@
     "start": "node dist/server.js",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "db:init": "tsx scripts/init-schema.ts",
+    "db:reset": "tsx scripts/init-schema.ts && tsx scripts/seed.ts",
     "db:seed": "tsx scripts/seed.ts",
     "seed": "tsx scripts/seed.ts"
   },
