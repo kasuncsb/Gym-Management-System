@@ -1,51 +1,104 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// ── Public-only routes ────────────────────────────────────────────────────────
-// Authenticated users should NOT be able to land here (redirect → /dashboard).
-const AUTH_ONLY_ROUTES = ['/login', '/register'];
+// ── Public-only routes ─────────────────────────────────────────────────────────
+// Authenticated users are redirected to their role dashboard.
+const AUTH_ONLY_ROUTES = ['/login'];
 
-// ── Protected routes ──────────────────────────────────────────────────────────
-// Unauthenticated users hitting any of these are redirected → /login.
-// Determined by checking for the httpOnly `access_token` cookie set by the backend.
-// Full JWT validation is handled server-side; cookie presence is sufficient for
-// edge routing (any invalid/expired token is caught by the backend + axios interceptor).
-const PROTECTED_PREFIXES = [
-  '/dashboard',
-  '/onboard',
-  '/register/personal-details',
-  '/register/identity-verification',
-  '/register/subscription',
-  '/register/verify-email',
-  '/register/dashboard',
-  '/forgot-password/pin-code',
-  '/forgot-password/new-password',
-  '/forgot-password/success',
+// ── Member-side public flows ───────────────────────────────────────────────────
+// These don't need a session, but if the user IS logged in, bounce them to dashboard.
+const MEMBER_PUBLIC_PREFIXES = [
+  '/member/register',
+  '/member/forgot-password',
+  '/member/verify-email',
+  '/member/reset-password',
 ];
+
+// ── Protected prefixes (all must be authenticated) ────────────────────────────
+const MEMBER_PROTECTED = [
+  '/member/onboard',
+  '/member/dashboard',
+  '/member/workouts',
+  '/member/appointments',
+  '/member/progress',
+  '/member/checkin',
+];
+
+const STAFF_PROTECTED = ['/trainer', '/manager', '/admin'];
+
+const PROTECTED_PREFIXES = [...MEMBER_PROTECTED, ...STAFF_PROTECTED];
+
+// ── Role → portal mapping ────────────────────────────────────────────────────
+function homeForRole(role: string): string {
+  switch (role) {
+    case 'trainer': return '/trainer/dashboard';
+    case 'manager': return '/manager/dashboard';
+    case 'admin':   return '/admin/dashboard';
+    default:        return '/member/dashboard';
+  }
+}
+
+function portalForRole(role: string): string {
+  switch (role) {
+    case 'trainer': return '/trainer';
+    case 'manager': return '/manager';
+    case 'admin':   return '/admin';
+    default:        return '/member';
+  }
+}
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const hasSession = request.cookies.has('access_token');
+  const hasSession  = request.cookies.has('access_token');
+  const role        = request.cookies.get('user_role')?.value ?? 'member';
 
-  // ── Guard: unauthenticated → protected route ─────────────────────────────
-  const isProtected = PROTECTED_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(prefix + '/')
-  );
+  // Helper: is this path under a given prefix?
+  const under = (prefix: string) =>
+    pathname === prefix || pathname.startsWith(prefix + '/');
 
-  if (isProtected && !hasSession) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = '/login';
-    // Preserve the intended destination so we can redirect back after login
-    loginUrl.searchParams.set('next', pathname);
-    return NextResponse.redirect(loginUrl);
+  // ── /dashboard — permanent redirect to the correct role portal ───────────
+  // Handles old bookmarks and any hard-coded links that still use /dashboard.
+  if (pathname === '/dashboard') {
+    const url = request.nextUrl.clone();
+    url.search   = '';
+    url.pathname = hasSession ? homeForRole(role) : '/login';
+    return NextResponse.redirect(url);
   }
 
-  // ── Guard: authenticated → public-only route ─────────────────────────────
-  if (AUTH_ONLY_ROUTES.includes(pathname) && hasSession) {
-    const dashboardUrl = request.nextUrl.clone();
-    dashboardUrl.pathname = '/dashboard';
-    dashboardUrl.search = '';
-    return NextResponse.redirect(dashboardUrl);
+  // ── Guard: unauthenticated → protected route ─────────────────────────────
+  const isProtected = PROTECTED_PREFIXES.some(under);
+  if (isProtected && !hasSession) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    url.searchParams.set('next', pathname);
+    return NextResponse.redirect(url);
+  }
+
+  // ── Guard: authenticated → public-only / member-auth routes ──────────────
+  const isMemberPublic = MEMBER_PUBLIC_PREFIXES.some(under);
+  if (hasSession && (AUTH_ONLY_ROUTES.includes(pathname) || isMemberPublic)) {
+    const url = request.nextUrl.clone();
+    url.pathname = homeForRole(role);
+    url.search   = '';
+    return NextResponse.redirect(url);
+  }
+
+  // ── Guard: authenticated → wrong role portal ──────────────────────────────
+  if (hasSession && isProtected) {
+    const myPortal = portalForRole(role);
+    // Check if user is trying to access another role's portal
+    const wrongPortal = STAFF_PROTECTED
+      .filter(p => p !== myPortal)
+      .some(under);
+    // Also check member trying to access /trainer|/manager|/admin vice-versa
+    const memberOnStaffPortal = role === 'member' && STAFF_PROTECTED.some(under);
+    const staffOnMemberPortal = role !== 'member' && MEMBER_PROTECTED.some(under);
+    if (wrongPortal || memberOnStaffPortal || staffOnMemberPortal) {
+      const url = request.nextUrl.clone();
+      url.pathname = homeForRole(role);
+      url.search   = '';
+      return NextResponse.redirect(url);
+    }
   }
 
   return NextResponse.next();
@@ -53,14 +106,6 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match every path EXCEPT:
-     *  - _next/static  (Next.js static assets)
-     *  - _next/image   (Next.js image optimizer)
-     *  - favicon.ico
-     *  - /api/*        (backend proxy — auth handled by Express)
-     *  - public files with extensions (images, fonts, videos, etc.)
-     */
     '/((?!_next/static|_next/image|favicon\\.ico|public/|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mp4|webm|woff2?|ttf|otf|eot)$).*)',
   ],
 };

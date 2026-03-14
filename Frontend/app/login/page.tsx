@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { authAPI, getErrorMessage } from "@/lib/api";
 import { Dumbbell, ArrowLeft, Mail, Lock, Loader2, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, dashboardPathForRole } from "@/context/AuthContext";
 
 // ── Inner form component ─────────────────────────────────────────────────────
 // useSearchParams() MUST live inside a component that is wrapped in <Suspense>
@@ -18,13 +18,13 @@ function LoginForm() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
-    const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+    const { login, user, isAuthenticated, isLoading: authLoading } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
 
     // BUG-23 fix: Redirect already-authenticated users away from the login page.
     useEffect(() => {
-        if (!authLoading && isAuthenticated) router.replace('/dashboard');
+        if (!authLoading && isAuthenticated) router.replace(dashboardPathForRole(user?.role ?? 'member'));
     }, [authLoading, isAuthenticated, router]);
 
     // Show success notice when redirected here after password change (BUG-03)
@@ -41,21 +41,20 @@ function LoginForm() {
 
         try {
             const response = await authAPI.login(email, password);
-            const { user } = response.data.data;
+            const { user: responseUser } = response.data.data;
 
             // Cookies set by backend — just update client state
             login({
-                id: user.id,
-                fullName: user.fullName,
-                email: user.email,
-                role: user.role,
-                phone: user.phone,
+                id: responseUser.id,
+                fullName: responseUser.fullName,
+                email: responseUser.email,
+                role: responseUser.role,
+                phone: responseUser.phone,
             });
 
-            // Redirect to unified dashboard
-            router.push('/dashboard');
+            router.push(dashboardPathForRole(responseUser.role));
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Login failed:', err);
             setError(getErrorMessage(err));
         } finally {
@@ -145,7 +144,7 @@ function LoginForm() {
                         <div className="space-y-2">
                             <div className="flex justify-between items-center">
                                 <label className="text-sm font-medium text-zinc-300">Password</label>
-                                <Link href="/forgot-password" className="text-xs text-red-500 hover:text-red-400">Forgot password?</Link>
+                                <Link href="/member/forgot-password" className="text-xs text-red-500 hover:text-red-400">Forgot password?</Link>
                             </div>
                             <div className="relative group">
                                 <Lock className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={18} />
@@ -174,7 +173,7 @@ function LoginForm() {
 
                     <div className="mt-8 text-center text-sm text-zinc-400">
                         Don&apos;t have an account? {' '}
-                        <Link href="/register" className="text-red-500 hover:text-red-400 font-medium hover:underline">
+                        <Link href="/member/register" className="text-red-500 hover:text-red-400 font-medium hover:underline">
                             Create Account
                         </Link>
                     </div>

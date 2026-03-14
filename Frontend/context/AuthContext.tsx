@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useRouter } from 'next/navigation';
 import { authAPI } from '../lib/api';
 
-export type Role = 'admin' | 'manager' | 'staff' | 'trainer' | 'member';
+export type Role = 'admin' | 'manager' | 'trainer' | 'member';
 
 export interface User {
   id: string;
@@ -27,8 +27,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function dashboardPathForRole(_role: string): string {
-  return '/dashboard';
+export function dashboardPathForRole(role: string): string {
+  switch (role) {
+    case 'trainer': return '/trainer/dashboard';
+    case 'manager': return '/manager/dashboard';
+    case 'admin':   return '/admin/dashboard';
+    default:        return '/member/dashboard';
+  }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -93,6 +98,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(newUser);
     setIsAuthenticated(true);
     localStorage.setItem('user', JSON.stringify(newUser));
+    // Set a lightweight role cookie so the Edge proxy can do role-based redirects
+    // without needing to decode the JWT (which is httpOnly and inaccessible at edge).
+    document.cookie = `user_role=${newUser.role}; path=/; samesite=lax`;
   }, []);
 
   // BUG-22 fix: Previously, logout() called authAPI.logout() through the standard
@@ -110,6 +118,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem('user');
+    // Clear role cookie
+    document.cookie = 'user_role=; path=/; max-age=0';
     router.push('/');
   }, [router]);
 

@@ -151,7 +151,7 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
     });
   });
 
-  const verifyUrl = `${env.FRONTEND_URL}/verify-email?token=${emailVerifyToken}`;
+  const verifyUrl = `${env.FRONTEND_URL}/member/verify-email?token=${emailVerifyToken}`;
   sendEmail(
     input.email,
     'Verify Your Email — PowerWorld Gyms',
@@ -302,7 +302,7 @@ export async function sendVerificationEmail(userId: string): Promise<void> {
   const verifyToken = ids.resetToken();
   await db.update(users).set({ emailVerifyToken: verifyToken }).where(eq(users.id, userId));
 
-  const verifyUrl = `${env.FRONTEND_URL}/verify-email?token=${verifyToken}`;
+  const verifyUrl = `${env.FRONTEND_URL}/member/verify-email?token=${verifyToken}`;
   await sendEmail(
     person.email,
     'Verify Your Email — PowerWorld Gyms',
@@ -338,7 +338,7 @@ export async function forgotPassword(email: string): Promise<void> {
 
   await db.update(users).set({ resetToken, resetExpires }).where(eq(users.id, person.id));
 
-  const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+  const resetUrl = `${env.FRONTEND_URL}/member/reset-password?token=${resetToken}`;
   await sendEmail(
     person.email,
     'Reset Your Password — PowerWorld Gyms',

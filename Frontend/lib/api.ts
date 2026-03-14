@@ -64,11 +64,15 @@ apiClient.interceptors.response.use(
       if (typeof window !== 'undefined') {
         const path = window.location.pathname;
         const publicRoutes = [
-          '/', '/login', '/register',
-          '/forgot-password', '/forgot-password/pin-code', '/forgot-password/new-password', '/forgot-password/success',
-          '/reset-password', '/verify-email',
+          '/', '/login',
+          '/member/register', '/member/register/personal-details',
+          '/member/register/identity-verification', '/member/register/subscription',
+          '/member/register/verify-email', '/member/register/dashboard',
+          '/member/forgot-password', '/member/forgot-password/pin-code',
+          '/member/forgot-password/new-password', '/member/forgot-password/success',
+          '/member/verify-email', '/member/reset-password',
         ];
-        if (!publicRoutes.includes(path)) {
+        if (!publicRoutes.some(r => path === r || path.startsWith(r + '/'))) {
           window.location.href = '/login';
         }
       }

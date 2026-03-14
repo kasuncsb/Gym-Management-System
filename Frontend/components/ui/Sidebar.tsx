@@ -8,53 +8,97 @@ import {
     LogOut,
     Menu,
     X,
+    Dumbbell,
+    Calendar,
+    TrendingUp,
+    QrCode,
+    Users,
+    Wrench,
+    ClipboardList,
+    HelpCircle,
+    BarChart3,
+    UserCheck,
+    Settings,
+    Activity,
+    CreditCard,
+    ShieldCheck,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { useAuth } from "@/context/AuthContext";
 
-// Utility for merging tailwind classes
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
-import { useAuth } from "@/context/AuthContext";
+type NavItem = { label: string; href: string; icon: React.ElementType };
+
+function navForRole(role: string): NavItem[] {
+    switch (role) {
+        case 'member':
+            return [
+                { label: 'Dashboard',     href: '/member/dashboard',     icon: LayoutDashboard },
+                { label: 'Workouts',      href: '/member/workouts',      icon: Dumbbell },
+                { label: 'Appointments',  href: '/member/appointments',  icon: Calendar },
+                { label: 'Progress',      href: '/member/progress',      icon: TrendingUp },
+                { label: 'Check-in',      href: '/member/checkin',       icon: QrCode },
+            ];
+        case 'trainer':
+            return [
+                { label: 'Dashboard',  href: '/trainer/dashboard',  icon: LayoutDashboard },
+                { label: 'Check-in',   href: '/trainer/checkin',    icon: QrCode },
+                { label: 'Equipment',  href: '/trainer/equipment',  icon: Wrench },
+                { label: 'Tasks',      href: '/trainer/tasks',      icon: ClipboardList },
+                { label: 'Assistance', href: '/trainer/assistance', icon: HelpCircle },
+            ];
+        case 'manager':
+            return [
+                { label: 'Dashboard', href: '/manager/dashboard', icon: LayoutDashboard },
+                { label: 'Insights',  href: '/manager/insights',  icon: BarChart3 },
+                { label: 'Members',   href: '/manager/members',   icon: Users },
+                { label: 'Staff',     href: '/manager/staff',     icon: UserCheck },
+                { label: 'Reports',   href: '/manager/reports',   icon: TrendingUp },
+                { label: 'Check-in',  href: '/manager/checkin',   icon: QrCode },
+            ];
+        case 'admin':
+            return [
+                { label: 'Dashboard',  href: '/admin/dashboard',   icon: LayoutDashboard },
+                { label: 'Users',      href: '/admin/users',        icon: Users },
+                { label: 'Plans',      href: '/admin/plans',        icon: CreditCard },
+                { label: 'Activities', href: '/admin/activities',   icon: Activity },
+                { label: 'Reports',    href: '/admin/reports',      icon: BarChart3 },
+                { label: 'Settings',   href: '/admin/settings',     icon: Settings },
+                { label: 'Check-in',   href: '/admin/checkin',      icon: ShieldCheck },
+            ];
+        default:
+            return [{ label: 'Dashboard', href: '/member/dashboard', icon: LayoutDashboard }];
+    }
+}
+
+const ROLE_LABELS: Record<string, string> = {
+    admin:   'Administrator',
+    manager: 'Manager',
+    trainer: 'Trainer',
+    member:  'Member',
+};
+
+const ROLE_BADGE: Record<string, string> = {
+    admin:   'bg-purple-500/20 text-purple-400',
+    manager: 'bg-blue-500/20 text-blue-400',
+    trainer: 'bg-amber-500/20 text-amber-400',
+    member:  'bg-emerald-500/20 text-emerald-400',
+};
 
 export function Sidebar() {
     const { user, logout } = useAuth();
     const pathname = usePathname();
     const [mobileOpen, setMobileOpen] = useState(false);
-    // BUG-02 fix: Suppress user-dependent rendering until after client hydration.
-    // SSR always renders without user info; client syncs after mount.
-    // This prevents the server/client HTML mismatch that caused React Error #418.
     const [mounted, setMounted] = useState(false);
     useEffect(() => setMounted(true), []);
 
-    const navItems = [
-        { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    ];
-
-    const roleLabel = (role: string) => {
-        const map: Record<string, string> = {
-            admin: "Administrator",
-            manager: "Manager",
-            staff: "Staff",
-            trainer: "Trainer",
-            member: "Member",
-        };
-        return map[role] || role;
-    };
-
-    const roleBadgeColor = (role: string) => {
-        const map: Record<string, string> = {
-            admin: "bg-purple-500/20 text-purple-400",
-            manager: "bg-blue-500/20 text-blue-400",
-            staff: "bg-cyan-500/20 text-cyan-400",
-            trainer: "bg-amber-500/20 text-amber-400",
-            member: "bg-emerald-500/20 text-emerald-400",
-        };
-        return map[role] || "bg-zinc-500/20 text-zinc-400";
-    };
+    const role = user?.role ?? 'member';
+    const navItems = navForRole(role);
 
     const SidebarContent = () => (
         <div className="flex flex-col h-full">
@@ -83,8 +127,8 @@ export function Sidebar() {
                         </div>
                         <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold text-white truncate">{user.fullName}</p>
-                            <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", roleBadgeColor(user.role))}>
-                                {roleLabel(user.role)}
+                            <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", ROLE_BADGE[role] ?? 'bg-zinc-500/20 text-zinc-400')}>
+                                {ROLE_LABELS[role] ?? role}
                             </span>
                         </div>
                     </div>

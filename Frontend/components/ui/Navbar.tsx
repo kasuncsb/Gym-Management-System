@@ -80,7 +80,7 @@ export function Navbar() {
                         <span className="absolute -bottom-1 left-0 w-0 h-px bg-white group-hover:w-full transition-all duration-300" />
                     </Link>
                     <Link
-                        href="/register"
+                        href="/member/register"
                         className="relative px-8 py-3 bg-gradient-to-r from-red-700 to-red-900 text-white font-bold rounded-full hover:from-red-600 hover:to-red-800 transition-all duration-300 transform hover:scale-105 hover:shadow-[0_0_20px_rgba(220,38,38,0.4)] overflow-hidden group"
                     >
                         <span className="relative z-10">JOIN NOW</span>
@@ -144,7 +144,7 @@ export function Navbar() {
                     </Link>
                     
                     <Link
-                        href="/register"
+                        href="/member/register"
                         className="relative px-6 py-2 bg-gradient-to-r from-red-700 to-red-900 text-white font-bold rounded-full hover:from-red-600 hover:to-red-800 transition-all duration-300 active:scale-95 overflow-hidden group border border-red-500/30"
                         onClick={() => setIsOpen(false)}
                     >

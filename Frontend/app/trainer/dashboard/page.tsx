@@ -1,0 +1,193 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
+import { QrCode, Wrench, ClipboardList, HelpCircle, Users, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
+
+type CheckInType = 'check-in' | 'check-out' | 'assistance';
+type Priority = 'high' | 'medium' | 'low';
+type EquipmentStatus = 'operational' | 'maintenance' | 'out_of_order';
+
+const statusColor: Record<EquipmentStatus, string> = {
+    operational: 'text-green-400 bg-green-500/20',
+    maintenance:  'text-yellow-400 bg-yellow-500/20',
+    out_of_order: 'text-red-400 bg-red-500/20',
+};
+const priorityColor: Record<Priority, string> = {
+    high:   'text-red-400 bg-red-500/20',
+    medium: 'text-yellow-400 bg-yellow-500/20',
+    low:    'text-blue-400 bg-blue-500/20',
+};
+const typeIcon: Record<CheckInType, React.JSX.Element> = {
+    'check-in':   <CheckCircle2 size={18} className="text-green-400" />,
+    'check-out':  <AlertTriangle size={18} className="text-red-400" />,
+    'assistance': <HelpCircle   size={18} className="text-blue-400" />,
+};
+
+export default function TrainerDashboard() {
+    const { user } = useAuth();
+    const [currentTime, setCurrentTime] = useState(new Date());
+    const [isCheckedIn, setIsCheckedIn] = useState(false);
+
+    useEffect(() => {
+        const t = setInterval(() => setCurrentTime(new Date()), 1000);
+        return () => clearInterval(t);
+    }, []);
+
+    const firstName = user?.fullName?.split(' ')[0] ?? 'Trainer';
+
+    const stats = [
+        { label: 'Members Assisted', value: '23',  icon: Users,       color: 'from-blue-600 to-blue-700' },
+        { label: 'Check-ins Today',  value: '45',  icon: CheckCircle2, color: 'from-green-600 to-green-700' },
+        { label: 'Equipment Issues', value: '2',   icon: Wrench,       color: 'from-red-600 to-red-700' },
+        { label: 'Tasks Completed',  value: '8/11', icon: ClipboardList, color: 'from-purple-600 to-purple-700' },
+    ];
+
+    const quickActions = [
+        { label: 'Member Check-in', href: '/trainer/checkin',    icon: QrCode,       accent: 'border-blue-500/40 hover:border-blue-400 text-blue-400' },
+        { label: 'Equipment',       href: '/trainer/equipment',  icon: Wrench,       accent: 'border-green-500/40 hover:border-green-400 text-green-400' },
+        { label: 'Assistance',      href: '/trainer/assistance', icon: HelpCircle,   accent: 'border-purple-500/40 hover:border-purple-400 text-purple-400' },
+        { label: 'Daily Tasks',     href: '/trainer/tasks',      icon: ClipboardList, accent: 'border-orange-500/40 hover:border-orange-400 text-orange-400' },
+    ];
+
+    const recentCheckIns = [
+        { member: 'Nimal Perera',         time: '2 min ago',  type: 'check-in'   as CheckInType },
+        { member: 'Chathurika Silva',      time: '5 min ago',  type: 'check-out'  as CheckInType },
+        { member: 'Isuru Bandara',         time: '8 min ago',  type: 'check-in'   as CheckInType },
+        { member: 'Thilini Wijesinghe',    time: '12 min ago', type: 'assistance' as CheckInType },
+        { member: 'Saman Jayasinghe',      time: '15 min ago', type: 'check-in'   as CheckInType },
+    ];
+
+    const pendingTasks = [
+        { task: 'Clean cardio equipment',      priority: 'high'   as Priority, eta: '30 min' },
+        { task: 'Restock towels',              priority: 'medium' as Priority, eta: '15 min' },
+        { task: 'Check equipment maintenance', priority: 'low'    as Priority, eta: '45 min' },
+    ];
+
+    const equipment = [
+        { name: 'Treadmill #1',   status: 'operational' as EquipmentStatus, last: '2025-01-10' },
+        { name: 'Treadmill #2',   status: 'maintenance'  as EquipmentStatus, last: '2025-01-15' },
+        { name: 'Elliptical #1',  status: 'operational' as EquipmentStatus, last: '2025-01-12' },
+        { name: 'Rowing Machine', status: 'out_of_order' as EquipmentStatus, last: '2025-01-14' },
+    ];
+
+    return (
+        <div className="max-w-7xl mx-auto space-y-8">
+            {/* Header */}
+            <div>
+                <h1 className="text-3xl font-bold text-white mb-1">Trainer Dashboard</h1>
+                <p className="text-zinc-400">
+                    Welcome back, {firstName} ·{' '}
+                    {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                    {' · '}
+                    {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                </p>
+            </div>
+
+            {/* Shift Status */}
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5 flex items-center justify-between">
+                <div>
+                    <p className="text-white font-semibold">Shift Status</p>
+                    <p className="text-zinc-500 text-sm">{isCheckedIn ? 'You are currently on shift' : 'You are not checked in'}</p>
+                </div>
+                <button
+                    onClick={() => setIsCheckedIn(!isCheckedIn)}
+                    className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all ${isCheckedIn ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}
+                >
+                    {isCheckedIn ? 'Check Out' : 'Check In'}
+                </button>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {stats.map(({ label, value, icon: Icon, color }) => (
+                    <div key={label} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center mb-4`}>
+                            <Icon size={18} className="text-white" />
+                        </div>
+                        <p className="text-2xl font-bold text-white">{value}</p>
+                        <p className="text-xs text-zinc-500 mt-1">{label}</p>
+                    </div>
+                ))}
+            </div>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {quickActions.map(({ label, href, icon: Icon, accent }) => (
+                    <Link key={href} href={href}
+                        className={`bg-zinc-900/50 border ${accent} rounded-2xl p-5 flex flex-col items-center gap-3 transition-all hover:bg-zinc-900 hover:scale-[1.02]`}>
+                        <Icon size={26} />
+                        <span className="text-sm font-semibold text-white">{label}</span>
+                    </Link>
+                ))}
+            </div>
+
+            {/* Bottom grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Recent Check-ins */}
+                <div className="lg:col-span-2 bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+                    <div className="flex items-center justify-between mb-5">
+                        <h2 className="text-lg font-semibold text-white">Recent Check-ins</h2>
+                        <Link href="/trainer/checkin" className="text-sm text-red-500 hover:text-red-400">View All</Link>
+                    </div>
+                    <div className="space-y-3">
+                        {recentCheckIns.map((c, i) => (
+                            <div key={i} className="flex items-center justify-between bg-zinc-800/30 rounded-xl p-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 bg-zinc-800 rounded-lg flex items-center justify-center">
+                                        {typeIcon[c.type]}
+                                    </div>
+                                    <div>
+                                        <p className="text-white text-sm font-semibold">{c.member}</p>
+                                        <p className="text-zinc-500 text-xs capitalize">{c.type}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1 text-zinc-500 text-xs">
+                                    <Clock size={12} /> {c.time}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Pending Tasks */}
+                <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+                    <h2 className="text-lg font-semibold text-white mb-5">Pending Tasks</h2>
+                    <div className="space-y-3">
+                        {pendingTasks.map((t, i) => (
+                            <div key={i} className="bg-zinc-800/30 rounded-xl p-3">
+                                <div className="flex justify-between mb-1">
+                                    <p className="text-white text-sm font-semibold">{t.task}</p>
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${priorityColor[t.priority]}`}>{t.priority}</span>
+                                </div>
+                                <p className="text-zinc-500 text-xs">Est. {t.eta}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Equipment Status */}
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-5">
+                    <h2 className="text-lg font-semibold text-white">Equipment Status</h2>
+                    <Link href="/trainer/equipment" className="text-sm text-red-500 hover:text-red-400">Manage</Link>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {equipment.map((e, i) => (
+                        <div key={i} className="flex items-center justify-between bg-zinc-800/30 rounded-xl p-4">
+                            <div>
+                                <p className="text-white text-sm font-semibold">{e.name}</p>
+                                <p className="text-zinc-500 text-xs">Last maintenance: {e.last}</p>
+                            </div>
+                            <span className={`text-xs px-2 py-1 rounded-full font-semibold ${statusColor[e.status]}`}>
+                                {e.status.replace('_', ' ')}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}

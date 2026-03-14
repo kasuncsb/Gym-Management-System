@@ -1,0 +1,108 @@
+'use client';
+
+import { useState } from 'react';
+import { HelpCircle, CheckCircle2, Clock, User } from 'lucide-react';
+
+type Priority = 'high' | 'medium' | 'low';
+type ReqStatus = 'open' | 'in_progress' | 'resolved';
+
+const priorityColor: Record<Priority, string> = {
+    high:   'text-red-400 bg-red-500/20 border-red-500/30',
+    medium: 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30',
+    low:    'text-blue-400 bg-blue-500/20 border-blue-500/30',
+};
+const statusColor: Record<ReqStatus, string> = {
+    open:        'text-red-400 bg-red-500/20',
+    in_progress: 'text-yellow-400 bg-yellow-500/20',
+    resolved:    'text-green-400 bg-green-500/20',
+};
+
+interface Request {
+    id: number;
+    member: string;
+    memberId: string;
+    request: string;
+    time: string;
+    priority: Priority;
+    status: ReqStatus;
+    location: string;
+}
+
+const initialRequests: Request[] = [
+    { id: 1, member: 'Gayani Fernando',    memberId: 'PW2025022', request: 'Need help with bench press form',       time: '5 min ago',  priority: 'medium', status: 'open',        location: 'Chest Area' },
+    { id: 2, member: 'Ruwan Jayawardena',  memberId: 'PW2025009', request: 'Treadmill #2 belt slipping',            time: '12 min ago', priority: 'high',   status: 'in_progress', location: 'Cardio Zone' },
+    { id: 3, member: 'Nirosha Senanayake', memberId: 'PW2024087', request: 'Workout recommendations for fat loss',  time: '18 min ago', priority: 'low',    status: 'open',        location: 'Reception' },
+    { id: 4, member: 'Thilini Perera',     memberId: 'PW2025031', request: 'Leg press machine adjustment needed',   time: '25 min ago', priority: 'medium', status: 'resolved',    location: 'Leg Area' },
+];
+
+export default function TrainerAssistancePage() {
+    const [requests, setRequests] = useState<Request[]>(initialRequests);
+    const [filter, setFilter] = useState<ReqStatus | 'all'>('all');
+
+    const resolve = (id: number) => setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'resolved' } : r));
+
+    const filtered = filter === 'all' ? requests : requests.filter(r => r.status === filter);
+    const open = requests.filter(r => r.status !== 'resolved').length;
+
+    return (
+        <div className="max-w-4xl mx-auto space-y-8">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold text-white mb-1 flex items-center gap-3">
+                        <HelpCircle size={28} className="text-purple-400" /> Member Assistance
+                    </h1>
+                    <p className="text-zinc-400">Help members who need support on the floor</p>
+                </div>
+                {open > 0 && (
+                    <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-2 rounded-xl text-sm font-semibold">
+                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                        {open} open {open === 1 ? 'request' : 'requests'}
+                    </div>
+                )}
+            </div>
+
+            {/* Filter */}
+            <div className="flex gap-2">
+                {(['all','open','in_progress','resolved'] as const).map(f => (
+                    <button key={f} onClick={() => setFilter(f)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${filter === f ? 'bg-purple-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>
+                        {f.replace('_',' ')}
+                    </button>
+                ))}
+            </div>
+
+            {/* Requests */}
+            <div className="space-y-4">
+                {filtered.map(r => (
+                    <div key={r.id} className={`bg-zinc-900/50 border rounded-2xl p-5 ${r.priority === 'high' && r.status !== 'resolved' ? 'border-red-500/30' : 'border-zinc-800'}`}>
+                        <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-purple-600/20 rounded-xl flex items-center justify-center">
+                                    <User size={18} className="text-purple-400" />
+                                </div>
+                                <div>
+                                    <p className="text-white font-semibold">{r.member}</p>
+                                    <p className="text-zinc-500 text-xs">{r.memberId} · {r.location}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${priorityColor[r.priority]}`}>{r.priority}</span>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusColor[r.status]}`}>{r.status.replace('_',' ')}</span>
+                            </div>
+                        </div>
+                        <p className="text-zinc-300 text-sm mb-3 pl-13">{r.request}</p>
+                        <div className="flex items-center justify-between">
+                            <span className="text-zinc-600 text-xs flex items-center gap-1"><Clock size={10} /> {r.time}</span>
+                            {r.status !== 'resolved' && (
+                                <button onClick={() => resolve(r.id)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600/20 hover:bg-green-600/30 text-green-400 rounded-lg text-xs font-semibold transition-all">
+                                    <CheckCircle2 size={12} /> Mark Resolved
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}

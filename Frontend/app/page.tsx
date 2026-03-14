@@ -80,7 +80,7 @@ export default function Home() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
             <Link
-              href="/register"
+              href="/member/register"
               className="w-full sm:w-auto px-8 py-4 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-all transform hover:scale-105 flex items-center justify-center gap-2"
             >
               Start Your Journey <ArrowRight size={20} />
@@ -177,7 +177,7 @@ export default function Home() {
                 </div>
 
                 <Link
-                  href="/register"
+                  href="/member/register"
                   className={`w-full py-4 rounded-xl font-bold transition-all text-center ${plan.popular
                     ? "bg-red-700 hover:bg-red-800 text-white shadow-lg shadow-red-600/25"
                     : "bg-zinc-100 hover:bg-white text-black"
