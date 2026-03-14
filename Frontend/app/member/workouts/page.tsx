@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Dumbbell, ChevronDown, Play, Clock, Flame, Target } from 'lucide-react';
+import { PageHeader, Card, LoadingButton } from '@/components/ui/SharedComponents';
 
 type Goal = 'fat_loss' | 'muscle_gain' | 'endurance' | 'flexibility';
 
@@ -75,19 +76,16 @@ export default function WorkoutsPage() {
     const active = plans.find(p => p.id === selected);
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-white mb-1 flex items-center gap-3">
-                    <Dumbbell size={28} className="text-red-500" /> Workout Plans
-                </h1>
-                <p className="text-zinc-400">Your curated workout programmes for PowerWorld Kiribathgoda</p>
-            </div>
+        <div className="space-y-8">
+            <PageHeader
+                title="Workout Plans"
+                subtitle="Your curated workout programmes for PowerWorld Kiribathgoda"
+            />
 
-            {/* Goal filter */}
             <div className="flex gap-2 flex-wrap">
                 {(['all', 'fat_loss', 'muscle_gain', 'endurance', 'flexibility'] as const).map(g => (
                     <button key={g} onClick={() => setFilter(g)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${filter === g ? 'bg-red-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all ${filter === g ? 'bg-red-600 text-white border border-red-500' : 'bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:bg-zinc-800/50'}`}>
                         {g === 'all' ? 'All Goals' : goalLabels[g]}
                     </button>
                 ))}
@@ -97,9 +95,9 @@ export default function WorkoutsPage() {
                 {/* Plan cards */}
                 <div className="space-y-4">
                     {filtered.map(plan => (
-                        <div key={plan.id}
-                            onClick={() => { setSelected(plan.id); setExpanded(null); }}
-                            className={`bg-zinc-900/50 border rounded-2xl p-5 cursor-pointer transition-all hover:scale-[1.01] ${selected === plan.id ? 'border-red-600/60 bg-red-600/5' : 'border-zinc-800 hover:border-zinc-700'}`}>
+                        <div key={plan.id} onClick={() => { setSelected(plan.id); setExpanded(null); }}>
+                            <Card padding="md"
+                                className={`cursor-pointer transition-all hover:scale-[1.01] ${selected === plan.id ? 'border-red-600/60 bg-red-600/5' : 'hover:border-zinc-700/50'}`}>
                             <div className="flex items-start justify-between mb-3">
                                 <div>
                                     <p className="text-white font-semibold">{plan.name}</p>
@@ -112,21 +110,21 @@ export default function WorkoutsPage() {
                                 <span className="flex items-center gap-1"><Flame size={11} /> {plan.calories} kcal</span>
                                 <span className="flex items-center gap-1"><Target size={11} /> {plan.exercises.length} exercises</span>
                             </div>
+                            </Card>
                         </div>
                     ))}
                 </div>
 
-                {/* Active plan detail */}
                 {active && (
-                    <div className="lg:col-span-2 bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+                    <Card className="lg:col-span-2">
                         <div className="flex items-center justify-between mb-6">
                             <div>
                                 <h2 className="text-xl font-bold text-white">{active.name}</h2>
                                 <p className="text-zinc-500 text-sm">{active.duration} · {active.calories} kcal · {active.difficulty}</p>
                             </div>
-                            <button className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold transition-all">
-                                <Play size={14} /> Start Workout
-                            </button>
+                            <LoadingButton icon={Play} size="sm">
+                                Start Workout
+                            </LoadingButton>
                         </div>
                         <div className="space-y-3">
                             {active.exercises.map((ex, i) => (
@@ -152,7 +150,7 @@ export default function WorkoutsPage() {
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </Card>
                 )}
             </div>
         </div>

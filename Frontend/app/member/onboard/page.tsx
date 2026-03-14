@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { authAPI, getErrorMessage } from '@/lib/api';
 import { useAuth, dashboardPathForRole } from '@/context/AuthContext';
 import {
-    Dumbbell, ChevronRight, ChevronLeft, Loader2, CheckCircle,
-    AlertCircle, Flame, Zap, Wind, Activity, Heart, Upload, FileImage
+    ChevronRight, ChevronLeft, Loader2, CheckCircle,
+    AlertCircle, Flame, Zap, Wind, Activity, Heart, Upload, FileImage,
+    CreditCard, Dumbbell, Target, Leaf
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -34,7 +35,7 @@ const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export default function Onboard() {
     const router = useRouter();
-    const { isLoading: authLoading, isAuthenticated, user } = useAuth();
+    const { isLoading: authLoading, isAuthenticated, user, refreshUser } = useAuth();
     const [step, setStep] = useState<Step>(1);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
@@ -108,6 +109,7 @@ export default function Onboard() {
                 medicalConditions: data.medicalConditions || undefined,
                 allergies: data.allergies || undefined,
             });
+            await refreshUser();
             router.push('/member/dashboard');
         } catch (err) {
             setError(getErrorMessage(err));
@@ -118,23 +120,11 @@ export default function Onboard() {
 const stepLabels = ['ID Verification', 'Experience', 'Goals & Vitals'];
 
     return (
-        <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 relative overflow-hidden selection:bg-red-600/30">
-            {/* Background */}
-            <div className="absolute inset-0 z-0">
-                <div className="absolute top-0 left-1/4 w-96 h-96 bg-red-700/20 rounded-full blur-[128px]" />
-                <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-red-600/10 rounded-full blur-[128px]" />
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-size-[24px_24px]" />
-            </div>
+        <div className="min-h-screen bg-app text-white flex flex-col items-center justify-center p-6 relative overflow-hidden selection:bg-red-600/30">
+            {/* Grid — matches auth theme */}
+            <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,#3c3c3c35_1px,transparent_1px),linear-gradient(to_bottom,#3c3c3c35_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_at_center,transparent_40%,black_90%)] pointer-events-none" />
 
             <div className="w-full max-w-2xl relative z-10">
-                {/* Logo */}
-                <div className="flex items-center gap-2 mb-10 justify-center">
-                    <div className="w-10 h-10 rounded-xl bg-red-700 flex items-center justify-center">
-                        <Dumbbell className="text-white" size={22} />
-                    </div>
-                    <span className="text-2xl font-bold tracking-tight">Power<span className="text-red-500">World</span></span>
-                </div>
-
                 {/* Step Indicator */}
                 <div className="flex items-center justify-center gap-2 mb-8">
                     {stepLabels.map((label, i) => {
@@ -165,7 +155,7 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals & Vitals'];
                 </div>
 
                 {/* Card */}
-                <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 rounded-3xl p-8 shadow-2xl">
+                <div className="bg-zinc-800/80 backdrop-blur-xl border border-zinc-700 rounded-3xl p-8 shadow-2xl">
                     {error && (
                         <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-2">
                             <AlertCircle size={16} /> {error}
@@ -176,7 +166,9 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals & Vitals'];
                     {step === 1 && (
                         <div className="space-y-6">
                             <div>
-                                <h2 className="text-2xl font-bold text-white mb-1">Identity Verification 🪪</h2>
+                                <h2 className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
+                                    <CreditCard size={24} className="text-red-500" /> Identity Verification
+                                </h2>
                                 <p className="text-zinc-400">Upload your National Identity Card (NIC) front and back. Files must be clear, well-lit, and under 5MB each.</p>
                             </div>
 
@@ -238,15 +230,17 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals & Vitals'];
                     {step === 2 && (
                         <div className="space-y-6">
                             <div>
-                                <h2 className="text-2xl font-bold text-white mb-1">Your Experience 💪</h2>
+                                <h2 className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
+                                    <Dumbbell size={24} className="text-red-500" /> Your Experience
+                                </h2>
                                 <p className="text-zinc-400">Tell us about your gym experience so we can tailor your workout plan.</p>
                             </div>
 
                             <div className="grid gap-3">
                                 {[
-                                    { value: 'beginner', label: 'New to Gym', desc: "I've never seriously trained before", emoji: '🌱' },
-                                    { value: 'intermediate', label: 'Some Experience', desc: "I've trained before but not consistently", emoji: '🔥' },
-                                    { value: 'advanced', label: 'Seasoned Athlete', desc: "I train regularly and know my way around", emoji: '⚡' },
+                                    { value: 'beginner', label: 'New to Gym', desc: "I've never seriously trained before", icon: Leaf },
+                                    { value: 'intermediate', label: 'Some Experience', desc: "I've trained before but not consistently", icon: Flame },
+                                    { value: 'advanced', label: 'Seasoned Athlete', desc: "I train regularly and know my way around", icon: Zap },
                                 ].map(opt => (
                                     <button
                                         key={opt.value}
@@ -256,10 +250,10 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals & Vitals'];
                                             'w-full p-4 rounded-2xl border text-left transition-all flex items-center gap-4',
                                             data.experienceLevel === opt.value
                                                 ? 'border-red-600 bg-red-600/10'
-                                                : 'border-zinc-800 bg-black/30 hover:border-zinc-700'
+                                                : 'border-zinc-800 bg-zinc-800/50 hover:border-zinc-700'
                                         )}
                                     >
-                                        <span className="text-2xl">{opt.emoji}</span>
+                                        <opt.icon size={24} className={data.experienceLevel === opt.value ? 'text-red-500' : 'text-zinc-500'} />
                                         <div>
                                             <p className="font-semibold text-white">{opt.label}</p>
                                             <p className="text-sm text-zinc-400">{opt.desc}</p>
@@ -277,7 +271,9 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals & Vitals'];
                     {step === 3 && (
                         <div className="space-y-6">
                             <div>
-                                <h2 className="text-2xl font-bold text-white mb-1">What's your goal? 🎯</h2>
+                                <h2 className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
+                                    <Target size={24} className="text-red-500" /> What&apos;s your goal?
+                                </h2>
                                 <p className="text-zinc-400">We'll use this to personalise your workout plan.</p>
                             </div>
 
@@ -291,7 +287,7 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals & Vitals'];
                                             'p-4 rounded-2xl border text-left transition-all',
                                             data.fitnessGoals === goal.id
                                                 ? 'border-red-600 bg-red-600/10'
-                                                : 'border-zinc-800 bg-black/30 hover:border-zinc-700'
+                                                : 'border-zinc-800 bg-zinc-800/50 hover:border-zinc-700'
                                         )}
                                     >
                                         <div className="flex items-center gap-2 mb-1">
@@ -312,7 +308,7 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals & Vitals'];
                                         <select
                                             value={data.bloodType}
                                             onChange={e => update('bloodType', e.target.value)}
-                                            className="w-full bg-black/50 border border-zinc-800 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all text-sm"
+                                            className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all text-sm"
                                         >
                                             <option value="" className="bg-zinc-900">Unknown</option>
                                             {BLOOD_TYPES.map(bt => (
@@ -329,7 +325,7 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals & Vitals'];
                                         value={data.medicalConditions}
                                         onChange={e => update('medicalConditions', e.target.value)}
                                         placeholder="e.g., Hypertension, Diabetes (leave blank if none)"
-                                        className="w-full bg-black/50 border border-zinc-800 rounded-xl py-2.5 px-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all text-sm"
+                                        className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-2.5 px-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all text-sm"
                                     />
                                 </div>
 
@@ -340,7 +336,7 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals & Vitals'];
                                         value={data.allergies}
                                         onChange={e => update('allergies', e.target.value)}
                                         placeholder="e.g., Penicillin, Latex (leave blank if none)"
-                                        className="w-full bg-black/50 border border-zinc-800 rounded-xl py-2.5 px-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all text-sm"
+                                        className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-2.5 px-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all text-sm"
                                     />
                                 </div>
 

@@ -6,23 +6,20 @@ import { Home, ArrowLeft, Dumbbell } from "lucide-react";
 
 export default function NotFound() {
     return (
-        <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center relative overflow-hidden selection:bg-red-600/30">
-            {/* Background Effects */}
-            <div className="absolute inset-0 -z-10">
-                <div className="absolute top-20 left-[10%] w-100 h-100 bg-red-700/20 rounded-full blur-[128px]" />
-                <div className="absolute bottom-20 right-[10%] w-75 h-75 bg-red-600/20 rounded-full blur-[100px]" />
-            </div>
+        <div className="min-h-screen bg-app text-white flex flex-col items-center justify-center relative overflow-hidden selection:bg-red-600/30">
+            {/* Grid — matches auth theme */}
+            <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,#3c3c3c35_1px,transparent_1px),linear-gradient(to_bottom,#3c3c3c35_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_at_center,transparent_40%,black_90%)] pointer-events-none" />
 
 
 
             {/* 404 Content */}
-            <div className="text-center px-6">
+            <div className="relative z-10 text-center px-6">
                 <div className="relative mb-8">
-                    <h1 className="text-[150px] md:text-[200px] font-black text-transparent bg-clip-text bg-linear-to-b from-zinc-700 to-zinc-900 leading-none select-none">
+                    <h1 className="text-[150px] md:text-[200px] font-black text-transparent bg-clip-text bg-gradient-to-b from-zinc-700 to-zinc-900 leading-none select-none">
                         404
                     </h1>
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-24 h-24 rounded-full bg-linear-to-br from-red-700 to-red-600 flex items-center justify-center shadow-2xl shadow-red-600/30">
+                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-red-700 to-red-600 flex items-center justify-center shadow-2xl shadow-red-600/30">
                             <Dumbbell className="text-white" size={40} />
                         </div>
                     </div>
@@ -38,7 +35,7 @@ export default function NotFound() {
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <Link
                         href="/"
-                        className="px-8 py-3.5 bg-linear-to-r from-red-700 to-red-600 text-white font-bold rounded-xl hover:from-red-600 hover:to-red-500 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2"
+                        className="px-8 py-3.5 bg-red-700 hover:bg-red-800 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-600/10 flex items-center justify-center gap-2"
                     >
                         <Home size={18} />
                         Back to Home
@@ -54,7 +51,7 @@ export default function NotFound() {
             </div>
 
             {/* Footer */}
-            <p className="absolute bottom-8 text-zinc-600 text-sm">
+            <p className="absolute bottom-8 text-zinc-600 text-sm z-10">
                 © 2026 PowerWorld Gyms. All rights reserved.
             </p>
         </div>

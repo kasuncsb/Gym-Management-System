@@ -13,7 +13,7 @@ import { env } from '../config/env.js';
 import { ids } from '../utils/id.js';
 import { hashPassword, verifyPassword, validatePassword } from '../utils/password.js';
 import { errors } from '../utils/errors.js';
-import { sendEmail, generateVerifyEmailHTML, generateResetPasswordHTML } from '../utils/email.js';
+import { sendEmail, generateVerifyEmailHTML, generateResetPasswordHTML, generateIdVerificationHTML } from '../utils/email.js';
 import { setRefreshToken, getRefreshToken, consumeRefreshToken, deleteRefreshToken, deleteAllUserTokens } from '../utils/redis.js';
 import { uploadFile } from '../utils/oci-storage.js';
 import type {
@@ -37,6 +37,8 @@ export interface AuthResult extends TokenPair {
     role: string;
     fullName: string;
     memberCode?: string | null;
+    emailVerified?: boolean;
+    isOnboarded?: boolean;
   };
 }
 
@@ -108,9 +110,27 @@ export async function login(input: LoginInput): Promise<AuthResult> {
     emailVerified: person.emailVerified,
   });
 
+  let isOnboarded: boolean | undefined;
+  if (person.role === 'member') {
+    const [mp] = await db
+      .select({ isOnboarded: memberProfiles.isOnboarded })
+      .from(memberProfiles)
+      .where(eq(memberProfiles.personId, person.id))
+      .limit(1);
+    isOnboarded = mp?.isOnboarded ?? false;
+  }
+
   return {
     ...tokens,
-    user: { id: person.id, email: person.email, role: person.role, fullName: person.fullName, memberCode: person.memberCode },
+    user: {
+      id: person.id,
+      email: person.email,
+      role: person.role,
+      fullName: person.fullName,
+      memberCode: person.memberCode,
+      emailVerified: person.emailVerified,
+      isOnboarded,
+    },
   };
 }
 
@@ -168,28 +188,54 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
 
   return {
     ...tokens,
-    user: { id: personId, email: input.email, role: 'member', fullName: input.fullName, memberCode },
+    user: {
+      id: personId,
+      email: input.email,
+      role: 'member',
+      fullName: input.fullName,
+      memberCode,
+      emailVerified: false,
+      isOnboarded: false,
+    },
   };
 }
 
 // ── Refresh ───────────────────────────────────────────────────────────────────
 export async function refresh(refreshToken: string): Promise<AuthResult> {
+  if (!refreshToken || refreshToken.trim() === '') {
+    throw errors.unauthorized('No refresh token');
+  }
+
   let decoded: { sub: string; jti: string; type: string };
 
   try {
     decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as any;
   } catch (err) {
     if (err instanceof jwt.TokenExpiredError) throw errors.unauthorized('Refresh token expired');
-    throw errors.unauthorized('Invalid refresh token');
+    if (err instanceof jwt.JsonWebTokenError) throw errors.unauthorized('Invalid refresh token');
+    throw err;
   }
 
-  if (decoded.type !== 'refresh') throw errors.unauthorized('Invalid token type');
+  if (!decoded?.sub || !decoded?.jti || decoded.type !== 'refresh') {
+    throw errors.unauthorized('Invalid token format');
+  }
 
   // Verify JTI exists in Redis — single-use enforcement with automatic reuse detection
-  const userId = await consumeRefreshToken(decoded.jti);
+  let userId: string | null;
+  try {
+    userId = await consumeRefreshToken(decoded.jti);
+  } catch (err) {
+    console.error('Redis error during token refresh:', err);
+    throw errors.serviceUnavailable('Session service temporarily unavailable. Please try again.');
+  }
+
   if (!userId) {
     // Token reuse detected — another process already used this JTI — revoke all sessions
-    await deleteAllUserTokens(decoded.sub);
+    try {
+      await deleteAllUserTokens(decoded.sub);
+    } catch (e) {
+      console.error('Redis error during token revocation:', e);
+    }
     throw errors.unauthorized('Refresh token already used or revoked. Please log in again.');
   }
 
@@ -209,9 +255,27 @@ export async function refresh(refreshToken: string): Promise<AuthResult> {
     emailVerified: person.emailVerified,
   });
 
+  let isOnboarded: boolean | undefined;
+  if (person.role === 'member') {
+    const [mp] = await db
+      .select({ isOnboarded: memberProfiles.isOnboarded })
+      .from(memberProfiles)
+      .where(eq(memberProfiles.personId, person.id))
+      .limit(1);
+    isOnboarded = mp?.isOnboarded ?? false;
+  }
+
   return {
     ...tokens,
-    user: { id: person.id, email: person.email, role: person.role, fullName: person.fullName, memberCode: person.memberCode },
+    user: {
+      id: person.id,
+      email: person.email,
+      role: person.role,
+      fullName: person.fullName,
+      memberCode: person.memberCode,
+      emailVerified: person.emailVerified,
+      isOnboarded,
+    },
   };
 }
 
@@ -479,9 +543,7 @@ export async function adminVerifyId(
     ? 'Identity Verified — PowerWorld Gyms'
     : 'Identity Verification Update — PowerWorld Gyms';
 
-  const body = input.status === 'approved'
-    ? `<p>Hi ${person.fullName},</p><p>Your identity has been verified. Welcome to PowerWorld Gyms!</p>`
-    : `<p>Hi ${person.fullName},</p><p>Your identity verification was not approved.</p>${input.note ? `<p>Reason: ${input.note}</p>` : ''}<p>Please re-upload your documents via the app.</p>`;
+  const body = generateIdVerificationHTML(person.fullName, input.status, input.note);
 
   sendEmail(person.email, subject, body).catch(err => console.error('ID verification email failed:', err));
 }

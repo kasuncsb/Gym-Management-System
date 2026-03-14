@@ -1,6 +1,7 @@
 'use client';
 
-import { BarChart3, TrendingUp, Users, Star, Lightbulb, ArrowUp } from 'lucide-react';
+import { BarChart3, Lightbulb, ArrowUp } from 'lucide-react';
+import { PageHeader, Card } from '@/components/ui/SharedComponents';
 
 const kpis = [
     { label: 'Avg Daily Check-ins',   value: '87', delta: '+12% vs last week',  good: true  },
@@ -29,36 +30,32 @@ export default function ManagerInsightsPage() {
     const hours  = Array.from({ length: 24 }, (_, i) => `${i === 0 ? 12 : i > 12 ? i - 12 : i}${i < 12 ? 'a' : 'p'}`);
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-white mb-1 flex items-center gap-3">
-                    <BarChart3 size={28} className="text-purple-400" /> Gym Insights
-                </h1>
-                <p className="text-zinc-400">Data-driven insights for PowerWorld Kiribathgoda</p>
-            </div>
+        <div className="space-y-8">
+            <PageHeader
+                title="Gym Insights"
+                subtitle="Data-driven insights for PowerWorld Kiribathgoda"
+            />
 
-            {/* KPIs */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {kpis.map(k => (
-                    <div key={k.label} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+                    <Card key={k.label} padding="md" className="hover:border-zinc-700/50 transition-colors">
                         <p className="text-2xl font-bold text-white mb-1">{k.value}</p>
                         <p className="text-xs text-zinc-500">{k.label}</p>
                         <p className={`text-xs mt-1 flex items-center gap-1 ${k.good ? 'text-green-400' : 'text-red-400'}`}>
                             <ArrowUp size={10} className={k.good ? '' : 'rotate-180'} /> {k.delta}
                         </p>
-                    </div>
+                    </Card>
                 ))}
             </div>
 
-            {/* Hourly occupancy */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+            <Card padding="lg">
                 <h2 className="text-lg font-semibold text-white mb-6">Average Hourly Occupancy</h2>
-                <div className="flex items-end gap-px h-32">
+                <div className="flex items-end gap-px h-48 min-h-[12rem]">
                     {occupancyByHour.map((v, i) => (
                         <div key={i} className="flex flex-col items-center flex-1">
                             <div className={`w-full rounded-t-sm transition-all ${v > 60 ? 'bg-red-500' : v > 40 ? 'bg-orange-500' : 'bg-purple-700'}`}
                                 style={{ height: `${(v / maxOcc) * 100}%`, minHeight: '4px' }} />
-                            {i % 4 === 0 && <span className="text-zinc-700 text-[8px] mt-1">{hours[i]}</span>}
+                            {i % 4 === 0 && <span className="text-zinc-500 text-[9px] mt-1">{hours[i]}</span>}
                         </div>
                     ))}
                 </div>
@@ -67,22 +64,21 @@ export default function ManagerInsightsPage() {
                     <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-orange-500" /> Moderate</span>
                     <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-purple-700" /> Low</span>
                 </div>
-            </div>
+            </Card>
 
-            {/* Insights */}
             <div>
                 <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <Lightbulb size={18} className="text-yellow-400" /> Recommendations
                 </h2>
-                <div className="space-y-4">
+                <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
                     {insights.map((ins, i) => (
-                        <div key={i} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+                        <Card key={i} padding="md" className="hover:border-zinc-700/50 transition-colors">
                             <div className="flex items-start justify-between mb-2">
                                 <p className="text-white font-semibold">{ins.title}</p>
                                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${impactColor[ins.impact]}`}>{ins.impact} impact</span>
                             </div>
                             <p className="text-zinc-400 text-sm">{ins.body}</p>
-                        </div>
+                        </Card>
                     ))}
                 </div>
             </div>

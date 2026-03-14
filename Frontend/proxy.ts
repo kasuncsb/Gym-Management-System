@@ -18,10 +18,12 @@ const MEMBER_PUBLIC_PREFIXES = [
 const MEMBER_PROTECTED = [
   '/member/onboard',
   '/member/dashboard',
+  '/member/subscription',
   '/member/workouts',
   '/member/appointments',
   '/member/progress',
   '/member/checkin',
+  '/member/profile',
 ];
 
 const STAFF_PROTECTED = ['/trainer', '/manager', '/admin'];

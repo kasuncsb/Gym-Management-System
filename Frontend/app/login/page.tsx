@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authAPI, getErrorMessage } from "@/lib/api";
-import { Dumbbell, ArrowLeft, Mail, Lock, Loader2, CheckCircle } from "lucide-react";
+import { Mail, Lock, Loader2, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth, dashboardPathForRole } from "@/context/AuthContext";
 
@@ -22,10 +22,18 @@ function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    // BUG-23 fix: Redirect already-authenticated users away from the login page.
+    // Redirect authenticated users to the appropriate step (members: verify → onboard → dashboard).
     useEffect(() => {
-        if (!authLoading && isAuthenticated) router.replace(dashboardPathForRole(user?.role ?? 'member'));
-    }, [authLoading, isAuthenticated, router]);
+        if (!authLoading && isAuthenticated && user) {
+            if (user.role === 'member') {
+                if (!user.emailVerified) router.replace('/member/verify-email');
+                else if (!user.isOnboarded) router.replace('/member/onboard');
+                else router.replace('/member/dashboard');
+            } else {
+                router.replace(dashboardPathForRole(user.role));
+            }
+        }
+    }, [authLoading, isAuthenticated, user, router]);
 
     // Show success notice when redirected here after password change (BUG-03)
     useEffect(() => {
@@ -50,9 +58,18 @@ function LoginForm() {
                 email: responseUser.email,
                 role: responseUser.role,
                 phone: responseUser.phone,
+                emailVerified: responseUser.emailVerified,
+                isOnboarded: responseUser.isOnboarded,
             });
 
-            router.push(dashboardPathForRole(responseUser.role));
+            // Members: verify → onboard → dashboard
+            if (responseUser.role === 'member') {
+                if (!responseUser.emailVerified) router.push('/member/verify-email');
+                else if (!responseUser.isOnboarded) router.push('/member/onboard');
+                else router.push('/member/dashboard');
+            } else {
+                router.push(dashboardPathForRole(responseUser.role));
+            }
 
         } catch (err: unknown) {
             console.error('Login failed:', err);
@@ -63,52 +80,25 @@ function LoginForm() {
     };
 
     return (
-        <div className="min-h-screen bg-black text-white flex relative overflow-hidden selection:bg-red-600/30">
-            {/* Background Effects */}
-            <div className="absolute inset-0 z-0">
-                <div className="absolute top-0 left-[-10%] w-125 h-125 bg-red-700/30 rounded-full blur-[128px]" />
-                <div className="absolute bottom-0 right-[-10%] w-125 h-125 bg-red-600/20 rounded-full blur-[128px]" />
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808024_1px,transparent_1px),linear-gradient(to_bottom,#80808024_1px,transparent_1px)] bg-size-[24px_24px]" />
-            </div>
+        <div className="min-h-screen bg-app text-white flex relative overflow-hidden selection:bg-red-600/30">
+            {/* Grid — matches dashboard, fades towards center */}
+            <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,#3c3c3c35_1px,transparent_1px),linear-gradient(to_bottom,#3c3c3c35_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_at_center,transparent_40%,black_90%)] pointer-events-none" />
 
-            {/* Left Side - Visual */}
-            <div className="hidden lg:flex lg:w-1/2 relative z-10 flex-col justify-between p-12 lg:p-16">
-                <div>
-                    <Link href="/" className="inline-flex items-center gap-2 group mb-12">
-                        <div className="w-10 h-10 rounded-xl bg-linear-to-br from-red-700 to-red-600 flex items-center justify-center group-hover:scale-105 transition-transform">
-                            <Dumbbell className="text-white" size={24} />
-                        </div>
-                        <span className="text-xl font-bold tracking-tight">Power<span className="text-red-500">World</span></span>
-                    </Link>
-                </div>
-
-                <div className="max-w-xl">
-                    <h1 className="text-5xl font-bold mb-6 leading-tight">
-                        Welcome back to <br />
-                        <span className="text-transparent bg-clip-text bg-linear-to-r from-red-500 to-red-500">Elite Fitness.</span>
+            {/* Centered content — welcome + form stacked */}
+            <div className="relative z-10 w-full flex flex-col items-center justify-center p-6 py-12">
+                {/* Welcome — 1–2 lines max */}
+                <div className="w-full max-w-xl text-center mb-10">
+                    <h1 className="text-4xl sm:text-5xl font-bold mb-4 leading-tight">
+                        Welcome back to <span className="text-red-500">Elite Fitness.</span>
                     </h1>
-                    <p className="text-xl text-zinc-400 leading-relaxed">
-                        Track your progress, book classes, and crush your goals with our premium management platform.
-                    </p>
+                    <p className="text-lg text-zinc-400">Track progress, book classes, and crush your goals.</p>
                 </div>
 
-                <div className="text-sm text-zinc-500">
-                    © 2026 PowerWorld Gyms. All rights reserved.
-                </div>
-            </div>
-
-            {/* Right Side - Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 relative z-10">
-                <div className="w-full max-w-md bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-8 rounded-3xl shadow-2xl">
-                    <div className="mb-8 text-center lg:text-left">
-                        <Link href="/" className="lg:hidden inline-flex items-center gap-2 mb-8">
-                            <div className="w-8 h-8 rounded-lg bg-red-700 flex items-center justify-center">
-                                <Dumbbell className="text-white" size={18} />
-                            </div>
-                            <span className="text-lg font-bold">PowerWorld</span>
-                        </Link>
+                {/* Form card — left-aligned form elements */}
+                <div className="w-full max-w-md bg-zinc-800/80 backdrop-blur-xl border border-zinc-700 p-8 rounded-3xl shadow-2xl">
+                    <div className="mb-8">
                         <h2 className="text-2xl font-bold mb-2">Sign In</h2>
-                        <p className="text-zinc-400">Enter your details to access your account.</p>
+                        <p className="text-zinc-400 text-sm">Enter your details to access your account.</p>
                     </div>
 
                     {successMsg && (
@@ -125,16 +115,16 @@ function LoginForm() {
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="space-y-5">
+                    <form onSubmit={handleSubmit} className="w-full space-y-5">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-zinc-300">Email Address</label>
+                            <label className="block text-sm font-medium text-zinc-300">Email Address</label>
                             <div className="relative group">
                                 <Mail className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={18} />
                                 <input
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
+                                    className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-500 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
                                     placeholder="name@example.com"
                                     required
                                 />
@@ -143,7 +133,7 @@ function LoginForm() {
 
                         <div className="space-y-2">
                             <div className="flex justify-between items-center">
-                                <label className="text-sm font-medium text-zinc-300">Password</label>
+                                <label className="block text-sm font-medium text-zinc-300">Password</label>
                                 <Link href="/member/forgot-password" className="text-xs text-red-500 hover:text-red-400">Forgot password?</Link>
                             </div>
                             <div className="relative group">
@@ -152,7 +142,7 @@ function LoginForm() {
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
+                                    className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-500 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
                                     placeholder="••••••••"
                                     required
                                 />
@@ -163,7 +153,7 @@ function LoginForm() {
                             type="submit"
                             disabled={isLoading}
                             className={cn(
-                                "w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-800 transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2",
+                                "w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-800 transition-all shadow-lg shadow-red-600/10 flex items-center justify-center gap-2",
                                 isLoading && "opacity-70 cursor-not-allowed"
                             )}
                         >
@@ -171,13 +161,15 @@ function LoginForm() {
                         </button>
                     </form>
 
-                    <div className="mt-8 text-center text-sm text-zinc-400">
+                    <div className="mt-8 text-sm text-zinc-400">
                         Don&apos;t have an account? {' '}
                         <Link href="/member/register" className="text-red-500 hover:text-red-400 font-medium hover:underline">
                             Create Account
                         </Link>
                     </div>
                 </div>
+
+                <p className="text-sm text-zinc-500 mt-10 text-center">© 2026 PowerWorld Gyms. All rights reserved.</p>
             </div>
         </div>
     );
@@ -189,7 +181,7 @@ function LoginForm() {
 export default function Login() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-black flex items-center justify-center">
+            <div className="min-h-screen bg-app flex items-center justify-center">
                 <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
             </div>
         }>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Users, TrendingUp, UserCheck, BarChart3, Star, Lightbulb } from 'lucide-react';
+import { PageHeader, Card } from '@/components/ui/SharedComponents';
 
 type Impact = 'high' | 'medium' | 'low' | 'positive';
 type Priority = 'high' | 'medium' | 'low';
@@ -40,10 +41,10 @@ export default function ManagerDashboard() {
     ];
 
     const quickActions = [
-        { label: 'Reports',  href: '/manager/reports',  accent: 'text-blue-400 border-blue-500/40 hover:border-blue-400' },
-        { label: 'Insights', href: '/manager/insights', accent: 'text-purple-400 border-purple-500/40 hover:border-purple-400' },
-        { label: 'Staff',    href: '/manager/staff',    accent: 'text-green-400 border-green-500/40 hover:border-green-400' },
-        { label: 'Members',  href: '/manager/members',  accent: 'text-orange-400 border-orange-500/40 hover:border-orange-400' },
+        { label: 'Reports',  href: '/manager/reports',  icon: TrendingUp },
+        { label: 'Insights', href: '/manager/insights', icon: Lightbulb },
+        { label: 'Staff',    href: '/manager/staff',    icon: UserCheck },
+        { label: 'Members',  href: '/manager/members',   icon: Users },
     ];
 
     const insights = [
@@ -73,23 +74,17 @@ export default function ManagerDashboard() {
     };
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8">
-            {/* Header */}
-            <div>
-                <h1 className="text-3xl font-bold text-white mb-1">Management Dashboard</h1>
-                <p className="text-zinc-400">
-                    Welcome, {firstName} ·{' '}
-                    {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                    {' · '}
-                    {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                </p>
-            </div>
+        <div className="space-y-8">
+            <PageHeader
+                title="Management Dashboard"
+                subtitle={`Welcome, ${firstName} · ${currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} · ${currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`}
+            />
 
             {/* Period toggle */}
             <div className="flex gap-2">
                 {(['week','month','year'] as const).map(p => (
                     <button key={p} onClick={() => setPeriod(p)}
-                        className={`px-4 py-1.5 rounded-lg text-sm font-medium capitalize transition-all ${period === p ? 'bg-red-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>
+                        className={`px-4 py-1.5 rounded-xl text-sm font-medium capitalize transition-all ${period === p ? 'bg-red-600 text-white border border-red-500' : 'bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:bg-zinc-800/50'}`}>
                         {p}
                     </button>
                 ))}
@@ -98,35 +93,34 @@ export default function ManagerDashboard() {
             {/* KPIs */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {kpis.map(({ label, value, sub, icon: Icon, color }) => (
-                    <div key={label} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+                    <Card key={label} padding="md" className="hover:border-zinc-700/50 transition-colors">
                         <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center mb-4`}>
                             <Icon size={18} className="text-white" />
                         </div>
                         <p className="text-xl font-bold text-white">{value}</p>
                         <p className="text-xs text-zinc-500 mt-1">{label}</p>
                         <p className="text-xs text-zinc-600">{sub}</p>
-                    </div>
+                    </Card>
                 ))}
             </div>
 
-            {/* Quick Actions */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {quickActions.map(({ label, href, accent }) => (
+                {quickActions.map(({ label, href, icon: Icon }) => (
                     <Link key={href} href={href}
-                        className={`bg-zinc-900/50 border ${accent} rounded-2xl p-5 text-center font-semibold transition-all hover:bg-zinc-900 hover:scale-[1.02]`}>
-                        {label}
+                        className="bg-zinc-800/80 border border-zinc-700 rounded-2xl p-5 flex flex-col items-center gap-3 transition-all hover:bg-zinc-800 hover:border-red-500/60 hover:scale-[1.02]">
+                        <Icon size={24} className="text-red-500" />
+                        <span className="text-sm font-semibold text-white">{label}</span>
                     </Link>
                 ))}
             </div>
 
-            {/* Insights + Tasks */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+                <Card className="lg:col-span-2">
                     <div className="flex items-center justify-between mb-5">
                         <h2 className="text-lg font-semibold text-white flex items-center gap-2"><Lightbulb size={18} className="text-yellow-400" /> Key Insights</h2>
                         <Link href="/manager/insights" className="text-sm text-red-500 hover:text-red-400">View All</Link>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
                         {insights.map((ins, i) => (
                             <div key={i} className="bg-zinc-800/30 rounded-xl p-4">
                                 <div className="flex justify-between mb-1">
@@ -138,11 +132,11 @@ export default function ManagerDashboard() {
                             </div>
                         ))}
                     </div>
-                </div>
+                </Card>
 
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+                <Card>
                     <h2 className="text-lg font-semibold text-white mb-5">Upcoming Tasks</h2>
-                    <div className="space-y-3">
+                    <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
                         {tasks.map((t, i) => (
                             <div key={i} className="bg-zinc-800/30 rounded-xl p-4">
                                 <div className="flex justify-between mb-1">
@@ -153,22 +147,21 @@ export default function ManagerDashboard() {
                             </div>
                         ))}
                     </div>
-                </div>
+                </Card>
             </div>
 
-            {/* Occupancy Chart */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+            <Card padding="lg">
                 <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2"><BarChart3 size={18} className="text-red-500" /> Gym Occupancy Trend</h2>
-                <div className="flex items-end gap-1 h-32">
+                <div className="flex items-end gap-1 h-48 min-h-[12rem]">
                     {data.map((val, i) => (
                         <div key={i} className="flex flex-col items-center gap-1 flex-1">
                             <div className="w-full rounded-t-lg bg-gradient-to-t from-red-700 to-red-500 transition-all"
                                 style={{ height: `${(val / maxVal) * 100}%` }} />
-                            <span className="text-zinc-600 text-[9px]">{labels[period][i]}</span>
+                            <span className="text-zinc-500 text-[10px]">{labels[period][i]}</span>
                         </div>
                     ))}
                 </div>
-            </div>
+            </Card>
         </div>
     );
 }

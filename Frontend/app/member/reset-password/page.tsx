@@ -4,7 +4,7 @@ import { useState, Suspense } from 'react';
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authAPI, getErrorMessage } from "@/lib/api";
-import { Dumbbell, Lock, Loader2, ArrowRight, CheckCircle, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Lock, Loader2, ArrowRight, CheckCircle, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function ResetPasswordContent() {
@@ -56,7 +56,7 @@ function ResetPasswordContent() {
 
     if (isSuccess) {
         return (
-            <div className="w-full max-w-md bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-8 rounded-3xl shadow-2xl relative z-10 text-center">
+            <div className="w-full max-w-md bg-zinc-800/80 backdrop-blur-xl border border-zinc-700 p-8 rounded-3xl shadow-2xl relative z-10 text-center">
                 <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
                     <CheckCircle className="text-green-500" size={32} />
                 </div>
@@ -77,16 +77,10 @@ function ResetPasswordContent() {
     }
 
     return (
-        <div className="w-full max-w-md bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-8 rounded-3xl shadow-2xl relative z-10">
-            <div className="mb-8 text-center">
-                <Link href="/" className="inline-flex items-center gap-2 mb-8 group">
-                    <div className="w-8 h-8 rounded-lg bg-red-700 flex items-center justify-center group-hover:scale-105 transition-transform">
-                        <Dumbbell className="text-white" size={18} />
-                    </div>
-                    <span className="text-lg font-bold">PowerWorld</span>
-                </Link>
+        <div className="w-full max-w-md bg-zinc-800/80 backdrop-blur-xl border border-zinc-700 p-8 rounded-3xl shadow-2xl relative z-10">
+            <div className="mb-8">
                 <h2 className="text-2xl font-bold mb-2">Set New Password</h2>
-                <p className="text-zinc-400">Create a strong password for your account.</p>
+                <p className="text-zinc-400 text-sm">Create a strong password for your account.</p>
             </div>
 
             {error && (
@@ -107,7 +101,7 @@ function ResetPasswordContent() {
                             onChange={(e) => setPassword(e.target.value)}
                             onFocus={() => setPasswordFocused(true)}
                             onBlur={() => setPasswordFocused(false)}
-                            className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-12 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
+                            className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-3 pl-10 pr-12 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
                             placeholder="Create password"
                             required
                         />
@@ -151,7 +145,7 @@ function ResetPasswordContent() {
                             type={showConfirmPassword ? "text" : "password"}
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-10 pr-12 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
+                            className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-3 pl-10 pr-12 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
                             placeholder="Confirm new password"
                             required
                         />
@@ -182,15 +176,12 @@ function ResetPasswordContent() {
 
 export default function ResetPassword() {
     return (
-        <div className="min-h-screen bg-black text-white flex items-center justify-center p-6 relative overflow-hidden">
-            <div className="absolute inset-0 z-0">
-                <div className="absolute top-0 right-[-10%] w-[500px] h-[500px] bg-red-700/20 rounded-full blur-[128px]" />
-                <div className="absolute bottom-0 left-[-10%] w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[128px]" />
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
-            </div>
+        <div className="min-h-screen bg-app text-white flex items-center justify-center p-6 relative overflow-hidden selection:bg-red-600/30">
+            {/* Grid — matches auth theme */}
+            <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,#3c3c3c35_1px,transparent_1px),linear-gradient(to_bottom,#3c3c3c35_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_at_center,transparent_40%,black_90%)] pointer-events-none" />
 
             <Suspense fallback={
-                <div className="w-full max-w-md bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-8 rounded-3xl shadow-2xl relative z-10 text-center">
+                <div className="w-full max-w-md bg-zinc-800/80 backdrop-blur-xl border border-zinc-700 p-8 rounded-3xl shadow-2xl relative z-10 text-center">
                     <Loader2 className="text-red-600 animate-spin mx-auto" size={32} />
                 </div>
             }>

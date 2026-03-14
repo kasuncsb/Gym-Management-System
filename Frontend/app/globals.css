@@ -1,27 +1,41 @@
 @import "tailwindcss";
 
 :root {
-  /* Pure Black Theme */
-  --background: #000000;
+  /* VS Code / Cursor-style dark — comfortable to read */
+  --background: #1e1e1e;
   --foreground: #ffffff;
 
-  /* Primary Accent */
-  --primary: #dc2626;
+  /* Primary Accent — matches sign-in / create account */
+  --primary: #b91c1c;
+  --primary-hover: #991b1b;
   --primary-foreground: #ffffff;
 
-  /* Secondary / Card Backgrounds - very dark zinc */
-  --card: #09090b;
+  /* Card / Panel — slightly lighter for contrast */
+  --card: #252526;
   --card-foreground: #fafafa;
 
   /* Muted / Border */
-  --muted: #27272a;
-  --muted-foreground: #a1a1aa;
+  --muted: #3c3c3c;
+  --muted-foreground: #cccccc;
 
-  --border: #27272a;
+  --border: #3c3c3c;
+
+  /* Muted text — readable on dark background */
+  --muted-text: #a1a1aa;
+}
+
+/* App background — use instead of bg-black */
+.bg-app {
+  background-color: var(--background);
+}
+
+/* Muted text — better readability on dark */
+.text-muted {
+  color: var(--muted-text);
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-inter), 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Dumbbell, Calendar, TrendingUp, QrCode, Clock, Flame, Award, Activity } from 'lucide-react';
+import { PageHeader, Card } from '@/components/ui/SharedComponents';
 
 export default function MemberDashboard() {
     const { user } = useAuth();
@@ -46,19 +47,13 @@ export default function MemberDashboard() {
     const dayLabels    = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8">
-            {/* Header */}
-            <div>
-                <h1 className="text-3xl font-bold text-white mb-1">Good {greeting}, {firstName}!</h1>
-                <p className="text-zinc-400">
-                    {currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                    {' · '}
-                    {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                </p>
-            </div>
+        <div className="space-y-8">
+            <PageHeader
+                title={`Good ${greeting}, ${firstName}!`}
+                subtitle={`${currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} · ${currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`}
+            />
 
-            {/* Subscription banner */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 flex items-center justify-between">
+            <Card padding="md" className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <Award className="text-red-500" size={20} />
                     <div>
@@ -66,37 +61,34 @@ export default function MemberDashboard() {
                         <p className="text-zinc-500 text-xs">Member ID: PW2025001 · Next payment: 2025-02-15</p>
                     </div>
                 </div>
-                <span className="text-xs bg-green-500/20 text-green-400 px-3 py-1 rounded-full font-semibold">Active</span>
-            </div>
+                <span className="text-xs bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full font-semibold">Active</span>
+            </Card>
 
             {/* Quick Actions */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {quickActions.map(({ label, href, icon: Icon }) => (
                     <Link key={href} href={href}
-                        className="bg-zinc-900/50 border border-zinc-800 hover:border-red-600/50 rounded-2xl p-5 flex flex-col items-center gap-3 transition-all hover:bg-zinc-900 hover:scale-[1.02]">
-                        <Icon size={28} className="text-red-500" />
+                        className="bg-zinc-800/80 border border-zinc-700 rounded-2xl p-5 flex flex-col items-center gap-3 transition-all hover:bg-zinc-800 hover:border-red-500/60 hover:scale-[1.02]">
+                        <Icon size={24} className="text-red-500" />
                         <span className="text-sm font-semibold text-white">{label}</span>
                     </Link>
                 ))}
             </div>
 
-            {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {stats.map(({ label, value, sub, icon: Icon, color }) => (
-                    <div key={label} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+                    <Card key={label} padding="md" className="hover:border-zinc-700/50 transition-colors">
                         <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center mb-4`}>
                             <Icon size={18} className="text-white" />
                         </div>
                         <p className="text-2xl font-bold text-white">{value}</p>
                         <p className="text-xs text-zinc-500 mt-1">{label} · {sub}</p>
-                    </div>
+                    </Card>
                 ))}
             </div>
 
-            {/* Bottom grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Upcoming appointments */}
-                <div className="lg:col-span-2 bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+                <Card className="lg:col-span-2">
                     <div className="flex items-center justify-between mb-5">
                         <h2 className="text-lg font-semibold text-white">Upcoming Appointments</h2>
                         <Link href="/member/appointments" className="text-sm text-red-500 hover:text-red-400 transition-colors">View All</Link>
@@ -120,10 +112,9 @@ export default function MemberDashboard() {
                             </div>
                         ))}
                     </div>
-                </div>
+                </Card>
 
-                {/* Recent activity */}
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+                <Card>
                     <h2 className="text-lg font-semibold text-white mb-5">Recent Activity</h2>
                     <div className="space-y-4">
                         {activities.map((a, i) => (
@@ -136,13 +127,12 @@ export default function MemberDashboard() {
                             </div>
                         ))}
                     </div>
-                </div>
+                </Card>
             </div>
 
-            {/* Weekly chart */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+            <Card padding="lg">
                 <h2 className="text-lg font-semibold text-white mb-6">Weekly Workout Activity</h2>
-                <div className="flex items-end gap-2 h-28">
+                <div className="flex items-end gap-2 h-40 min-h-[10rem]">
                     {dayLabels.map((day, i) => (
                         <div key={day} className="flex flex-col items-center gap-2 flex-1">
                             <div className={`w-full rounded-t-xl transition-all ${weekActivity[i] > 0 ? 'bg-gradient-to-t from-red-700 to-red-500' : 'bg-zinc-800'}`}
@@ -151,7 +141,7 @@ export default function MemberDashboard() {
                         </div>
                     ))}
                 </div>
-            </div>
+            </Card>
         </div>
     );
 }

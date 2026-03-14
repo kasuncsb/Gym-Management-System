@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Activity, Search } from 'lucide-react';
+import { Activity } from 'lucide-react';
+import { PageHeader, Card, SearchInput } from '@/components/ui/SharedComponents';
 
 type EventType = 'member' | 'payment' | 'system' | 'security' | 'staff';
 
@@ -45,33 +46,38 @@ export default function AdminActivitiesPage() {
     });
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-white mb-1 flex items-center gap-3">
-                    <Activity size={28} className="text-red-400" /> System Activity Log
-                </h1>
-                <p className="text-zinc-400">Full audit trail for PowerWorld Kiribathgoda</p>
-            </div>
+        <div className="space-y-8">
+            <PageHeader
+                title="System Activity Log"
+                subtitle="Full audit trail for PowerWorld Kiribathgoda"
+            />
 
-            {/* Filter bar */}
-            <div className="flex gap-3 flex-wrap items-center">
-                <div className="relative flex-1 min-w-48">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search events or actors..."
-                        className="w-full bg-zinc-900 border border-zinc-700 text-white text-sm rounded-xl pl-8 pr-3 py-2.5 focus:outline-none focus:border-red-500" />
-                </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+                <SearchInput
+                    value={search}
+                    onChange={setSearch}
+                    placeholder="Search events or actors..."
+                    className="flex-1 min-w-0"
+                />
                 <div className="flex gap-2 flex-wrap">
                     {(['all','member','payment','system','security','staff'] as const).map(t => (
-                        <button key={t} onClick={() => setTypeFilter(t as any)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${typeFilter === t ? 'bg-red-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>{t}</button>
+                        <button
+                            key={t}
+                            onClick={() => setTypeFilter(t as EventType | 'all')}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all ${typeFilter === t
+                                ? 'bg-red-600 text-white border border-red-500'
+                                : 'bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:bg-zinc-800/50 hover:text-white'
+                                }`}
+                        >
+                            {t}
+                        </button>
                     ))}
                 </div>
             </div>
 
-            {/* Event list */}
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
                 {filtered.map(e => (
-                    <div key={e.id} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 flex items-start justify-between gap-4">
+                    <Card key={e.id} padding="md" className="flex items-start justify-between gap-4 hover:border-zinc-700/50 transition-colors">
                         <div className="flex items-start gap-3">
                             <span className={`text-[10px] px-2 py-1 rounded-full font-semibold mt-0.5 flex-shrink-0 ${typeStyle[e.type]}`}>{e.type}</span>
                             <div>
@@ -80,7 +86,7 @@ export default function AdminActivitiesPage() {
                             </div>
                         </div>
                         <span className="text-zinc-600 text-xs flex-shrink-0">{e.timestamp}</span>
-                    </div>
+                    </Card>
                 ))}
                 {filtered.length === 0 && <p className="text-center py-8 text-zinc-600">No events found.</p>}
             </div>

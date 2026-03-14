@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { HelpCircle, CheckCircle2, Clock, User } from 'lucide-react';
+import { PageHeader, Card } from '@/components/ui/SharedComponents';
+import { useToast } from '@/components/ui/Toast';
 
 type Priority = 'high' | 'medium' | 'low';
 type ReqStatus = 'open' | 'in_progress' | 'resolved';
@@ -36,45 +38,40 @@ const initialRequests: Request[] = [
 ];
 
 export default function TrainerAssistancePage() {
+    const toast = useToast();
     const [requests, setRequests] = useState<Request[]>(initialRequests);
     const [filter, setFilter] = useState<ReqStatus | 'all'>('all');
 
-    const resolve = (id: number) => setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'resolved' } : r));
+    const resolve = (id: number) => {
+        setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'resolved' as ReqStatus } : r));
+        const req = requests.find(r => r.id === id);
+        if (req) toast.success('Request Resolved', `${req.member}'s request has been marked resolved`);
+    };
 
     const filtered = filter === 'all' ? requests : requests.filter(r => r.status === filter);
     const open = requests.filter(r => r.status !== 'resolved').length;
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-white mb-1 flex items-center gap-3">
-                        <HelpCircle size={28} className="text-purple-400" /> Member Assistance
-                    </h1>
-                    <p className="text-zinc-400">Help members who need support on the floor</p>
-                </div>
-                {open > 0 && (
-                    <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-2 rounded-xl text-sm font-semibold">
-                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                        {open} open {open === 1 ? 'request' : 'requests'}
-                    </div>
-                )}
-            </div>
+        <div className="space-y-8">
+            <PageHeader
+                title="Member Assistance"
+                subtitle="Help members who need support on the floor"
+                badge={open > 0 ? `${open} open` : undefined}
+                badgeColor="red"
+            />
 
-            {/* Filter */}
             <div className="flex gap-2">
                 {(['all','open','in_progress','resolved'] as const).map(f => (
                     <button key={f} onClick={() => setFilter(f)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${filter === f ? 'bg-purple-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all ${filter === f ? 'bg-red-600 text-white border border-red-500' : 'bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:bg-zinc-800/50'}`}>
                         {f.replace('_',' ')}
                     </button>
                 ))}
             </div>
 
-            {/* Requests */}
             <div className="space-y-4">
                 {filtered.map(r => (
-                    <div key={r.id} className={`bg-zinc-900/50 border rounded-2xl p-5 ${r.priority === 'high' && r.status !== 'resolved' ? 'border-red-500/30' : 'border-zinc-800'}`}>
+                    <Card key={r.id} padding="md" className={r.priority === 'high' && r.status !== 'resolved' ? 'border-red-500/30' : 'hover:border-zinc-700/50 transition-colors'}>
                         <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-purple-600/20 rounded-xl flex items-center justify-center">
@@ -100,7 +97,7 @@ export default function TrainerAssistancePage() {
                                 </button>
                             )}
                         </div>
-                    </div>
+                    </Card>
                 ))}
             </div>
         </div>

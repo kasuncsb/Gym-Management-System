@@ -1,7 +1,131 @@
 "use client";
 
+import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, X } from "lucide-react";
+
+/* ── Label ──────────────────────────────────────────── */
+
+interface LabelProps {
+    children: React.ReactNode;
+    htmlFor?: string;
+    required?: boolean;
+    className?: string;
+}
+
+export function Label({ children, htmlFor, required, className }: LabelProps) {
+    return (
+        <label
+            htmlFor={htmlFor}
+            className={cn(
+                "block text-sm font-medium text-zinc-300 mb-1.5",
+                required && "after:content-['*'] after:ml-0.5 after:text-red-500",
+                className
+            )}
+        >
+            {children}
+        </label>
+    );
+}
+
+/* ── Input ───────────────────────────────────────────── */
+
+const inputBaseClass = "w-full bg-zinc-800/80 border border-zinc-700 rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-red-600 focus:border-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+
+interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> {
+    label?: string;
+    error?: string;
+    id?: string;
+}
+
+export const Input = forwardRef<HTMLInputElement, InputProps>(
+    ({ label, error, id, className, ...props }, ref) => {
+        const inputId = id || props.name;
+        return (
+            <div className="space-y-1.5">
+                {label && <Label htmlFor={inputId}>{label}</Label>}
+                <input
+                    ref={ref}
+                    id={inputId}
+                    className={cn(inputBaseClass, error && "border-red-500/50 focus:ring-red-500/50 focus:border-red-500", className)}
+                    {...props}
+                />
+                {error && <p className="text-xs text-red-400">{error}</p>}
+            </div>
+        );
+    }
+);
+Input.displayName = "Input";
+
+/* ── Textarea ────────────────────────────────────────── */
+
+interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+    label?: string;
+    error?: string;
+    id?: string;
+}
+
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
+    ({ label, error, id, className, ...props }, ref) => {
+        const textareaId = id || props.name;
+        return (
+            <div className="space-y-1.5">
+                {label && <Label htmlFor={textareaId}>{label}</Label>}
+                <textarea
+                    ref={ref}
+                    id={textareaId}
+                    className={cn(inputBaseClass, "min-h-[100px] resize-y", error && "border-red-500/50 focus:ring-red-500/50 focus:border-red-500", className)}
+                    {...props}
+                />
+                {error && <p className="text-xs text-red-400">{error}</p>}
+            </div>
+        );
+    }
+);
+Textarea.displayName = "Textarea";
+
+/* ── Select ─────────────────────────────────────────── */
+
+interface SelectOption {
+    value: string;
+    label: string;
+}
+
+interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "size"> {
+    label?: string;
+    error?: string;
+    options: SelectOption[] | readonly { value: string; label: string }[];
+    placeholder?: string;
+    id?: string;
+}
+
+export const Select = forwardRef<HTMLSelectElement, SelectProps>(
+    ({ label, error, options, placeholder, id, className, ...props }, ref) => {
+        const selectId = id || props.name;
+        return (
+            <div className="space-y-1.5">
+                {label && <Label htmlFor={selectId}>{label}</Label>}
+                <select
+                    ref={ref}
+                    id={selectId}
+                    className={cn(inputBaseClass, "appearance-none cursor-pointer", error && "border-red-500/50 focus:ring-red-500/50 focus:border-red-500", className)}
+                    {...props}
+                >
+                    {placeholder && (
+                        <option value="">{placeholder}</option>
+                    )}
+                    {options.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                        </option>
+                    ))}
+                </select>
+                {error && <p className="text-xs text-red-400">{error}</p>}
+            </div>
+        );
+    }
+);
+Select.displayName = "Select";
 
 /* ── PageHeader ─────────────────────────────────────── */
 
@@ -141,6 +265,7 @@ interface ModalProps {
     description?: string;
     children: React.ReactNode;
     size?: "sm" | "md" | "lg" | "xl";
+    showCloseButton?: boolean;
 }
 
 const sizeMap: Record<string, string> = {
@@ -150,26 +275,42 @@ const sizeMap: Record<string, string> = {
     xl: "max-w-4xl",
 };
 
-export function Modal({ isOpen, open, onClose, title, description, children, size = "md" }: ModalProps) {
-    if (!(isOpen || open)) return null;
+export function Modal({ isOpen, open, onClose, title, description, children, size = "md", showCloseButton = true }: ModalProps) {
+    if (!(isOpen ?? open)) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Overlay */}
             <div
                 className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
                 onClick={onClose}
+                aria-hidden="true"
             />
             {/* Panel */}
             <div
                 className={cn(
-                    "relative w-full mx-4 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl animate-in zoom-in-95 fade-in slide-in-from-bottom-4 duration-300",
+                    "relative w-full bg-zinc-800 border border-zinc-700 rounded-2xl shadow-2xl animate-in zoom-in-95 fade-in slide-in-from-bottom-4 duration-300",
+                    "hover:border-zinc-700/50 transition-colors",
                     sizeMap[size]
                 )}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="modal-title"
             >
-                <div className="p-6 border-b border-zinc-800">
-                    <h3 className="text-lg font-bold text-white">{title}</h3>
-                    {description && <p className="text-sm text-zinc-400 mt-1">{description}</p>}
+                <div className="flex items-start justify-between gap-4 p-6 border-b border-zinc-800">
+                    <div>
+                        <h3 id="modal-title" className="text-lg font-bold text-white">{title}</h3>
+                        {description && <p className="text-sm text-zinc-400 mt-1">{description}</p>}
+                    </div>
+                    {showCloseButton && (
+                        <button
+                            onClick={onClose}
+                            className="shrink-0 p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                            aria-label="Close modal"
+                        >
+                            <X size={20} />
+                        </button>
+                    )}
                 </div>
                 <div className="p-6 max-h-[70vh] overflow-y-auto">{children}</div>
             </div>
@@ -256,7 +397,7 @@ interface LoadingButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 const btnVariantMap: Record<string, string> = {
-    primary: "bg-red-700 text-white hover:bg-red-600 border-transparent",
+    primary: "bg-red-700 text-white hover:bg-red-800 border-transparent",
     secondary: "bg-zinc-800 text-zinc-100 hover:bg-zinc-700 border-zinc-700",
     danger: "bg-red-900/50 text-red-400 hover:bg-red-900/70 border-red-800/50",
     ghost: "bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800 border-transparent",
@@ -329,7 +470,7 @@ export function SearchInput({ value, onChange, placeholder = "Search...", classN
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
-                className="w-full pl-10 pr-4 py-2.5 bg-zinc-900/50 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-zinc-800/80 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-red-600 focus:border-red-600 transition-all"
             />
         </div>
     );
@@ -362,7 +503,7 @@ export function Tabs({ tabs, activeTab, onChange }: TabsProps) {
                         className={cn(
                             "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap",
                             activeTab === tabKey
-                                ? "bg-red-700/20 text-red-400 border border-red-600/20"
+                                ? "bg-red-700/25 text-red-400 border border-red-600/40"
                                 : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
                         )}
                     >
@@ -370,7 +511,7 @@ export function Tabs({ tabs, activeTab, onChange }: TabsProps) {
                         {tab.count !== undefined && (
                             <span className={cn(
                                 "text-xs px-1.5 py-0.5 rounded-full",
-                                activeTab === tabKey ? "bg-red-500/20 text-red-400" : "bg-zinc-800 text-zinc-500"
+                                activeTab === tabKey ? "bg-red-600/30 text-red-400" : "bg-zinc-800 text-zinc-500"
                             )}>
                                 {tab.count}
                             </span>
@@ -400,7 +541,7 @@ const paddingMap: Record<string, string> = {
 export function Card({ children, className, padding = "md" }: CardProps) {
     return (
         <div className={cn(
-            "bg-zinc-900/50 border border-zinc-800 rounded-2xl",
+            "bg-zinc-800/60 border border-zinc-700 rounded-2xl",
             paddingMap[padding],
             className
         )}>

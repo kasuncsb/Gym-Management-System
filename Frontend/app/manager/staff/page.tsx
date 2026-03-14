@@ -1,8 +1,18 @@
 'use client';
 
-import { UserCheck, Star, Clock, Dumbbell } from 'lucide-react';
+import { useState } from 'react';
+import { UserCheck, Star, Clock, Dumbbell, Plus, Pencil } from 'lucide-react';
+import { PageHeader, Card, Modal, Input, Select, LoadingButton } from '@/components/ui/SharedComponents';
+import { useToast } from '@/components/ui/Toast';
 
-const staff = [
+const ROLE_OPTIONS = [
+    { value: 'trainer', label: 'Personal Trainer' },
+    { value: 'senior_trainer', label: 'Senior Trainer' },
+    { value: 'consultant', label: 'Fitness Consultant' },
+    { value: 'operations', label: 'Operations Staff' },
+];
+
+const initialStaff = [
     { name: 'Chathurika Silva',  role: 'Personal Trainer',      members: 14, sessions: 52, rating: 4.9, shift: '6AM – 2PM',  status: 'on_shift' },
     { name: 'Isuru Bandara',     role: 'Personal Trainer',      members: 11, sessions: 44, rating: 4.7, shift: '2PM – 10PM', status: 'off_shift' },
     { name: 'Ruwan Jayawardena', role: 'Senior Trainer',        members: 18, sessions: 67, rating: 4.8, shift: '6AM – 2PM',  status: 'on_shift' },
@@ -11,37 +21,79 @@ const staff = [
 ];
 
 export default function ManagerStaffPage() {
-    const onShift = staff.filter(s => s.status === 'on_shift').length;
+    const toast = useToast();
+    const [staff, setStaff] = useState(initialStaff);
+    const [addOpen, setAddOpen] = useState(false);
+    const [scheduleOpen, setScheduleOpen] = useState(false);
+    const [selectedStaff, setSelectedStaff] = useState<typeof initialStaff[0] | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [addForm, setAddForm] = useState({ name: '', email: '', role: 'trainer', employeeCode: '', hireDate: '' });
+    const [scheduleForm, setScheduleForm] = useState({ shifts: '', notes: '' });
+
+    const onShift = staff.filter((s: { status: string }) => s.status === 'on_shift').length;
+
+    const handleAddStaff = async () => {
+        if (!addForm.name.trim() || !addForm.email.trim()) {
+            toast.error('Validation Error', 'Name and email are required');
+            return;
+        }
+        setLoading(true);
+        try {
+            await new Promise(r => setTimeout(r, 600));
+            toast.success('Staff Added', `${addForm.name} has been added`);
+            setAddOpen(false);
+            setAddForm({ name: '', email: '', role: 'trainer', employeeCode: '', hireDate: '' });
+        } catch {
+            toast.error('Error', 'Failed to add staff');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSchedule = async () => {
+        setLoading(true);
+        try {
+            await new Promise(r => setTimeout(r, 600));
+            toast.success('Schedule Updated', 'Schedule has been saved');
+            setScheduleOpen(false);
+            setSelectedStaff(null);
+        } catch {
+            toast.error('Error', 'Failed to update schedule');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-white mb-1 flex items-center gap-3">
-                    <UserCheck size={28} className="text-green-400" /> Staff Management
-                </h1>
-                <p className="text-zinc-400">Staff overview for PowerWorld Kiribathgoda</p>
-            </div>
+        <div className="space-y-8">
+            <PageHeader
+                title="Staff Management"
+                subtitle="Staff overview for PowerWorld Kiribathgoda"
+                action={
+                    <LoadingButton icon={Plus} onClick={() => setAddOpen(true)} size="md">
+                        Add Staff
+                    </LoadingButton>
+                }
+            />
 
-            {/* Summary */}
             <div className="grid grid-cols-3 gap-4">
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5 text-center">
+                <Card padding="md" className="text-center hover:border-zinc-700/50 transition-colors">
                     <p className="text-3xl font-bold text-white">{staff.length}</p>
                     <p className="text-zinc-500 text-xs">Total Staff</p>
-                </div>
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5 text-center">
-                    <p className="text-3xl font-bold text-green-400">{onShift}</p>
+                </Card>
+                <Card padding="md" className="text-center hover:border-zinc-700/50 transition-colors">
+                    <p className="text-3xl font-bold text-emerald-400">{onShift}</p>
                     <p className="text-zinc-500 text-xs">Currently On Shift</p>
-                </div>
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5 text-center">
-                    <p className="text-3xl font-bold text-yellow-400">{staff.length - onShift}</p>
+                </Card>
+                <Card padding="md" className="text-center hover:border-zinc-700/50 transition-colors">
+                    <p className="text-3xl font-bold text-amber-400">{staff.length - onShift}</p>
                     <p className="text-zinc-500 text-xs">Off Shift</p>
-                </div>
+                </Card>
             </div>
 
-            {/* Staff cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {staff.map((s, i) => (
-                    <div key={i} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-4">
+                    <Card key={i} padding="md" className="flex flex-col gap-4 hover:border-zinc-700/50 transition-colors">
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-600 to-green-800 flex items-center justify-center text-white font-bold">
                                 {s.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
@@ -51,7 +103,11 @@ export default function ManagerStaffPage() {
                                 <p className="text-zinc-500 text-xs">{s.role}</p>
                             </div>
                             <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full font-semibold ${s.status === 'on_shift' ? 'bg-green-500/20 text-green-400' : 'bg-zinc-700 text-zinc-500'}`}>
-                                {s.status === 'on_shift' ? '● On Shift' : 'Off Shift'}
+                                {s.status === 'on_shift' ? (
+                                <span className="inline-flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" /> On Shift
+                                </span>
+                            ) : 'Off Shift'}
                             </span>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-center">
@@ -68,12 +124,42 @@ export default function ManagerStaffPage() {
                                 <p className="text-zinc-600 text-[10px]">Rating</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-zinc-500">
-                            <Clock size={11} /> Shift: {s.shift}
+                        <div className="flex items-center justify-between">
+                            <span className="flex items-center gap-2 text-xs text-zinc-500">
+                                <Clock size={11} /> Shift: {s.shift}
+                            </span>
+                            <button onClick={() => { setSelectedStaff(s); setScheduleOpen(true); }} className="text-red-400 hover:text-red-300 text-xs font-medium flex items-center gap-1">
+                                <Pencil size={12} /> Edit Schedule
+                            </button>
                         </div>
-                    </div>
+                    </Card>
                 ))}
             </div>
+
+            <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title="Add Staff" size="md">
+                <div className="space-y-4">
+                    <Input label="Full Name" value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="Name" required />
+                    <Input label="Email" type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="email@example.com" required />
+                    <Select label="Role" options={ROLE_OPTIONS} value={addForm.role} onChange={e => setAddForm(f => ({ ...f, role: e.target.value }))} />
+                    <Input label="Employee Code" value={addForm.employeeCode} onChange={e => setAddForm(f => ({ ...f, employeeCode: e.target.value }))} placeholder="Optional" />
+                    <Input label="Hire Date" type="date" value={addForm.hireDate} onChange={e => setAddForm(f => ({ ...f, hireDate: e.target.value }))} />
+                    <div className="flex justify-end gap-3 pt-2">
+                        <LoadingButton variant="secondary" onClick={() => setAddOpen(false)}>Cancel</LoadingButton>
+                        <LoadingButton loading={loading} onClick={handleAddStaff}>Add Staff</LoadingButton>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal isOpen={scheduleOpen} onClose={() => setScheduleOpen(false)} title="Edit Schedule" description={selectedStaff ? `Schedule for ${selectedStaff.name}` : ''} size="md">
+                <div className="space-y-4">
+                    <Input label="Recurring Shifts" value={scheduleForm.shifts} onChange={e => setScheduleForm(f => ({ ...f, shifts: e.target.value }))} placeholder="e.g. Mon-Fri 6AM-2PM" />
+                    <Input label="Notes / Overrides" value={scheduleForm.notes} onChange={e => setScheduleForm(f => ({ ...f, notes: e.target.value }))} placeholder="Day off, extra shift, etc." />
+                    <div className="flex justify-end gap-3 pt-2">
+                        <LoadingButton variant="secondary" onClick={() => setScheduleOpen(false)}>Cancel</LoadingButton>
+                        <LoadingButton loading={loading} onClick={handleSchedule}>Save Schedule</LoadingButton>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

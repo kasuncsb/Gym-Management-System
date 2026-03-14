@@ -1,7 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { Wrench, AlertTriangle, CheckCircle2, Clock, Plus, X } from 'lucide-react';
+import { Wrench, AlertTriangle, CheckCircle2, Clock, Plus } from 'lucide-react';
+import { PageHeader, Card, Modal, Select, Textarea, LoadingButton } from '@/components/ui/SharedComponents';
+import { useToast } from '@/components/ui/Toast';
+
+const SEVERITY_OPTIONS = [
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+    { value: 'critical', label: 'Critical' },
+];
 
 type EqStatus = 'operational' | 'maintenance' | 'out_of_order';
 type ReportStatus = 'open' | 'in_progress' | 'resolved';
@@ -32,37 +41,55 @@ const reports = [
     { eq: 'Rowing Machine', issue: 'Resistance mechanism stuck', reporter: 'Trainer', date: '2025-01-14', status: 'open' as ReportStatus },
 ];
 
+const EQUIPMENT_OPTIONS = equipment.map(e => ({ value: e.name, label: e.name }));
+
 export default function TrainerEquipmentPage() {
+    const toast = useToast();
     const [showReport, setShowReport] = useState(false);
-    const [form, setForm]             = useState({ equipment: '', issue: '' });
+    const [form, setForm] = useState({ equipment: '', severity: 'medium' as string, issue: '' });
+    const [submitLoading, setSubmitLoading] = useState(false);
+
+    const handleSubmit = async () => {
+        if (!form.equipment || !form.issue.trim()) {
+            toast.error('Validation Error', 'Please select equipment and describe the issue');
+            return;
+        }
+        setSubmitLoading(true);
+        try {
+            await new Promise(r => setTimeout(r, 500));
+            toast.success('Report Submitted', `Issue reported for ${form.equipment}`);
+            setShowReport(false);
+            setForm({ equipment: '', severity: 'medium', issue: '' });
+        } catch {
+            toast.error('Error', 'Failed to submit report');
+        } finally {
+            setSubmitLoading(false);
+        }
+    };
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-white mb-1 flex items-center gap-3">
-                        <Wrench size={28} className="text-green-400" /> Equipment Status
-                    </h1>
-                    <p className="text-zinc-400">Monitor and report equipment at PowerWorld Kiribathgoda</p>
-                </div>
-                <button onClick={() => setShowReport(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold transition-all">
-                    <Plus size={16} /> Report Issue
-                </button>
-            </div>
+        <div className="space-y-8">
+            <PageHeader
+                title="Equipment Status"
+                subtitle="Monitor and report equipment at PowerWorld Kiribathgoda"
+                action={
+                    <LoadingButton icon={Plus} onClick={() => setShowReport(true)} size="md">
+                        Report Issue
+                    </LoadingButton>
+                }
+            />
 
-            {/* Overview stats */}
             <div className="grid grid-cols-3 gap-4">
                 {[
                     { label: 'Operational', value: equipment.filter(e => e.status === 'operational').length, color: 'text-green-400', icon: CheckCircle2 },
                     { label: 'Maintenance', value: equipment.filter(e => e.status === 'maintenance').length,  color: 'text-yellow-400', icon: Clock },
-                    { label: 'Out of Order',value: equipment.filter(e => e.status === 'out_of_order').length,color: 'text-red-400',   icon: AlertTriangle },
+                    { label: 'Out of Order', value: equipment.filter(e => e.status === 'out_of_order').length, color: 'text-red-400', icon: AlertTriangle },
                 ].map(({ label, value, color, icon: Icon }) => (
-                    <div key={label} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+                    <Card key={label} padding="md" className="hover:border-zinc-700/50 transition-colors">
                         <Icon size={20} className={`${color} mb-3`} />
                         <p className={`text-2xl font-bold ${color}`}>{value}</p>
                         <p className="text-zinc-500 text-xs">{label}</p>
-                    </div>
+                    </Card>
                 ))}
             </div>
 
@@ -85,8 +112,7 @@ export default function TrainerEquipmentPage() {
                 ))}
             </div>
 
-            {/* Open reports */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+            <Card padding="lg">
                 <h2 className="text-lg font-semibold text-white mb-4">Open Reports</h2>
                 <div className="space-y-3">
                     {reports.map((r, i) => (
@@ -99,39 +125,42 @@ export default function TrainerEquipmentPage() {
                         </div>
                     ))}
                 </div>
-            </div>
+            </Card>
 
-            {/* Report modal */}
-            {showReport && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowReport(false)} />
-                    <div className="relative bg-zinc-950 border border-zinc-800 rounded-2xl p-6 w-full max-w-md mx-4">
-                        <div className="flex justify-between mb-5">
-                            <h2 className="text-white font-bold text-lg">Report Equipment Issue</h2>
-                            <button onClick={() => setShowReport(false)} className="text-zinc-500 hover:text-zinc-300"><X size={20} /></button>
-                        </div>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm text-zinc-400 mb-1">Equipment</label>
-                                <select value={form.equipment} onChange={e => setForm(f => ({...f, equipment: e.target.value}))}
-                                    className="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-red-500">
-                                    <option value="">Select equipment</option>
-                                    {equipment.map(e => <option key={e.id}>{e.name}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm text-zinc-400 mb-1">Issue Description</label>
-                                <textarea value={form.issue} onChange={e => setForm(f => ({...f, issue: e.target.value}))} rows={3}
-                                    className="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-red-500 resize-none" />
-                            </div>
-                            <button onClick={() => setShowReport(false)}
-                                className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold text-sm transition-all">
-                                Submit Report
-                            </button>
-                        </div>
+            <Modal
+                isOpen={showReport}
+                onClose={() => setShowReport(false)}
+                title="Report Equipment Issue"
+                description="Report a malfunction or maintenance need"
+                size="md"
+            >
+                <div className="space-y-4">
+                    <Select
+                        label="Equipment"
+                        options={EQUIPMENT_OPTIONS}
+                        value={form.equipment}
+                        onChange={e => setForm(f => ({ ...f, equipment: e.target.value }))}
+                        placeholder="Select equipment"
+                    />
+                    <Select
+                        label="Severity"
+                        options={SEVERITY_OPTIONS}
+                        value={form.severity}
+                        onChange={e => setForm(f => ({ ...f, severity: e.target.value }))}
+                    />
+                    <Textarea
+                        label="Issue Description"
+                        value={form.issue}
+                        onChange={e => setForm(f => ({ ...f, issue: e.target.value }))}
+                        rows={3}
+                        placeholder="Describe the issue..."
+                    />
+                    <div className="flex justify-end gap-3 pt-2">
+                        <LoadingButton variant="secondary" onClick={() => setShowReport(false)}>Cancel</LoadingButton>
+                        <LoadingButton loading={submitLoading} onClick={handleSubmit}>Submit Report</LoadingButton>
                     </div>
                 </div>
-            )}
+            </Modal>
         </div>
     );
 }

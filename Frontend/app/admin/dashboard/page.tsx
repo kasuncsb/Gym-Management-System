@@ -4,11 +4,12 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Users, TrendingUp, Activity, CreditCard, AlertTriangle, Settings, ShieldCheck, Clock } from 'lucide-react';
+import { PageHeader, Card } from '@/components/ui/SharedComponents';
 
 type AlertType = 'warning' | 'error' | 'info';
 
 const alertColor: Record<AlertType, string> = {
-    warning: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400',
+    warning: 'border-amber-500/30 bg-amber-500/10 text-amber-400',
     error:   'border-red-500/30 bg-red-500/10 text-red-400',
     info:    'border-blue-500/30 bg-blue-500/10 text-blue-400',
 };
@@ -32,10 +33,10 @@ export default function AdminDashboard() {
     ];
 
     const quickActions = [
-        { label: 'User Management',  href: '/admin/users',      accent: 'text-blue-400 border-blue-500/40 hover:border-blue-400',   icon: Users },
-        { label: 'System Settings',  href: '/admin/settings',   accent: 'text-purple-400 border-purple-500/40 hover:border-purple-400', icon: Settings },
-        { label: 'Sub. Plans',       href: '/admin/plans',      accent: 'text-green-400 border-green-500/40 hover:border-green-400', icon: CreditCard },
-        { label: 'System Reports',   href: '/admin/reports',    accent: 'text-red-400 border-red-500/40 hover:border-red-400',       icon: TrendingUp },
+        { label: 'User Management',  href: '/admin/users',      icon: Users },
+        { label: 'System Settings',  href: '/admin/settings',   icon: Settings },
+        { label: 'Sub. Plans',       href: '/admin/plans',      icon: CreditCard },
+        { label: 'System Reports',   href: '/admin/reports',    icon: TrendingUp },
     ];
 
     const alerts: { type: AlertType; message: string; priority: string }[] = [
@@ -65,17 +66,11 @@ export default function AdminDashboard() {
     };
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8">
-            {/* Header */}
-            <div>
-                <h1 className="text-3xl font-bold text-white mb-1">System Administration</h1>
-                <p className="text-zinc-400">
-                    Welcome, {firstName} ·{' '}
-                    {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                    {' · '}
-                    {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                </p>
-            </div>
+        <div className="space-y-8">
+            <PageHeader
+                title="System Administration"
+                subtitle={`Welcome, ${firstName} · ${currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} · ${currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`}
+            />
 
             {/* System Alerts */}
             {alerts.length > 0 && (
@@ -98,23 +93,23 @@ export default function AdminDashboard() {
             {/* KPIs */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {kpis.map(({ label, value, sub, icon: Icon, color }) => (
-                    <div key={label} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+                    <Card key={label} padding="md" className="hover:border-zinc-700/50 transition-colors">
                         <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center mb-4`}>
                             <Icon size={18} className="text-white" />
                         </div>
                         <p className="text-xl font-bold text-white">{value}</p>
                         <p className="text-xs text-zinc-500 mt-1">{label}</p>
                         <p className="text-xs text-zinc-600">{sub}</p>
-                    </div>
+                    </Card>
                 ))}
             </div>
 
             {/* Quick Actions */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {quickActions.map(({ label, href, accent, icon: Icon }) => (
+                {quickActions.map(({ label, href, icon: Icon }) => (
                     <Link key={href} href={href}
-                        className={`bg-zinc-900/50 border ${accent} rounded-2xl p-5 flex flex-col items-center gap-3 transition-all hover:bg-zinc-900 hover:scale-[1.02]`}>
-                        <Icon size={24} />
+                        className="bg-zinc-800/80 border border-zinc-700 rounded-2xl p-5 flex flex-col items-center gap-3 transition-all hover:bg-zinc-800 hover:border-red-500/60 hover:scale-[1.02]">
+                        <Icon size={24} className="text-red-500" />
                         <span className="text-sm font-semibold text-white">{label}</span>
                     </Link>
                 ))}
@@ -122,7 +117,7 @@ export default function AdminDashboard() {
 
             {/* Activity + Plans */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+                <Card className="lg:col-span-2">
                     <div className="flex items-center justify-between mb-5">
                         <h2 className="text-lg font-semibold text-white flex items-center gap-2"><Activity size={18} className="text-red-500" /> Recent Activity</h2>
                         <Link href="/admin/activities" className="text-sm text-red-500 hover:text-red-400">View All</Link>
@@ -143,9 +138,9 @@ export default function AdminDashboard() {
                             </div>
                         ))}
                     </div>
-                </div>
+                </Card>
 
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+                <Card>
                     <div className="flex items-center justify-between mb-5">
                         <h2 className="text-lg font-semibold text-white flex items-center gap-2"><ShieldCheck size={18} className="text-green-500" /> Plans</h2>
                         <Link href="/admin/plans" className="text-sm text-red-500 hover:text-red-400">Manage</Link>
@@ -161,7 +156,7 @@ export default function AdminDashboard() {
                             </div>
                         ))}
                     </div>
-                </div>
+                </Card>
             </div>
         </div>
     );

@@ -38,7 +38,7 @@ const STATS = [
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-red-600/30">
+    <div className="min-h-screen bg-app text-white selection:bg-red-600/30">
       <Navbar />
 
       {/* Hero Section */}
@@ -96,7 +96,7 @@ export default function Home() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-20 border-y border-zinc-900 bg-zinc-950/50">
+      <section className="py-20 border-y border-zinc-800 bg-zinc-900/30">
         <div className="container px-6 mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
             {STATS.map((stat, i) => (
@@ -149,7 +149,7 @@ export default function Home() {
                 key={i}
                 className={`relative p-8 rounded-3xl border flex flex-col ${plan.popular
                   ? "bg-zinc-900/80 border-red-600 shadow-2xl shadow-red-600/10 scale-105 z-10"
-                  : "bg-black border-zinc-800 hover:border-zinc-700"
+                  : "bg-zinc-900/80 border-zinc-800 hover:border-zinc-700"
                   }`}
               >
                 {plan.popular && (
@@ -192,7 +192,7 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 border-t border-zinc-900 bg-black">
+      <footer className="py-12 border-t border-zinc-800 bg-zinc-900/50">
         <div className="container px-6 mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <p className="text-zinc-500 text-sm">&copy; 2026 PowerWorld Gyms. All rights reserved.</p>
           <div className="flex gap-8">

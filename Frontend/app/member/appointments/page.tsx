@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Calendar, Clock, User, Plus, X, Check } from 'lucide-react';
+import { Calendar, Clock, User, Plus } from 'lucide-react';
+import { PageHeader, Card, Modal, Input, Select, LoadingButton } from '@/components/ui/SharedComponents';
+import { useToast } from '@/components/ui/Toast';
 
 interface Appointment {
     id: number;
@@ -19,8 +21,18 @@ const appointments: Appointment[] = [
     { id: 4, trainer: 'Nirosha Senanayake',date: '2025-01-05', time: '3:00 PM',  type: 'Personal Training',       status: 'cancelled' },
 ];
 
-const trainers = ['Chathurika Silva', 'Isuru Bandara', 'Ruwan Jayawardena', 'Nirosha Senanayake'];
-const sessionTypes = ['Personal Training', 'Nutrition Consultation', 'Fitness Assessment', 'Group Class'];
+const TRAINER_OPTIONS = [
+    { value: 'Chathurika Silva', label: 'Chathurika Silva' },
+    { value: 'Isuru Bandara', label: 'Isuru Bandara' },
+    { value: 'Ruwan Jayawardena', label: 'Ruwan Jayawardena' },
+    { value: 'Nirosha Senanayake', label: 'Nirosha Senanayake' },
+];
+const SESSION_OPTIONS = [
+    { value: 'Personal Training', label: 'Personal Training' },
+    { value: 'Nutrition Consultation', label: 'Nutrition Consultation' },
+    { value: 'Fitness Assessment', label: 'Fitness Assessment' },
+    { value: 'Group Class', label: 'Group Class' },
+];
 
 const statusStyles: Record<string, string> = {
     upcoming:  'bg-blue-500/20 text-blue-400',
@@ -29,44 +41,59 @@ const statusStyles: Record<string, string> = {
 };
 
 export default function AppointmentsPage() {
+    const toast = useToast();
     const [filter, setFilter] = useState<'all' | 'upcoming' | 'completed' | 'cancelled'>('all');
     const [showModal, setShowModal] = useState(false);
     const [form, setForm] = useState({ trainer: '', date: '', time: '', type: '' });
+    const [submitLoading, setSubmitLoading] = useState(false);
 
     const filtered = filter === 'all' ? appointments : appointments.filter(a => a.status === filter);
 
-    return (
-        <div className="max-w-4xl mx-auto space-y-8">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-white mb-1 flex items-center gap-3">
-                        <Calendar size={28} className="text-red-500" /> Appointments
-                    </h1>
-                    <p className="text-zinc-400">Manage your personal training sessions</p>
-                </div>
-                <button onClick={() => setShowModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold transition-all">
-                    <Plus size={16} /> Book Session
-                </button>
-            </div>
+    const handleBook = async () => {
+        if (!form.trainer || !form.date || !form.time || !form.type) {
+            toast.error('Validation Error', 'Please fill all fields');
+            return;
+        }
+        setSubmitLoading(true);
+        try {
+            await new Promise(r => setTimeout(r, 600));
+            toast.success('Booking Confirmed', `Session with ${form.trainer} on ${form.date} at ${form.time}`);
+            setShowModal(false);
+            setForm({ trainer: '', date: '', time: '', type: '' });
+        } catch {
+            toast.error('Error', 'Failed to book session');
+        } finally {
+            setSubmitLoading(false);
+        }
+    };
 
-            {/* Filter tabs */}
+    return (
+        <div className="space-y-8">
+            <PageHeader
+                title="Appointments"
+                subtitle="Manage your personal training sessions"
+                action={
+                    <LoadingButton icon={Plus} onClick={() => setShowModal(true)} size="md">
+                        Book Session
+                    </LoadingButton>
+                }
+            />
+
             <div className="flex gap-2">
                 {(['all', 'upcoming', 'completed', 'cancelled'] as const).map(f => (
                     <button key={f} onClick={() => setFilter(f)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${filter === f ? 'bg-red-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all ${filter === f ? 'bg-red-600 text-white border border-red-500' : 'bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:bg-zinc-800/50'}`}>
                         {f}
                     </button>
                 ))}
             </div>
 
-            {/* Appointments */}
             <div className="space-y-3">
                 {filtered.length === 0 && (
                     <div className="text-center py-12 text-zinc-600">No {filter} appointments.</div>
                 )}
                 {filtered.map(a => (
-                    <div key={a.id} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5 flex items-center justify-between">
+                    <Card key={a.id} padding="md" className="flex items-center justify-between hover:border-zinc-700/50 transition-colors">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 bg-blue-600/20 rounded-xl flex items-center justify-center">
                                 <User size={20} className="text-blue-400" />
@@ -87,50 +114,23 @@ export default function AppointmentsPage() {
                             </div>
                             <span className={`text-xs px-2 py-1 rounded-full font-semibold ${statusStyles[a.status]}`}>{a.status}</span>
                         </div>
-                    </div>
+                    </Card>
                 ))}
             </div>
 
             {/* Book modal */}
-            {showModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-                    <div className="relative bg-zinc-950 border border-zinc-800 rounded-2xl p-6 w-full max-w-md mx-4">
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-xl font-bold text-white">Book a Session</h2>
-                            <button onClick={() => setShowModal(false)} className="text-zinc-500 hover:text-zinc-300"><X size={20} /></button>
-                        </div>
-                        <div className="space-y-4">
-                            {[
-                                { label: 'Trainer', field: 'trainer', type: 'select', options: trainers },
-                                { label: 'Session Type', field: 'type', type: 'select', options: sessionTypes },
-                                { label: 'Date', field: 'date', type: 'date', options: [] },
-                                { label: 'Time', field: 'time', type: 'time', options: [] },
-                            ].map(({ label, field, type, options }) => (
-                                <div key={field}>
-                                    <label className="block text-sm text-zinc-400 mb-1">{label}</label>
-                                    {type === 'select' ? (
-                                        <select value={form[field as keyof typeof form]}
-                                            onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
-                                            className="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-red-500">
-                                            <option value="">Select {label}</option>
-                                            {options.map(o => <option key={o}>{o}</option>)}
-                                        </select>
-                                    ) : (
-                                        <input type={type} value={form[field as keyof typeof form]}
-                                            onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
-                                            className="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-red-500" />
-                                    )}
-                                </div>
-                            ))}
-                            <button onClick={() => setShowModal(false)}
-                                className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2">
-                                <Check size={16} /> Confirm Booking
-                            </button>
-                        </div>
+            <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Book a Session" description="Schedule a personal training or consultation" size="md">
+                <div className="space-y-4">
+                    <Select label="Trainer" options={TRAINER_OPTIONS} value={form.trainer} onChange={e => setForm(f => ({ ...f, trainer: e.target.value }))} placeholder="Select trainer" />
+                    <Select label="Session Type" options={SESSION_OPTIONS} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} placeholder="Select type" />
+                    <Input label="Date" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+                    <Input label="Time" type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} />
+                    <div className="flex justify-end gap-3 pt-2">
+                        <LoadingButton variant="secondary" onClick={() => setShowModal(false)}>Cancel</LoadingButton>
+                        <LoadingButton loading={submitLoading} onClick={handleBook}>Confirm Booking</LoadingButton>
                     </div>
                 </div>
-            )}
+            </Modal>
         </div>
     );
 }

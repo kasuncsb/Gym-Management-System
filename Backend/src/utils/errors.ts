@@ -16,4 +16,5 @@ export const errors = {
   notFound: (resource = 'Resource') => new AppError(404, 'NOT_FOUND', `${resource} not found`),
   conflict: (msg: string) => new AppError(409, 'CONFLICT', msg),
   validation: (msg: string, details?: unknown) => new AppError(422, 'VALIDATION_ERROR', msg, details),
+  serviceUnavailable: (msg = 'Service temporarily unavailable') => new AppError(503, 'SERVICE_UNAVAILABLE', msg),
 };

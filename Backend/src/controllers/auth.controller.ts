@@ -60,20 +60,31 @@ export const register = asyncHandler(async (req: AuthRequest, res: Response) => 
 
 export const refresh = asyncHandler(async (req: AuthRequest, res: Response) => {
   const refreshToken = req.cookies?.refresh_token;
-  if (!refreshToken) throw errors.unauthorized('No refresh token');
-  const result = await authService.refresh(refreshToken);
-  setAuthCookies(res, result.accessToken, result.refreshToken);
-  res.json(response.success({ user: result.user }, 'Token refreshed'));
+  if (!refreshToken || typeof refreshToken !== 'string' || refreshToken.trim() === '') {
+    clearAuthCookies(res); // Clear any stale cookies
+    throw errors.unauthorized('No refresh token');
+  }
+  try {
+    const result = await authService.refresh(refreshToken);
+    setAuthCookies(res, result.accessToken, result.refreshToken);
+    res.json(response.success({ user: result.user }, 'Token refreshed'));
+  } catch (err) {
+    // On any refresh failure, clear cookies so client gets a clean state
+    clearAuthCookies(res);
+    throw err;
+  }
 });
 
 export const logout = asyncHandler(async (req: AuthRequest, res: Response) => {
   // Best-effort server-side revocation — NEVER block logout with a 500.
   // Cookies are cleared unconditionally; the user is logged out regardless.
+  const refreshToken = req.cookies?.refresh_token;
   try {
-    await authService.logout(req.cookies?.refresh_token);
+    await authService.logout(typeof refreshToken === 'string' ? refreshToken : undefined);
   } catch (err) {
     console.error('Logout service error (non-fatal, logging out anyway):', err);
   }
+  // Always clear cookies — even if none were sent (e.g. already cleared client-side)
   clearAuthCookies(res);
   res.json(response.success(null, 'Logged out successfully'));
 });

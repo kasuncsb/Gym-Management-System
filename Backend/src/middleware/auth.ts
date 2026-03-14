@@ -22,7 +22,9 @@ export interface AuthRequest extends Request {
 export function authenticate(req: AuthRequest, _res: Response, next: NextFunction): void {
   try {
     const token = req.cookies?.access_token;
-    if (!token) throw errors.unauthorized('Authentication required');
+    if (!token || typeof token !== 'string' || token.trim() === '') {
+      throw errors.unauthorized('Authentication required');
+    }
 
     const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as any;
 

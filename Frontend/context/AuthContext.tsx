@@ -13,11 +13,16 @@ export interface User {
   role: Role;
   avatarUrl?: string;
   phone?: string;
+  /** For members: must verify email before dashboard access */
+  emailVerified?: boolean;
+  /** For members: must complete onboarding before dashboard access */
+  isOnboarded?: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
   login: (user: User) => void;
+  refreshUser: () => Promise<User | null>;
   logout: () => void;
   isLoading: boolean;
   loading: boolean;
@@ -78,8 +83,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     authAPI.getProfile()
       .then(res => {
-        const { id, fullName, email, role, phone } = res.data.data;
-        const freshUser: User = { id, fullName, email, role, phone };
+        const d = res.data.data;
+        const freshUser: User = {
+          id: d.id,
+          fullName: d.fullName,
+          email: d.email,
+          role: d.role,
+          phone: d.phone,
+          emailVerified: d.emailVerified,
+          isOnboarded: d.profile?.isOnboarded,
+        };
         setUser(freshUser);
         setIsAuthenticated(true);
         localStorage.setItem('user', JSON.stringify(freshUser));
@@ -127,9 +140,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return !!user && roles.includes(user.role);
   }, [user]);
 
+  const refreshUser = useCallback(async (): Promise<User | null> => {
+    try {
+      const res = await authAPI.getProfile();
+      const d = res.data.data;
+      const freshUser: User = {
+        id: d.id,
+        fullName: d.fullName,
+        email: d.email,
+        role: d.role,
+        phone: d.phone,
+        emailVerified: d.emailVerified,
+        isOnboarded: d.profile?.isOnboarded,
+      };
+      setUser(freshUser);
+      localStorage.setItem('user', JSON.stringify(freshUser));
+      return freshUser;
+    } catch {
+      setUser(null);
+      setIsAuthenticated(false);
+      localStorage.removeItem('user');
+      return null;
+    }
+  }, []);
+
   return (
     <AuthContext.Provider value={{
-      user, login, logout,
+      user, login, refreshUser, logout,
       isLoading, loading: isLoading,
       isAuthenticated,
       hasRole,

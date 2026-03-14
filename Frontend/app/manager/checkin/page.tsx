@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { QrCode, CheckCircle2, LogOut, Search, Users, ShieldCheck } from 'lucide-react';
+import { QrCode, CheckCircle2, LogOut, Users, ShieldCheck } from 'lucide-react';
+import { PageHeader, Card, SearchInput } from '@/components/ui/SharedComponents';
 
 interface LogEntry {
     id: string;
@@ -36,35 +37,31 @@ export default function ManagerCheckinPage() {
     const denied    = log.filter(l => l.subscription === 'expired').length;
 
     return (
-        <div className="max-w-5xl mx-auto space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-white mb-1 flex items-center gap-3">
-                    <QrCode size={28} className="text-blue-400" /> Check-in Management
-                </h1>
-                <p className="text-zinc-400">Monitor entries and exits — PowerWorld Kiribathgoda</p>
-            </div>
+        <div className="space-y-8">
+            <PageHeader
+                title="Check-in Management"
+                subtitle="Monitor entries and exits — PowerWorld Kiribathgoda"
+            />
 
-            {/* Stats */}
             <div className="grid grid-cols-3 gap-4">
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+                <Card padding="md" className="hover:border-zinc-700/50 transition-colors">
                     <Users size={20} className="text-blue-400 mb-3" />
                     <p className="text-3xl font-bold text-white">{inCount}</p>
                     <p className="text-zinc-500 text-xs">Currently inside</p>
-                </div>
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+                </Card>
+                <Card padding="md" className="hover:border-zinc-700/50 transition-colors">
                     <ShieldCheck size={20} className="text-green-400 mb-3" />
                     <p className="text-3xl font-bold text-green-400">{log.length - denied}</p>
                     <p className="text-zinc-500 text-xs">Granted today</p>
-                </div>
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+                </Card>
+                <Card padding="md" className="hover:border-zinc-700/50 transition-colors">
                     <CheckCircle2 size={20} className="text-red-400 mb-3" />
                     <p className="text-3xl font-bold text-red-400">{denied}</p>
                     <p className="text-zinc-500 text-xs">Denied (expired)</p>
-                </div>
+                </Card>
             </div>
 
-            {/* Capacity bar */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+            <Card padding="md">
                 <div className="flex justify-between text-sm mb-2">
                     <span className="text-white font-semibold">Capacity</span>
                     <span className="text-zinc-400">{inCount} / 80</span>
@@ -73,17 +70,12 @@ export default function ManagerCheckinPage() {
                     <div className={`h-3 rounded-full transition-all ${inCount / 80 > 0.8 ? 'bg-red-500' : inCount / 80 > 0.6 ? 'bg-yellow-500' : 'bg-green-500'}`}
                         style={{ width: `${(inCount / 80) * 100}%` }} />
                 </div>
-            </div>
+            </Card>
 
-            {/* Searchable log */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
-                <div className="flex items-center justify-between mb-4">
+            <Card padding="lg">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                     <h2 className="text-lg font-semibold text-white">Today's Access Log</h2>
-                    <div className="relative">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..."
-                            className="bg-zinc-800 border border-zinc-700 text-white text-sm rounded-lg pl-8 pr-3 py-1.5 focus:outline-none focus:border-blue-500 w-44" />
-                    </div>
+                    <SearchInput value={search} onChange={setSearch} placeholder="Search..." className="w-full sm:w-56" />
                 </div>
                 <div className="space-y-2">
                     {filtered.map((l, i) => (
@@ -103,7 +95,7 @@ export default function ManagerCheckinPage() {
                         </div>
                     ))}
                 </div>
-            </div>
+            </Card>
         </div>
     );
 }

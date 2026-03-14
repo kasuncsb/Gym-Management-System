@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { TrendingUp, Flame, Clock, Award, Activity } from 'lucide-react';
+import { PageHeader, Card } from '@/components/ui/SharedComponents';
 
 export default function ProgressPage() {
     const [period, setPeriod] = useState<'week' | 'month' | '3month'>('month');
@@ -33,50 +34,44 @@ export default function ProgressPage() {
     ];
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-white mb-1 flex items-center gap-3">
-                    <TrendingUp size={28} className="text-red-500" /> Progress & Stats
-                </h1>
-                <p className="text-zinc-400">Track your fitness journey at PowerWorld Kiribathgoda</p>
-            </div>
+        <div className="space-y-8">
+            <PageHeader
+                title="Progress & Stats"
+                subtitle="Track your fitness journey at PowerWorld Kiribathgoda"
+            />
 
-            {/* Period toggle */}
             <div className="flex gap-2">
                 {(['week','month','3month'] as const).map(p => (
                     <button key={p} onClick={() => setPeriod(p)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${period === p ? 'bg-red-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all ${period === p ? 'bg-red-600 text-white border border-red-500' : 'bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:bg-zinc-800/50'}`}>
                         {p === '3month' ? '3 Months' : p.charAt(0).toUpperCase() + p.slice(1)}
                     </button>
                 ))}
             </div>
 
-            {/* Vitals */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {vitals.map(v => (
-                    <div key={v.label} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+                    <Card key={v.label} padding="md" className="hover:border-zinc-700/50 transition-colors">
                         <p className="text-zinc-400 text-xs mb-2">{v.label}</p>
                         <p className="text-2xl font-bold text-white">{v.value}</p>
-                        <p className={`text-xs mt-1 font-semibold ${v.good ? 'text-green-400' : 'text-red-400'}`}>{v.delta} this month</p>
-                    </div>
+                        <p className={`text-xs mt-1 font-semibold ${v.good ? 'text-emerald-400' : 'text-red-400'}`}>{v.delta} this month</p>
+                    </Card>
                 ))}
             </div>
 
-            {/* Activity stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {stats.map(({ label, value, icon: Icon, color }) => (
-                    <div key={label} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+                    <Card key={label} padding="md" className="hover:border-zinc-700/50 transition-colors">
                         <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center mb-4`}>
                             <Icon size={18} className="text-white" />
                         </div>
                         <p className="text-xl font-bold text-white">{value}</p>
                         <p className="text-xs text-zinc-500 mt-1">{label}</p>
-                    </div>
+                    </Card>
                 ))}
             </div>
 
-            {/* Workout frequency chart */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+            <Card padding="lg">
                 <h2 className="text-lg font-semibold text-white mb-6">Workout Frequency</h2>
                 <div className="flex items-end gap-1 h-24 overflow-hidden">
                     {data.map((v, i) => (
@@ -86,10 +81,9 @@ export default function ProgressPage() {
                         </div>
                     ))}
                 </div>
-            </div>
+            </Card>
 
-            {/* Personal Records */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+            <Card padding="lg">
                 <h2 className="text-lg font-semibold text-white mb-5 flex items-center gap-2">
                     <Award size={18} className="text-yellow-500" /> Personal Records
                 </h2>
@@ -107,7 +101,7 @@ export default function ProgressPage() {
                         </div>
                     ))}
                 </div>
-            </div>
+            </Card>
         </div>
     );
 }

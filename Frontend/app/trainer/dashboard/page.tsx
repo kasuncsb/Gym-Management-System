@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { QrCode, Wrench, ClipboardList, HelpCircle, Users, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
+import { PageHeader, Card } from '@/components/ui/SharedComponents';
 
 type CheckInType = 'check-in' | 'check-out' | 'assistance';
 type Priority = 'high' | 'medium' | 'low';
@@ -45,10 +46,10 @@ export default function TrainerDashboard() {
     ];
 
     const quickActions = [
-        { label: 'Member Check-in', href: '/trainer/checkin',    icon: QrCode,       accent: 'border-blue-500/40 hover:border-blue-400 text-blue-400' },
-        { label: 'Equipment',       href: '/trainer/equipment',  icon: Wrench,       accent: 'border-green-500/40 hover:border-green-400 text-green-400' },
-        { label: 'Assistance',      href: '/trainer/assistance', icon: HelpCircle,   accent: 'border-purple-500/40 hover:border-purple-400 text-purple-400' },
-        { label: 'Daily Tasks',     href: '/trainer/tasks',      icon: ClipboardList, accent: 'border-orange-500/40 hover:border-orange-400 text-orange-400' },
+        { label: 'Member Check-in', href: '/trainer/checkin',    icon: QrCode },
+        { label: 'Equipment',       href: '/trainer/equipment',  icon: Wrench },
+        { label: 'Assistance',      href: '/trainer/assistance', icon: HelpCircle },
+        { label: 'Daily Tasks',     href: '/trainer/tasks',      icon: ClipboardList },
     ];
 
     const recentCheckIns = [
@@ -73,20 +74,13 @@ export default function TrainerDashboard() {
     ];
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8">
-            {/* Header */}
-            <div>
-                <h1 className="text-3xl font-bold text-white mb-1">Trainer Dashboard</h1>
-                <p className="text-zinc-400">
-                    Welcome back, {firstName} ·{' '}
-                    {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                    {' · '}
-                    {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                </p>
-            </div>
+        <div className="space-y-8">
+            <PageHeader
+                title="Trainer Dashboard"
+                subtitle={`Welcome back, ${firstName} · ${currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} · ${currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`}
+            />
 
-            {/* Shift Status */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5 flex items-center justify-between">
+            <Card padding="md" className="flex items-center justify-between">
                 <div>
                     <p className="text-white font-semibold">Shift Status</p>
                     <p className="text-zinc-500 text-sm">{isCheckedIn ? 'You are currently on shift' : 'You are not checked in'}</p>
@@ -97,36 +91,32 @@ export default function TrainerDashboard() {
                 >
                     {isCheckedIn ? 'Check Out' : 'Check In'}
                 </button>
-            </div>
+            </Card>
 
-            {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {stats.map(({ label, value, icon: Icon, color }) => (
-                    <div key={label} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+                    <Card key={label} padding="md" className="hover:border-zinc-700/50 transition-colors">
                         <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center mb-4`}>
                             <Icon size={18} className="text-white" />
                         </div>
                         <p className="text-2xl font-bold text-white">{value}</p>
                         <p className="text-xs text-zinc-500 mt-1">{label}</p>
-                    </div>
+                    </Card>
                 ))}
             </div>
 
-            {/* Quick Actions */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {quickActions.map(({ label, href, icon: Icon, accent }) => (
+                {quickActions.map(({ label, href, icon: Icon }) => (
                     <Link key={href} href={href}
-                        className={`bg-zinc-900/50 border ${accent} rounded-2xl p-5 flex flex-col items-center gap-3 transition-all hover:bg-zinc-900 hover:scale-[1.02]`}>
-                        <Icon size={26} />
+                        className="bg-zinc-800/80 border border-zinc-700 rounded-2xl p-5 flex flex-col items-center gap-3 transition-all hover:bg-zinc-800 hover:border-red-500/60 hover:scale-[1.02]">
+                        <Icon size={24} className="text-red-500" />
                         <span className="text-sm font-semibold text-white">{label}</span>
                     </Link>
                 ))}
             </div>
 
-            {/* Bottom grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Recent Check-ins */}
-                <div className="lg:col-span-2 bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+                <Card className="lg:col-span-2">
                     <div className="flex items-center justify-between mb-5">
                         <h2 className="text-lg font-semibold text-white">Recent Check-ins</h2>
                         <Link href="/trainer/checkin" className="text-sm text-red-500 hover:text-red-400">View All</Link>
@@ -149,10 +139,9 @@ export default function TrainerDashboard() {
                             </div>
                         ))}
                     </div>
-                </div>
+                </Card>
 
-                {/* Pending Tasks */}
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+                <Card>
                     <h2 className="text-lg font-semibold text-white mb-5">Pending Tasks</h2>
                     <div className="space-y-3">
                         {pendingTasks.map((t, i) => (
@@ -165,11 +154,10 @@ export default function TrainerDashboard() {
                             </div>
                         ))}
                     </div>
-                </div>
+                </Card>
             </div>
 
-            {/* Equipment Status */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+            <Card padding="lg">
                 <div className="flex items-center justify-between mb-5">
                     <h2 className="text-lg font-semibold text-white">Equipment Status</h2>
                     <Link href="/trainer/equipment" className="text-sm text-red-500 hover:text-red-400">Manage</Link>
@@ -187,7 +175,7 @@ export default function TrainerDashboard() {
                         </div>
                     ))}
                 </div>
-            </div>
+            </Card>
         </div>
     );
 }

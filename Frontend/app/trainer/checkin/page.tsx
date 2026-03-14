@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { QrCode, CheckCircle2, LogOut, Search, Users } from 'lucide-react';
+import { QrCode, CheckCircle2, XCircle, LogOut, Users } from 'lucide-react';
+import { PageHeader, Card, SearchInput, LoadingButton } from '@/components/ui/SharedComponents';
 
 interface MemberEntry {
     id: string;
@@ -35,17 +36,14 @@ export default function TrainerCheckinPage() {
     const filtered = recentLog.filter(m => m.name.toLowerCase().includes(search.toLowerCase()) || m.id.includes(search));
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-white mb-1 flex items-center gap-3">
-                    <QrCode size={28} className="text-blue-400" /> Member Check-in
-                </h1>
-                <p className="text-zinc-400">Process member entries and exits for PowerWorld Kiribathgoda</p>
-            </div>
+        <div className="space-y-8">
+            <PageHeader
+                title="Member Check-in"
+                subtitle="Process member entries and exits for PowerWorld Kiribathgoda"
+            />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Scanner */}
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 flex flex-col items-center gap-5">
+                <Card padding="lg" className="flex flex-col items-center gap-5">
                     <div className={`w-40 h-40 border-2 rounded-2xl flex items-center justify-center transition-all ${scanning ? 'border-blue-500 animate-pulse' : lastScan ? (lastScan.subscription === 'active' ? 'border-green-500' : 'border-red-500') : 'border-zinc-700'}`}>
                         {scanning ? (
                             <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -57,22 +55,20 @@ export default function TrainerCheckinPage() {
                     </div>
                     {lastScan && !scanning && (
                         <div className="text-center">
-                            <p className={`font-bold ${lastScan.subscription === 'active' ? 'text-green-400' : 'text-red-400'}`}>
-                                {lastScan.subscription === 'active' ? '✓ Access Granted' : '✗ Access Denied'}
+                            <p className={`font-bold flex items-center justify-center gap-2 ${lastScan.subscription === 'active' ? 'text-green-400' : 'text-red-400'}`}>
+                                {lastScan.subscription === 'active' ? <><CheckCircle2 size={18} className="shrink-0" /> Access Granted</> : <><XCircle size={18} className="shrink-0" /> Access Denied</>}
                             </p>
                             <p className="text-white text-sm">{lastScan.name}</p>
                             <p className="text-zinc-500 text-xs">{lastScan.id}</p>
                         </div>
                     )}
-                    <button onClick={simulate} disabled={scanning}
-                        className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm transition-all disabled:opacity-50">
+                    <LoadingButton onClick={simulate} disabled={scanning} loading={scanning} className="w-full">
                         {scanning ? 'Scanning...' : 'Simulate QR Scan'}
-                    </button>
-                </div>
+                    </LoadingButton>
+                </Card>
 
-                {/* Capacity */}
                 <div className="space-y-4">
-                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+                    <Card padding="md">
                         <div className="flex items-center gap-3 mb-4">
                             <Users size={18} className="text-blue-400" />
                             <h2 className="text-white font-semibold">Current Capacity</h2>
@@ -82,29 +78,24 @@ export default function TrainerCheckinPage() {
                             <div className="bg-blue-500 h-2 rounded-full" style={{ width: '52.5%' }} />
                         </div>
                         <p className="text-zinc-500 text-xs mt-1">52.5% capacity</p>
-                    </div>
+                    </Card>
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 text-center">
+                        <Card padding="md" className="text-center">
                             <p className="text-2xl font-bold text-green-400">45</p>
                             <p className="text-zinc-500 text-xs">Check-ins today</p>
-                        </div>
-                        <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 text-center">
+                        </Card>
+                        <Card padding="md" className="text-center">
                             <p className="text-2xl font-bold text-red-400">3</p>
                             <p className="text-zinc-500 text-xs">Denied (expired)</p>
-                        </div>
+                        </Card>
                     </div>
                 </div>
             </div>
 
-            {/* Recent log */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
-                <div className="flex items-center justify-between mb-4">
+            <Card padding="lg">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                     <h2 className="text-lg font-semibold text-white">Check-in Log</h2>
-                    <div className="relative">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search member..."
-                            className="bg-zinc-800 border border-zinc-700 text-white text-sm rounded-lg pl-8 pr-3 py-1.5 focus:outline-none focus:border-blue-500 w-48" />
-                    </div>
+                    <SearchInput value={search} onChange={setSearch} placeholder="Search member..." className="w-full sm:w-56" />
                 </div>
                 <div className="space-y-2">
                     {filtered.map((m, i) => (
@@ -123,7 +114,7 @@ export default function TrainerCheckinPage() {
                         </div>
                     ))}
                 </div>
-            </div>
+            </Card>
         </div>
     );
 }

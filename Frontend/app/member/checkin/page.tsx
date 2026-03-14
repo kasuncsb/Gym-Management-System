@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { QrCode, CheckCircle2, LogOut, Users } from 'lucide-react';
+import { PageHeader, Card, LoadingButton } from '@/components/ui/SharedComponents';
 
 interface LogEntry {
     member: string;
@@ -34,16 +35,13 @@ export default function CheckinPage() {
     const currentlyIn = Math.max(0, checkIns - checkOuts);
 
     return (
-        <div className="max-w-2xl mx-auto space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-white mb-1 flex items-center gap-3">
-                    <QrCode size={28} className="text-red-500" /> Gym Check-in
-                </h1>
-                <p className="text-zinc-400">Scan or simulate QR entry to PowerWorld Kiribathgoda</p>
-            </div>
+        <div className="space-y-8 max-w-2xl">
+            <PageHeader
+                title="Gym Check-in"
+                subtitle="Scan or simulate QR entry to PowerWorld Kiribathgoda"
+            />
 
-            {/* QR display */}
-            <div className={`bg-zinc-900/50 border rounded-2xl p-8 flex flex-col items-center gap-6 transition-all ${scanned ? 'border-green-500/40' : 'border-zinc-800'}`}>
+            <Card padding="lg" className={`flex flex-col items-center gap-6 transition-all ${scanned ? 'border-emerald-500/40' : ''}`}>
                 <div className={`relative w-48 h-48 border-2 rounded-2xl flex items-center justify-center transition-all ${scanning ? 'border-red-500 animate-pulse' : scanned ? 'border-green-500' : 'border-zinc-700'}`}>
                     {scanning ? (
                         <div className="absolute inset-2 flex items-center justify-center">
@@ -61,7 +59,9 @@ export default function CheckinPage() {
                         <p className="text-zinc-400">Scanning QR code...</p>
                     ) : scanned ? (
                         <>
-                            <p className="text-green-400 font-bold text-lg">✓ Checked {log[0]?.type === 'in' ? 'In' : 'Out'} Successfully</p>
+                            <p className="text-green-400 font-bold text-lg flex items-center justify-center gap-2">
+                                <CheckCircle2 size={20} className="shrink-0" /> Checked {log[0]?.type === 'in' ? 'In' : 'Out'} Successfully
+                            </p>
                             <p className="text-zinc-500 text-sm">Member ID: PW2025001</p>
                         </>
                     ) : (
@@ -69,14 +69,12 @@ export default function CheckinPage() {
                     )}
                 </div>
 
-                <button onClick={simulate} disabled={scanning}
-                    className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all ${scanning ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
+                <LoadingButton onClick={simulate} disabled={scanning} loading={scanning} size="lg">
                     {scanning ? 'Scanning...' : scanned ? 'Simulate Check-out' : 'Simulate Scan'}
-                </button>
-            </div>
+                </LoadingButton>
+            </Card>
 
-            {/* Today's capacity */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5 flex items-center justify-between">
+            <Card padding="md" className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <Users size={20} className="text-blue-400" />
                     <div>
@@ -88,10 +86,9 @@ export default function CheckinPage() {
                     <p className="text-white font-bold text-xl">{currentlyIn} / 80</p>
                     <p className="text-zinc-500 text-xs">members in gym</p>
                 </div>
-            </div>
+            </Card>
 
-            {/* Log */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+            <Card padding="lg">
                 <h2 className="text-lg font-semibold text-white mb-4">Today's Log</h2>
                 <div className="space-y-2">
                     {log.map((l, i) => (
@@ -104,7 +101,7 @@ export default function CheckinPage() {
                         </div>
                     ))}
                 </div>
-            </div>
+            </Card>
         </div>
     );
 }
