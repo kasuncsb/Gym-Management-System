@@ -19,6 +19,10 @@ export const registerSchema = z.object({
   emergencyName: z.string().min(2).max(100),
   emergencyPhone: z.string().regex(/^\+?[\d\s-]{10,20}$/, 'Invalid emergency phone number'),
   emergencyRelation: z.string().min(2).max(50),
+  // Health info — optional at registration (create account card)
+  bloodType: z.enum(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']).optional(),
+  medicalConditions: z.string().max(1000).optional(),
+  allergies: z.string().max(500).optional(),
 });
 
 export const refreshSchema = z.object({

@@ -94,6 +94,9 @@ export const authAPI = {
     emergencyName: string;
     emergencyPhone: string;
     emergencyRelation: string;
+    bloodType?: string;
+    medicalConditions?: string;
+    allergies?: string;
   }) => apiClient.post('/auth/register', data),
 
   login: (email: string, password: string) =>
@@ -133,8 +136,12 @@ export const authAPI = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 
-  // Admin endpoints
+  // Admin endpoints (ID documents are streamed from backend; fetch with credentials to display)
   getIdSubmissions: () => apiClient.get('/auth/admin/id-submissions'),
+
+  /** Fetches ID document image as blob (sends cookies). Use URL.createObjectURL(blob) for img src. */
+  getIdDocumentBlob: (userId: string, type: 'front' | 'back') =>
+    apiClient.get<Blob>(`/auth/admin/id-document/${userId}/${type}`, { responseType: 'blob' }).then(r => r.data),
 
   adminVerifyId: (userId: string, status: 'approved' | 'rejected', note?: string) =>
     apiClient.post(`/auth/admin/verify-id/${userId}`, { status, note }),

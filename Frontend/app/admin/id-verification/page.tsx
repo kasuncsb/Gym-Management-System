@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { ShieldCheck, User, Check, X } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Check, X, FileImage, Loader2 } from 'lucide-react';
 import { PageHeader, Card, Modal, Textarea, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
 import { authAPI } from '@/lib/api';
@@ -25,6 +25,11 @@ export default function AdminIdVerificationPage() {
     const [action, setAction] = useState<'approved' | 'rejected'>('approved');
     const [note, setNote] = useState('');
     const [submitLoading, setSubmitLoading] = useState(false);
+    const [docModalOpen, setDocModalOpen] = useState(false);
+    const [docMember, setDocMember] = useState<IdSubmission | null>(null);
+    const [docFrontUrl, setDocFrontUrl] = useState<string | null>(null);
+    const [docBackUrl, setDocBackUrl] = useState<string | null>(null);
+    const [docLoading, setDocLoading] = useState(false);
 
     const fetchSubmissions = async () => {
         setLoading(true);
@@ -49,6 +54,35 @@ export default function AdminIdVerificationPage() {
         setNote('');
         setVerifyOpen(true);
     };
+
+    const openDocModal = useCallback(async (s: IdSubmission) => {
+        setDocMember(s);
+        setDocModalOpen(true);
+        setDocFrontUrl(null);
+        setDocBackUrl(null);
+        setDocLoading(true);
+        try {
+            const [frontBlob, backBlob] = await Promise.all([
+                authAPI.getIdDocumentBlob(s.id, 'front'),
+                authAPI.getIdDocumentBlob(s.id, 'back'),
+            ]);
+            setDocFrontUrl(URL.createObjectURL(frontBlob));
+            setDocBackUrl(URL.createObjectURL(backBlob));
+        } catch {
+            toast.error('Error', 'Failed to load ID documents');
+        } finally {
+            setDocLoading(false);
+        }
+    }, [toast]);
+
+    const closeDocModal = useCallback(() => {
+        setDocModalOpen(false);
+        if (docFrontUrl) URL.revokeObjectURL(docFrontUrl);
+        if (docBackUrl) URL.revokeObjectURL(docBackUrl);
+        setDocFrontUrl(null);
+        setDocBackUrl(null);
+        setDocMember(null);
+    }, [docFrontUrl, docBackUrl]);
 
     const handleVerify = async () => {
         if (!selected) return;
@@ -113,6 +147,7 @@ export default function AdminIdVerificationPage() {
                                     <th className="text-left text-xs font-semibold text-zinc-400 uppercase px-6 py-4">Code</th>
                                     <th className="text-left text-xs font-semibold text-zinc-400 uppercase px-6 py-4">Submitted</th>
                                     <th className="text-left text-xs font-semibold text-zinc-400 uppercase px-6 py-4">Status</th>
+                                    <th className="text-left text-xs font-semibold text-zinc-400 uppercase px-6 py-4">Documents</th>
                                     <th className="text-left text-xs font-semibold text-zinc-400 uppercase px-6 py-4">Actions</th>
                                 </tr>
                             </thead>
@@ -133,6 +168,15 @@ export default function AdminIdVerificationPage() {
                                             }`}>
                                                 {s.idVerificationStatus ?? 'pending'}
                                             </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <button
+                                                type="button"
+                                                onClick={() => openDocModal(s)}
+                                                className="text-zinc-400 hover:text-white text-sm font-medium flex items-center gap-1"
+                                            >
+                                                <FileImage size={14} /> View
+                                            </button>
                                         </td>
                                         <td className="px-6 py-4">
                                             {(s.idVerificationStatus === 'pending' || !s.idVerificationStatus) && (
@@ -156,6 +200,38 @@ export default function AdminIdVerificationPage() {
                     )}
                 </Card>
             )}
+
+            <Modal isOpen={docModalOpen} onClose={closeDocModal} title="ID Documents" description={docMember ? docMember.fullName : ''} size="lg">
+                <div className="space-y-4">
+                    {docLoading ? (
+                        <div className="flex items-center justify-center py-12 gap-2 text-zinc-400">
+                            <Loader2 size={24} className="animate-spin" /> Loading documents...
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">NIC Front</p>
+                                {docFrontUrl ? (
+                                    <img src={docFrontUrl} alt="NIC Front" className="w-full rounded-xl border border-zinc-700 bg-zinc-900 object-contain max-h-80" />
+                                ) : (
+                                    <div className="w-full h-40 rounded-xl border border-zinc-700 bg-zinc-800/50 flex items-center justify-center text-zinc-500 text-sm">Failed to load</div>
+                                )}
+                            </div>
+                            <div>
+                                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">NIC Back</p>
+                                {docBackUrl ? (
+                                    <img src={docBackUrl} alt="NIC Back" className="w-full rounded-xl border border-zinc-700 bg-zinc-900 object-contain max-h-80" />
+                                ) : (
+                                    <div className="w-full h-40 rounded-xl border border-zinc-700 bg-zinc-800/50 flex items-center justify-center text-zinc-500 text-sm">Failed to load</div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex justify-end pt-2">
+                        <LoadingButton variant="secondary" onClick={closeDocModal}>Close</LoadingButton>
+                    </div>
+                </div>
+            </Modal>
 
             <Modal isOpen={verifyOpen} onClose={() => setVerifyOpen(false)} title={action === 'approved' ? 'Approve ID' : 'Reject ID'} description={selected ? `Verifying ${selected.fullName}` : ''} size="sm">
                 <div className="space-y-4">

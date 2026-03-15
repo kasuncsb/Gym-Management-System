@@ -34,8 +34,10 @@ export async function uploadFile(
   contentType: string,
 ): Promise<string> {
   if (env.NODE_ENV === 'development') {
-    await fs.mkdir(UPLOADS_DIR, { recursive: true });
-    await fs.writeFile(path.join(UPLOADS_DIR, objectName), buffer);
+    const fullPath = path.join(UPLOADS_DIR, objectName);
+    const dir = path.dirname(fullPath);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(fullPath, buffer);
     return objectName;
   }
 
@@ -61,11 +63,20 @@ export async function downloadFile(
 ): Promise<{ body: NodeJS.ReadableStream; contentType: string }> {
   if (env.NODE_ENV === 'development') {
     const filePath = path.join(UPLOADS_DIR, objectName);
+    const stat = await fs.stat(filePath).catch(() => null);
+    if (!stat?.isFile()) {
+      const err = new Error(`ENOENT: no such file or directory, open '${filePath}'`);
+      (err as NodeJS.ErrnoException).code = 'ENOENT';
+      throw err;
+    }
     const fileHandle = await fs.open(filePath, 'r');
     const stream = fileHandle.createReadStream();
+    const contentType = objectName.toLowerCase().endsWith('.jpg') || objectName.toLowerCase().endsWith('.jpeg')
+      ? 'image/jpeg'
+      : 'application/octet-stream';
     return {
       body: stream as unknown as NodeJS.ReadableStream,
-      contentType: 'application/octet-stream', // In dev, we can just return a generic stream type to safely serve frontend generic download requirements
+      contentType,
     };
   }
 

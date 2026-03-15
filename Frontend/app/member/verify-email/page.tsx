@@ -5,32 +5,40 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { authAPI, getErrorMessage } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { Loader2, CheckCircle, XCircle, ArrowRight, Mail } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Mail, Home } from "lucide-react";
 
 function VerifyEmailContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { isAuthenticated, user, refreshUser, isLoading: authLoading } = useAuth();
     const token = searchParams.get('token');
-    const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'pending'>('loading');
+    const sentParam = searchParams.get('sent');
+    const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'pending' | 'email_failed'>('loading');
     const [message, setMessage] = useState('');
     const [resending, setResending] = useState(false);
 
-    // No token: show "check your email" for unverified members, else error
+    // No token: show "verify your email" — email sent (pending), email failed (email_failed), or generic pending
     useEffect(() => {
         if (token) return;
         if (authLoading) return;
 
-        if (isAuthenticated && user?.role === 'member' && !user?.emailVerified) {
-            setStatus('pending');
-            setMessage('We sent a verification link to your email. Click it to verify your account.');
-        } else {
-            setStatus('error');
-            setMessage('Invalid verification link. Please use the link from your email.');
+        if (sentParam === '0') {
+            setStatus('email_failed');
+            setMessage('We couldn\'t send the verification email. Please try again later or contact support.');
+            return;
         }
-    }, [token, authLoading, isAuthenticated, user]);
+        if (sentParam === '1' || (isAuthenticated && user?.role === 'member' && !user?.emailVerified)) {
+            setStatus('pending');
+            setMessage(sentParam === '1'
+                ? 'We\'ve sent a verification link to your email. Click the link in the email to verify your account.'
+                : 'We sent a verification link to your email. Click it to verify your account.');
+            return;
+        }
+        setStatus('error');
+        setMessage('Invalid verification link. Please use the link from your email.');
+    }, [token, sentParam, authLoading, isAuthenticated, user]);
 
-    // With token: verify
+    // With token: verify (user clicked link in email)
     useEffect(() => {
         if (!token) return;
 
@@ -38,11 +46,7 @@ function VerifyEmailContent() {
             try {
                 await authAPI.verifyEmail(token);
                 setStatus('success');
-                const fresh = await refreshUser();
-                const isOnboarded = fresh?.isOnboarded;
-                setTimeout(() => {
-                    router.push(isOnboarded ? '/member/dashboard' : '/member/onboard');
-                }, 1500);
+                await refreshUser();
             } catch (err: unknown) {
                 setStatus('error');
                 setMessage(getErrorMessage(err) || 'Verification failed. The link may be expired or invalid.');
@@ -50,7 +54,7 @@ function VerifyEmailContent() {
         };
 
         verify();
-    }, [token, refreshUser, router]);
+    }, [token, refreshUser]);
 
     const handleResend = async () => {
         setResending(true);
@@ -63,6 +67,9 @@ function VerifyEmailContent() {
             setResending(false);
         }
     };
+
+    const handleTryAgain = () => router.replace('/');
+    const handleContinue = () => router.push('/member/onboard');
 
     return (
         <div className="w-full max-w-md bg-zinc-800/80 backdrop-blur-xl border border-zinc-700 p-8 rounded-3xl shadow-2xl relative z-10 text-center">
@@ -81,7 +88,7 @@ function VerifyEmailContent() {
                     <div className="w-16 h-16 bg-red-700/10 rounded-full flex items-center justify-center mx-auto mb-6">
                         <Mail className="text-red-500" size={32} />
                     </div>
-                    <h2 className="text-2xl font-bold mb-4">Check Your Email</h2>
+                    <h2 className="text-2xl font-bold mb-4">Verify Your Email</h2>
                     <p className="text-zinc-400 mb-6 leading-relaxed">{message}</p>
                     <button
                         onClick={handleResend}
@@ -94,6 +101,23 @@ function VerifyEmailContent() {
                 </>
             )}
 
+            {status === 'email_failed' && (
+                <>
+                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <XCircle className="text-red-500" size={32} />
+                    </div>
+                    <h2 className="text-2xl font-bold mb-4">Verification Email Failed</h2>
+                    <p className="text-zinc-400 mb-8 leading-relaxed">{message}</p>
+                    <button
+                        onClick={handleTryAgain}
+                        className="w-full py-3.5 rounded-xl font-bold text-zinc-300 bg-zinc-800 hover:bg-zinc-700 transition-all flex items-center justify-center gap-2"
+                    >
+                        <Home size={18} />
+                        Try Again
+                    </button>
+                </>
+            )}
+
             {status === 'success' && (
                 <>
                     <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -101,12 +125,14 @@ function VerifyEmailContent() {
                     </div>
                     <h2 className="text-2xl font-bold mb-4">Email Verified!</h2>
                     <p className="text-zinc-400 mb-8 leading-relaxed">
-                        Your account has been successfully verified. Redirecting to complete your profile...
+                        Your account has been successfully verified. Continue to complete your profile.
                     </p>
-                    <div className="flex items-center justify-center gap-2 text-zinc-500">
-                        <Loader2 className="animate-spin" size={18} />
-                        <span>Redirecting...</span>
-                    </div>
+                    <button
+                        onClick={handleContinue}
+                        className="w-full py-3.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-all flex items-center justify-center gap-2"
+                    >
+                        Continue
+                    </button>
                 </>
             )}
 
@@ -119,12 +145,13 @@ function VerifyEmailContent() {
                     <p className="text-zinc-400 mb-8 leading-relaxed">
                         {message}
                     </p>
-                    <Link
-                        href="/login"
+                    <button
+                        onClick={handleTryAgain}
                         className="w-full py-3.5 rounded-xl font-bold text-zinc-300 bg-zinc-800 hover:bg-zinc-700 transition-all flex items-center justify-center gap-2"
                     >
-                        Back to Login
-                    </Link>
+                        <Home size={18} />
+                        Try Again
+                    </button>
                 </>
             )}
         </div>

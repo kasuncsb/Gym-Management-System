@@ -24,6 +24,10 @@ export default function Register() {
     const [emergencyName, setEmergencyName] = useState('');
     const [emergencyPhone, setEmergencyPhone] = useState('');
     const [emergencyRelation, setEmergencyRelation] = useState('');
+    // Health info (optional)
+    const [bloodType, setBloodType] = useState('');
+    const [medicalConditions, setMedicalConditions] = useState('');
+    const [allergies, setAllergies] = useState('');
     const router = useRouter();
     const { login, isAuthenticated, isLoading: authLoading, user } = useAuth();
 
@@ -60,9 +64,12 @@ export default function Register() {
                 emergencyName,
                 emergencyPhone,
                 emergencyRelation,
+                bloodType: bloodType || undefined,
+                medicalConditions: medicalConditions.trim() || undefined,
+                allergies: allergies.trim() || undefined,
             });
 
-            const { user } = response.data.data;
+            const { user, verificationEmailSent } = response.data.data;
 
             // Auto-login — cookies already set by backend. New members need verify → onboard.
             login({
@@ -74,8 +81,9 @@ export default function Register() {
                 isOnboarded: user.isOnboarded ?? false,
             });
 
-            // New member → verify email first (useEffect will redirect)
-            router.replace('/member/verify-email');
+            // New member → verify your email page (indicates whether verification mail was sent or failed)
+            const sent = verificationEmailSent === true ? '1' : '0';
+            router.replace(`/member/verify-email?sent=${sent}`);
         } catch (err: unknown) {
             console.error('Registration failed:', err);
             setError(getErrorMessage(err));
@@ -247,7 +255,7 @@ export default function Register() {
                             </div>
                         </div>
 
-                        {/* Emergency Contact — normal fields */}
+                        {/* Emergency Contact */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-2">
                                 <label className="block text-sm font-medium text-zinc-300">Emergency Contact Name</label>
@@ -279,6 +287,46 @@ export default function Register() {
                                     onChange={e => setEmergencyRelation(e.target.value)}
                                     placeholder="e.g. Spouse, Parent"
                                     required
+                                    className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-3 px-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Health info (optional) */}
+                        <div className="border-t border-zinc-700 pt-4 mt-2 space-y-4">
+                            <p className="text-sm font-medium text-zinc-400">Health info (optional)</p>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-zinc-300">Blood Type</label>
+                                    <select
+                                        value={bloodType}
+                                        onChange={e => setBloodType(e.target.value)}
+                                        className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-3 pl-4 pr-10 text-white focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all cursor-pointer appearance-none"
+                                    >
+                                        <option value="" className="bg-zinc-900">Select</option>
+                                        {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bt => (
+                                            <option key={bt} value={bt} className="bg-zinc-900">{bt}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-2 md:col-span-2">
+                                    <label className="block text-sm font-medium text-zinc-300">Medical conditions</label>
+                                    <input
+                                        type="text"
+                                        value={medicalConditions}
+                                        onChange={e => setMedicalConditions(e.target.value)}
+                                        placeholder="e.g. Hypertension, none"
+                                        className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-3 px-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="block text-sm font-medium text-zinc-300">Allergies</label>
+                                <input
+                                    type="text"
+                                    value={allergies}
+                                    onChange={e => setAllergies(e.target.value)}
+                                    placeholder="e.g. Penicillin, none"
                                     className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-3 px-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
                                 />
                             </div>

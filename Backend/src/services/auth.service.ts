@@ -40,6 +40,8 @@ export interface AuthResult extends TokenPair {
     emailVerified?: boolean;
     isOnboarded?: boolean;
   };
+  /** Only set on register: whether the verification email was sent successfully */
+  verificationEmailSent?: boolean;
 }
 
 // ── Token generation ──────────────────────────────────────────────────────────
@@ -168,15 +170,24 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
       emergencyName: input.emergencyName,
       emergencyPhone: input.emergencyPhone,
       emergencyRelation: input.emergencyRelation,
+      bloodType: input.bloodType ?? null,
+      medicalConditions: input.medicalConditions ?? null,
+      allergies: input.allergies ?? null,
     });
   });
 
   const verifyUrl = `${env.FRONTEND_URL}/member/verify-email?token=${emailVerifyToken}`;
-  sendEmail(
-    input.email,
-    'Verify Your Email — PowerWorld Gyms',
-    generateVerifyEmailHTML(input.fullName, verifyUrl),
-  ).catch(err => console.error('Failed to send verification email:', err));
+  let verificationEmailSent = false;
+  try {
+    await sendEmail(
+      input.email,
+      'Verify Your Email — PowerWorld Gyms',
+      generateVerifyEmailHTML(input.fullName, verifyUrl),
+    );
+    verificationEmailSent = true;
+  } catch (err) {
+    console.error('Failed to send verification email:', err);
+  }
 
   const tokens = await generateTokens({
     sub: personId,
@@ -197,6 +208,7 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
       emailVerified: false,
       isOnboarded: false,
     },
+    verificationEmailSent,
   };
 }
 
@@ -448,12 +460,12 @@ export async function completeOnboarding(userId: string, input: OnboardingInput)
   await db.update(memberProfiles).set({
     experienceLevel: input.experienceLevel,
     fitnessGoals: input.fitnessGoals,
-    medicalConditions: input.medicalConditions,
-    allergies: input.allergies,
-    bloodType: input.bloodType,
-    emergencyName: input.emergencyName,
-    emergencyPhone: input.emergencyPhone,
-    emergencyRelation: input.emergencyRelation,
+    ...(input.bloodType != null && { bloodType: input.bloodType }),
+    ...(input.medicalConditions != null && { medicalConditions: input.medicalConditions }),
+    ...(input.allergies != null && { allergies: input.allergies }),
+    ...(input.emergencyName != null && { emergencyName: input.emergencyName }),
+    ...(input.emergencyPhone != null && { emergencyPhone: input.emergencyPhone }),
+    ...(input.emergencyRelation != null && { emergencyRelation: input.emergencyRelation }),
     isOnboarded: true,
     onboardedAt: new Date(),
   }).where(eq(memberProfiles.personId, userId));

@@ -55,7 +55,8 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
 export const register = asyncHandler(async (req: AuthRequest, res: Response) => {
   const result = await authService.register(req.body as RegisterInput);
   setAuthCookies(res, result.accessToken, result.refreshToken);
-  res.status(201).json(response.success({ user: result.user }, 'Registration successful'));
+  const payload = { user: result.user, verificationEmailSent: result.verificationEmailSent };
+  res.status(201).json(response.success(payload, 'Registration successful'));
 });
 
 export const refresh = asyncHandler(async (req: AuthRequest, res: Response) => {
