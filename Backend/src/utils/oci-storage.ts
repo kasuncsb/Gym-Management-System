@@ -10,6 +10,24 @@ import { env } from '../config/env.js';
 import fs from 'fs/promises';
 import path from 'path';
 
+/** Convert a Web ReadableStream to a Node.js Readable (OCI getObject returns Web stream). */
+function webStreamToNodeStream(
+  webStream: { getReader(): { read(): Promise<{ done: boolean; value?: Uint8Array }> } },
+): NodeJS.ReadableStream {
+  const reader = webStream.getReader();
+  return new Readable({
+    async read() {
+      try {
+        const { done, value } = await reader.read();
+        if (done) this.push(null);
+        else if (value) this.push(Buffer.from(value));
+      } catch (err) {
+        this.destroy(err as Error);
+      }
+    },
+  });
+}
+
 let client: objectstorage.ObjectStorageClient | null = null;
 const UPLOADS_DIR = '/tmp/uploads';
 
@@ -94,21 +112,27 @@ export async function downloadFile(
   const raw = response.value;
   const contentType = response.contentType ?? 'application/octet-stream';
 
-  // OCI SDK may return Buffer or a non-Node stream in some environments — normalize to Node Readable.
-  let body: NodeJS.ReadableStream;
+  // OCI SDK returns a Web ReadableStream (getReader), not a Node Readable (.pipe/.on).
+  // See https://github.com/oracle/oci-typescript-sdk/issues/223
   if (raw == null) {
     throw new Error('OCI getObject returned no body');
   }
-  if (Buffer.isBuffer(raw)) {
+
+  if (typeof (raw as { getReader?: () => unknown }).getReader === 'function') {
+    return { body: webStreamToNodeStream(raw as { getReader(): { read(): Promise<{ done: boolean; value?: Uint8Array }> } }), contentType };
+  }
+
+  let body: NodeJS.ReadableStream;
+  if (raw instanceof Readable) {
+    body = raw;
+  } else if (Buffer.isBuffer(raw)) {
     body = Readable.from(raw);
-  } else if (typeof (raw as NodeJS.ReadableStream).pipe === 'function' && typeof (raw as NodeJS.ReadableStream).on === 'function') {
-    body = raw as NodeJS.ReadableStream;
   } else if (raw instanceof Uint8Array) {
     body = Readable.from(Buffer.from(raw));
   } else if (typeof ArrayBuffer !== 'undefined' && raw instanceof ArrayBuffer) {
     body = Readable.from(Buffer.from(new Uint8Array(raw)));
   } else {
-    throw new Error('OCI getObject returned unsupported body type; expected Buffer or Node stream');
+    throw new Error('OCI getObject returned unsupported body type; expected Buffer or stream');
   }
 
   return { body, contentType };
