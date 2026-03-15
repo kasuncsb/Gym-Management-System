@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { authAPI, getErrorMessage, opsAPI } from '@/lib/api';
+import { aiAPI, authAPI, getErrorMessage, opsAPI } from '@/lib/api';
 import { useAuth, dashboardPathForRole } from '@/context/AuthContext';
 import {
     ChevronRight, ChevronLeft, Loader2, CheckCircle,
@@ -159,6 +159,8 @@ export default function Onboard() {
                     notes: data.age ? `Age: ${data.age}` : undefined,
                 });
             }
+            // Kick off first AI plan immediately after onboarding.
+            await aiAPI.workoutPlan().catch(() => undefined);
             await refreshUser();
             router.push('/member/dashboard');
         } catch (err) {

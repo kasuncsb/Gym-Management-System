@@ -411,6 +411,7 @@ export const aiAPI = {
   health: () => apiClient.get('/ai/health').then(r => r.data.data),
   chat: (message: string) => apiClient.post('/ai/chat', { message }).then(r => r.data.data as { answer: string; source: 'rag' | 'gemini' | 'fallback' }),
   insights: (question?: string) => apiClient.post('/ai/insights', { question }).then(r => r.data.data as { summary: string; insights: string[]; generatedBy: 'gemini' | 'fallback' }),
+  workoutPlan: (memberId?: string) => apiClient.post('/ai/workout-plan', memberId ? { memberId } : {}).then(r => r.data.data as { id?: string | null; name?: string | null; source?: string | null }),
 };
 
 /** Safely read API error message; handles HTML or non-standard response bodies from proxies. */

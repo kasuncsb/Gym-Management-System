@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Users, TrendingUp, UserCheck, BarChart3, Star, Lightbulb } from 'lucide-react';
 import { PageHeader, Card } from '@/components/ui/SharedComponents';
-import { opsAPI } from '@/lib/api';
+import { aiAPI, getErrorMessage, opsAPI } from '@/lib/api';
 import { useRealtimePolling } from '@/hooks/useRealtimePolling';
+import { useToast } from '@/components/ui/Toast';
 
 type Impact = 'high' | 'medium' | 'low' | 'positive';
 type Priority = 'high' | 'medium' | 'low';
@@ -25,12 +26,15 @@ const priorityColor: Record<Priority, string> = {
 
 export default function ManagerDashboard() {
     const { user } = useAuth();
+    const toast = useToast();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [period, setPeriod] = useState<'week' | 'month' | 'year'>('week');
     const [dashboard, setDashboard] = useState<any>(null);
     const [insights, setInsights] = useState<Array<{ title: string; description: string; impact: Impact; rec: string }>>([]);
     const [tasks, setTasks] = useState<Array<{ task: string; priority: Priority; due: string; assignee: string }>>([]);
     const [occupancyData, setOccupancyData] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
+    const [aiSummary, setAiSummary] = useState<string>('');
+    const [aiLoading, setAiLoading] = useState(false);
 
     useEffect(() => {
         const t = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -95,6 +99,26 @@ export default function ManagerDashboard() {
         year:  ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
     };
 
+    const askAi = async (q: string) => {
+        setAiLoading(true);
+        try {
+            const result = await aiAPI.insights(q);
+            setAiSummary(result.summary);
+            if (result.insights?.length) {
+                setInsights(result.insights.map((line, i) => ({
+                    title: `AI Insight ${i + 1}`,
+                    description: line,
+                    impact: (i === 0 ? 'high' : i === 1 ? 'medium' : 'low') as Impact,
+                    rec: 'Review in manager insights and assign owners.',
+                })));
+            }
+        } catch (err) {
+            toast.error('AI Insight Error', getErrorMessage(err));
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
     return (
         <div className="space-y-8">
             <PageHeader
@@ -135,6 +159,39 @@ export default function ManagerDashboard() {
                     </Link>
                 ))}
             </div>
+
+            <Card padding="md">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h2 className="text-base font-semibold text-white">Ask AI for Manager Actions</h2>
+                    <button
+                        type="button"
+                        onClick={() => window.dispatchEvent(new CustomEvent('pw:ai-chat-prefill', {
+                            detail: { role: 'manager', message: 'Summarize key branch risks and actions for this week.' },
+                        }))}
+                        className="text-xs px-3 py-1.5 rounded-full border border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                    >
+                        Open AI Chat
+                    </button>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                    {[
+                        'Forecast next month revenue trend',
+                        'Identify churn risk from current activity',
+                        'Recommend staffing adjustments for peak periods',
+                    ].map((q) => (
+                        <button
+                            key={q}
+                            type="button"
+                            onClick={() => askAi(q)}
+                            disabled={aiLoading}
+                            className="text-xs px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-700 text-zinc-300 hover:bg-zinc-800 disabled:opacity-60"
+                        >
+                            {q}
+                        </button>
+                    ))}
+                </div>
+                {aiSummary && <p className="mt-3 text-sm text-zinc-300">{aiSummary}</p>}
+            </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card className="lg:col-span-2">

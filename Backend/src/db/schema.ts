@@ -346,6 +346,21 @@ export const messages = mysqlTable('messages', {
 });
 
 // ============================================================================
+// AI_INTERACTIONS (chat, workout generation, manager insights audit log)
+// ============================================================================
+export const aiInteractions = mysqlTable('ai_interactions', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  userRole: mysqlEnum('user_role', ['admin', 'manager', 'staff', 'trainer', 'member']).notNull(),
+  interactionType: mysqlEnum('interaction_type', ['chat', 'workout_plan', 'insight']).notNull(),
+  promptText: text('prompt_text'),
+  responseText: text('response_text'),
+  source: mysqlEnum('source', ['rag', 'gemini', 'fallback']).notNull(),
+  metadataJson: text('metadata_json'),
+  createdAt: timestamp('created_at'),
+});
+
+// ============================================================================
 // BRANCH_CLOSURES
 // ============================================================================
 export const branchClosures = mysqlTable('branch_closures', {
@@ -442,6 +457,7 @@ export type Equipment = typeof equipment.$inferSelect;
 export type EquipmentEvent = typeof equipmentEvents.$inferSelect;
 export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type Message = typeof messages.$inferSelect;
+export type AiInteraction = typeof aiInteractions.$inferSelect;
 export type Exercise = typeof exercises.$inferSelect;
 export type WorkoutPlanExercise = typeof workoutPlanExercises.$inferSelect;
 export type Shift = typeof shifts.$inferSelect;

@@ -1,32 +1,88 @@
 [
   {
     "id": "branch-hours",
+    "role": "generic",
+    "topic": "operations",
     "tags": ["hours", "open", "close", "time", "kiribathgoda"],
     "content": "PowerWorld Kiribathgoda operates daily with early-morning and evening peak usage. Members should complete check-in/check-out through QR or assisted trainer flow."
   },
   {
     "id": "checkin-policy",
+    "role": "member",
+    "topic": "subscriptions",
     "tags": ["checkin", "subscription", "entry", "qr", "access"],
-    "content": "Only members with active or grace-period subscriptions can enter through member check-in. Staff roles (trainer, manager, admin) can enter without subscription validation."
+    "content": "Only members with active or grace-period subscriptions can enter through member check-in. Staff roles (trainer, manager, admin) can enter without subscription validation.",
+    "businessRule": {
+      "area": "attendance",
+      "rule": "Gate access must always validate current subscription status for members; trainers can still check-in members manually if the QR device fails."
+    }
   },
   {
     "id": "beginner-fat-loss-plan",
+    "role": "member",
+    "topic": "workouts",
     "tags": ["fat loss", "beginner", "workout", "plan"],
-    "content": "Beginner fat-loss starter: 3 days/week, 35-45 minutes/session. Include treadmill incline walk 15 min, bodyweight squats 3x12, assisted rows 3x12, light dumbbell press 3x10, plank 3x30s, cooldown 8 min."
+    "content": "Beginner fat-loss starter: 3 days/week, 35-45 minutes/session. Include treadmill incline walk 15 min, bodyweight squats 3x12, assisted rows 3x12, light dumbbell press 3x10, plank 3x30s, cooldown 8 min.",
+    "workoutTemplate": {
+      "level": "beginner",
+      "goal": "fat loss",
+      "daysPerWeek": 3,
+      "durationWeeks": 8
+    }
   },
   {
     "id": "beginner-muscle-gain-plan",
+    "role": "member",
+    "topic": "workouts",
     "tags": ["muscle gain", "beginner", "workout", "plan"],
-    "content": "Beginner muscle-gain starter: 4 days/week split. Day A: goblet squat, bench press machine, seated row, shoulder press, core. Day B: leg press, lat pulldown, chest fly, RDL variation, core. Progressively increase load."
+    "content": "Beginner muscle-gain starter: 4 days/week split. Day A: goblet squat, bench press machine, seated row, shoulder press, core. Day B: leg press, lat pulldown, chest fly, Romanian deadlift variation, core. Progressively increase load while keeping 2-3 reps in reserve.",
+    "workoutTemplate": {
+      "level": "beginner",
+      "goal": "muscle gain",
+      "daysPerWeek": 4,
+      "durationWeeks": 10
+    }
   },
   {
     "id": "trainer-support",
+    "role": "trainer",
+    "topic": "workouts",
     "tags": ["trainer", "assistance", "appointment", "session"],
-    "content": "Members can book personal sessions from the app. Trainers should confirm and track session outcomes. If members request help on floor, prioritize safety/form correction before intensity."
+    "content": "Members can book personal sessions from the app. Trainers should confirm and track session outcomes. If members request help on floor, prioritize safety/form correction before intensity.",
+    "faqPairs": [
+      {
+        "q": "How should trainers respond when a member presses the assistance button?",
+        "a": "Respond quickly, assess safety first, correct form, then adjust load and volume if needed."
+      }
+    ]
   },
   {
     "id": "safety-guidance",
+    "role": "generic",
+    "topic": "policies",
     "tags": ["safety", "injury", "health", "medical"],
     "content": "Always prioritize safety and proper form. Stop exercise if sharp pain, dizziness, or chest discomfort occurs. For diagnosis or medical concerns, direct users to licensed healthcare professionals."
+  },
+  {
+    "id": "manager-revenue-focus",
+    "role": "manager",
+    "topic": "insights",
+    "tags": ["revenue", "renewals", "upsell", "kiribathgoda"],
+    "content": "For Kiribathgoda, monthly revenue is mainly driven by renewals of monthly plans and upsell of PT sessions. Managers should watch upcoming expiries, freeze requests, and idle members who have not visited in 14+ days.",
+    "businessRule": {
+      "area": "revenue",
+      "rule": "When churn risk is high (many members near expiry with low visits), focus campaigns on reactivation and short-term discounts instead of only acquiring new members."
+    }
+  },
+  {
+    "id": "manager-occupancy-best-practices",
+    "role": "manager",
+    "topic": "operations",
+    "tags": ["occupancy", "visits", "shifts", "staffing"],
+    "content": "Use hourly visit peaks to align trainer shifts and equipment maintenance windows. Aim to keep peak-hour occupancy comfortable by opening more floor support and deferring non-critical maintenance.",
+    "businessRule": {
+      "area": "staffing",
+      "rule": "If evening peak occupancy stays above target for several days, temporarily increase trainer coverage or adjust PT sessions away from peak times."
+    }
   }
 ]

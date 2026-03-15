@@ -741,7 +741,28 @@ CREATE TABLE IF NOT EXISTS `messages` (
 
 
 -- ============================================================================
--- 21. BRANCH_CLOSURES  (public holidays / emergency closure dates)
+-- 21. AI_INTERACTIONS (chat/workout/insight audit)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `ai_interactions` (
+  `id`               VARCHAR(36)  NOT NULL,
+  `user_id`          VARCHAR(36)  NOT NULL,
+  `user_role`        ENUM('admin','manager','staff','trainer','member') NOT NULL,
+  `interaction_type` ENUM('chat','workout_plan','insight') NOT NULL,
+  `prompt_text`      TEXT         DEFAULT NULL,
+  `response_text`    TEXT         DEFAULT NULL,
+  `source`           ENUM('rag','gemini','fallback') NOT NULL DEFAULT 'fallback',
+  `metadata_json`    TEXT         DEFAULT NULL,
+  `created_at`       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (`id`),
+  INDEX `idx_ai_user` (`user_id`, `created_at`),
+  INDEX `idx_ai_type` (`interaction_type`, `created_at`),
+  CONSTRAINT `fk_ai_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================================
+-- 22. BRANCH_CLOSURES  (public holidays / emergency closure dates)
 -- ============================================================================
 -- Kept as its own table — it is a 1:many set of dates (cannot be a column).
 -- When this system expands to multi-branch, add branch_id FK here first.

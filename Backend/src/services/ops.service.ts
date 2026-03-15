@@ -847,6 +847,46 @@ export async function assignWorkoutPlanToMember(
   return row;
 }
 
+type AiExercise = { day: number; name: string; muscleGroup?: string; sets?: number; reps?: number; durationSec?: number; restSec?: number; instructions?: string; sortOrder?: number };
+
+function getFallbackExercisesFromTemplates(goals: string, level: string): AiExercise[] {
+  const gl = goals.toLowerCase();
+  const isMuscleGain = gl.includes('muscle') || gl.includes('strength') || gl.includes('gain');
+  const isFatLoss = gl.includes('fat') || gl.includes('weight') || gl.includes('loss') || gl.includes('cardio');
+
+  if (isMuscleGain) {
+    return [
+      { day: 1, name: 'Goblet Squat', muscleGroup: 'legs', sets: 3, reps: 10, restSec: 90, instructions: 'Hold dumbbell at chest, squat to parallel', sortOrder: 0 },
+      { day: 1, name: 'Bench Press Machine', muscleGroup: 'chest', sets: 3, reps: 10, restSec: 90, instructions: 'Adjust seat, control the weight', sortOrder: 1 },
+      { day: 1, name: 'Seated Row', muscleGroup: 'back', sets: 3, reps: 12, restSec: 60, instructions: 'Squeeze shoulder blades together', sortOrder: 2 },
+      { day: 1, name: 'Shoulder Press', muscleGroup: 'shoulders', sets: 3, reps: 10, restSec: 60, instructions: 'Keep core tight, press overhead', sortOrder: 3 },
+      { day: 1, name: 'Plank', muscleGroup: 'core', sets: 3, durationSec: 30, restSec: 45, instructions: 'Hold rigid position', sortOrder: 4 },
+      { day: 2, name: 'Leg Press', muscleGroup: 'legs', sets: 3, reps: 12, restSec: 90, instructions: 'Feet shoulder-width, full range', sortOrder: 0 },
+      { day: 2, name: 'Lat Pulldown', muscleGroup: 'back', sets: 3, reps: 10, restSec: 60, instructions: 'Pull to upper chest', sortOrder: 1 },
+      { day: 2, name: 'Chest Fly', muscleGroup: 'chest', sets: 3, reps: 12, restSec: 60, instructions: 'Controlled arc motion', sortOrder: 2 },
+      { day: 2, name: 'Romanian Deadlift', muscleGroup: 'legs', sets: 3, reps: 10, restSec: 90, instructions: 'Hinge at hips, slight knee bend', sortOrder: 3 },
+      { day: 2, name: 'Dead Bug', muscleGroup: 'core', sets: 3, reps: 12, restSec: 45, instructions: 'Alternate arm and leg', sortOrder: 4 },
+    ];
+  }
+
+  // Fat loss / general fitness
+  return [
+    { day: 1, name: 'Treadmill Incline Walk', muscleGroup: 'cardio', sets: 1, durationSec: 900, restSec: 0, instructions: '15 min at 5-8% incline', sortOrder: 0 },
+    { day: 1, name: 'Bodyweight Squats', muscleGroup: 'legs', sets: 3, reps: 12, restSec: 60, instructions: 'Squat to parallel, drive through heels', sortOrder: 1 },
+    { day: 1, name: 'Assisted Rows', muscleGroup: 'back', sets: 3, reps: 12, restSec: 60, instructions: 'Use machine or band', sortOrder: 2 },
+    { day: 1, name: 'Light Dumbbell Press', muscleGroup: 'chest', sets: 3, reps: 10, restSec: 60, instructions: 'Start light, focus on form', sortOrder: 3 },
+    { day: 1, name: 'Plank', muscleGroup: 'core', sets: 3, durationSec: 30, restSec: 45, instructions: 'Hold rigid position', sortOrder: 4 },
+    { day: 2, name: 'Stationary Bike', muscleGroup: 'cardio', sets: 1, durationSec: 600, restSec: 0, instructions: '10 min moderate pace', sortOrder: 0 },
+    { day: 2, name: 'Lunges', muscleGroup: 'legs', sets: 3, reps: 10, restSec: 60, instructions: 'Alternating legs', sortOrder: 1 },
+    { day: 2, name: 'Push-ups', muscleGroup: 'chest', sets: 3, reps: 10, restSec: 60, instructions: 'Knees or toes', sortOrder: 2 },
+    { day: 2, name: 'Mountain Climbers', muscleGroup: 'core', sets: 3, durationSec: 30, restSec: 45, instructions: 'Controlled pace', sortOrder: 3 },
+    { day: 3, name: 'Rowing Machine', muscleGroup: 'cardio', sets: 1, durationSec: 600, restSec: 0, instructions: '10 min steady', sortOrder: 0 },
+    { day: 3, name: 'Glute Bridge', muscleGroup: 'legs', sets: 3, reps: 12, restSec: 60, instructions: 'Squeeze at top', sortOrder: 1 },
+    { day: 3, name: 'Dumbbell Rows', muscleGroup: 'back', sets: 3, reps: 10, restSec: 60, instructions: 'Single arm, support on bench', sortOrder: 2 },
+    { day: 3, name: 'Bicycle Crunches', muscleGroup: 'core', sets: 3, reps: 15, restSec: 45, instructions: 'Controlled rotation', sortOrder: 3 },
+  ];
+}
+
 export async function generateAiWorkoutPlan(
   memberId: string,
   requesterId: string,
@@ -877,10 +917,11 @@ export async function generateAiWorkoutPlan(
 
   const prompt = `
 You are a fitness trainer AI at PowerWorld Gyms Kiribathgoda.
-Create a personalised workout plan for this member:
+Create a UNIQUE, personalised workout plan for this member. Vary exercise selection and order—do not repeat the same plan.
 - Experience level: ${level}
 - Fitness goals: ${goals}
 - Medical conditions: ${conditions}
+- Request timestamp: ${new Date().toISOString()} (use to vary output)
 
 Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
 {
@@ -905,7 +946,6 @@ Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
 }
 `;
 
-  type AiExercise = { day: number; name: string; muscleGroup?: string; sets?: number; reps?: number; durationSec?: number; restSec?: number; instructions?: string; sortOrder?: number };
   let planData = {
     name: `AI Plan — ${goals}`,
     description: `A personalised ${level} plan focused on ${goals}.`,
@@ -914,6 +954,7 @@ Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
     daysPerWeek: 3,
     exerciseList: [] as AiExercise[],
   };
+  let geminiSucceeded = false;
 
   // Attempt Gemini call
   try {
@@ -926,7 +967,7 @@ Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.3, topP: 0.9, maxOutputTokens: 1200 },
+          generationConfig: { temperature: 0.7, topP: 0.95, maxOutputTokens: 2000 },
         }),
       });
       if (resp.ok) {
@@ -943,21 +984,34 @@ Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
             daysPerWeek: safeInt(parsed.daysPerWeek, 3),
             exerciseList: Array.isArray(parsed.exercises) ? parsed.exercises : [],
           };
+          geminiSucceeded = planData.exerciseList.length > 0;
         }
       }
     }
   } catch {
-    // Use fallback plan data already set
+    // Use fallback plan data
+  }
+
+  // Fallback: use template exercises from training data when Gemini fails or returns no exercises
+  if (planData.exerciseList.length === 0) {
+    const fallbackExercises = getFallbackExercisesFromTemplates(goals, level);
+    planData = {
+      ...planData,
+      exerciseList: fallbackExercises,
+      name: `Starter Plan — ${goals}`,
+      description: `A ${level} template plan focused on ${goals}. Customise with your trainer for best results.`,
+    };
   }
 
   const id = ids.uuid();
+  const planSource = geminiSucceeded ? 'ai_generated' : 'library';
   await db.insert(workoutPlans).values({
     id,
     memberId,
     trainerId: requesterRole !== 'member' ? requesterId : null,
     name: planData.name,
     description: planData.description,
-    source: 'ai_generated',
+    source: planSource,
     difficulty: planData.difficulty,
     durationWeeks: planData.durationWeeks,
     daysPerWeek: planData.daysPerWeek,
@@ -1115,28 +1169,33 @@ export async function createExercise(input: {
 export async function getPlanExercises(planId: string) {
   const [plan] = await db.select({ id: workoutPlans.id }).from(workoutPlans).where(eq(workoutPlans.id, planId)).limit(1);
   if (!plan) throw errors.notFound('Workout plan');
-  return db
-    .select({
-      id: workoutPlanExercises.id,
-      planId: workoutPlanExercises.planId,
-      exerciseId: workoutPlanExercises.exerciseId,
-      dayNumber: workoutPlanExercises.dayNumber,
-      sets: workoutPlanExercises.sets,
-      reps: workoutPlanExercises.reps,
-      durationSec: workoutPlanExercises.durationSec,
-      restSec: workoutPlanExercises.restSec,
-      notes: workoutPlanExercises.notes,
-      sortOrder: workoutPlanExercises.sortOrder,
-      exerciseName: exercises.name,
-      muscleGroup: exercises.muscleGroup,
-      equipmentNeeded: exercises.equipmentNeeded,
-      instructions: exercises.instructions,
-      difficulty: exercises.difficulty,
-    })
-    .from(workoutPlanExercises)
-    .leftJoin(exercises, eq(workoutPlanExercises.exerciseId, exercises.id))
-    .where(eq(workoutPlanExercises.planId, planId))
-    .orderBy(workoutPlanExercises.dayNumber, workoutPlanExercises.sortOrder);
+  try {
+    return await db
+      .select({
+        id: workoutPlanExercises.id,
+        planId: workoutPlanExercises.planId,
+        exerciseId: workoutPlanExercises.exerciseId,
+        dayNumber: workoutPlanExercises.dayNumber,
+        sets: workoutPlanExercises.sets,
+        reps: workoutPlanExercises.reps,
+        durationSec: workoutPlanExercises.durationSec,
+        restSec: workoutPlanExercises.restSec,
+        notes: workoutPlanExercises.notes,
+        sortOrder: workoutPlanExercises.sortOrder,
+        exerciseName: exercises.name,
+        muscleGroup: exercises.muscleGroup,
+        equipmentNeeded: exercises.equipmentNeeded,
+        instructions: exercises.instructions,
+        difficulty: exercises.difficulty,
+      })
+      .from(workoutPlanExercises)
+      .leftJoin(exercises, eq(workoutPlanExercises.exerciseId, exercises.id))
+      .where(eq(workoutPlanExercises.planId, planId))
+      .orderBy(workoutPlanExercises.dayNumber, workoutPlanExercises.sortOrder);
+  } catch {
+    // Compatibility fallback for stale DBs without workout_plan_exercises.
+    return [];
+  }
 }
 
 export async function addExerciseToPlan(planId: string, input: {
@@ -1305,23 +1364,42 @@ export async function updateEquipmentStatus(
 }
 
 export async function listEquipmentEvents() {
-  return db
-    .select({
-      id: equipmentEvents.id,
-      equipmentId: equipmentEvents.equipmentId,
-      equipmentName: equipment.name,
-      eventType: equipmentEvents.eventType,
-      severity: equipmentEvents.severity,
-      description: equipmentEvents.description,
-      status: equipmentEvents.status,
-      loggedBy: equipmentEvents.loggedBy,
-      resolvedBy: equipmentEvents.resolvedBy,
-      resolvedAt: equipmentEvents.resolvedAt,
-      createdAt: equipmentEvents.createdAt,
-    })
-    .from(equipmentEvents)
-    .leftJoin(equipment, eq(equipment.id, equipmentEvents.equipmentId))
-    .orderBy(desc(equipmentEvents.createdAt));
+  try {
+    return await db
+      .select({
+        id: equipmentEvents.id,
+        equipmentId: equipmentEvents.equipmentId,
+        equipmentName: equipment.name,
+        eventType: equipmentEvents.eventType,
+        severity: equipmentEvents.severity,
+        description: equipmentEvents.description,
+        status: equipmentEvents.status,
+        loggedBy: equipmentEvents.loggedBy,
+        resolvedBy: equipmentEvents.resolvedBy,
+        resolvedAt: equipmentEvents.resolvedAt,
+        createdAt: equipmentEvents.createdAt,
+      })
+      .from(equipmentEvents)
+      .leftJoin(equipment, eq(equipment.id, equipmentEvents.equipmentId))
+      .orderBy(desc(equipmentEvents.createdAt));
+  } catch {
+    // Compatibility fallback for DBs that don't yet have resolver columns.
+    return db
+      .select({
+        id: equipmentEvents.id,
+        equipmentId: equipmentEvents.equipmentId,
+        equipmentName: equipment.name,
+        eventType: equipmentEvents.eventType,
+        severity: equipmentEvents.severity,
+        description: equipmentEvents.description,
+        status: equipmentEvents.status,
+        loggedBy: equipmentEvents.loggedBy,
+        createdAt: equipmentEvents.createdAt,
+      })
+      .from(equipmentEvents)
+      .leftJoin(equipment, eq(equipment.id, equipmentEvents.equipmentId))
+      .orderBy(desc(equipmentEvents.createdAt));
+  }
 }
 
 export async function addEquipmentEvent(
@@ -1346,11 +1424,15 @@ export async function resolveEquipmentEvent(eventId: string, resolvedByUserId: s
   const [event] = await db.select().from(equipmentEvents).where(eq(equipmentEvents.id, eventId)).limit(1);
   if (!event) throw errors.notFound('Equipment event');
 
-  await db.update(equipmentEvents).set({
-    status: 'resolved',
-    resolvedBy: resolvedByUserId,
-    resolvedAt: new Date(),
-  }).where(eq(equipmentEvents.id, eventId));
+  try {
+    await db.update(equipmentEvents).set({
+      status: 'resolved',
+      resolvedBy: resolvedByUserId,
+      resolvedAt: new Date(),
+    }).where(eq(equipmentEvents.id, eventId));
+  } catch {
+    await db.update(equipmentEvents).set({ status: 'resolved' }).where(eq(equipmentEvents.id, eventId));
+  }
 
   // Check remaining open events for this equipment; if none, reset to operational
   const [openCount] = await db
@@ -1460,14 +1542,34 @@ export async function addInventoryTransaction(
 
 export async function listMessagesForUser(userId: string, role: Role) {
   return db
-    .select()
+    .select({
+      id: messages.id,
+      type: messages.type,
+      channel: messages.channel,
+      toPersonId: messages.toPersonId,
+      targetRole: messages.targetRole,
+      subject: messages.subject,
+      body: messages.body,
+      priority: messages.priority,
+      status: messages.status,
+      createdAt: messages.createdAt,
+    })
     .from(messages)
     .where(sql`(${messages.toPersonId} = ${userId}) or (${messages.targetRole} = ${role}) or (${messages.toPersonId} is null and ${messages.targetRole} is null)`)
     .orderBy(desc(messages.createdAt));
 }
 
 export async function markMessageRead(messageId: string, userId: string, role: Role) {
-  const [msg] = await db.select().from(messages).where(eq(messages.id, messageId)).limit(1);
+  const [msg] = await db
+    .select({
+      id: messages.id,
+      toPersonId: messages.toPersonId,
+      targetRole: messages.targetRole,
+      status: messages.status,
+    })
+    .from(messages)
+    .where(eq(messages.id, messageId))
+    .limit(1);
   if (!msg) throw errors.notFound('Message');
 
   const canAccess = msg.toPersonId === userId
@@ -1478,7 +1580,22 @@ export async function markMessageRead(messageId: string, userId: string, role: R
   if (msg.status !== 'read') {
     await db.update(messages).set({ status: 'read' }).where(eq(messages.id, messageId));
   }
-  const [updated] = await db.select().from(messages).where(eq(messages.id, messageId)).limit(1);
+  const [updated] = await db
+    .select({
+      id: messages.id,
+      type: messages.type,
+      channel: messages.channel,
+      toPersonId: messages.toPersonId,
+      targetRole: messages.targetRole,
+      subject: messages.subject,
+      body: messages.body,
+      priority: messages.priority,
+      status: messages.status,
+      createdAt: messages.createdAt,
+    })
+    .from(messages)
+    .where(eq(messages.id, messageId))
+    .limit(1);
   return updated!;
 }
 
@@ -1493,19 +1610,48 @@ export async function broadcastMessage(
   },
 ) {
   const id = ids.uuid();
-  await db.insert(messages).values({
-    id,
-    type: 'announcement',
-    channel: 'in_app',
-    toPersonId: input.toPersonId ?? null,
-    targetRole: input.targetRole ?? null,
-    subject: input.subject,
-    body: input.body,
-    priority: input.priority ?? 'normal',
-    status: 'sent',
-    sentBy: senderId,
-  });
-  const [row] = await db.select().from(messages).where(eq(messages.id, id));
+  try {
+    await db.insert(messages).values({
+      id,
+      type: 'announcement',
+      channel: 'in_app',
+      toPersonId: input.toPersonId ?? null,
+      targetRole: input.targetRole ?? null,
+      subject: input.subject,
+      body: input.body,
+      priority: input.priority ?? 'normal',
+      status: 'sent',
+      sentBy: senderId,
+    });
+  } catch {
+    // Compatibility for DBs without sent_by.
+    await db.insert(messages).values({
+      id,
+      type: 'announcement',
+      channel: 'in_app',
+      toPersonId: input.toPersonId ?? null,
+      targetRole: input.targetRole ?? null,
+      subject: input.subject,
+      body: input.body,
+      priority: input.priority ?? 'normal',
+      status: 'sent',
+    });
+  }
+  const [row] = await db
+    .select({
+      id: messages.id,
+      type: messages.type,
+      channel: messages.channel,
+      toPersonId: messages.toPersonId,
+      targetRole: messages.targetRole,
+      subject: messages.subject,
+      body: messages.body,
+      priority: messages.priority,
+      status: messages.status,
+      createdAt: messages.createdAt,
+    })
+    .from(messages)
+    .where(eq(messages.id, id));
   return row;
 }
 

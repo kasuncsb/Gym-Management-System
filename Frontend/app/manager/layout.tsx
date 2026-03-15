@@ -2,6 +2,7 @@
 
 import { Sidebar } from "@/components/ui/Sidebar";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { MemberChatbot } from '@/components/ai/MemberChatbot';
 
 export default function ManagerLayout({ children }: { children: React.ReactNode }) {
     return (
@@ -13,6 +14,7 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
                     <div className="relative z-10 w-full min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 lg:py-10">
                         {children}
                     </div>
+                    <MemberChatbot role="manager" />
                 </main>
             </div>
         </ProtectedRoute>

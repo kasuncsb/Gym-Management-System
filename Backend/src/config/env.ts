@@ -39,6 +39,15 @@ const envSchema = z.object({
   OCI_NAMESPACE:   z.string().min(1),
   OCI_BUCKET:      z.string().min(1),
   OCI_REGION:      z.string().min(1),
+
+  // AI / RAG (optional in non-AI environments)
+  GEMINI_API_KEY: z.string().min(1).optional(),
+  GEMINI_MODEL: z.string().min(1).optional(),
+  // Allow unset or empty string; when set to a non-empty value it must be a valid URL.
+  RAG_SERVICE_URL: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.string().url().optional(),
+  ),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Play, Clock, Flame, Target, Sparkles, ChevronDown, ChevronUp, Dumbbell } from 'lucide-react';
 import { PageHeader, Card, LoadingButton } from '@/components/ui/SharedComponents';
-import { getErrorMessage, opsAPI } from '@/lib/api';
+import { aiAPI, getErrorMessage, opsAPI } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 
 type DifficultyFilter = 'beginner' | 'intermediate' | 'advanced';
@@ -79,7 +79,7 @@ export default function WorkoutsPage() {
     const handleGenerateAiPlan = async () => {
         setGenerating(true);
         try {
-            await opsAPI.generateAiWorkoutPlan();
+            await aiAPI.workoutPlan();
             toast.success('Plan Generated', 'Your AI workout plan is ready! Check your notifications.');
             loadPlans();
         } catch (err) {
@@ -187,6 +187,18 @@ export default function WorkoutsPage() {
                             >
                                 Start Workout
                             </LoadingButton>
+                        </div>
+                        <div className="mb-6">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const detail = { role: 'member' as const, message: `Explain my plan "${active.name}" and what I should focus on this week.` };
+                                    window.dispatchEvent(new CustomEvent('pw:ai-chat-prefill', { detail }));
+                                }}
+                                className="text-xs px-3 py-1.5 rounded-full border border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                            >
+                                Ask AI About This Plan
+                            </button>
                         </div>
                         <div className="space-y-3">
                             <div className="bg-zinc-800/30 rounded-xl p-4">

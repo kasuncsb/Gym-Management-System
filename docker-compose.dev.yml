@@ -49,6 +49,9 @@ services:
       OCI_NAMESPACE:        ${OCI_NAMESPACE}
       OCI_BUCKET:           ${OCI_BUCKET}
       OCI_REGION:           ${OCI_REGION}
+      GEMINI_API_KEY:       ${GEMINI_API_KEY}
+      GEMINI_MODEL:         ${GEMINI_MODEL}
+      RAG_SERVICE_URL:      ${RAG_SERVICE_URL:-}
       # Same reason as frontend: sync doesn't trigger inotify on Docker Desktop.
       CHOKIDAR_USEPOLLING:  "true"
       CHOKIDAR_INTERVAL:    "300"

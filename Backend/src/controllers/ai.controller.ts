@@ -18,7 +18,7 @@ export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   const message = String(req.body?.message ?? '').trim();
   if (!message) throw errors.badRequest('message is required');
-  const data = await aiService.memberChat(user, message);
+  const data = await aiService.chatForUser(user, message);
   res.json(response.success(data));
 });
 
@@ -27,5 +27,12 @@ export const insights = asyncHandler(async (req: AuthRequest, res: Response) => 
   const question = req.body?.question ? String(req.body.question) : undefined;
   const data = await aiService.managerInsights(user, question);
   res.json(response.success(data));
+});
+
+export const workoutPlan = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  const memberId = req.body?.memberId ? String(req.body.memberId) : undefined;
+  const data = await aiService.createAiWorkoutPlan(user, { memberId });
+  res.json(response.success(data, 'AI workout plan generated'));
 });
 
