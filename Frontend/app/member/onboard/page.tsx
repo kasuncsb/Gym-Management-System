@@ -427,7 +427,7 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals'];
                             <button
                                 id="onboard-continue"
                                 type="button"
-                                onClick={handleNext}
+                                onClick={() => handleNext()}
                                 className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-all"
                             >
                                 Continue <ChevronRight size={18} />
