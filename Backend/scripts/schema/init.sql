@@ -645,18 +645,22 @@ CREATE TABLE IF NOT EXISTS `equipment_events` (
   `event_type`   ENUM('issue_reported','maintenance_done') NOT NULL,
   `severity`     ENUM('low','medium','high','critical') DEFAULT NULL,
   `description`  TEXT         NOT NULL,
+  -- legacy fields (kept for compatibility, not used by current app logic)
   `cost`         DECIMAL(10,2) DEFAULT NULL,
   `performed_by` VARCHAR(100) DEFAULT NULL,
+  -- current app fields
   `status`       ENUM('open','in_progress','resolved') DEFAULT NULL,
-  `resolved_at`  TIMESTAMP    NULL DEFAULT NULL,
   `logged_by`    VARCHAR(36)  DEFAULT NULL,
+  `resolved_by`  VARCHAR(36)  DEFAULT NULL,
+  `resolved_at`  TIMESTAMP    NULL DEFAULT NULL,
   `created_at`   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (`id`),
   INDEX `idx_ee_equipment` (`equipment_id`),
   INDEX `idx_ee_status`    (`status`),
   CONSTRAINT `fk_ee_equipment` FOREIGN KEY (`equipment_id`) REFERENCES `equipment`(`id`) ON DELETE RESTRICT,
-  CONSTRAINT `fk_ee_logger`    FOREIGN KEY (`logged_by`)     REFERENCES `users`(`id`)   ON DELETE SET NULL
+  CONSTRAINT `fk_ee_logger`    FOREIGN KEY (`logged_by`)     REFERENCES `users`(`id`)   ON DELETE SET NULL,
+  CONSTRAINT `fk_ee_resolver`  FOREIGN KEY (`resolved_by`)   REFERENCES `users`(`id`)   ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -717,12 +721,14 @@ CREATE TABLE IF NOT EXISTS `messages` (
   `body`         TEXT         NOT NULL,
   `priority`     ENUM('low','normal','high','critical') NOT NULL DEFAULT 'normal',
   `status`       ENUM('pending','sent','read','failed') NOT NULL DEFAULT 'pending',
+  -- legacy scheduling fields (not used by current app logic)
   `scheduled_at` TIMESTAMP    NULL DEFAULT NULL,
   `sent_at`      TIMESTAMP    NULL DEFAULT NULL,
   `read_at`      TIMESTAMP    NULL DEFAULT NULL,
   `attempts`     TINYINT      NOT NULL DEFAULT 0,
   `error_msg`    VARCHAR(500) DEFAULT NULL,
-  `created_by`   VARCHAR(36)  DEFAULT NULL,
+  -- current app fields
+  `sent_by`      VARCHAR(36)  DEFAULT NULL,
   `created_at`   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (`id`),
@@ -730,7 +736,7 @@ CREATE TABLE IF NOT EXISTS `messages` (
   INDEX `idx_msg_status`    (`status`),
   INDEX `idx_msg_scheduled` (`scheduled_at`),
   CONSTRAINT `fk_msg_person`  FOREIGN KEY (`to_person_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_msg_creator` FOREIGN KEY (`created_by`)   REFERENCES `users`(`id`) ON DELETE SET NULL
+  CONSTRAINT `fk_msg_sender`  FOREIGN KEY (`sent_by`)      REFERENCES `users`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
