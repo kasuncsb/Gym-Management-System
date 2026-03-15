@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { Sidebar } from "@/components/ui/Sidebar";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import MemberGuard from "@/components/auth/MemberGuard";
+import { MemberChatbot } from '@/components/ai/MemberChatbot';
 
 // These paths render their own full-page layouts and handle auth internally.
 // Bypass the shared ProtectedRoute + Sidebar wrapper for them.
@@ -31,6 +32,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
                     <div className="relative z-10 w-full min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 lg:py-10">
                         {children}
                     </div>
+                    <MemberChatbot />
                 </main>
             </div>
             </MemberGuard>

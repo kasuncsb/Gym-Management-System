@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Users, Plus, Pencil } from 'lucide-react';
 import {
     PageHeader,
@@ -13,6 +13,7 @@ import {
     Select,
 } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
+import { getErrorMessage, opsAPI } from '@/lib/api';
 
 type MemberStatus = 'active' | 'inactive' | 'suspended';
 
@@ -25,15 +26,6 @@ interface Member {
     checkins: number;
     trainerName: string;
 }
-
-const initialMembers: Member[] = [
-    { id: 'PW2025001', name: 'Nimal Perera', plan: 'Premium', joined: '2025-01-05', status: 'active', checkins: 18, trainerName: 'Chathurika Silva' },
-    { id: 'PW2025009', name: 'Chathurika Silva', plan: 'Elite', joined: '2024-11-12', status: 'active', checkins: 32, trainerName: 'Isuru Bandara' },
-    { id: 'PW2024087', name: 'Saman Jayasinghe', plan: 'Basic', joined: '2024-08-20', status: 'inactive', checkins: 4, trainerName: '—' },
-    { id: 'PW2025022', name: 'Gayani Fernando', plan: 'Premium', joined: '2025-01-10', status: 'active', checkins: 12, trainerName: 'Chathurika Silva' },
-    { id: 'PW2025031', name: 'Thilini Wijesinghe', plan: 'Basic', joined: '2025-01-15', status: 'active', checkins: 6, trainerName: '—' },
-    { id: 'PW2024066', name: 'Ruwan Jayawardena', plan: 'Annual Basic', joined: '2024-06-01', status: 'suspended', checkins: 0, trainerName: '—' },
-];
 
 const statusVariant: Record<MemberStatus, 'success' | 'error' | 'warning' | 'default'> = {
     active: 'success',
@@ -54,15 +46,9 @@ const STATUS_OPTIONS = [
     { value: 'suspended', label: 'Suspended' },
 ];
 
-const TRAINER_OPTIONS = [
-    { value: '—', label: 'No trainer' },
-    { value: 'Chathurika Silva', label: 'Chathurika Silva' },
-    { value: 'Isuru Bandara', label: 'Isuru Bandara' },
-];
-
 export default function ManagerMembersPage() {
     const toast = useToast();
-    const [members, setMembers] = useState<Member[]>(initialMembers);
+    const [members, setMembers] = useState<Member[]>([]);
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<MemberStatus | 'all'>('all');
     const [modalOpen, setModalOpen] = useState(false);
@@ -74,6 +60,28 @@ export default function ManagerMembersPage() {
         trainerName: '—',
     });
     const [submitLoading, setSubmitLoading] = useState(false);
+    const [trainerOptions, setTrainerOptions] = useState<Array<{ value: string; label: string }>>([{ value: '—', label: 'No trainer' }]);
+
+    const loadMembers = async () => {
+        const [rows, visits, trainers] = await Promise.all([opsAPI.members(), opsAPI.visits(500), opsAPI.users('trainer')]);
+        const byPerson = new Map<string, number>();
+        (visits ?? []).forEach((v: any) => byPerson.set(v.personId, (byPerson.get(v.personId) ?? 0) + 1));
+        const trainerMap = new Map((trainers ?? []).map((t: any) => [t.id, t.fullName]));
+        setTrainerOptions([{ value: '—', label: 'No trainer' }, ...(trainers ?? []).map((t: any) => ({ value: t.fullName, label: t.fullName }))]);
+        setMembers((rows ?? []).map((m: any) => ({
+            id: m.id,
+            name: m.fullName,
+            plan: m.currentPlanName ?? 'Unassigned',
+            joined: m.joinDate ? String(m.joinDate).slice(0, 10) : String(m.createdAt).slice(0, 10),
+            status: (m.memberStatus ?? 'inactive') as MemberStatus,
+            checkins: byPerson.get(m.id) ?? 0,
+            trainerName: trainerMap.get(m.assignedTrainerId) ?? m.assignedTrainerName ?? '—',
+        })));
+    };
+
+    useEffect(() => {
+        loadMembers().catch((err) => toast.error('Failed to load members', getErrorMessage(err)));
+    }, []);
 
     const filtered = members.filter(m => {
         const matchSearch = m.name.toLowerCase().includes(search.toLowerCase()) || m.id.includes(search);
@@ -100,25 +108,25 @@ export default function ManagerMembersPage() {
         }
         setSubmitLoading(true);
         try {
-            await new Promise(r => setTimeout(r, 600));
             if (editingMember) {
-                setMembers(prev => prev.map(m => m.id === editingMember.id
-                    ? { ...m, ...formData }
-                    : m));
+                await opsAPI.updateUser(editingMember.id, {
+                    fullName: formData.name.trim(),
+                    memberStatus: formData.status,
+                });
                 toast.success('Member Updated', `${formData.name} has been updated successfully`);
             } else {
-                const newMember: Member = {
-                    id: `PW${Date.now().toString().slice(-6)}`,
-                    ...formData,
-                    joined: new Date().toISOString().split('T')[0],
-                    checkins: 0,
-                };
-                setMembers(prev => [newMember, ...prev]);
+                await opsAPI.createUser({
+                    fullName: formData.name.trim(),
+                    email: `${formData.name.toLowerCase().replace(/\s+/g, '.')}@powerworld.local`,
+                    role: 'member',
+                    password: 'TempPass123!',
+                });
                 toast.success('Member Added', `${formData.name} has been added successfully`);
             }
+            await loadMembers();
             setModalOpen(false);
-        } catch {
-            toast.error('Error', 'Failed to save member');
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
         } finally {
             setSubmitLoading(false);
         }
@@ -252,7 +260,7 @@ export default function ManagerMembersPage() {
                     />
                     <Select
                         label="Assigned Trainer"
-                        options={TRAINER_OPTIONS}
+                        options={trainerOptions}
                         value={formData.trainerName}
                         onChange={e => setFormData(prev => ({ ...prev, trainerName: e.target.value }))}
                     />

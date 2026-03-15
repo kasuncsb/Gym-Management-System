@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Activity } from 'lucide-react';
 import { PageHeader, Card, SearchInput } from '@/components/ui/SharedComponents';
+import { getErrorMessage, opsAPI } from '@/lib/api';
+import { useToast } from '@/components/ui/Toast';
 
 type EventType = 'member' | 'payment' | 'system' | 'security' | 'staff';
 
@@ -24,20 +26,37 @@ interface Event {
     detail: string;
 }
 
-const events: Event[] = [
-    { id: 1,  action: 'New member registered',     actor: 'Nimal Perera',       actorId: 'PW2025035', type: 'member',   timestamp: '2025-01-17 09:12:03', detail: 'Premium plan selected' },
-    { id: 2,  action: 'Payment processed',          actor: 'Chathurika Silva',   actorId: 'PW2025009', type: 'payment',  timestamp: '2025-01-17 09:00:15', detail: 'Rs.4,900 — Premium plan renewal' },
-    { id: 3,  action: 'System backup completed',    actor: 'System',             actorId: 'SYS',       type: 'system',   timestamp: '2025-01-17 03:00:00', detail: 'Full backup — 512 MB' },
-    { id: 4,  action: 'Failed login attempt',       actor: 'Unknown',            actorId: '—',         type: 'security', timestamp: '2025-01-16 23:44:12', detail: '3 attempts from 192.168.1.55' },
-    { id: 5,  action: 'Plan updated',               actor: 'Admin User',         actorId: 'PW-A001',   type: 'system',   timestamp: '2025-01-16 15:30:00', detail: 'Elite plan price changed to Rs.7,900' },
-    { id: 6,  action: 'Staff check-in',             actor: 'Chathurika Silva',   actorId: 'PW-T001',   type: 'staff',    timestamp: '2025-01-16 06:01:44', detail: 'Trainer on duty — morning shift' },
-    { id: 7,  action: 'Subscription cancelled',     actor: 'Saman Jayasinghe',   actorId: 'PW2024087', type: 'member',   timestamp: '2025-01-15 11:20:33', detail: 'Member requested cancellation' },
-    { id: 8,  action: 'Payment failed',             actor: 'Ruwan Jayawardena',  actorId: 'PW2025009', type: 'payment',  timestamp: '2025-01-14 08:05:00', detail: 'Card expired' },
-];
-
 export default function AdminActivitiesPage() {
+    const toast = useToast();
     const [search, setSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState<EventType | 'all'>('all');
+    const [events, setEvents] = useState<Event[]>([]);
+
+    useEffect(() => {
+        Promise.all([opsAPI.recentReports(), opsAPI.visits(200)])
+            .then(([reports, visits]) => {
+                const reportEvents: Event[] = (reports ?? []).map((r: any, i: number) => ({
+                    id: i + 1,
+                    action: r.title ?? r.kind ?? 'Report item',
+                    actor: 'System',
+                    actorId: 'SYS',
+                    type: r.kind === 'payment' ? 'payment' : 'system',
+                    timestamp: String(r.createdAt ?? new Date().toISOString()),
+                    detail: r.kind ?? 'Operational event',
+                }));
+                const visitEvents: Event[] = (visits ?? []).slice(0, 30).map((v: any, i: number) => ({
+                    id: 1000 + i,
+                    action: v.status === 'denied' ? 'Access denied' : 'Facility access',
+                    actor: v.fullName ?? 'Member',
+                    actorId: v.personId,
+                    type: v.role === 'trainer' || v.role === 'staff' ? 'staff' : 'member',
+                    timestamp: String(v.checkInAt ?? v.createdAt ?? new Date().toISOString()),
+                    detail: v.status === 'denied' ? (v.denyReason ?? 'Subscription issue') : `Status: ${v.status}`,
+                }));
+                setEvents([...reportEvents, ...visitEvents].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+            })
+            .catch((err) => toast.error('Failed to load activity log', getErrorMessage(err)));
+    }, []);
 
     const filtered = events.filter(e => {
         const matchS = e.action.toLowerCase().includes(search.toLowerCase()) || e.actor.toLowerCase().includes(search.toLowerCase());
@@ -87,7 +106,7 @@ export default function AdminActivitiesPage() {
                                 <p className="text-zinc-500 text-xs">{e.actor} ({e.actorId}) · {e.detail}</p>
                             </div>
                         </div>
-                        <span className="text-zinc-600 text-xs flex-shrink-0">{e.timestamp}</span>
+                        <span className="text-zinc-600 text-xs flex-shrink-0">{new Date(e.timestamp).toLocaleString()}</span>
                     </Card>
                 ))}
                 {filtered.length === 0 && <p className="text-center py-8 text-zinc-600">No events found.</p>}

@@ -5,24 +5,70 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Dumbbell, Calendar, TrendingUp, QrCode, Clock, Flame, Award, Activity } from 'lucide-react';
 import { PageHeader, Card } from '@/components/ui/SharedComponents';
+import { opsAPI } from '@/lib/api';
+import { useRealtimePolling } from '@/hooks/useRealtimePolling';
 
 export default function MemberDashboard() {
     const { user } = useAuth();
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [dashboard, setDashboard] = useState<{ myVisits?: number; myWorkouts?: number; todayVisits: number; monthlyRevenue: number }>({ todayVisits: 0, monthlyRevenue: 0 });
+    const [mySubscriptions, setMySubscriptions] = useState<any[]>([]);
+    const [appointments, setAppointments] = useState<Array<{ trainer: string; date: string; time: string; type: string }>>([]);
+    const [activities, setActivities] = useState<Array<{ text: string; time: string; date: string }>>([]);
+    const [weekActivity, setWeekActivity] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
 
     useEffect(() => {
         const t = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(t);
     }, []);
 
+    const refresh = async () => {
+        const [dash, subs, pt, visits, logs] = await Promise.all([
+            opsAPI.dashboard('member'),
+            opsAPI.mySubscriptions(),
+            opsAPI.myPtSessions(),
+            opsAPI.myVisits(6),
+            opsAPI.myWorkoutLogs(),
+        ]);
+        setDashboard(dash);
+        setMySubscriptions((subs ?? []) as any[]);
+        setAppointments((pt ?? []).slice(0, 3).map((s: any) => ({
+            trainer: s.trainerId,
+            date: String(s.sessionDate).slice(0, 10),
+            time: String(s.startTime).slice(0, 5),
+            type: 'Personal Training',
+        })));
+        const recentVisits = (visits ?? []).slice(0, 5).map((v: any) => ({
+            text: v.status === 'active' ? 'Checked in' : 'Checked out',
+            time: new Date(v.checkInAt ?? v.checkOutAt ?? v.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+            date: 'Recent',
+        }));
+        const recentLogs = (logs ?? []).slice(0, 3).map((l: any) => ({
+            text: 'Workout logged',
+            time: `${l.durationMin ?? 0} min`,
+            date: String(l.workoutDate).slice(0, 10),
+        }));
+        setActivities([...recentVisits, ...recentLogs].slice(0, 6));
+        const buckets = Array.from({ length: 7 }, () => 0);
+        const now = new Date();
+        (logs ?? []).forEach((l: any) => {
+            const d = new Date(l.workoutDate);
+            const delta = Math.floor((now.getTime() - d.getTime()) / (24 * 3600 * 1000));
+            if (delta >= 0 && delta < 7) buckets[6 - delta] += 1;
+        });
+        setWeekActivity(buckets);
+    };
+    useRealtimePolling(() => { refresh().catch(() => undefined); }, 15000);
+
     const greeting = currentTime.getHours() < 12 ? 'Morning' : currentTime.getHours() < 18 ? 'Afternoon' : 'Evening';
     const firstName = user?.fullName?.split(' ')[0] ?? 'Member';
+    const activeSub = mySubscriptions.find((s) => ['active', 'grace_period', 'frozen'].includes(s.status)) ?? mySubscriptions[0];
 
     const stats = [
-        { label: 'This Week',  value: '4 / 7', sub: 'workouts', icon: Dumbbell, color: 'from-red-600 to-red-700' },
-        { label: 'Streak',     value: '12',    sub: 'days',     icon: Flame,    color: 'from-orange-500 to-orange-600' },
-        { label: 'This Month', value: '18',    sub: 'sessions', icon: Activity, color: 'from-blue-600 to-blue-700' },
-        { label: 'Hours',      value: '24.5',  sub: 'logged',   icon: Clock,    color: 'from-purple-600 to-purple-700' },
+        { label: 'This Week',  value: String(weekActivity.reduce((n, v) => n + v, 0)), sub: 'workouts', icon: Dumbbell, color: 'from-red-600 to-red-700' },
+        { label: 'Visits',     value: String(dashboard.myVisits ?? 0), sub: 'total', icon: Flame, color: 'from-orange-500 to-orange-600' },
+        { label: 'Workouts', value: String(dashboard.myWorkouts ?? 0), sub: 'sessions', icon: Activity, color: 'from-blue-600 to-blue-700' },
+        { label: 'Gym Traffic', value: String(dashboard.todayVisits), sub: 'today', icon: Clock, color: 'from-purple-600 to-purple-700' },
     ];
 
     const quickActions = [
@@ -32,18 +78,6 @@ export default function MemberDashboard() {
         { label: 'Workouts',      href: '/member/workouts',     icon: Dumbbell   },
     ];
 
-    const appointments = [
-        { trainer: 'Chathurika Silva', date: '2025-01-18', time: '10:00 AM', type: 'Personal Training' },
-        { trainer: 'Isuru Bandara',    date: '2025-01-20', time: '2:00 PM',  type: 'Nutrition Consultation' },
-    ];
-
-    const activities = [
-        { text: 'Check-in',                       time: '08:30 AM', date: 'Today' },
-        { text: 'Workout Completed — Upper Body',  time: '09:45 AM', date: 'Today' },
-        { text: 'Check-out',                       time: '11:15 AM', date: 'Today' },
-    ];
-
-    const weekActivity = [1, 0, 1, 1, 0, 1, 0];
     const dayLabels    = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     return (
@@ -57,8 +91,8 @@ export default function MemberDashboard() {
                 <div className="flex items-center gap-3">
                     <Award className="text-red-500" size={20} />
                     <div>
-                        <p className="text-white font-semibold text-sm">Premium Plan — Active</p>
-                        <p className="text-zinc-500 text-xs">Member ID: PW2025001 · Next payment: 2025-02-15</p>
+                        <p className="text-white font-semibold text-sm">{activeSub?.planName ?? 'No active subscription'} — {activeSub?.status ?? 'none'}</p>
+                        <p className="text-zinc-500 text-xs">Member: {user?.fullName ?? 'Member'} · Ends: {activeSub?.endDate ?? 'N/A'}</p>
                     </div>
                 </div>
                 <span className="text-xs bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full font-semibold">Active</span>

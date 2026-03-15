@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Users, Plus, Pencil } from 'lucide-react';
 import {
     PageHeader,
@@ -13,6 +13,7 @@ import {
     Select,
 } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
+import { getErrorMessage, opsAPI } from '@/lib/api';
 
 type Role = 'member' | 'trainer' | 'manager' | 'admin';
 type UserStatus = 'active' | 'inactive' | 'suspended';
@@ -23,7 +24,7 @@ interface User {
     email: string;
     role: Role;
     status: UserStatus;
-    joined: string;
+    joined: string | null;
 }
 
 const roleColor: Record<Role, string> = {
@@ -38,16 +39,6 @@ const statusVariant: Record<UserStatus, 'success' | 'error' | 'warning' | 'defau
     inactive: 'warning',
     suspended: 'error',
 };
-
-const initialUsers: User[] = [
-    { id: 'PW-A001', name: 'Admin User', email: 'admin@powerworld.lk', role: 'admin', status: 'active', joined: '2023-01-01' },
-    { id: 'PW-M001', name: 'Branch Manager', email: 'manager@powerworld.lk', role: 'manager', status: 'active', joined: '2023-06-01' },
-    { id: 'PW-T001', name: 'Chathurika Silva', email: 'c.silva@powerworld.lk', role: 'trainer', status: 'active', joined: '2024-01-15' },
-    { id: 'PW-T002', name: 'Isuru Bandara', email: 'i.bandara@powerworld.lk', role: 'trainer', status: 'active', joined: '2024-03-01' },
-    { id: 'PW2025001', name: 'Nimal Perera', email: 'nimal.p@email.com', role: 'member', status: 'active', joined: '2025-01-05' },
-    { id: 'PW2024087', name: 'Saman Jayasinghe', email: 'saman.j@email.com', role: 'member', status: 'suspended', joined: '2024-08-20' },
-    { id: 'PW2025022', name: 'Gayani Fernando', email: 'gayani.f@email.com', role: 'member', status: 'active', joined: '2025-01-10' },
-];
 
 const ROLE_OPTIONS = [
     { value: 'admin', label: 'Admin' },
@@ -64,13 +55,35 @@ const STATUS_OPTIONS = [
 
 export default function AdminUsersPage() {
     const toast = useToast();
-    const [users, setUsers] = useState<User[]>(initialUsers);
+    const [users, setUsers] = useState<User[]>([]);
     const [search, setSearch] = useState('');
     const [roleFilter, setRoleFilter] = useState<Role | 'all'>('all');
     const [modalOpen, setModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
-    const [formData, setFormData] = useState({ name: '', email: '', role: 'member' as Role, status: 'active' as UserStatus });
+    const [formData, setFormData] = useState({ name: '', email: '', role: 'member' as Role, status: 'active' as UserStatus, password: '' });
     const [submitLoading, setSubmitLoading] = useState(false);
+    const [pageLoading, setPageLoading] = useState(true);
+
+    const loadUsers = async () => {
+        const data = await opsAPI.users();
+        const mapped: User[] = (data ?? []).map((u: any) => ({
+            id: u.id,
+            name: u.fullName,
+            email: u.email,
+            role: u.role,
+            status: u.role === 'member'
+                ? (u.memberStatus ?? 'inactive')
+                : (u.isActive === false ? 'inactive' : 'active'),
+            joined: u.joinDate ? String(u.joinDate).slice(0, 10) : (u.createdAt ? String(u.createdAt).slice(0, 10) : null),
+        }));
+        setUsers(mapped);
+    };
+
+    useEffect(() => {
+        loadUsers()
+            .catch((err) => toast.error('Failed to load users', getErrorMessage(err)))
+            .finally(() => setPageLoading(false));
+    }, []);
 
     const filtered = users.filter(u => {
         const matchS = u.name.toLowerCase().includes(search.toLowerCase()) || u.id.includes(search) || u.email.includes(search);
@@ -80,13 +93,13 @@ export default function AdminUsersPage() {
 
     const openAdd = () => {
         setEditingUser(null);
-        setFormData({ name: '', email: '', role: 'member', status: 'active' });
+        setFormData({ name: '', email: '', role: 'member', status: 'active', password: '' });
         setModalOpen(true);
     };
 
     const openEdit = (u: User) => {
         setEditingUser(u);
-        setFormData({ name: u.name, email: u.email, role: u.role, status: u.status });
+        setFormData({ name: u.name, email: u.email, role: u.role, status: u.status, password: '' });
         setModalOpen(true);
     };
 
@@ -97,28 +110,44 @@ export default function AdminUsersPage() {
         }
         setSubmitLoading(true);
         try {
-            await new Promise(r => setTimeout(r, 600));
             if (editingUser) {
-                setUsers(prev => prev.map(u => u.id === editingUser.id
-                    ? { ...u, ...formData }
-                    : u));
+                await opsAPI.updateUser(editingUser.id, {
+                    fullName: formData.name.trim(),
+                    role: formData.role,
+                    isActive: formData.status !== 'suspended',
+                    ...(formData.role === 'member' ? { memberStatus: formData.status } : {}),
+                });
                 toast.success('User Updated', `${formData.name} has been updated successfully`);
             } else {
-                const newUser: User = {
-                    id: `PW${Date.now().toString().slice(-6)}`,
-                    ...formData,
-                    joined: new Date().toISOString().split('T')[0],
-                };
-                setUsers(prev => [newUser, ...prev]);
+                if (formData.password.trim().length < 8) {
+                    toast.error('Validation Error', 'Password must be at least 8 characters');
+                    return;
+                }
+                await opsAPI.createUser({
+                    fullName: formData.name.trim(),
+                    email: formData.email.trim(),
+                    role: formData.role,
+                    password: formData.password.trim(),
+                });
                 toast.success('User Added', `${formData.name} has been added successfully`);
             }
+            await loadUsers();
             setModalOpen(false);
-        } catch {
-            toast.error('Error', 'Failed to save user');
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
         } finally {
             setSubmitLoading(false);
         }
     };
+
+    const roleCounts = useMemo(() => {
+        return {
+            admin: users.filter((u) => u.role === 'admin').length,
+            manager: users.filter((u) => u.role === 'manager').length,
+            trainer: users.filter((u) => u.role === 'trainer').length,
+            member: users.filter((u) => u.role === 'member').length,
+        };
+    }, [users]);
 
     return (
         <div className="space-y-8">
@@ -136,7 +165,7 @@ export default function AdminUsersPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {(['admin', 'manager', 'trainer', 'member'] as Role[]).map(r => (
                     <Card key={r} padding="md" className="text-center hover:border-zinc-700/50 transition-colors">
-                        <p className="text-2xl font-bold text-white">{users.filter(u => u.role === r).length}</p>
+                        <p className="text-2xl font-bold text-white">{roleCounts[r]}</p>
                         <p className={`text-xs font-semibold capitalize mt-1 ${roleColor[r].split(' ')[0]}`}>{r}s</p>
                     </Card>
                 ))}
@@ -190,7 +219,7 @@ export default function AdminUsersPage() {
                                         <p className="text-zinc-500 text-xs">{u.id}</p>
                                     </td>
                                     <td className="px-5 py-4 text-zinc-400 text-sm">{u.email}</td>
-                                    <td className="px-5 py-4 text-zinc-400 text-sm">{u.joined}</td>
+                                    <td className="px-5 py-4 text-zinc-400 text-sm">{u.joined ?? '—'}</td>
                                     <td className="px-5 py-4 text-center">
                                         <span className={`text-xs px-2 py-1 rounded-full font-semibold ${roleColor[u.role]}`}>{u.role}</span>
                                     </td>
@@ -211,7 +240,7 @@ export default function AdminUsersPage() {
                     </table>
                 </div>
                 {filtered.length === 0 && (
-                    <div className="py-12 text-center text-zinc-500 text-sm">No users found.</div>
+                    <div className="py-12 text-center text-zinc-500 text-sm">{pageLoading ? 'Loading users...' : 'No users found.'}</div>
                 )}
             </Card>
 
@@ -238,6 +267,7 @@ export default function AdminUsersPage() {
                         value={formData.email}
                         onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
                         required
+                        disabled={!!editingUser}
                     />
                     <Select
                         label="Role"
@@ -251,6 +281,16 @@ export default function AdminUsersPage() {
                         value={formData.status}
                         onChange={e => setFormData(prev => ({ ...prev, status: e.target.value as UserStatus }))}
                     />
+                    {!editingUser && (
+                        <Input
+                            label="Temporary Password"
+                            type="password"
+                            placeholder="Minimum 8 characters"
+                            value={formData.password}
+                            onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                            required
+                        />
+                    )}
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setModalOpen(false)}>
                             Cancel

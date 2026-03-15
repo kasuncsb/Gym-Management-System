@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { QrCode, Wrench, ClipboardList, HelpCircle, Users, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
 import { PageHeader, Card } from '@/components/ui/SharedComponents';
+import { getErrorMessage, opsAPI } from '@/lib/api';
+import { useToast } from '@/components/ui/Toast';
+import { useRealtimePolling } from '@/hooks/useRealtimePolling';
 
 type CheckInType = 'check-in' | 'check-out' | 'assistance';
 type Priority = 'high' | 'medium' | 'low';
@@ -28,21 +31,51 @@ const typeIcon: Record<CheckInType, React.JSX.Element> = {
 
 export default function TrainerDashboard() {
     const { user } = useAuth();
+    const toast = useToast();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [isCheckedIn, setIsCheckedIn] = useState(false);
+    const [dashboard, setDashboard] = useState<any>(null);
+    const [recentCheckIns, setRecentCheckIns] = useState<Array<{ member: string; time: string; type: CheckInType }>>([]);
+    const [pendingTasks, setPendingTasks] = useState<Array<{ task: string; priority: Priority; eta: string }>>([]);
+    const [equipment, setEquipment] = useState<Array<{ name: string; status: EquipmentStatus; last: string }>>([]);
 
     useEffect(() => {
         const t = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(t);
     }, []);
+    const refresh = async () => {
+        const [dash, visits, equipmentRows, eventRows] = await Promise.all([
+            opsAPI.dashboard('trainer'),
+            opsAPI.visits(100),
+            opsAPI.equipment(),
+            opsAPI.equipmentEvents(),
+        ]);
+        setDashboard(dash);
+        setRecentCheckIns((visits ?? []).slice(0, 6).map((v: any) => ({
+            member: v.fullName ?? 'Member',
+            time: new Date(v.checkInAt ?? v.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+            type: v.status === 'active' ? 'check-in' : 'check-out',
+        })));
+        setPendingTasks((eventRows ?? []).slice(0, 4).map((e: any) => ({
+            task: e.description ?? 'Resolve equipment issue',
+            priority: (e.severity === 'critical' || e.severity === 'high') ? 'high' : e.severity === 'medium' ? 'medium' : 'low',
+            eta: 'Today',
+        })));
+        setEquipment((equipmentRows ?? []).slice(0, 6).map((e: any) => ({
+            name: e.name,
+            status: e.status === 'needs_maintenance' ? 'maintenance' : e.status === 'retired' ? 'out_of_order' : (e.status as EquipmentStatus),
+            last: String(e.createdAt ?? '').slice(0, 10),
+        })));
+    };
+    useRealtimePolling(() => { refresh().catch(() => undefined); }, 15000);
 
     const firstName = user?.fullName?.split(' ')[0] ?? 'Trainer';
 
     const stats = [
-        { label: 'Members Assisted', value: '23',  icon: Users,       color: 'from-blue-600 to-blue-700' },
-        { label: 'Check-ins Today',  value: '45',  icon: CheckCircle2, color: 'from-green-600 to-green-700' },
-        { label: 'Equipment Issues', value: '2',   icon: Wrench,       color: 'from-red-600 to-red-700' },
-        { label: 'Tasks Completed',  value: '8/11', icon: ClipboardList, color: 'from-purple-600 to-purple-700' },
+        { label: 'Members Assisted', value: String(recentCheckIns.length), icon: Users, color: 'from-blue-600 to-blue-700' },
+        { label: 'Check-ins Today', value: String(dashboard?.todayVisits ?? 0), icon: CheckCircle2, color: 'from-green-600 to-green-700' },
+        { label: 'Equipment Issues', value: String(dashboard?.openIssues ?? 0), icon: Wrench, color: 'from-red-600 to-red-700' },
+        { label: 'Tasks Pending', value: String(pendingTasks.length), icon: ClipboardList, color: 'from-purple-600 to-purple-700' },
     ];
 
     const quickActions = [
@@ -50,27 +83,6 @@ export default function TrainerDashboard() {
         { label: 'Equipment',       href: '/trainer/equipment',  icon: Wrench },
         { label: 'Assistance',      href: '/trainer/assistance', icon: HelpCircle },
         { label: 'Daily Tasks',     href: '/trainer/tasks',      icon: ClipboardList },
-    ];
-
-    const recentCheckIns = [
-        { member: 'Nimal Perera',         time: '2 min ago',  type: 'check-in'   as CheckInType },
-        { member: 'Chathurika Silva',      time: '5 min ago',  type: 'check-out'  as CheckInType },
-        { member: 'Isuru Bandara',         time: '8 min ago',  type: 'check-in'   as CheckInType },
-        { member: 'Thilini Wijesinghe',    time: '12 min ago', type: 'assistance' as CheckInType },
-        { member: 'Saman Jayasinghe',      time: '15 min ago', type: 'check-in'   as CheckInType },
-    ];
-
-    const pendingTasks = [
-        { task: 'Clean cardio equipment',      priority: 'high'   as Priority, eta: '30 min' },
-        { task: 'Restock towels',              priority: 'medium' as Priority, eta: '15 min' },
-        { task: 'Check equipment maintenance', priority: 'low'    as Priority, eta: '45 min' },
-    ];
-
-    const equipment = [
-        { name: 'Treadmill #1',   status: 'operational' as EquipmentStatus, last: '2025-01-10' },
-        { name: 'Treadmill #2',   status: 'maintenance'  as EquipmentStatus, last: '2025-01-15' },
-        { name: 'Elliptical #1',  status: 'operational' as EquipmentStatus, last: '2025-01-12' },
-        { name: 'Rowing Machine', status: 'out_of_order' as EquipmentStatus, last: '2025-01-14' },
     ];
 
     return (
@@ -86,7 +98,16 @@ export default function TrainerDashboard() {
                     <p className="text-zinc-500 text-sm">{isCheckedIn ? 'You are currently on shift' : 'You are not checked in'}</p>
                 </div>
                 <button
-                    onClick={() => setIsCheckedIn(!isCheckedIn)}
+                    onClick={async () => {
+                        try {
+                            if (isCheckedIn) await opsAPI.checkOut();
+                            else await opsAPI.checkIn();
+                            setIsCheckedIn(!isCheckedIn);
+                            await refresh();
+                        } catch (err) {
+                            toast.error('Shift status update failed', getErrorMessage(err));
+                        }
+                    }}
                     className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all ${isCheckedIn ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}
                 >
                     {isCheckedIn ? 'Check Out' : 'Check In'}

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { TrendingUp, Download, CheckCircle } from 'lucide-react';
 import { PageHeader, Card, Input, Select, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
+import { getErrorMessage, opsAPI } from '@/lib/api';
 
 const reportTypes = [
     { id: 'financial',   label: 'Financial Summary',   desc: 'Revenue, expenses, outstanding payments' },
@@ -12,13 +13,6 @@ const reportTypes = [
     { id: 'security',    label: 'Security Audit',      desc: 'Login attempts, access logs, anomalies' },
     { id: 'maintenance', label: 'Maintenance Log',     desc: 'Equipment repairs, downtime history' },
     { id: 'payroll',     label: 'Payroll Summary',     desc: 'Staff hours, salaries, overtime' },
-];
-
-const recent = [
-    { name: 'Financial Summary — January 2025',  generated: '2025-01-15', size: '890 KB', format: 'PDF' },
-    { name: 'Security Audit — Q4 2024',          generated: '2025-01-05', size: '134 KB', format: 'CSV' },
-    { name: 'Operations Report — December 2024', generated: '2025-01-03', size: '445 KB', format: 'PDF' },
-    { name: 'Membership Report — 2024 Annual',   generated: '2024-12-31', size: '1.2 MB', format: 'PDF' },
 ];
 
 const FORMAT_OPTIONS = [
@@ -35,6 +29,20 @@ export default function AdminReportsPage() {
     const [fmt, setFmt] = useState<'PDF' | 'CSV' | 'Excel'>('PDF');
     const [loading, setLoading] = useState(false);
     const [done, setDone] = useState(false);
+    const [recent, setRecent] = useState<Array<{ name: string; generated: string; size: string; format: string }>>([]);
+
+    useEffect(() => {
+        opsAPI.recentReports()
+            .then((rows) => {
+                setRecent((rows ?? []).map((r: any) => ({
+                    name: r.title ?? r.kind ?? 'Report item',
+                    generated: String(r.createdAt).slice(0, 10),
+                    size: 'Live',
+                    format: 'JSON',
+                })));
+            })
+            .catch((err) => toast.error('Failed to load reports', getErrorMessage(err)));
+    }, []);
 
     const run = () => {
         if (!selected) {
@@ -43,11 +51,13 @@ export default function AdminReportsPage() {
         }
         setLoading(true);
         setDone(false);
-        setTimeout(() => {
-            setLoading(false);
-            setDone(true);
-            toast.success('Report Generated', 'Your report is ready for download');
-        }, 1800);
+        opsAPI.reportSummary()
+            .then(() => {
+                setDone(true);
+                toast.success('Report Generated', 'Fresh summary data is available.');
+            })
+            .catch((err) => toast.error('Failed to generate', getErrorMessage(err)))
+            .finally(() => setLoading(false));
     };
 
     return (

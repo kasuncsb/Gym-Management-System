@@ -1,0 +1,32 @@
+[
+  {
+    "id": "branch-hours",
+    "tags": ["hours", "open", "close", "time", "kiribathgoda"],
+    "content": "PowerWorld Kiribathgoda operates daily with early-morning and evening peak usage. Members should complete check-in/check-out through QR or assisted trainer flow."
+  },
+  {
+    "id": "checkin-policy",
+    "tags": ["checkin", "subscription", "entry", "qr", "access"],
+    "content": "Only members with active or grace-period subscriptions can enter through member check-in. Staff roles (trainer, manager, admin) can enter without subscription validation."
+  },
+  {
+    "id": "beginner-fat-loss-plan",
+    "tags": ["fat loss", "beginner", "workout", "plan"],
+    "content": "Beginner fat-loss starter: 3 days/week, 35-45 minutes/session. Include treadmill incline walk 15 min, bodyweight squats 3x12, assisted rows 3x12, light dumbbell press 3x10, plank 3x30s, cooldown 8 min."
+  },
+  {
+    "id": "beginner-muscle-gain-plan",
+    "tags": ["muscle gain", "beginner", "workout", "plan"],
+    "content": "Beginner muscle-gain starter: 4 days/week split. Day A: goblet squat, bench press machine, seated row, shoulder press, core. Day B: leg press, lat pulldown, chest fly, RDL variation, core. Progressively increase load."
+  },
+  {
+    "id": "trainer-support",
+    "tags": ["trainer", "assistance", "appointment", "session"],
+    "content": "Members can book personal sessions from the app. Trainers should confirm and track session outcomes. If members request help on floor, prioritize safety/form correction before intensity."
+  },
+  {
+    "id": "safety-guidance",
+    "tags": ["safety", "injury", "health", "medical"],
+    "content": "Always prioritize safety and proper form. Stop exercise if sharp pain, dizziness, or chest discomfort occurs. For diagnosis or medical concerns, direct users to licensed healthcare professionals."
+  }
+]

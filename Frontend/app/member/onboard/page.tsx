@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { authAPI, getErrorMessage } from '@/lib/api';
+import { authAPI, getErrorMessage, opsAPI } from '@/lib/api';
 import { useAuth, dashboardPathForRole } from '@/context/AuthContext';
 import {
     ChevronRight, ChevronLeft, Loader2, CheckCircle,
@@ -16,6 +16,9 @@ type Step = 1 | 2 | 3;
 interface OnboardData {
     experienceLevel: 'beginner' | 'intermediate' | 'advanced' | '';
     fitnessGoals: string;
+    age: string;
+    weightKg: string;
+    heightCm: string;
 }
 
 const GOALS = [
@@ -35,6 +38,9 @@ export default function Onboard() {
     const [data, setData] = useState<OnboardData>({
         experienceLevel: '',
         fitnessGoals: '',
+        age: '',
+        weightKg: '',
+        heightCm: '',
     });
 
     const update = (field: keyof OnboardData, value: string) =>
@@ -130,6 +136,17 @@ export default function Onboard() {
                 experienceLevel: data.experienceLevel as 'beginner' | 'intermediate' | 'advanced',
                 fitnessGoals: data.fitnessGoals || undefined,
             });
+            const weight = Number(data.weightKg);
+            const height = Number(data.heightCm);
+            const bmi = weight > 0 && height > 0 ? Number((weight / ((height / 100) ** 2)).toFixed(1)) : undefined;
+            if (weight > 0 || height > 0 || bmi) {
+                await opsAPI.addMetric({
+                    weightKg: weight > 0 ? weight : undefined,
+                    heightCm: height > 0 ? height : undefined,
+                    bmi,
+                    notes: data.age ? `Age: ${data.age}` : undefined,
+                });
+            }
             await refreshUser();
             router.push('/member/dashboard');
         } catch (err) {
@@ -297,6 +314,20 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals'];
                                         {data.experienceLevel === opt.value && <CheckCircle size={20} className="text-red-500 ml-auto shrink-0" />}
                                     </button>
                                 ))}
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                                <div>
+                                    <label htmlFor="onboard-age" className="block text-sm font-medium text-zinc-300 mb-1">Age</label>
+                                    <input id="onboard-age" type="number" value={data.age} onChange={(e) => update('age', e.target.value)} className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:border-red-600" placeholder="e.g. 28" />
+                                </div>
+                                <div>
+                                    <label htmlFor="onboard-weight" className="block text-sm font-medium text-zinc-300 mb-1">Weight (kg)</label>
+                                    <input id="onboard-weight" type="number" value={data.weightKg} onChange={(e) => update('weightKg', e.target.value)} className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:border-red-600" placeholder="e.g. 74" />
+                                </div>
+                                <div>
+                                    <label htmlFor="onboard-height" className="block text-sm font-medium text-zinc-300 mb-1">Height (cm)</label>
+                                    <input id="onboard-height" type="number" value={data.heightCm} onChange={(e) => update('heightCm', e.target.value)} className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:border-red-600" placeholder="e.g. 172" />
+                                </div>
                             </div>
                         </div>
                     )}

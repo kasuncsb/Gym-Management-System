@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ClipboardList, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 import { PageHeader, Card } from '@/components/ui/SharedComponents';
+import { getErrorMessage, opsAPI } from '@/lib/api';
+import { useToast } from '@/components/ui/Toast';
 
 type Priority = 'high' | 'medium' | 'low';
 type TaskStatus = 'pending' | 'in_progress' | 'completed';
@@ -22,19 +24,50 @@ interface Task {
     category: string;
 }
 
-const initialTasks: Task[] = [
-    { id: 1, task: 'Clean cardio equipment',         priority: 'high',   eta: '30 min', status: 'pending',     category: 'Cleaning' },
-    { id: 2, task: 'Restock towels in locker room',  priority: 'medium', eta: '15 min', status: 'pending',     category: 'Inventory' },
-    { id: 3, task: 'Check weight area organisation', priority: 'low',    eta: '20 min', status: 'in_progress', category: 'Maintenance' },
-    { id: 4, task: 'Update member attendance sheet', priority: 'medium', eta: '10 min', status: 'pending',     category: 'Admin' },
-    { id: 5, task: 'Inspect treadmill belts',        priority: 'high',   eta: '45 min', status: 'pending',     category: 'Maintenance' },
-    { id: 6, task: 'Log morning check-ins',          priority: 'low',    eta: '5 min',  status: 'completed',   category: 'Admin' },
-    { id: 7, task: 'Sanitise squat racks',           priority: 'medium', eta: '25 min', status: 'completed',   category: 'Cleaning' },
-];
-
 export default function TrainerTasksPage() {
-    const [tasks, setTasks] = useState<Task[]>(initialTasks);
+    const toast = useToast();
+    const [tasks, setTasks] = useState<Task[]>([]);
     const [filter, setFilter] = useState<TaskStatus | 'all'>('all');
+
+    useEffect(() => {
+        Promise.all([opsAPI.equipmentEvents(), opsAPI.inventoryItems(), opsAPI.messages()])
+            .then(([events, items, messages]) => {
+                const fromEvents: Task[] = (events ?? [])
+                    .filter((e: any) => e.status !== 'resolved')
+                    .slice(0, 8)
+                    .map((e: any, i: number) => ({
+                        id: 100 + i,
+                        task: e.description ?? 'Equipment follow-up',
+                        priority: (e.severity === 'critical' ? 'high' : e.severity ?? 'medium') as Priority,
+                        eta: '30 min',
+                        status: e.status === 'in_progress' ? 'in_progress' : 'pending',
+                        category: 'Maintenance',
+                    }));
+                const fromInventory: Task[] = (items ?? [])
+                    .filter((i: any) => Number(i.qtyInStock) < Number(i.reorderThreshold))
+                    .slice(0, 6)
+                    .map((i: any, idx: number) => ({
+                        id: 300 + idx,
+                        task: `Restock ${i.name}`,
+                        priority: 'medium',
+                        eta: '15 min',
+                        status: 'pending',
+                        category: 'Inventory',
+                    }));
+                const fromMessages: Task[] = (messages ?? [])
+                    .slice(0, 5)
+                    .map((m: any, idx: number) => ({
+                        id: 500 + idx,
+                        task: m.subject ?? 'Review member request',
+                        priority: (m.priority === 'critical' ? 'high' : m.priority ?? 'low') as Priority,
+                        eta: '10 min',
+                        status: m.status === 'read' ? 'completed' : 'pending',
+                        category: 'Member Care',
+                    }));
+                setTasks([...fromEvents, ...fromInventory, ...fromMessages]);
+            })
+            .catch((err) => toast.error('Failed to load tasks', getErrorMessage(err)));
+    }, []);
 
     const toggle = (id: number) => {
         setTasks(prev => prev.map(t => t.id === id ? {
@@ -44,7 +77,9 @@ export default function TrainerTasksPage() {
     };
 
     const filtered = filter === 'all' ? tasks : tasks.filter(t => t.status === filter);
-    const completed = tasks.filter(t => t.status === 'completed').length;
+    const completed = useMemo(() => tasks.filter((t) => t.status === 'completed').length, [tasks]);
+
+    const pct = tasks.length ? (completed / tasks.length) * 100 : 0;
 
     return (
         <div className="space-y-8">
@@ -60,9 +95,9 @@ export default function TrainerTasksPage() {
                 </div>
                 <div className="w-full bg-zinc-800 rounded-full h-3">
                     <div className="bg-gradient-to-r from-orange-600 to-orange-400 h-3 rounded-full transition-all"
-                        style={{ width: `${(completed / tasks.length) * 100}%` }} />
+                        style={{ width: `${pct}%` }} />
                 </div>
-                <p className="text-zinc-500 text-xs mt-2">{Math.round((completed / tasks.length) * 100)}% done</p>
+                <p className="text-zinc-500 text-xs mt-2">{Math.round(pct)}% done</p>
             </Card>
 
             <div className="flex gap-2">

@@ -24,6 +24,7 @@ import {
     Tag,
     AlertTriangle,
     CalendarOff,
+    Cpu,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { clsx, type ClassValue } from "clsx";
@@ -57,6 +58,7 @@ function navForRole(role: string): NavItem[] {
                 { label: 'Inventory',   href: '/trainer/inventory',   icon: Package },
                 { label: 'Assistance',  href: '/trainer/assistance', icon: HelpCircle },
                 { label: 'Tasks',       href: '/trainer/tasks',      icon: ClipboardList },
+                { label: 'Simulate',    href: '/simulate',            icon: Cpu },
             ];
         case 'manager':
             return [
@@ -70,6 +72,7 @@ function navForRole(role: string): NavItem[] {
                 { label: 'Reports',       href: '/manager/reports',       icon: TrendingUp },
                 { label: 'Check-in',      href: '/manager/checkin',       icon: QrCode },
                 { label: 'Closures',      href: '/manager/closures',      icon: CalendarOff },
+                { label: 'Simulate',      href: '/simulate',              icon: Cpu },
             ];
         case 'admin':
             return [
@@ -83,6 +86,7 @@ function navForRole(role: string): NavItem[] {
                 { label: 'Settings',        href: '/admin/settings',       icon: Settings },
                 { label: 'Check-in',        href: '/admin/checkin',        icon: QrCode },
                 { label: 'System Alerts',   href: '/admin/alerts',         icon: AlertTriangle },
+                { label: 'Simulate',        href: '/simulate',              icon: Cpu },
             ];
         default:
             return [{ label: 'Dashboard', href: '/member/dashboard', icon: LayoutDashboard }];

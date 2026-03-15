@@ -1,8 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ShieldCheck, CheckCircle2, LogOut, Users, AlertTriangle } from 'lucide-react';
 import { PageHeader, Card, SearchInput } from '@/components/ui/SharedComponents';
+import { getErrorMessage, opsAPI } from '@/lib/api';
+import { useToast } from '@/components/ui/Toast';
+import { useRealtimePolling } from '@/hooks/useRealtimePolling';
 
 type AccessLevel = 'member' | 'staff' | 'admin' | 'visitor';
 
@@ -23,24 +26,36 @@ interface LogEntry {
     granted: boolean;
 }
 
-const log: LogEntry[] = [
-    { id: 'PW-A001',   name: 'Admin User',        access: 'admin',   subscription: 'n/a',     type: 'in',  time: '05:55 AM', granted: true },
-    { id: 'PW-T001',   name: 'Chathurika Silva',  access: 'staff',   subscription: 'n/a',     type: 'in',  time: '06:00 AM', granted: true },
-    { id: 'PW2025001', name: 'Nimal Perera',       access: 'member',  subscription: 'active',  type: 'in',  time: '06:32 AM', granted: true },
-    { id: 'PW2024087', name: 'Saman Jayasinghe',  access: 'member',  subscription: 'expired', type: 'in',  time: '09:10 AM', granted: false },
-    { id: 'PW2025022', name: 'Gayani Fernando',   access: 'member',  subscription: 'active',  type: 'out', time: '10:22 AM', granted: true },
-    { id: 'VIS-001',   name: 'Walk-in Visitor',  access: 'visitor', subscription: 'n/a',     type: 'in',  time: '11:00 AM', granted: true },
-];
-
 export default function AdminCheckinPage() {
+    const toast = useToast();
     const [search, setSearch] = useState('');
+    const [log, setLog] = useState<LogEntry[]>([]);
+
+    const refresh = async () => {
+        const visits = await opsAPI.visits(300);
+        const mapped: LogEntry[] = (visits ?? []).map((v: any) => {
+            const role = v.role === 'admin' ? 'admin' : v.role === 'trainer' || v.role === 'staff' || v.role === 'manager' ? 'staff' : 'member';
+            return {
+                id: v.personId,
+                name: v.fullName ?? 'Unknown',
+                access: role,
+                subscription: v.status === 'denied' ? 'expired' : (role === 'member' ? 'active' : 'n/a'),
+                type: v.status === 'active' || !v.checkOutAt ? 'in' : 'out',
+                time: new Date(v.checkInAt ?? v.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+                granted: v.status !== 'denied',
+            };
+        });
+        setLog(mapped);
+    };
+
+    useEffect(() => {
+        refresh().catch((err) => toast.error('Failed to load visits', getErrorMessage(err)));
+    }, []);
+    useRealtimePolling(() => { refresh().catch(() => undefined); }, 10000);
 
     const filtered = log.filter(l => l.name.toLowerCase().includes(search.toLowerCase()) || l.id.includes(search));
-    // Subtract granted check-outs so members who have left are not counted as inside.
-    const grantedIns  = log.filter(l => l.type === 'in'  && l.granted).length;
-    const grantedOuts = log.filter(l => l.type === 'out' && l.granted).length;
-    const inCount     = Math.max(0, grantedIns - grantedOuts);
-    const denied      = log.filter(l => !l.granted).length;
+    const inCount = useMemo(() => log.filter((l) => l.type === 'in' && l.granted).length, [log]);
+    const denied = useMemo(() => log.filter((l) => !l.granted).length, [log]);
 
     return (
         <div className="space-y-8">

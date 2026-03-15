@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ShieldCheck, CreditCard, Wrench, XCircle } from 'lucide-react';
 import { PageHeader, Card, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
+import { getErrorMessage, opsAPI } from '@/lib/api';
 
 type AlertType = 'id_verification' | 'payment' | 'equipment' | 'system';
 type AlertStatus = 'pending' | 'acknowledged' | 'resolved';
@@ -18,14 +19,8 @@ interface Alert {
     status: AlertStatus;
     link?: string;
     createdAt: string;
+    source?: 'message' | 'equipment';
 }
-
-const MOCK_ALERTS: Alert[] = [
-    { id: '1', type: 'id_verification', title: 'Pending ID Verifications', message: '3 members awaiting NIC verification', priority: 'high', status: 'pending', link: '/admin/id-verification', createdAt: '2025-01-15T10:00:00' },
-    { id: '2', type: 'payment', title: 'Failed Payment', message: 'Subscription payment failed for Nimal Perera', priority: 'high', status: 'pending', link: '/manager/subscriptions', createdAt: '2025-01-15T09:30:00' },
-    { id: '3', type: 'equipment', title: 'Critical Equipment Issue', message: 'Rowing Machine — display not working', priority: 'high', status: 'pending', link: '/manager/equipment', createdAt: '2025-01-15T08:45:00' },
-    { id: '4', type: 'system', title: 'Database Backup Overdue', message: 'Last backup was 36 hours ago', priority: 'medium', status: 'acknowledged', createdAt: '2025-01-14T22:00:00' },
-];
 
 const typeIcon: Record<AlertType, React.ElementType> = {
     id_verification: ShieldCheck,
@@ -42,14 +37,53 @@ const priorityColor: Record<string, string> = {
 
 export default function AdminAlertsPage() {
     const toast = useToast();
-    const [alerts, setAlerts] = useState<Alert[]>(MOCK_ALERTS);
+    const [alerts, setAlerts] = useState<Alert[]>([]);
     const [filter, setFilter] = useState<AlertStatus | 'all'>('all');
+
+    const loadAlerts = async () => {
+        const [messages, events] = await Promise.all([opsAPI.messages(), opsAPI.equipmentEvents()]);
+        const msgAlerts: Alert[] = (messages ?? []).map((m: any) => ({
+            id: m.id,
+            type: m.subject?.toLowerCase().includes('payment') ? 'payment' : 'system',
+            title: m.subject ?? 'System message',
+            message: m.body ?? '',
+            priority: m.priority ?? 'medium',
+            status: m.status === 'read' ? 'acknowledged' : 'pending',
+            createdAt: String(m.createdAt ?? new Date().toISOString()),
+            source: 'message',
+        }));
+        const eqAlerts: Alert[] = (events ?? [])
+            .filter((e: any) => e.status !== 'resolved')
+            .map((e: any) => ({
+                id: e.id,
+                type: 'equipment',
+                title: 'Equipment issue',
+                message: e.description ?? 'Equipment event',
+                priority: e.severity === 'critical' ? 'high' : (e.severity ?? 'medium'),
+                status: e.status === 'in_progress' ? 'acknowledged' : 'pending',
+                link: '/manager/equipment',
+                createdAt: String(e.createdAt ?? new Date().toISOString()),
+                source: 'equipment',
+            }));
+        setAlerts([...msgAlerts, ...eqAlerts].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    };
+
+    useEffect(() => {
+        loadAlerts().catch((err) => toast.error('Failed to load alerts', getErrorMessage(err)));
+    }, []);
 
     const filtered = filter === 'all' ? alerts : alerts.filter(a => a.status === filter);
 
     const acknowledge = (a: Alert) => {
-        setAlerts(prev => prev.map(x => x.id === a.id ? { ...x, status: 'acknowledged' as AlertStatus } : x));
-        toast.success('Acknowledged', 'Alert has been acknowledged');
+        if (a.source === 'message') {
+            opsAPI.markMessageRead(a.id)
+                .then(() => loadAlerts())
+                .then(() => toast.success('Acknowledged', 'Alert has been acknowledged'))
+                .catch((err) => toast.error('Error', getErrorMessage(err)));
+            return;
+        }
+        setAlerts((prev) => prev.map((x) => x.id === a.id ? { ...x, status: 'acknowledged' } : x));
+        toast.success('Acknowledged', 'Equipment alert acknowledged');
     };
 
     const resolve = (a: Alert) => {

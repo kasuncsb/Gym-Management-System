@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Users, TrendingUp, UserCheck, BarChart3, Star, Lightbulb } from 'lucide-react';
 import { PageHeader, Card } from '@/components/ui/SharedComponents';
+import { opsAPI } from '@/lib/api';
+import { useRealtimePolling } from '@/hooks/useRealtimePolling';
 
 type Impact = 'high' | 'medium' | 'low' | 'positive';
 type Priority = 'high' | 'medium' | 'low';
@@ -25,19 +27,57 @@ export default function ManagerDashboard() {
     const { user } = useAuth();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [period, setPeriod] = useState<'week' | 'month' | 'year'>('week');
+    const [dashboard, setDashboard] = useState<any>(null);
+    const [insights, setInsights] = useState<Array<{ title: string; description: string; impact: Impact; rec: string }>>([]);
+    const [tasks, setTasks] = useState<Array<{ task: string; priority: Priority; due: string; assignee: string }>>([]);
+    const [occupancyData, setOccupancyData] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
 
     useEffect(() => {
         const t = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(t);
     }, []);
+    const refresh = async () => {
+        const [dash, summary, reports, visits] = await Promise.all([
+            opsAPI.dashboard('manager'),
+            opsAPI.reportSummary(),
+            opsAPI.recentReports(),
+            opsAPI.visits(200),
+        ]);
+        setDashboard(dash);
+        setInsights([
+            { title: 'Visits Today', description: `${dash.todayVisits ?? 0} recorded check-ins today`, impact: 'high', rec: 'Optimize trainer staffing during peaks' },
+            { title: 'Open Issues', description: `${dash.openIssues ?? 0} unresolved incidents`, impact: dash.openIssues > 0 ? 'medium' : 'positive', rec: 'Review equipment incident queue daily' },
+            { title: 'Revenue', description: `Rs. ${Number(summary.monthlyRevenue ?? 0).toLocaleString()} this month`, impact: 'positive', rec: 'Track conversion from trial to paid plans' },
+        ]);
+        setTasks((reports ?? []).slice(0, 3).map((r: any) => ({
+            task: r.title ?? 'Review report',
+            priority: 'medium',
+            due: String(r.createdAt).slice(0, 10),
+            assignee: 'Manager',
+        })));
+        const buckets = period === 'week' ? 7 : 12;
+        const out = Array.from({ length: buckets }, () => 0);
+        (visits ?? []).forEach((v: any) => {
+            const d = new Date(v.checkInAt);
+            if (period === 'week') {
+                const day = d.getDay();
+                const idx = (day + 6) % 7;
+                out[idx] += 1;
+            } else {
+                out[d.getMonth()] += 1;
+            }
+        });
+        setOccupancyData(out);
+    };
+    useRealtimePolling(() => { refresh().catch(() => undefined); }, 15000);
 
     const firstName = user?.fullName?.split(' ')[0] ?? 'Manager';
 
     const kpis = [
-        { label: 'Total Members',    value: '1,247', sub: '1,089 active',  icon: Users,     color: 'from-blue-600 to-blue-700' },
-        { label: 'Monthly Revenue',  value: 'Rs.12,340', sub: '+12% MoM',  icon: TrendingUp, color: 'from-green-600 to-green-700' },
-        { label: 'Retention Rate',   value: '87.5%', sub: '-3% MoM',       icon: UserCheck, color: 'from-purple-600 to-purple-700' },
-        { label: 'Satisfaction',     value: '4.6/5', sub: 'Member avg',    icon: Star,      color: 'from-yellow-600 to-yellow-700' },
+        { label: 'Total Members', value: String(dashboard?.activeMembers ?? 0), sub: 'active', icon: Users, color: 'from-blue-600 to-blue-700' },
+        { label: 'Monthly Revenue', value: `Rs.${Number(dashboard?.monthlyRevenue ?? 0).toLocaleString()}`, sub: 'current month', icon: TrendingUp, color: 'from-green-600 to-green-700' },
+        { label: 'Visits Today', value: String(dashboard?.todayVisits ?? 0), sub: 'facility entries', icon: UserCheck, color: 'from-purple-600 to-purple-700' },
+        { label: 'Open Issues', value: String(dashboard?.openIssues ?? 0), sub: 'action items', icon: Star, color: 'from-yellow-600 to-yellow-700' },
     ];
 
     const quickActions = [
@@ -47,25 +87,7 @@ export default function ManagerDashboard() {
         { label: 'Members',  href: '/manager/members',   icon: Users },
     ];
 
-    const insights = [
-        { title: 'Peak Hours Analysis',   description: 'Gym busiest 6–8 PM on weekdays',       impact: 'high'     as Impact, rec: 'Add staff during peak hours' },
-        { title: 'Revenue Growth',        description: 'Monthly revenue up 12% vs last month',  impact: 'positive' as Impact, rec: 'Continue current strategies' },
-        { title: 'Member Retention Drop', description: 'Retention down 3% this month',          impact: 'medium'   as Impact, rec: 'Implement engagement programs' },
-        { title: 'Equipment Usage',       description: 'Cardio usage 15% higher than strength', impact: 'low'      as Impact, rec: 'Consider expanding cardio section' },
-    ];
-
-    const tasks = [
-        { task: 'Review monthly budget',        priority: 'high'   as Priority, due: '2025-01-20', assignee: 'Manager' },
-        { task: 'Staff performance evaluation', priority: 'medium' as Priority, due: '2025-01-22', assignee: 'Manager' },
-        { task: 'Member feedback analysis',     priority: 'medium' as Priority, due: '2025-01-18', assignee: 'Manager' },
-    ];
-
-    const occupancy: Record<string, number[]> = {
-        week:  [45, 52, 48, 61, 58, 35, 28],
-        month: [42, 45, 50, 55, 60, 58, 52, 48, 45, 50, 55, 61],
-        year:  [35, 38, 42, 45, 48, 52, 55, 58, 61, 58, 55, 52],
-    };
-    const data   = occupancy[period];
+    const data   = occupancyData;
     const maxVal = Math.max(...data, 1);
     const labels: Record<string, string[]> = {
         week:  ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],

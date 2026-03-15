@@ -1,17 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Package, AlertTriangle, Plus } from 'lucide-react';
 import { PageHeader, Card, Modal, Select, Input, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
+import { getErrorMessage, opsAPI } from '@/lib/api';
 
 type TxType = 'restock' | 'sale' | 'adjustment' | 'waste';
 
-const MOCK_ITEMS = [
-    { id: 1, name: 'Protein Shake', category: 'Supplements', qty: 45, threshold: 20, lowStock: false },
-    { id: 2, name: 'Towels', category: 'Amenities', qty: 12, threshold: 30, lowStock: true },
-    { id: 3, name: 'Water Bottles', category: 'Retail', qty: 8, threshold: 15, lowStock: true },
-];
+type Item = { id: string; name: string; category: string; qty: number; threshold: number; lowStock: boolean };
 
 const TX_OPTIONS = [
     { value: 'restock', label: 'Restock' },
@@ -20,29 +17,57 @@ const TX_OPTIONS = [
     { value: 'waste', label: 'Waste' },
 ];
 
-const ITEM_OPTIONS = MOCK_ITEMS.map(i => ({ value: i.name, label: `${i.name} (${i.qty})` }));
-
 export default function TrainerInventoryPage() {
     const toast = useToast();
     const [txOpen, setTxOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [items, setItems] = useState<Item[]>([]);
     const [form, setForm] = useState({ item: '', type: 'restock' as TxType, qty: '', notes: '' });
 
-    const lowStockItems = MOCK_ITEMS.filter(i => i.lowStock);
+    const loadItems = async () => {
+        const rows = await opsAPI.inventoryItems();
+        setItems((rows ?? []).map((i: any) => {
+            const qty = Number(i.qtyInStock ?? 0);
+            const threshold = Number(i.reorderThreshold ?? 0);
+            return {
+                id: i.id,
+                name: i.name,
+                category: i.category,
+                qty,
+                threshold,
+                lowStock: qty < threshold,
+            };
+        }));
+    };
+
+    useEffect(() => {
+        loadItems().catch((err) => toast.error('Failed to load inventory', getErrorMessage(err)));
+    }, []);
+
+    const lowStockItems = useMemo(() => items.filter((i) => i.lowStock), [items]);
+    const ITEM_OPTIONS = items.map((i) => ({ value: i.id, label: `${i.name} (${i.qty})` }));
 
     const handleRecord = async () => {
-        if (!form.item || !form.qty || isNaN(Number(form.qty))) {
+        const qty = Number(form.qty);
+        if (!form.item || !form.qty || Number.isNaN(qty) || qty <= 0) {
             toast.error('Validation Error', 'Please select item and enter quantity');
             return;
         }
         setLoading(true);
         try {
-            await new Promise(r => setTimeout(r, 600));
+            const sign = form.type === 'restock' ? 1 : -1;
+            await opsAPI.addInventoryTxn({
+                itemId: form.item,
+                txnType: form.type,
+                qtyChange: sign * qty,
+                reference: form.notes || undefined,
+            });
+            await loadItems();
             toast.success('Transaction Recorded', `${form.type} of ${form.qty} recorded`);
             setTxOpen(false);
             setForm({ item: '', type: 'restock', qty: '', notes: '' });
-        } catch {
-            toast.error('Error', 'Failed to record transaction');
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -84,7 +109,7 @@ export default function TrainerInventoryPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {MOCK_ITEMS.map(i => (
+                            {items.map(i => (
                                 <tr key={i.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
                                     <td className="px-6 py-4 text-sm text-white">{i.name}</td>
                                     <td className="px-6 py-4 text-sm text-zinc-400">{i.category}</td>

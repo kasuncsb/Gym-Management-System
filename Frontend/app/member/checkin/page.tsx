@@ -1,8 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { QrCode, CheckCircle2, LogOut, Users } from 'lucide-react';
 import { PageHeader, Card, LoadingButton } from '@/components/ui/SharedComponents';
+import { useAuth } from '@/context/AuthContext';
+import { getErrorMessage, opsAPI } from '@/lib/api';
+import { useToast } from '@/components/ui/Toast';
+import { useRealtimePolling } from '@/hooks/useRealtimePolling';
 
 interface LogEntry {
     member: string;
@@ -11,28 +15,44 @@ interface LogEntry {
 }
 
 export default function CheckinPage() {
-    const [scanned, setScanned] = useState(true);
+    const { user } = useAuth();
+    const toast = useToast();
+    const [scanned, setScanned] = useState(false);
     const [scanning, setScanning] = useState(false);
-    const [log, setLog] = useState<LogEntry[]>([
-        { member: 'You (PW2025001)', type: 'in',  time: '08:30 AM' },
-    ]);
+    const [log, setLog] = useState<LogEntry[]>([]);
+    const [capacity, setCapacity] = useState({ current: 0, limit: 120 });
 
-    const simulate = () => {
+    const reload = useCallback(async () => {
+        const [myVisits, allVisits] = await Promise.all([opsAPI.myVisits(20), opsAPI.visits(500)]);
+        const mapped = (myVisits ?? []).map((v: any) => ({
+            member: `You (${user?.fullName ?? 'Member'})`,
+            type: v.status === 'active' ? 'in' : 'out',
+            time: new Date(v.checkInAt ?? v.checkOutAt ?? v.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+        })) as LogEntry[];
+        const current = (allVisits ?? []).filter((v: any) => v.status === 'active').length;
+        setLog(mapped);
+        setCapacity({ current, limit: 120 });
+        setScanned(mapped[0]?.type === 'in');
+    }, [user?.fullName]);
+
+    useRealtimePolling(() => {
+        reload().catch(() => undefined);
+    }, 10000);
+
+    const simulate = async () => {
         setScanning(true);
-        // Capture the next type synchronously before the async gap so the
-        // setTimeout callback never reads a stale closure value.
-        const nextType: 'in' | 'out' = scanned ? 'out' : 'in';
-        setTimeout(() => {
+        try {
+            if (scanned) await opsAPI.checkOut();
+            else await opsAPI.checkIn();
+            await reload();
+        } catch (err) {
+            toast.error('Check-in failed', getErrorMessage(err));
+        } finally {
             setScanning(false);
-            setScanned(prev => !prev);
-            setLog(prev => [{ member: 'You (PW2025001)', type: nextType, time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) }, ...prev]);
-        }, 1500);
+        }
     };
 
-    // Subtract check-outs so members who have left are not counted as inside.
-    const checkIns   = log.filter(l => l.type === 'in').length;
-    const checkOuts  = log.filter(l => l.type === 'out').length;
-    const currentlyIn = Math.max(0, checkIns - checkOuts);
+    const currentlyIn = useMemo(() => capacity.current, [capacity.current]);
 
     return (
         <div className="space-y-8 max-w-2xl">
@@ -62,7 +82,7 @@ export default function CheckinPage() {
                             <p className="text-green-400 font-bold text-lg flex items-center justify-center gap-2">
                                 <CheckCircle2 size={20} className="shrink-0" /> Checked {log[0]?.type === 'in' ? 'In' : 'Out'} Successfully
                             </p>
-                            <p className="text-zinc-500 text-sm">Member ID: PW2025001</p>
+                            <p className="text-zinc-500 text-sm">{user?.fullName ?? 'Member'}</p>
                         </>
                     ) : (
                         <p className="text-zinc-400">Present your QR code at the scanner</p>
@@ -83,7 +103,7 @@ export default function CheckinPage() {
                     </div>
                 </div>
                 <div className="text-right">
-                    <p className="text-white font-bold text-xl">{currentlyIn} / 80</p>
+                    <p className="text-white font-bold text-xl">{currentlyIn} / {capacity.limit}</p>
                     <p className="text-zinc-500 text-xs">members in gym</p>
                 </div>
             </Card>

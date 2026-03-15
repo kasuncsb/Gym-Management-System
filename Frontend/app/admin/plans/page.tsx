@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CreditCard, Plus, Edit2, Check } from 'lucide-react';
 import {
     PageHeader,
@@ -12,23 +12,19 @@ import {
     Select,
 } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
+import { getErrorMessage, opsAPI } from '@/lib/api';
 
 interface Plan {
-    id: number;
+    id: string;
     name: string;
-    price: number;
-    billing: 'monthly' | 'annual';
+    price: number | string;
+    billing: 'monthly' | 'annual' | 'daily_pass' | 'other';
     features: string[];
     members: number;
     active: boolean;
+    durationDays: number;
+    planType: 'individual' | 'couple' | 'student' | 'corporate' | 'daily_pass';
 }
-
-const initialPlans: Plan[] = [
-    { id: 1, name: 'Basic', price: 2900, billing: 'monthly', members: 456, active: true, features: ['Gym Access', 'Locker Room', 'Basic Equipment'] },
-    { id: 2, name: 'Premium', price: 4900, billing: 'monthly', members: 389, active: true, features: ['Everything in Basic', '2 Personal Training Sessions/mo', 'Nutrition Guidance', 'Priority Booking'] },
-    { id: 3, name: 'Elite', price: 7900, billing: 'monthly', members: 244, active: true, features: ['Everything in Premium', 'Unlimited Personal Training', 'Body Composition Analysis', '24/7 Access'] },
-    { id: 4, name: 'Annual Basic', price: 29900, billing: 'annual', members: 123, active: true, features: ['Basic Plan Features', '2 Months Free', 'Membership Card'] },
-];
 
 const BILLING_OPTIONS = [
     { value: 'monthly', label: 'Monthly' },
@@ -37,7 +33,7 @@ const BILLING_OPTIONS = [
 
 export default function AdminPlansPage() {
     const toast = useToast();
-    const [plans, setPlans] = useState<Plan[]>(initialPlans);
+    const [plans, setPlans] = useState<Plan[]>([]);
     const [modalOpen, setModalOpen] = useState(false);
     const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
     const [formData, setFormData] = useState({
@@ -47,6 +43,29 @@ export default function AdminPlansPage() {
         features: '',
     });
     const [submitLoading, setSubmitLoading] = useState(false);
+    const [pageLoading, setPageLoading] = useState(true);
+
+    const loadPlans = async () => {
+        const data = await opsAPI.plans({ includeInactive: true });
+        const mapped: Plan[] = (data ?? []).map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            price: Number(p.price ?? 0),
+            billing: Number(p.durationDays) >= 360 ? 'annual' : Number(p.durationDays) <= 1 ? 'daily_pass' : 'monthly',
+            features: p.description ? String(p.description).split('\n').map((line) => line.trim()).filter(Boolean) : ['Gym Access'],
+            members: 0,
+            active: !!p.isActive,
+            durationDays: Number(p.durationDays ?? 30),
+            planType: p.planType ?? 'individual',
+        }));
+        setPlans(mapped);
+    };
+
+    useEffect(() => {
+        loadPlans()
+            .catch((err) => toast.error('Failed to load plans', getErrorMessage(err)))
+            .finally(() => setPageLoading(false));
+    }, []);
 
     const openAdd = () => {
         setEditingPlan(null);
@@ -58,8 +77,8 @@ export default function AdminPlansPage() {
         setEditingPlan(plan);
         setFormData({
             name: plan.name,
-            price: plan.price.toString(),
-            billing: plan.billing,
+            price: String(plan.price),
+            billing: plan.durationDays >= 360 ? 'annual' : 'monthly',
             features: plan.features.join('\n'),
         });
         setModalOpen(true);
@@ -77,39 +96,43 @@ export default function AdminPlansPage() {
         }
         setSubmitLoading(true);
         try {
-            await new Promise(r => setTimeout(r, 600));
             const features = formData.features.split('\n').map(f => f.trim()).filter(Boolean);
             if (editingPlan) {
-                setPlans(prev => prev.map(p => p.id === editingPlan.id
-                    ? { ...p, name: formData.name, price, billing: formData.billing, features }
-                    : p));
+                await opsAPI.updatePlan(editingPlan.id, {
+                    name: formData.name.trim(),
+                    price,
+                    durationDays: formData.billing === 'annual' ? 365 : 30,
+                });
                 toast.success('Plan Updated', `${formData.name} has been updated successfully`);
             } else {
-                const newPlan: Plan = {
-                    id: Math.max(...plans.map(p => p.id), 0) + 1,
-                    name: formData.name,
+                await opsAPI.createPlan({
+                    name: formData.name.trim(),
+                    description: features.join('\n'),
+                    planType: 'individual',
                     price,
-                    billing: formData.billing,
-                    features: features.length ? features : ['Gym Access'],
-                    members: 0,
-                    active: true,
-                };
-                setPlans(prev => [newPlan, ...prev]);
+                    durationDays: formData.billing === 'annual' ? 365 : 30,
+                    includedPtSessions: 0,
+                });
                 toast.success('Plan Created', `${formData.name} has been added successfully`);
             }
+            await loadPlans();
             setModalOpen(false);
-        } catch {
-            toast.error('Error', 'Failed to save plan');
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
         } finally {
             setSubmitLoading(false);
         }
     };
 
-    const toggleActive = (id: number) => {
-        setPlans(prev => prev.map(p => p.id === id ? { ...p, active: !p.active } : p));
+    const toggleActive = async (id: string) => {
         const plan = plans.find(p => p.id === id);
-        if (plan) {
+        if (!plan) return;
+        try {
+            await opsAPI.updatePlan(id, { isActive: !plan.active });
+            await loadPlans();
             toast.success(plan.active ? 'Plan Disabled' : 'Plan Enabled', `${plan.name} has been ${plan.active ? 'disabled' : 'enabled'}`);
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
         }
     };
 
@@ -138,8 +161,8 @@ export default function AdminPlansPage() {
                                 <p className="text-zinc-500 text-xs capitalize">{plan.billing} billing</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-white font-bold">Rs.{plan.price.toLocaleString()}</p>
-                                <p className="text-zinc-500 text-xs">/ {plan.billing === 'annual' ? 'year' : 'month'}</p>
+                                <p className="text-white font-bold">Rs.{Number(plan.price).toLocaleString()}</p>
+                                <p className="text-zinc-500 text-xs">/ {plan.durationDays >= 360 ? 'year' : 'month'}</p>
                             </div>
                         </div>
                         <ul className="space-y-1 mb-4">
@@ -159,7 +182,7 @@ export default function AdminPlansPage() {
                                     onClick={() => openEdit(plan)}
                                 />
                                 <button
-                                    onClick={() => toggleActive(plan.id)}
+                                    onClick={() => { toggleActive(plan.id).catch(() => undefined); }}
                                     className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all ${plan.active
                                         ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/30'
                                         : 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30'
@@ -172,6 +195,12 @@ export default function AdminPlansPage() {
                     </Card>
                 ))}
             </div>
+
+            {plans.length === 0 && (
+                <Card padding="md">
+                    <p className="text-zinc-500 text-sm text-center">{pageLoading ? 'Loading plans...' : 'No plans found.'}</p>
+                </Card>
+            )}
 
             <Modal
                 isOpen={modalOpen}

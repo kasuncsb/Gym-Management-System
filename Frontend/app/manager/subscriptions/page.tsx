@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CreditCard, Plus, Pencil } from 'lucide-react';
 import { PageHeader, Card, Modal, Input, Select, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
+import { getErrorMessage, opsAPI } from '@/lib/api';
 
 interface Plan {
     id: string;
@@ -16,15 +17,9 @@ interface Plan {
     subscribers: number;
 }
 
-const MOCK_PLANS: Plan[] = [
-    { id: '1', name: 'Basic', planType: 'monthly', price: 2500, durationDays: 30, ptSessions: 0, active: true, subscribers: 45 },
-    { id: '2', name: 'Premium', planType: 'monthly', price: 4500, durationDays: 30, ptSessions: 4, active: true, subscribers: 32 },
-    { id: '3', name: 'Elite', planType: 'monthly', price: 6500, durationDays: 30, ptSessions: 8, active: true, subscribers: 12 },
-];
-
 export default function ManagerSubscriptionsPage() {
     const toast = useToast();
-    const [plans, setPlans] = useState<Plan[]>(MOCK_PLANS);
+    const [plans, setPlans] = useState<Plan[]>([]);
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<Plan | null>(null);
     const [loading, setLoading] = useState(false);
@@ -36,6 +31,24 @@ export default function ManagerSubscriptionsPage() {
         ptSessions: '',
         active: true,
     });
+
+    const loadPlans = async () => {
+        const rows = await opsAPI.plans();
+        setPlans((rows ?? []).map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            planType: p.planType,
+            price: Number(p.price ?? 0),
+            durationDays: Number(p.durationDays ?? 0),
+            ptSessions: Number(p.includedPtSessions ?? 0),
+            active: !!p.isActive,
+            subscribers: 0,
+        })));
+    };
+
+    useEffect(() => {
+        loadPlans().catch((err) => toast.error('Failed to load plans', getErrorMessage(err)));
+    }, []);
 
     const openAdd = () => {
         setEditing(null);
@@ -63,28 +76,28 @@ export default function ManagerSubscriptionsPage() {
         }
         setLoading(true);
         try {
-            await new Promise(r => setTimeout(r, 600));
             if (editing) {
-                setPlans(prev => prev.map(p => p.id === editing.id
-                    ? { ...p, ...form, price: Number(form.price), durationDays: Number(form.durationDays), ptSessions: Number(form.ptSessions) }
-                    : p));
-                toast.success('Plan Updated', `${form.name} has been updated`);
-            } else {
-                setPlans(prev => [{
-                    id: String(Date.now()),
-                    name: form.name,
-                    planType: form.planType,
+                await opsAPI.updatePlan(editing.id, {
+                    name: form.name.trim(),
                     price: Number(form.price),
                     durationDays: Number(form.durationDays),
-                    ptSessions: Number(form.ptSessions) || 0,
-                    active: form.active,
-                    subscribers: 0,
-                }, ...prev]);
+                    isActive: form.active,
+                });
+                toast.success('Plan Updated', `${form.name} has been updated`);
+            } else {
+                await opsAPI.createPlan({
+                    name: form.name.trim(),
+                    planType: (form.planType === 'annual' ? 'corporate' : 'individual') as 'individual' | 'couple' | 'student' | 'corporate' | 'daily_pass',
+                    price: Number(form.price),
+                    durationDays: Number(form.durationDays),
+                    includedPtSessions: Number(form.ptSessions) || 0,
+                });
                 toast.success('Plan Added', `${form.name} has been added`);
             }
+            await loadPlans();
             setModalOpen(false);
-        } catch {
-            toast.error('Error', 'Failed to save plan');
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
         } finally {
             setLoading(false);
         }

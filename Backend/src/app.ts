@@ -6,6 +6,8 @@ import { env } from './config/env.js';
 import { notFound, errorHandler } from './middleware/error.js';
 import { apiRateLimiter } from './middleware/rate-limit.js';
 import authRoutes from './routes/auth.routes.js';
+import opsRoutes from './routes/ops.routes.js';
+import aiRoutes from './routes/ai.routes.js';
 
 const app = express();
 
@@ -38,6 +40,8 @@ app.get('/health', (_req, res) => {
 
 // API Routes — generous rate limit so normal SPA traffic doesn't trigger 429
 app.use('/api/auth', apiRateLimiter, authRoutes);
+app.use('/api/ops', apiRateLimiter, opsRoutes);
+app.use('/api/ai', apiRateLimiter, aiRoutes);
 
 // Error handling
 app.use(notFound);

@@ -1,8 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { QrCode, CheckCircle2, LogOut, Users, ShieldCheck } from 'lucide-react';
 import { PageHeader, Card, SearchInput } from '@/components/ui/SharedComponents';
+import { getErrorMessage, opsAPI } from '@/lib/api';
+import { useToast } from '@/components/ui/Toast';
+import { useRealtimePolling } from '@/hooks/useRealtimePolling';
 
 interface LogEntry {
     id: string;
@@ -13,14 +16,6 @@ interface LogEntry {
     time: string;
 }
 
-const log: LogEntry[] = [
-    { id: 'PW2025001', name: 'Nimal Perera',       access: 'member', subscription: 'active',  type: 'in',  time: '08:02 AM' },
-    { id: 'PW-S004',   name: 'Chathurika Silva',   access: 'staff',  subscription: 'active',  type: 'in',  time: '05:58 AM' },
-    { id: 'PW2024087', name: 'Saman Jayasinghe',   access: 'member', subscription: 'expired', type: 'in',  time: '09:10 AM' },
-    { id: 'VIS-001',   name: 'Visitor',            access: 'visitor',subscription: 'visitor', type: 'in',  time: '10:00 AM' },
-    { id: 'PW2025022', name: 'Gayani Fernando',    access: 'member', subscription: 'active',  type: 'out', time: '10:22 AM' },
-];
-
 const accessColor: Record<string, string> = {
     member:  'text-blue-400 bg-blue-500/20',
     staff:   'text-green-400 bg-green-500/20',
@@ -28,13 +23,30 @@ const accessColor: Record<string, string> = {
 };
 
 export default function ManagerCheckinPage() {
+    const toast = useToast();
     const [search, setSearch] = useState('');
-    const filtered  = log.filter(l => l.name.toLowerCase().includes(search.toLowerCase()) || l.id.includes(search));
-    const granted   = (l: LogEntry) => l.subscription !== 'expired';
-    const totalIns  = log.filter(l => l.type === 'in' && granted(l)).length;
-    const totalOuts = log.filter(l => l.type === 'out' && granted(l)).length;
-    const inCount   = Math.max(0, totalIns - totalOuts);
-    const denied    = log.filter(l => l.subscription === 'expired').length;
+    const [log, setLog] = useState<LogEntry[]>([]);
+
+    const refresh = async () => {
+        const visits = await opsAPI.visits(300);
+        setLog((visits ?? []).map((v: any) => ({
+            id: v.personId,
+            name: v.fullName ?? 'Unknown',
+            access: (v.role === 'member' ? 'member' : 'staff') as LogEntry['access'],
+            subscription: v.status === 'denied' ? 'expired' : (v.role === 'member' ? 'active' : 'active'),
+            type: v.status === 'active' || !v.checkOutAt ? 'in' : 'out',
+            time: new Date(v.checkInAt ?? v.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+        })));
+    };
+
+    useEffect(() => {
+        refresh().catch((err) => toast.error('Failed to load check-in data', getErrorMessage(err)));
+    }, []);
+    useRealtimePolling(() => { refresh().catch(() => undefined); }, 10000);
+
+    const filtered = log.filter((l) => l.name.toLowerCase().includes(search.toLowerCase()) || l.id.includes(search));
+    const inCount = useMemo(() => log.filter((l) => l.type === 'in' && l.subscription !== 'expired').length, [log]);
+    const denied = useMemo(() => log.filter((l) => l.subscription === 'expired').length, [log]);
 
     return (
         <div className="space-y-8">

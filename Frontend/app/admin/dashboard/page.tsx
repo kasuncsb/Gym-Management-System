@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Users, TrendingUp, Activity, CreditCard, AlertTriangle, Settings, ShieldCheck, Clock } from 'lucide-react';
 import { PageHeader, Card } from '@/components/ui/SharedComponents';
+import { opsAPI } from '@/lib/api';
+import { useRealtimePolling } from '@/hooks/useRealtimePolling';
 
 type AlertType = 'warning' | 'error' | 'info';
 
@@ -17,19 +19,49 @@ const alertColor: Record<AlertType, string> = {
 export default function AdminDashboard() {
     const { user } = useAuth();
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [dashboard, setDashboard] = useState<any>(null);
+    const [alerts, setAlerts] = useState<{ type: AlertType; message: string; priority: string }[]>([]);
+    const [activities, setActivities] = useState<Array<{ action: string; user: string; time: string; type: string }>>([]);
+    const [plans, setPlans] = useState<Array<{ name: string; price: string; members: number }>>([]);
 
     useEffect(() => {
         const t = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(t);
     }, []);
+    const refresh = async () => {
+        const [dash, messages, recent, subscriptions] = await Promise.all([
+            opsAPI.dashboard('admin'),
+            opsAPI.messages(),
+            opsAPI.recentReports(),
+            opsAPI.plans(),
+        ]);
+        setDashboard(dash);
+        setAlerts((messages ?? []).slice(0, 3).map((m: any) => ({
+            type: m.priority === 'critical' ? 'error' : m.priority === 'high' ? 'warning' : 'info',
+            message: m.subject || m.body || 'System notification',
+            priority: m.priority ?? 'normal',
+        })));
+        setActivities((recent ?? []).map((r: any) => ({
+            action: r.title ?? r.kind ?? 'Activity',
+            user: 'System',
+            time: new Date(r.createdAt).toLocaleString(),
+            type: r.kind === 'payment' ? 'payment' : 'system',
+        })));
+        setPlans((subscriptions ?? []).slice(0, 6).map((p: any) => ({
+            name: p.name,
+            price: `Rs.${Number(p.price).toLocaleString()}`,
+            members: 0,
+        })));
+    };
+    useRealtimePolling(() => { refresh().catch(() => undefined); }, 15000);
 
     const firstName = user?.fullName?.split(' ')[0] ?? 'Admin';
 
     const kpis = [
-        { label: 'Total Members',   value: '1,247', sub: '1,089 active',        icon: Users,     color: 'from-blue-600 to-blue-700' },
-        { label: 'Total Revenue',   value: 'Rs.45,680', sub: 'Rs.12,340 this month', icon: TrendingUp, color: 'from-green-600 to-green-700' },
-        { label: 'System Uptime',   value: '99.9%', sub: 'Last 30 days',        icon: Activity,  color: 'from-purple-600 to-purple-700' },
-        { label: 'Subscriptions',   value: '1,089', sub: '23 pending payments',  icon: CreditCard, color: 'from-orange-600 to-orange-700' },
+        { label: 'Total Members', value: String(dashboard?.activeMembers ?? 0), sub: 'active', icon: Users, color: 'from-blue-600 to-blue-700' },
+        { label: 'Total Revenue', value: `Rs.${Number(dashboard?.monthlyRevenue ?? 0).toLocaleString()}`, sub: 'this month', icon: TrendingUp, color: 'from-green-600 to-green-700' },
+        { label: 'Visits Today', value: String(dashboard?.todayVisits ?? 0), sub: 'today', icon: Activity, color: 'from-purple-600 to-purple-700' },
+        { label: 'Open Issues', value: String(dashboard?.openIssues ?? 0), sub: 'equipment/incidents', icon: CreditCard, color: 'from-orange-600 to-orange-700' },
     ];
 
     const quickActions = [
@@ -37,26 +69,6 @@ export default function AdminDashboard() {
         { label: 'System Settings',  href: '/admin/settings',   icon: Settings },
         { label: 'Sub. Plans',       href: '/admin/plans',      icon: CreditCard },
         { label: 'System Reports',   href: '/admin/reports',    icon: TrendingUp },
-    ];
-
-    const alerts: { type: AlertType; message: string; priority: string }[] = [
-        { type: 'warning', message: 'Database backup overdue',       priority: 'high' },
-        { type: 'info',    message: 'New software update available',  priority: 'medium' },
-    ];
-
-    const activities = [
-        { action: 'New member registered',     user: 'Nimal Perera',      time: '2 min ago',   type: 'member' },
-        { action: 'Subscription plan updated', user: 'Admin',             time: '15 min ago',  type: 'system' },
-        { action: 'Payment processed',         user: 'Chathurika Silva',  time: '1 hour ago',  type: 'payment' },
-        { action: 'System backup completed',   user: 'System',            time: '2 hours ago', type: 'system' },
-        { action: 'Member check-in',           user: 'Isuru Bandara',     time: '3 hours ago', type: 'member' },
-    ];
-
-    const plans = [
-        { name: 'Basic',        price: 'Rs.2,900/mo', members: 456 },
-        { name: 'Premium',      price: 'Rs.4,900/mo', members: 389 },
-        { name: 'Elite',        price: 'Rs.7,900/mo', members: 244 },
-        { name: 'Annual Basic', price: 'Rs.29,900/yr', members: 123 },
     ];
 
     const activityColor: Record<string, string> = {

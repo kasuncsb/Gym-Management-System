@@ -1,21 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { TrendingUp, Download, CheckCircle } from 'lucide-react';
 import { PageHeader, Card, Input, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
+import { getErrorMessage, opsAPI } from '@/lib/api';
 
 const reportTypes = [
     { id: 'membership', label: 'Membership Report',  desc: 'New registrations, renewals, cancellations' },
     { id: 'revenue',    label: 'Revenue Report',     desc: 'Income by plan, payments, outstanding fees' },
     { id: 'attendance', label: 'Attendance Report',  desc: 'Daily/weekly check-ins, peak hours, occupancy' },
     { id: 'trainer',    label: 'Trainer Performance',desc: 'Sessions conducted, member ratings, feedback' },
-];
-
-const recentReports = [
-    { name: 'Membership Report — January 2025',  generated: '2025-01-15', size: '245 KB' },
-    { name: 'Revenue Report — Q4 2024',          generated: '2025-01-02', size: '512 KB' },
-    { name: 'Attendance Report — December 2024', generated: '2025-01-05', size: '189 KB' },
 ];
 
 export default function ManagerReportsPage() {
@@ -25,6 +20,19 @@ export default function ManagerReportsPage() {
     const [dateTo, setDateTo] = useState('');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [recentReports, setRecentReports] = useState<Array<{ name: string; generated: string; size: string }>>([]);
+
+    useEffect(() => {
+        opsAPI.recentReports()
+            .then((rows) => {
+                setRecentReports((rows ?? []).map((r: any) => ({
+                    name: r.title ?? r.kind ?? 'Report item',
+                    generated: String(r.createdAt).slice(0, 10),
+                    size: 'Live',
+                })));
+            })
+            .catch((err) => toast.error('Failed to load reports', getErrorMessage(err)));
+    }, []);
 
     const generate = () => {
         if (!selected) {
@@ -32,11 +40,13 @@ export default function ManagerReportsPage() {
             return;
         }
         setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
-            setSuccess(true);
-            toast.success('Report Generated', 'Your report is ready for download');
-        }, 1500);
+        opsAPI.reportSummary()
+            .then(() => {
+                setSuccess(true);
+                toast.success('Report Generated', 'Summary refreshed from live data.');
+            })
+            .catch((err) => toast.error('Failed to generate', getErrorMessage(err)))
+            .finally(() => setLoading(false));
     };
 
     return (

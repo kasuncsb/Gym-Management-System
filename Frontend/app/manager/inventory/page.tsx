@@ -1,38 +1,60 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Package, AlertTriangle, Plus } from 'lucide-react';
 import { PageHeader, Card, Modal, Select, Input, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
+import { getErrorMessage, opsAPI } from '@/lib/api';
 
-const MOCK_ITEMS = [
-    { id: 1, name: 'Protein Shake', category: 'Supplements', qty: 45, threshold: 20 },
-    { id: 2, name: 'Towels', category: 'Amenities', qty: 12, threshold: 30 },
-    { id: 3, name: 'Water Bottles', category: 'Retail', qty: 8, threshold: 15 },
-];
+type Item = { id: string; name: string; category: string; qty: number; threshold: number };
 
 export default function ManagerInventoryPage() {
     const toast = useToast();
     const [restockOpen, setRestockOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [items, setItems] = useState<Item[]>([]);
+    const [lastTxn, setLastTxn] = useState<Array<{ itemId: string; txnType: string; qtyChange: number; createdAt: string }>>([]);
     const [form, setForm] = useState({ item: '', qty: '', notes: '' });
 
-    const lowStock = MOCK_ITEMS.filter(i => i.qty < i.threshold);
-    const ITEM_OPTIONS = MOCK_ITEMS.map(i => ({ value: i.name, label: `${i.name} (${i.qty})` }));
+    const loadItems = async () => {
+        const data = await opsAPI.inventoryItems();
+        setItems((data ?? []).map((i: any) => ({
+            id: i.id,
+            name: i.name,
+            category: i.category,
+            qty: Number(i.qtyInStock ?? 0),
+            threshold: Number(i.reorderThreshold ?? 0),
+        })));
+    };
+
+    useEffect(() => {
+        loadItems().catch((err) => toast.error('Failed to load inventory', getErrorMessage(err)));
+    }, []);
+
+    const lowStock = useMemo(() => items.filter((i) => i.qty < i.threshold), [items]);
+    const ITEM_OPTIONS = items.map((i) => ({ value: i.id, label: `${i.name} (${i.qty})` }));
 
     const handleRestock = async () => {
-        if (!form.item || !form.qty || isNaN(Number(form.qty))) {
+        const qty = Number(form.qty);
+        if (!form.item || !form.qty || Number.isNaN(qty) || qty <= 0) {
             toast.error('Validation Error', 'Select item and enter quantity');
             return;
         }
         setLoading(true);
         try {
-            await new Promise(r => setTimeout(r, 600));
-            toast.success('Restocked', `${form.qty} units recorded for ${form.item}`);
+            const txn = await opsAPI.addInventoryTxn({
+                itemId: form.item,
+                txnType: 'restock',
+                qtyChange: qty,
+                reference: form.notes || undefined,
+            });
+            setLastTxn((prev) => [{ itemId: txn.itemId, txnType: txn.txnType, qtyChange: Number(txn.qtyChange), createdAt: String(txn.createdAt ?? new Date().toISOString()) }, ...prev].slice(0, 8));
+            await loadItems();
+            toast.success('Restocked', `${form.qty} units recorded`);
             setRestockOpen(false);
             setForm({ item: '', qty: '', notes: '' });
-        } catch {
-            toast.error('Error', 'Failed to record');
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -71,7 +93,7 @@ export default function ManagerInventoryPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {MOCK_ITEMS.map(i => (
+                            {items.map(i => (
                                 <tr key={i.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
                                     <td className="px-6 py-4 text-white font-medium">{i.name}</td>
                                     <td className="px-6 py-4 text-zinc-400">{i.category}</td>
@@ -88,7 +110,14 @@ export default function ManagerInventoryPage() {
 
             <Card padding="lg">
                 <h2 className="text-lg font-semibold text-white mb-4">Recent Transactions</h2>
-                <div className="text-zinc-500 text-sm">Transaction history will appear here when backend is connected.</div>
+                <div className="space-y-2">
+                    {lastTxn.length === 0 && <div className="text-zinc-500 text-sm">No transactions recorded in this session yet.</div>}
+                    {lastTxn.map((t, idx) => (
+                        <div key={`${t.itemId}-${idx}`} className="text-sm text-zinc-400 bg-zinc-800/30 rounded-lg px-3 py-2">
+                            {items.find((i) => i.id === t.itemId)?.name ?? 'Item'} · {t.txnType} · {t.qtyChange} · {new Date(t.createdAt).toLocaleString()}
+                        </div>
+                    ))}
+                </div>
             </Card>
 
             <Modal isOpen={restockOpen} onClose={() => setRestockOpen(false)} title="Restock / Adjustment" size="md">

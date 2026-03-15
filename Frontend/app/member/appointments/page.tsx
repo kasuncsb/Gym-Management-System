@@ -1,32 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Calendar, Clock, User, Plus } from 'lucide-react';
 import { PageHeader, Card, Modal, Input, Select, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
+import { getErrorMessage, opsAPI } from '@/lib/api';
 
 interface Appointment {
-    id: number;
+    id: string;
     trainer: string;
     date: string;
     time: string;
     type: string;
     status: 'upcoming' | 'completed' | 'cancelled';
 }
-
-const appointments: Appointment[] = [
-    { id: 1, trainer: 'Chathurika Silva',  date: '2025-01-18', time: '10:00 AM', type: 'Personal Training',       status: 'upcoming' },
-    { id: 2, trainer: 'Isuru Bandara',     date: '2025-01-20', time: '2:00 PM',  type: 'Nutrition Consultation',  status: 'upcoming' },
-    { id: 3, trainer: 'Ruwan Jayawardena', date: '2025-01-10', time: '9:00 AM',  type: 'Fitness Assessment',     status: 'completed' },
-    { id: 4, trainer: 'Nirosha Senanayake',date: '2025-01-05', time: '3:00 PM',  type: 'Personal Training',       status: 'cancelled' },
-];
-
-const TRAINER_OPTIONS = [
-    { value: 'Chathurika Silva', label: 'Chathurika Silva' },
-    { value: 'Isuru Bandara', label: 'Isuru Bandara' },
-    { value: 'Ruwan Jayawardena', label: 'Ruwan Jayawardena' },
-    { value: 'Nirosha Senanayake', label: 'Nirosha Senanayake' },
-];
 const SESSION_OPTIONS = [
     { value: 'Personal Training', label: 'Personal Training' },
     { value: 'Nutrition Consultation', label: 'Nutrition Consultation' },
@@ -46,8 +33,37 @@ export default function AppointmentsPage() {
     const [showModal, setShowModal] = useState(false);
     const [form, setForm] = useState({ trainer: '', date: '', time: '', type: '' });
     const [submitLoading, setSubmitLoading] = useState(false);
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [trainerOptions, setTrainerOptions] = useState<Array<{ value: string; label: string }>>([]);
 
-    const filtered = filter === 'all' ? appointments : appointments.filter(a => a.status === filter);
+    useEffect(() => {
+        Promise.all([
+            opsAPI.myPtSessions(),
+            opsAPI.users('trainer'),
+        ]).then(([sessions, trainers]) => {
+            const trainerMap = new Map((trainers ?? []).map((t: any) => [t.id, t.fullName]));
+            const mapped = (sessions ?? []).map((s: any) => {
+                const status: Appointment['status'] = s.status === 'completed'
+                    ? 'completed'
+                    : s.status === 'cancelled' ? 'cancelled' : 'upcoming';
+                const date = String(s.sessionDate).slice(0, 10);
+                return {
+                    id: s.id,
+                    trainer: trainerMap.get(s.trainerId) ?? s.trainerId,
+                    date,
+                    time: String(s.startTime).slice(0, 5),
+                    type: 'Personal Training',
+                    status,
+                };
+            }) as Appointment[];
+            setAppointments(mapped);
+            setTrainerOptions((trainers ?? []).map((t: any) => ({ value: t.id, label: t.fullName })));
+        }).catch(() => {
+            toast.error('Error', 'Failed to load appointments');
+        });
+    }, []);
+
+    const filtered = filter === 'all' ? appointments : appointments.filter((a) => a.status === filter);
 
     const handleBook = async () => {
         if (!form.trainer || !form.date || !form.time || !form.type) {
@@ -56,12 +72,30 @@ export default function AppointmentsPage() {
         }
         setSubmitLoading(true);
         try {
-            await new Promise(r => setTimeout(r, 600));
-            toast.success('Booking Confirmed', `Session with ${form.trainer} on ${form.date} at ${form.time}`);
+            const endHour = Math.min(23, Number(form.time.slice(0, 2)) + 1);
+            const endTime = `${String(endHour).padStart(2, '0')}:${form.time.slice(3, 5)}:00`;
+            await opsAPI.createPtSession({
+                memberId: 'self',
+                trainerId: form.trainer,
+                sessionDate: form.date,
+                startTime: `${form.time}:00`,
+                endTime,
+            });
+            const refreshed = await opsAPI.myPtSessions();
+            const trainerMap = new Map(trainerOptions.map((t) => [t.value, t.label]));
+            setAppointments((refreshed ?? []).map((s: any) => ({
+                id: s.id,
+                trainer: trainerMap.get(s.trainerId) ?? s.trainerId,
+                date: String(s.sessionDate).slice(0, 10),
+                time: String(s.startTime).slice(0, 5),
+                type: 'Personal Training',
+                status: s.status === 'completed' ? 'completed' : s.status === 'cancelled' ? 'cancelled' : 'upcoming',
+            })));
+            toast.success('Booking Confirmed', `Session booked on ${form.date} at ${form.time}`);
             setShowModal(false);
             setForm({ trainer: '', date: '', time: '', type: '' });
-        } catch {
-            toast.error('Error', 'Failed to book session');
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
         } finally {
             setSubmitLoading(false);
         }
@@ -121,7 +155,7 @@ export default function AppointmentsPage() {
             {/* Book modal */}
             <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Book a Session" description="Schedule a personal training or consultation" size="md">
                 <div className="space-y-4">
-                    <Select id="appointments-trainer" label="Trainer" options={TRAINER_OPTIONS} value={form.trainer} onChange={e => setForm(f => ({ ...f, trainer: e.target.value }))} placeholder="Select trainer" />
+                    <Select id="appointments-trainer" label="Trainer" options={trainerOptions} value={form.trainer} onChange={e => setForm(f => ({ ...f, trainer: e.target.value }))} placeholder="Select trainer" />
                     <Select id="appointments-type" label="Session Type" options={SESSION_OPTIONS} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} placeholder="Select type" />
                     <Input id="appointments-date" label="Date" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
                     <Input id="appointments-time" label="Time" type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} />

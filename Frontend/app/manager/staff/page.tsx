@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { UserCheck, Star, Clock, Dumbbell, Plus, Pencil } from 'lucide-react';
 import { PageHeader, Card, Modal, Input, Select, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
+import { getErrorMessage, opsAPI } from '@/lib/api';
 
 const ROLE_OPTIONS = [
     { value: 'trainer', label: 'Personal Trainer' },
@@ -12,25 +13,52 @@ const ROLE_OPTIONS = [
     { value: 'operations', label: 'Operations Staff' },
 ];
 
-const initialStaff = [
-    { name: 'Chathurika Silva',  role: 'Personal Trainer',      members: 14, sessions: 52, rating: 4.9, shift: '6AM – 2PM',  status: 'on_shift' },
-    { name: 'Isuru Bandara',     role: 'Personal Trainer',      members: 11, sessions: 44, rating: 4.7, shift: '2PM – 10PM', status: 'off_shift' },
-    { name: 'Ruwan Jayawardena', role: 'Senior Trainer',        members: 18, sessions: 67, rating: 4.8, shift: '6AM – 2PM',  status: 'on_shift' },
-    { name: 'Nirosha Senanayake',role: 'Fitness Consultant',    members: 8,  sessions: 31, rating: 4.5, shift: '10AM – 6PM', status: 'on_shift' },
-    { name: 'Kasun Perera',      role: 'Operations Staff',      members: 0,  sessions: 0,  rating: 4.6, shift: '6AM – 2PM',  status: 'on_shift' },
-];
+type StaffRow = { id: string; name: string; role: string; members: number; sessions: number; rating: number; shift: string; status: 'on_shift' | 'off_shift' };
 
 export default function ManagerStaffPage() {
     const toast = useToast();
-    const [staff, setStaff] = useState(initialStaff);
+    const [staff, setStaff] = useState<StaffRow[]>([]);
     const [addOpen, setAddOpen] = useState(false);
     const [scheduleOpen, setScheduleOpen] = useState(false);
-    const [selectedStaff, setSelectedStaff] = useState<typeof initialStaff[0] | null>(null);
+    const [selectedStaff, setSelectedStaff] = useState<StaffRow | null>(null);
     const [loading, setLoading] = useState(false);
     const [addForm, setAddForm] = useState({ name: '', email: '', role: 'trainer', employeeCode: '', hireDate: '' });
     const [scheduleForm, setScheduleForm] = useState({ shifts: '', notes: '' });
 
-    const onShift = staff.filter((s: { status: string }) => s.status === 'on_shift').length;
+    const loadData = async () => {
+        const [trainers, visits, sessions, members] = await Promise.all([
+            opsAPI.users('trainer'),
+            opsAPI.visits(500),
+            opsAPI.recentReports(),
+            opsAPI.members(),
+        ]);
+        const activeByTrainer = new Map<string, number>();
+        (members ?? []).forEach((m: any) => {
+            if (m.assignedTrainerId) activeByTrainer.set(m.assignedTrainerId, (activeByTrainer.get(m.assignedTrainerId) ?? 0) + 1);
+        });
+        const sessionByTrainer = new Map<string, number>();
+        (sessions ?? []).forEach((s: any) => {
+            const key = s.trainerId ?? '';
+            if (key) sessionByTrainer.set(key, (sessionByTrainer.get(key) ?? 0) + 1);
+        });
+        const activeVisits = new Set((visits ?? []).filter((v: any) => v.status === 'active').map((v: any) => v.personId));
+        setStaff((trainers ?? []).map((t: any) => ({
+            id: t.id,
+            name: t.fullName,
+            role: 'Personal Trainer',
+            members: activeByTrainer.get(t.id) ?? 0,
+            sessions: sessionByTrainer.get(t.id) ?? 0,
+            rating: 4.5,
+            shift: 'Assigned via schedule',
+            status: activeVisits.has(t.id) ? 'on_shift' : 'off_shift',
+        })));
+    };
+
+    useEffect(() => {
+        loadData().catch((err) => toast.error('Failed to load staff', getErrorMessage(err)));
+    }, []);
+
+    const onShift = useMemo(() => staff.filter((s) => s.status === 'on_shift').length, [staff]);
 
     const handleAddStaff = async () => {
         if (!addForm.name.trim() || !addForm.email.trim()) {
@@ -39,12 +67,18 @@ export default function ManagerStaffPage() {
         }
         setLoading(true);
         try {
-            await new Promise(r => setTimeout(r, 600));
+            await opsAPI.createUser({
+                fullName: addForm.name.trim(),
+                email: addForm.email.trim(),
+                role: 'trainer',
+                password: 'TempPass123!',
+            });
+            await loadData();
             toast.success('Staff Added', `${addForm.name} has been added`);
             setAddOpen(false);
             setAddForm({ name: '', email: '', role: 'trainer', employeeCode: '', hireDate: '' });
-        } catch {
-            toast.error('Error', 'Failed to add staff');
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -53,12 +87,18 @@ export default function ManagerStaffPage() {
     const handleSchedule = async () => {
         setLoading(true);
         try {
-            await new Promise(r => setTimeout(r, 600));
+            if (selectedStaff) {
+                await opsAPI.simulateTrainerShift({
+                    trainerId: selectedStaff.id,
+                    action: scheduleForm.notes.toLowerCase().includes('off') ? 'out' : 'in',
+                });
+                await loadData();
+            }
             toast.success('Schedule Updated', 'Schedule has been saved');
             setScheduleOpen(false);
             setSelectedStaff(null);
-        } catch {
-            toast.error('Error', 'Failed to update schedule');
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -92,8 +132,8 @@ export default function ManagerStaffPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {staff.map((s, i) => (
-                    <Card key={i} padding="md" className="flex flex-col gap-4 hover:border-zinc-700/50 transition-colors">
+                {staff.map((s) => (
+                    <Card key={s.id} padding="md" className="flex flex-col gap-4 hover:border-zinc-700/50 transition-colors">
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-600 to-green-800 flex items-center justify-center text-white font-bold">
                                 {s.name.split(' ').map(n => n[0]).join('').slice(0, 2)}

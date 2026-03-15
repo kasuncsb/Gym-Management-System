@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { HelpCircle, CheckCircle2, Clock, User } from 'lucide-react';
 import { PageHeader, Card } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
+import { getErrorMessage, opsAPI } from '@/lib/api';
 
 type Priority = 'high' | 'medium' | 'low';
 type ReqStatus = 'open' | 'in_progress' | 'resolved';
@@ -30,17 +31,27 @@ interface Request {
     location: string;
 }
 
-const initialRequests: Request[] = [
-    { id: 1, member: 'Gayani Fernando',    memberId: 'PW2025022', request: 'Need help with bench press form',       time: '5 min ago',  priority: 'medium', status: 'open',        location: 'Chest Area' },
-    { id: 2, member: 'Ruwan Jayawardena',  memberId: 'PW2025009', request: 'Treadmill #2 belt slipping',            time: '12 min ago', priority: 'high',   status: 'in_progress', location: 'Cardio Zone' },
-    { id: 3, member: 'Nirosha Senanayake', memberId: 'PW2024087', request: 'Workout recommendations for fat loss',  time: '18 min ago', priority: 'low',    status: 'open',        location: 'Reception' },
-    { id: 4, member: 'Thilini Perera',     memberId: 'PW2025031', request: 'Leg press machine adjustment needed',   time: '25 min ago', priority: 'medium', status: 'resolved',    location: 'Leg Area' },
-];
-
 export default function TrainerAssistancePage() {
     const toast = useToast();
-    const [requests, setRequests] = useState<Request[]>(initialRequests);
+    const [requests, setRequests] = useState<Request[]>([]);
     const [filter, setFilter] = useState<ReqStatus | 'all'>('all');
+
+    useEffect(() => {
+        opsAPI.messages()
+            .then((rows) => {
+                setRequests((rows ?? []).map((r: any, idx: number) => ({
+                    id: idx + 1,
+                    member: r.subject?.split(' - ')[0] ?? 'Member',
+                    memberId: r.toPersonId ?? '—',
+                    request: r.body ?? '',
+                    time: new Date(r.createdAt ?? new Date()).toLocaleString(),
+                    priority: (r.priority === 'critical' ? 'high' : r.priority ?? 'medium') as Priority,
+                    status: r.status === 'read' ? 'resolved' : 'open',
+                    location: 'Gym floor',
+                })));
+            })
+            .catch((err) => toast.error('Failed to load assistance queue', getErrorMessage(err)));
+    }, []);
 
     const resolve = (id: number) => {
         setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'resolved' as ReqStatus } : r));

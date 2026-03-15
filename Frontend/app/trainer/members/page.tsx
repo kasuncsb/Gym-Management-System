@@ -1,46 +1,60 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Users } from 'lucide-react';
 import { PageHeader, SearchInput, Card, Modal, Select, Input, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
+import { getErrorMessage, opsAPI } from '@/lib/api';
 
-const MOCK_MEMBERS = [
-    { id: 'PW2025001', name: 'Nimal Perera', plan: 'Premium', status: 'active', lastVisit: 'Today', ptLeft: 4 },
-    { id: 'PW2025012', name: 'Chathurika Silva', plan: 'Basic', status: 'active', lastVisit: '2 days ago', ptLeft: 2 },
-    { id: 'PW2025034', name: 'Thilini Wijesinghe', plan: 'Elite', status: 'active', lastVisit: 'Yesterday', ptLeft: 6 },
-];
-
-const MOCK_PLANS = [
-    { value: 'full_body', label: 'Full Body Power' },
-    { value: 'cardio', label: 'Cardio Blast' },
-    { value: 'flexibility', label: 'Flexibility & Recovery' },
-];
+type MemberRow = { id: string; name: string; plan: string; status: string; lastVisit: string; ptLeft: number };
 
 export default function TrainerMembersPage() {
     const toast = useToast();
     const [search, setSearch] = useState('');
+    const [members, setMembers] = useState<MemberRow[]>([]);
     const [vitalsOpen, setVitalsOpen] = useState(false);
     const [assignOpen, setAssignOpen] = useState(false);
-    const [selectedMember, setSelectedMember] = useState<typeof MOCK_MEMBERS[0] | null>(null);
+    const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null);
     const [loading, setLoading] = useState(false);
 
     const [vitalsForm, setVitalsForm] = useState({ weight: '', height: '', bodyFat: '', notes: '' });
-    const [assignForm, setAssignForm] = useState({ plan: '', startDate: '' });
+    const [assignForm, setAssignForm] = useState({ plan: '', startDate: '', durationWeeks: '6', daysPerWeek: '3', difficulty: 'beginner' as 'beginner' | 'intermediate' | 'advanced' });
 
-    const filtered = MOCK_MEMBERS.filter(m =>
+    const loadMembers = async () => {
+        const [rows, visits] = await Promise.all([opsAPI.members(), opsAPI.visits(500)]);
+        const latestVisit = new Map<string, string>();
+        (visits ?? []).forEach((v: any) => {
+            if (!latestVisit.has(v.personId)) {
+                latestVisit.set(v.personId, new Date(v.checkInAt ?? v.createdAt).toLocaleDateString());
+            }
+        });
+        setMembers((rows ?? []).map((m: any) => ({
+            id: m.id,
+            name: m.fullName,
+            plan: m.currentPlanName ?? 'Unassigned',
+            status: m.memberStatus ?? 'inactive',
+            lastVisit: latestVisit.get(m.id) ?? '—',
+            ptLeft: Number(m.ptSessionsLeft ?? 0),
+        })));
+    };
+
+    useEffect(() => {
+        loadMembers().catch((err) => toast.error('Failed to load members', getErrorMessage(err)));
+    }, []);
+
+    const filtered = members.filter(m =>
         m.name.toLowerCase().includes(search.toLowerCase()) || m.id.includes(search)
     );
 
-    const openVitals = (m: typeof MOCK_MEMBERS[0]) => {
+    const openVitals = (m: MemberRow) => {
         setSelectedMember(m);
         setVitalsForm({ weight: '', height: '', bodyFat: '', notes: '' });
         setVitalsOpen(true);
     };
 
-    const openAssign = (m: typeof MOCK_MEMBERS[0]) => {
+    const openAssign = (m: MemberRow) => {
         setSelectedMember(m);
-        setAssignForm({ plan: '', startDate: '' });
+        setAssignForm({ plan: '', startDate: '', durationWeeks: '6', daysPerWeek: '3', difficulty: 'beginner' });
         setAssignOpen(true);
     };
 
@@ -51,11 +65,20 @@ export default function TrainerMembersPage() {
         }
         setLoading(true);
         try {
-            await new Promise(r => setTimeout(r, 600));
+            if (!selectedMember) return;
+            const weight = Number(vitalsForm.weight);
+            const height = Number(vitalsForm.height);
+            const bmi = weight > 0 && height > 0 ? Number((weight / ((height / 100) ** 2)).toFixed(1)) : undefined;
+            await opsAPI.addMemberMetric(selectedMember.id, {
+                weightKg: weight || undefined,
+                heightCm: height || undefined,
+                bmi,
+                notes: `BF%=${vitalsForm.bodyFat || '-'} ${vitalsForm.notes || ''}`.trim(),
+            });
             toast.success('Vitals Recorded', `Logged for ${selectedMember?.name}`);
             setVitalsOpen(false);
-        } catch {
-            toast.error('Error', 'Failed to record vitals');
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -68,11 +91,19 @@ export default function TrainerMembersPage() {
         }
         setLoading(true);
         try {
-            await new Promise(r => setTimeout(r, 600));
+            if (!selectedMember) return;
+            await opsAPI.assignWorkoutPlan({
+                memberId: selectedMember.id,
+                name: assignForm.plan.trim(),
+                description: `Start date: ${assignForm.startDate || 'immediate'}`,
+                difficulty: assignForm.difficulty,
+                durationWeeks: Math.max(1, Number(assignForm.durationWeeks) || 6),
+                daysPerWeek: Math.max(1, Number(assignForm.daysPerWeek) || 3),
+            });
             toast.success('Workout Assigned', `Assigned to ${selectedMember?.name}`);
             setAssignOpen(false);
-        } catch {
-            toast.error('Error', 'Failed to assign workout');
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -142,8 +173,19 @@ export default function TrainerMembersPage() {
 
             <Modal isOpen={assignOpen} onClose={() => setAssignOpen(false)} title="Assign Workout" description={selectedMember ? `Assign plan to ${selectedMember.name}` : ''} size="md">
                 <div className="space-y-4">
-                    <Select id="trainer-assign-plan" label="Workout Plan" options={MOCK_PLANS} value={assignForm.plan} onChange={e => setAssignForm(f => ({ ...f, plan: e.target.value }))} placeholder="Select plan" />
+                    <Input id="trainer-assign-plan" label="Workout Plan Name" value={assignForm.plan} onChange={e => setAssignForm(f => ({ ...f, plan: e.target.value }))} placeholder="e.g. Fat Loss Starter - Week 1" />
                     <Input id="trainer-assign-start-date" label="Start Date" type="date" value={assignForm.startDate} onChange={e => setAssignForm(f => ({ ...f, startDate: e.target.value }))} />
+                    <div className="grid grid-cols-2 gap-3">
+                        <Input id="trainer-assign-duration" label="Duration (weeks)" type="number" value={assignForm.durationWeeks} onChange={e => setAssignForm(f => ({ ...f, durationWeeks: e.target.value }))} />
+                        <Input id="trainer-assign-days" label="Days / week" type="number" value={assignForm.daysPerWeek} onChange={e => setAssignForm(f => ({ ...f, daysPerWeek: e.target.value }))} />
+                    </div>
+                    <Select
+                        id="trainer-assign-difficulty"
+                        label="Difficulty"
+                        options={[{ value: 'beginner', label: 'Beginner' }, { value: 'intermediate', label: 'Intermediate' }, { value: 'advanced', label: 'Advanced' }]}
+                        value={assignForm.difficulty}
+                        onChange={e => setAssignForm(f => ({ ...f, difficulty: e.target.value as 'beginner' | 'intermediate' | 'advanced' }))}
+                    />
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setAssignOpen(false)}>Cancel</LoadingButton>
                         <LoadingButton loading={loading} onClick={handleAssign}>Assign</LoadingButton>

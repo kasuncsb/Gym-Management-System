@@ -5,31 +5,32 @@ import Link from 'next/link';
 import { CreditCard, RefreshCw, ArrowUpCircle, Snowflake, ShieldAlert } from 'lucide-react';
 import { PageHeader, Card, Modal, Input, Select, Textarea, LoadingButton, Tabs } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
-import { authAPI } from '@/lib/api';
+import { authAPI, getErrorMessage, opsAPI } from '@/lib/api';
 
 type IdVerificationStatus = 'pending' | 'approved' | 'rejected' | null;
 
-const MOCK_PLAN = {
-    name: 'Premium Plan',
-    price: 4500,
-    duration: '1 month',
-    endDate: '2025-02-15',
-    status: 'active' as const,
-    ptSessionsLeft: 4,
-};
-
-const MOCK_PAYMENTS = [
-    { date: '2025-01-15', amount: 4500, method: 'Card', receipt: 'Receipt #001' },
-    { date: '2024-12-15', amount: 4500, method: 'Card', receipt: 'Receipt #002' },
-    { date: '2024-11-15', amount: 4500, method: 'Card', receipt: 'Receipt #003' },
-];
-
-const PLAN_OPTIONS = [
-    { value: 'basic', label: 'Basic — 1 month — Rs. 2,500' },
-    { value: 'premium', label: 'Premium — 1 month — Rs. 4,500' },
-    { value: 'premium_3m', label: 'Premium — 3 months — Rs. 12,000' },
-    { value: 'elite', label: 'Elite — 1 month — Rs. 6,500' },
-];
+interface Plan {
+    id: string;
+    name: string;
+    price: string;
+    durationDays: number;
+}
+interface MySubscription {
+    id: string;
+    status: string;
+    startDate: string;
+    endDate: string;
+    pricePaid: string | null;
+    ptSessionsLeft: number;
+    planName: string | null;
+}
+interface MyPayment {
+    id: string;
+    paymentDate: string;
+    amount: string;
+    paymentMethod: string;
+    receiptNumber: string | null;
+}
 
 export default function MemberSubscriptionPage() {
     const toast = useToast();
@@ -40,6 +41,9 @@ export default function MemberSubscriptionPage() {
     const [freezeOpen, setFreezeOpen] = useState(false);
     const [upgradeOpen, setUpgradeOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [plans, setPlans] = useState<Plan[]>([]);
+    const [subscriptions, setSubscriptions] = useState<MySubscription[]>([]);
+    const [payments, setPayments] = useState<MyPayment[]>([]);
 
     const [renewForm, setRenewForm] = useState({ plan: '', promo: '', payment: 'card' });
     const [freezeForm, setFreezeForm] = useState({ startDate: '', endDate: '', reason: '' });
@@ -53,10 +57,22 @@ export default function MemberSubscriptionPage() {
             })
             .catch(() => setIdStatus(null))
             .finally(() => setProfileLoading(false));
+        Promise.all([
+            opsAPI.plans().then((d) => setPlans((d ?? []) as Plan[])),
+            opsAPI.mySubscriptions().then((d) => setSubscriptions((d ?? []) as MySubscription[])),
+            opsAPI.myPayments().then((d) => setPayments((d ?? []) as MyPayment[])),
+        ]).catch(() => {
+            toast.error('Error', 'Failed to load subscription details');
+        });
     }, []);
 
     const idRejected = idStatus === 'rejected';
     const canPurchase = !idRejected;
+    const activeSubscription = subscriptions.find((s) => ['active', 'grace_period', 'frozen'].includes(s.status)) ?? subscriptions[0];
+    const planOptions = plans.map((p) => ({
+        value: p.id,
+        label: `${p.name} — ${p.durationDays} days — Rs. ${Number(p.price ?? 0).toLocaleString()}`,
+    }));
 
     const handleRenew = async () => {
         if (!canPurchase) return;
@@ -66,12 +82,18 @@ export default function MemberSubscriptionPage() {
         }
         setLoading(true);
         try {
-            await new Promise(r => setTimeout(r, 800));
+            await opsAPI.purchaseSubscription({
+                planId: renewForm.plan,
+                paymentMethod: renewForm.payment as 'card' | 'cash' | 'bank_transfer' | 'online',
+                promotionCode: renewForm.promo || undefined,
+            });
+            setSubscriptions(await opsAPI.mySubscriptions() as MySubscription[]);
+            setPayments(await opsAPI.myPayments() as MyPayment[]);
             toast.success('Subscription Renewed', 'Your plan has been renewed successfully.');
             setRenewOpen(false);
             setRenewForm({ plan: '', promo: '', payment: 'card' });
-        } catch {
-            toast.error('Error', 'Failed to renew subscription');
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -84,12 +106,18 @@ export default function MemberSubscriptionPage() {
         }
         setLoading(true);
         try {
-            await new Promise(r => setTimeout(r, 800));
+            await opsAPI.requestFreeze({
+                subscriptionId: activeSubscription?.id,
+                freezeStart: freezeForm.startDate,
+                freezeEnd: freezeForm.endDate,
+                reason: freezeForm.reason,
+            });
+            setSubscriptions(await opsAPI.mySubscriptions() as MySubscription[]);
             toast.success('Freeze Request Sent', 'Your request will be processed soon.');
             setFreezeOpen(false);
             setFreezeForm({ startDate: '', endDate: '', reason: '' });
-        } catch {
-            toast.error('Error', 'Failed to submit freeze request');
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -103,12 +131,17 @@ export default function MemberSubscriptionPage() {
         }
         setLoading(true);
         try {
-            await new Promise(r => setTimeout(r, 800));
+            await opsAPI.purchaseSubscription({
+                planId: upgradeForm.plan,
+                paymentMethod: 'online',
+            });
+            setSubscriptions(await opsAPI.mySubscriptions() as MySubscription[]);
+            setPayments(await opsAPI.myPayments() as MyPayment[]);
             toast.success('Plan Upgraded', 'Your plan has been upgraded successfully.');
             setUpgradeOpen(false);
             setUpgradeForm({ plan: '' });
-        } catch {
-            toast.error('Error', 'Failed to upgrade plan');
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -152,18 +185,18 @@ export default function MemberSubscriptionPage() {
                                     <CreditCard size={24} className="text-white" />
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-bold text-white">{MOCK_PLAN.name}</h3>
+                                    <h3 className="text-xl font-bold text-white">{activeSubscription?.planName ?? 'No active plan'}</h3>
                                     <p className="text-zinc-400 text-sm mt-1">
-                                        Rs. {MOCK_PLAN.price.toLocaleString()} / {MOCK_PLAN.duration}
+                                        Rs. {Number(activeSubscription?.pricePaid ?? 0).toLocaleString()}
                                     </p>
                                     <p className="text-zinc-500 text-xs mt-2">
-                                        Ends: {MOCK_PLAN.endDate} · PT sessions left: {MOCK_PLAN.ptSessionsLeft}
+                                        Ends: {activeSubscription?.endDate ?? '—'} · PT sessions left: {activeSubscription?.ptSessionsLeft ?? 0}
                                     </p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className="text-xs bg-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-full font-semibold">
-                                    {MOCK_PLAN.status}
+                                    {activeSubscription?.status ?? 'none'}
                                 </span>
                             </div>
                         </div>
@@ -213,12 +246,12 @@ export default function MemberSubscriptionPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {MOCK_PAYMENTS.map((p, i) => (
-                                    <tr key={i} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
-                                        <td className="px-6 py-4 text-sm text-white">{p.date}</td>
-                                        <td className="px-6 py-4 text-sm text-white">Rs. {p.amount.toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-sm text-zinc-400">{p.method}</td>
-                                        <td className="px-6 py-4 text-sm text-zinc-400">{p.receipt}</td>
+                                {payments.map((p) => (
+                                    <tr key={p.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                                        <td className="px-6 py-4 text-sm text-white">{String(p.paymentDate).slice(0, 10)}</td>
+                                        <td className="px-6 py-4 text-sm text-white">Rs. {Number(p.amount ?? 0).toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-sm text-zinc-400">{p.paymentMethod}</td>
+                                        <td className="px-6 py-4 text-sm text-zinc-400">{p.receiptNumber ?? '-'}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -232,7 +265,7 @@ export default function MemberSubscriptionPage() {
                 <div className="space-y-4">
                     <Select
                         label="Select Plan"
-                        options={PLAN_OPTIONS}
+                        options={planOptions}
                         value={renewForm.plan}
                         onChange={e => setRenewForm(f => ({ ...f, plan: e.target.value }))}
                         placeholder="Choose a plan"
@@ -292,7 +325,7 @@ export default function MemberSubscriptionPage() {
                 <div className="space-y-4">
                     <Select
                         label="Select New Plan"
-                        options={PLAN_OPTIONS}
+                        options={planOptions}
                         value={upgradeForm.plan}
                         onChange={e => setUpgradeForm(f => ({ ...f, plan: e.target.value }))}
                         placeholder="Choose a plan"

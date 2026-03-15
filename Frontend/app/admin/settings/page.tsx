@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Settings, Save, Check } from 'lucide-react';
 import { PageHeader, Card, Input, Select, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
+import { getErrorMessage, opsAPI } from '@/lib/api';
 
 const BACKUP_OPTIONS = [
     { value: 'hourly', label: 'Every Hour' },
@@ -39,10 +40,34 @@ export default function AdminSettingsPage() {
     const [autoBackup, setAutoBackup] = useState(true);
     const [backupFreq, setBackupFreq] = useState('daily');
 
-    const save = (section: string) => {
-        setSaved(prev => ({ ...prev, [section]: true }));
-        toast.success('Settings Saved', 'Your changes have been saved successfully');
-        setTimeout(() => setSaved(prev => ({ ...prev, [section]: false })), 2000);
+    useEffect(() => {
+        opsAPI.config()
+            .then((rows) => {
+                const map = new Map((rows ?? []).map((r) => [r.key, r.value]));
+                setGymName(map.get('branch_name') ?? gymName);
+                setEmail(map.get('branch_email') ?? email);
+                setPhone(map.get('branch_phone') ?? phone);
+                setAddress(map.get('branch_address') ?? address);
+                setCapacity(map.get('branch_capacity') ?? capacity);
+                setOpenTime(map.get('open_time') ?? openTime);
+                setCloseTime(map.get('close_time') ?? closeTime);
+                setMaintMode(map.get('maintenance_mode') === 'true');
+                setEmailNotify(map.get('notify_email') !== 'false');
+                setSmsNotify(map.get('notify_sms') === 'true');
+                setAutoBackup(map.get('auto_backup') !== 'false');
+                setBackupFreq(map.get('backup_frequency') ?? backupFreq);
+            })
+            .catch((err) => toast.error('Failed to load settings', getErrorMessage(err)));
+    }, []);
+
+    const save = (section: string, values: Record<string, string>) => {
+        opsAPI.updateConfig(values)
+            .then(() => {
+                setSaved(prev => ({ ...prev, [section]: true }));
+                toast.success('Settings Saved', 'Your changes have been saved successfully');
+                setTimeout(() => setSaved(prev => ({ ...prev, [section]: false })), 2000);
+            })
+            .catch((err) => toast.error('Save failed', getErrorMessage(err)));
     };
 
     return (
@@ -57,7 +82,12 @@ export default function AdminSettingsPage() {
                     <h2 className="text-white font-semibold">Gym Information</h2>
                     <LoadingButton
                         icon={saved.info ? Check : Save}
-                        onClick={() => save('info')}
+                        onClick={() => save('info', {
+                            branch_name: gymName,
+                            branch_email: email,
+                            branch_phone: phone,
+                            branch_address: address,
+                        })}
                         className={saved.info ? 'bg-emerald-600 hover:bg-emerald-600' : ''}
                     >
                         {saved.info ? 'Saved' : 'Save'}
@@ -76,7 +106,11 @@ export default function AdminSettingsPage() {
             <Card padding="lg">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-white font-semibold">Operating Hours & Capacity</h2>
-                    <LoadingButton icon={saved.ops ? Check : Save} onClick={() => save('ops')}>
+                    <LoadingButton icon={saved.ops ? Check : Save} onClick={() => save('ops', {
+                        open_time: openTime,
+                        close_time: closeTime,
+                        branch_capacity: capacity,
+                    })}>
                         {saved.ops ? 'Saved' : 'Save'}
                     </LoadingButton>
                 </div>
@@ -90,7 +124,10 @@ export default function AdminSettingsPage() {
             <Card padding="lg">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-white font-semibold">Notifications</h2>
-                    <LoadingButton icon={saved.notif ? Check : Save} onClick={() => save('notif')}>
+                    <LoadingButton icon={saved.notif ? Check : Save} onClick={() => save('notif', {
+                        notify_email: String(emailNotify),
+                        notify_sms: String(smsNotify),
+                    })}>
                         {saved.notif ? 'Saved' : 'Save'}
                     </LoadingButton>
                 </div>
@@ -113,7 +150,11 @@ export default function AdminSettingsPage() {
             <Card padding="lg">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-white font-semibold">System</h2>
-                    <LoadingButton icon={saved.sys ? Check : Save} onClick={() => save('sys')}>
+                    <LoadingButton icon={saved.sys ? Check : Save} onClick={() => save('sys', {
+                        auto_backup: String(autoBackup),
+                        backup_frequency: backupFreq,
+                        maintenance_mode: String(maintenanceMode),
+                    })}>
                         {saved.sys ? 'Saved' : 'Save'}
                     </LoadingButton>
                 </div>

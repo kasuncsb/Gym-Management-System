@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Tag, Plus, Pencil } from 'lucide-react';
 import { PageHeader, Card, Modal, Input, Select, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
+import { getErrorMessage, opsAPI } from '@/lib/api';
 
 interface Promotion {
     id: string;
@@ -18,14 +19,9 @@ interface Promotion {
     active: boolean;
 }
 
-const MOCK_PROMOS: Promotion[] = [
-    { id: '1', code: 'NEWYEAR25', name: 'New Year 25% Off', discountType: 'percentage', discountValue: 25, validFrom: '2025-01-01', validUntil: '2025-01-31', usageLimit: 100, usageCount: 23, active: true },
-    { id: '2', code: 'WELCOME500', name: 'Welcome Rs.500 Off', discountType: 'fixed', discountValue: 500, validFrom: '2025-01-01', validUntil: '2025-12-31', usageLimit: null, usageCount: 45, active: true },
-];
-
 export default function AdminPromotionsPage() {
     const toast = useToast();
-    const [promos, setPromos] = useState<Promotion[]>(MOCK_PROMOS);
+    const [promos, setPromos] = useState<Promotion[]>([]);
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<Promotion | null>(null);
     const [loading, setLoading] = useState(false);
@@ -38,6 +34,26 @@ export default function AdminPromotionsPage() {
         validUntil: '',
         usageLimit: '',
     });
+
+    const persistPromos = async (next: Promotion[]) => {
+        await opsAPI.updateConfig({ promotions_json: JSON.stringify(next) });
+        setPromos(next);
+    };
+
+    useEffect(() => {
+        opsAPI.config()
+            .then((rows) => {
+                const raw = (rows ?? []).find((r) => r.key === 'promotions_json')?.value;
+                if (!raw) return;
+                try {
+                    const parsed = JSON.parse(raw) as Promotion[];
+                    if (Array.isArray(parsed)) setPromos(parsed);
+                } catch {
+                    // keep empty state if malformed
+                }
+            })
+            .catch((err) => toast.error('Failed to load promotions', getErrorMessage(err)));
+    }, []);
 
     const openAdd = () => {
         setEditing(null);
@@ -66,14 +82,14 @@ export default function AdminPromotionsPage() {
         }
         setLoading(true);
         try {
-            await new Promise(r => setTimeout(r, 600));
+            let next: Promotion[];
             if (editing) {
-                setPromos(prev => prev.map(p => p.id === editing.id
+                next = promos.map(p => p.id === editing.id
                     ? { ...p, ...form, discountValue: Number(form.discountValue), usageLimit: form.usageLimit ? Number(form.usageLimit) : null }
-                    : p));
+                    : p);
                 toast.success('Promotion Updated', `${form.code} has been updated`);
             } else {
-                setPromos(prev => [{
+                next = [{
                     id: String(Date.now()),
                     code: form.code,
                     name: form.name,
@@ -84,20 +100,23 @@ export default function AdminPromotionsPage() {
                     usageLimit: form.usageLimit ? Number(form.usageLimit) : null,
                     usageCount: 0,
                     active: true,
-                }, ...prev]);
+                }, ...promos];
                 toast.success('Promotion Added', `${form.code} has been added`);
             }
+            await persistPromos(next);
             setModalOpen(false);
-        } catch {
-            toast.error('Error', 'Failed to save promotion');
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
         } finally {
             setLoading(false);
         }
     };
 
     const toggleActive = (p: Promotion) => {
-        setPromos(prev => prev.map(x => x.id === p.id ? { ...x, active: !x.active } : x));
-        toast.success(p.active ? 'Disabled' : 'Enabled', `${p.code} has been ${p.active ? 'disabled' : 'enabled'}`);
+        const next = promos.map((x) => x.id === p.id ? { ...x, active: !x.active } : x);
+        persistPromos(next)
+            .then(() => toast.success(p.active ? 'Disabled' : 'Enabled', `${p.code} has been ${p.active ? 'disabled' : 'enabled'}`))
+            .catch((err) => toast.error('Error', getErrorMessage(err)));
     };
 
     return (

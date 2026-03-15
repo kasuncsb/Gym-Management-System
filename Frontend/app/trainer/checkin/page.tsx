@@ -1,8 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { QrCode, CheckCircle2, XCircle, LogOut, Users } from 'lucide-react';
 import { PageHeader, Card, SearchInput, LoadingButton } from '@/components/ui/SharedComponents';
+import { getErrorMessage, opsAPI } from '@/lib/api';
+import { useToast } from '@/components/ui/Toast';
+import { useRealtimePolling } from '@/hooks/useRealtimePolling';
 
 interface MemberEntry {
     id: string;
@@ -13,27 +16,66 @@ interface MemberEntry {
     time: string;
 }
 
-const recentLog: MemberEntry[] = [
-    { id: 'PW2025001', name: 'Nimal Perera',         subscription: 'active',  lastSeen: 'Today', type: 'in',  time: '08:02 AM' },
-    { id: 'PW2025012', name: 'Chathurika Silva',     subscription: 'active',  lastSeen: 'Today', type: 'out', time: '08:45 AM' },
-    { id: 'PW2024098', name: 'Saman Jayasinghe',     subscription: 'expired', lastSeen: '3 days ago', type: 'in', time: '09:10 AM' },
-    { id: 'PW2025034', name: 'Thilini Wijesinghe',   subscription: 'active',  lastSeen: 'Today', type: 'in',  time: '09:22 AM' },
-];
-
 export default function TrainerCheckinPage() {
+    const toast = useToast();
     const [search, setSearch] = useState('');
     const [scanning, setScanning] = useState(false);
     const [lastScan, setLastScan] = useState<MemberEntry | null>(null);
+    const [recentLog, setRecentLog] = useState<MemberEntry[]>([]);
+    const [members, setMembers] = useState<Array<{ id: string; fullName: string }>>([]);
+    const [selectedMemberId, setSelectedMemberId] = useState('');
 
-    const simulate = () => {
-        setScanning(true);
-        setTimeout(() => {
-            setScanning(false);
-            setLastScan(recentLog[Math.floor(Math.random() * recentLog.length)]);
-        }, 1500);
+    const refresh = async () => {
+        const [visits, memberRows] = await Promise.all([opsAPI.visits(200), opsAPI.members()]);
+        setMembers((memberRows ?? []).map((m: any) => ({ id: m.id, fullName: m.fullName })));
+        setRecentLog((visits ?? []).map((v: any) => ({
+            id: v.personId,
+            name: v.fullName ?? 'Member',
+            subscription: v.status === 'denied' ? 'expired' : 'active',
+            lastSeen: 'Recent',
+            type: v.status === 'active' || !v.checkOutAt ? 'in' : 'out',
+            time: new Date(v.checkInAt ?? v.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+        })));
     };
 
-    const filtered = recentLog.filter(m => m.name.toLowerCase().includes(search.toLowerCase()) || m.id.includes(search));
+    useEffect(() => {
+        refresh().catch((err) => toast.error('Failed to load check-in data', getErrorMessage(err)));
+    }, []);
+    useRealtimePolling(() => { refresh().catch(() => undefined); }, 10000);
+
+    useEffect(() => {
+        if (!selectedMemberId && members.length) setSelectedMemberId(members[0].id);
+    }, [members, selectedMemberId]);
+
+    const simulate = async () => {
+        if (!members.length) {
+            toast.error('No members', 'No members available for simulation.');
+            return;
+        }
+        setScanning(true);
+        try {
+            const picked = members.find((m) => m.id === selectedMemberId) ?? members[0];
+            const otp = await opsAPI.simulateGenerateDoorOtp(90);
+            const action = await opsAPI.simulateDoorScan({ token: otp.token, code: otp.code, personId: picked.id });
+            await refresh();
+            setLastScan({
+                id: picked.id,
+                name: picked.fullName,
+                subscription: 'active',
+                lastSeen: 'Recent',
+                type: action.action === 'check_out' ? 'out' : 'in',
+                time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+            });
+        } catch (err) {
+            toast.error('Simulation failed', getErrorMessage(err));
+        } finally {
+            setScanning(false);
+        }
+    };
+
+    const filtered = recentLog.filter((m) => m.name.toLowerCase().includes(search.toLowerCase()) || m.id.includes(search));
+    const inNow = useMemo(() => recentLog.filter((m) => m.type === 'in' && m.subscription === 'active').length, [recentLog]);
+    const deniedToday = useMemo(() => recentLog.filter((m) => m.subscription === 'expired').length, [recentLog]);
 
     return (
         <div className="space-y-8">
@@ -69,23 +111,36 @@ export default function TrainerCheckinPage() {
 
                 <div className="space-y-4">
                     <Card padding="md">
+                        <label htmlFor="trainer-manual-member" className="text-xs text-zinc-500">Manual member check-in/out</label>
+                        <select
+                            id="trainer-manual-member"
+                            value={selectedMemberId}
+                            onChange={(e) => setSelectedMemberId(e.target.value)}
+                            className="mt-2 w-full bg-zinc-800 text-white border border-zinc-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-500"
+                        >
+                            {members.map((m) => (
+                                <option key={m.id} value={m.id}>{m.fullName}</option>
+                            ))}
+                        </select>
+                    </Card>
+                    <Card padding="md">
                         <div className="flex items-center gap-3 mb-4">
                             <Users size={18} className="text-blue-400" />
                             <h2 className="text-white font-semibold">Current Capacity</h2>
                         </div>
-                        <p className="text-4xl font-bold text-white">42 <span className="text-zinc-600 text-xl">/ 80</span></p>
+                        <p className="text-4xl font-bold text-white">{inNow} <span className="text-zinc-600 text-xl">/ 80</span></p>
                         <div className="w-full bg-zinc-800 rounded-full h-2 mt-3">
-                            <div className="bg-blue-500 h-2 rounded-full" style={{ width: '52.5%' }} />
+                            <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${Math.min(100, (inNow / 80) * 100)}%` }} />
                         </div>
-                        <p className="text-zinc-500 text-xs mt-1">52.5% capacity</p>
+                        <p className="text-zinc-500 text-xs mt-1">{Math.round(Math.min(100, (inNow / 80) * 100))}% capacity</p>
                     </Card>
                     <div className="grid grid-cols-2 gap-3">
                         <Card padding="md" className="text-center">
-                            <p className="text-2xl font-bold text-green-400">45</p>
+                            <p className="text-2xl font-bold text-green-400">{recentLog.filter((m) => m.subscription === 'active').length}</p>
                             <p className="text-zinc-500 text-xs">Check-ins today</p>
                         </Card>
                         <Card padding="md" className="text-center">
-                            <p className="text-2xl font-bold text-red-400">3</p>
+                            <p className="text-2xl font-bold text-red-400">{deniedToday}</p>
                             <p className="text-zinc-500 text-xs">Denied (expired)</p>
                         </Card>
                     </div>

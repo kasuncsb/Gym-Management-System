@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Wrench, AlertTriangle, CheckCircle2, Clock, Plus } from 'lucide-react';
 import { PageHeader, Card, Modal, Select, Textarea, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
+import { getErrorMessage, opsAPI } from '@/lib/api';
 
 const SEVERITY_OPTIONS = [
     { value: 'low', label: 'Low' },
@@ -26,28 +27,45 @@ const reportStatusColor: Record<ReportStatus, string> = {
     resolved:    'text-green-400 bg-green-500/20',
 };
 
-const equipment = [
-    { id: 1, name: 'Treadmill #1',     category: 'Cardio',    status: 'operational' as EqStatus, last: '2025-01-10', issues: 0 },
-    { id: 2, name: 'Treadmill #2',     category: 'Cardio',    status: 'maintenance'  as EqStatus, last: '2025-01-15', issues: 1 },
-    { id: 3, name: 'Elliptical #1',    category: 'Cardio',    status: 'operational' as EqStatus, last: '2025-01-12', issues: 0 },
-    { id: 4, name: 'Rowing Machine',   category: 'Cardio',    status: 'out_of_order' as EqStatus, last: '2025-01-14', issues: 2 },
-    { id: 5, name: 'Bench Press #1',   category: 'Strength',  status: 'operational' as EqStatus, last: '2025-01-08', issues: 0 },
-    { id: 6, name: 'Leg Press',        category: 'Strength',  status: 'operational' as EqStatus, last: '2025-01-11', issues: 0 },
-];
+type EqRow = { id: string; name: string; category: string; status: EqStatus };
+type ReportRow = { eqId: string; issue: string; date: string; status: ReportStatus };
 
-const reports = [
-    { eq: 'Treadmill #2', issue: 'Belt slipping at high speed', reporter: 'Kasun F.', date: '2025-01-15', status: 'in_progress' as ReportStatus },
-    { eq: 'Rowing Machine', issue: 'Display not working', reporter: 'Nimal P.', date: '2025-01-14', status: 'open' as ReportStatus },
-    { eq: 'Rowing Machine', issue: 'Resistance mechanism stuck', reporter: 'Trainer', date: '2025-01-14', status: 'open' as ReportStatus },
-];
-
-const EQUIPMENT_OPTIONS = equipment.map(e => ({ value: e.name, label: e.name }));
+const toUiStatus = (status: string): EqStatus =>
+    status === 'operational' ? 'operational' : status === 'needs_maintenance' ? 'maintenance' : 'out_of_order';
 
 export default function TrainerEquipmentPage() {
     const toast = useToast();
     const [showReport, setShowReport] = useState(false);
-    const [form, setForm] = useState({ equipment: '', severity: 'medium' as string, issue: '' });
+    const [equipment, setEquipment] = useState<EqRow[]>([]);
+    const [reports, setReports] = useState<ReportRow[]>([]);
+    const [form, setForm] = useState({ equipment: '', severity: 'medium' as 'low' | 'medium' | 'high' | 'critical', issue: '' });
     const [submitLoading, setSubmitLoading] = useState(false);
+
+    const loadData = async () => {
+        const [eq, events] = await Promise.all([opsAPI.equipment(), opsAPI.equipmentEvents()]);
+        setEquipment((eq ?? []).map((e: any) => ({
+            id: e.id,
+            name: e.name,
+            category: e.category,
+            status: toUiStatus(e.status),
+        })));
+        setReports((events ?? []).map((r: any) => ({
+            eqId: r.equipmentId,
+            issue: r.description,
+            date: String(r.createdAt ?? '').slice(0, 10),
+            status: (r.status ?? 'open') as ReportStatus,
+        })));
+    };
+
+    useEffect(() => {
+        loadData().catch((err) => toast.error('Failed to load equipment', getErrorMessage(err)));
+    }, []);
+
+    const openCountByEq = useMemo(() => {
+        const m = new Map<string, number>();
+        reports.filter(r => r.status !== 'resolved').forEach(r => m.set(r.eqId, (m.get(r.eqId) ?? 0) + 1));
+        return m;
+    }, [reports]);
 
     const handleSubmit = async () => {
         if (!form.equipment || !form.issue.trim()) {
@@ -56,16 +74,26 @@ export default function TrainerEquipmentPage() {
         }
         setSubmitLoading(true);
         try {
-            await new Promise(r => setTimeout(r, 500));
-            toast.success('Report Submitted', `Issue reported for ${form.equipment}`);
+            await opsAPI.addEquipmentEvent({
+                equipmentId: form.equipment,
+                eventType: 'issue_reported',
+                severity: form.severity,
+                description: form.issue.trim(),
+                status: 'open',
+            });
+            await loadData();
+            toast.success('Report Submitted', 'Issue has been logged');
             setShowReport(false);
             setForm({ equipment: '', severity: 'medium', issue: '' });
-        } catch {
-            toast.error('Error', 'Failed to submit report');
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
         } finally {
             setSubmitLoading(false);
         }
     };
+
+    const eqNameById = useMemo(() => new Map(equipment.map((e) => [e.id, e.name])), [equipment]);
+    const EQUIPMENT_OPTIONS = equipment.map((e) => ({ value: e.id, label: e.name }));
 
     return (
         <div className="space-y-8">
@@ -106,8 +134,8 @@ export default function TrainerEquipmentPage() {
                                 {eq.status.replace('_', ' ')}
                             </span>
                         </div>
-                        <p className="text-zinc-600 text-xs">Last maintenance: {eq.last}</p>
-                        {eq.issues > 0 && <p className="text-red-400 text-xs mt-1">{eq.issues} open {eq.issues === 1 ? 'issue' : 'issues'}</p>}
+                        <p className="text-zinc-600 text-xs">Last maintenance: —</p>
+                        {(openCountByEq.get(eq.id) ?? 0) > 0 && <p className="text-red-400 text-xs mt-1">{openCountByEq.get(eq.id)} open {(openCountByEq.get(eq.id) ?? 0) === 1 ? 'issue' : 'issues'}</p>}
                     </div>
                 ))}
             </div>
@@ -115,11 +143,11 @@ export default function TrainerEquipmentPage() {
             <Card padding="lg">
                 <h2 className="text-lg font-semibold text-white mb-4">Open Reports</h2>
                 <div className="space-y-3">
-                    {reports.map((r, i) => (
+                    {reports.filter((r) => r.status !== 'resolved').map((r, i) => (
                         <div key={i} className="flex items-start justify-between bg-zinc-800/30 rounded-xl p-4">
                             <div>
-                                <p className="text-white text-sm font-semibold">{r.eq} — {r.issue}</p>
-                                <p className="text-zinc-500 text-xs">Reported by {r.reporter} on {r.date}</p>
+                                <p className="text-white text-sm font-semibold">{eqNameById.get(r.eqId) ?? 'Equipment'} — {r.issue}</p>
+                                <p className="text-zinc-500 text-xs">Reported on {r.date}</p>
                             </div>
                             <span className={`text-xs px-2 py-1 rounded-full font-semibold ${reportStatusColor[r.status]}`}>{r.status.replace('_',' ')}</span>
                         </div>
@@ -146,7 +174,7 @@ export default function TrainerEquipmentPage() {
                         label="Severity"
                         options={SEVERITY_OPTIONS}
                         value={form.severity}
-                        onChange={e => setForm(f => ({ ...f, severity: e.target.value }))}
+                        onChange={e => setForm(f => ({ ...f, severity: e.target.value as 'low' | 'medium' | 'high' | 'critical' }))}
                     />
                     <Textarea
                         label="Issue Description"
