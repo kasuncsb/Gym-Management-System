@@ -70,6 +70,9 @@ export const listVisits = asyncHandler(async (req: AuthRequest, res: Response) =
   const limit = Number.isFinite(raw) && raw > 0 ? Math.min(Math.round(raw), 1000) : 100;
   res.json(response.success(await opsService.listVisits(limit)));
 });
+export const getVisitStats = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.getVisitStats()));
+});
 
 export const listMyPtSessions = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
@@ -178,6 +181,9 @@ export const updateConfig = asyncHandler(async (req: AuthRequest, res: Response)
 export const listUsers = asyncHandler(async (req: AuthRequest, res: Response) => {
   const role = req.query.role as Role | undefined;
   res.json(response.success(await opsService.listUsersByRole(role)));
+});
+export const listTrainers = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.listTrainers()));
 });
 export const createUser = asyncHandler(async (req: AuthRequest, res: Response) => {
   res.json(response.success(await opsService.createUser(req.body), 'User created'));

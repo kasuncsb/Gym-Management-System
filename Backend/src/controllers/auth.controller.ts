@@ -35,6 +35,17 @@ const ACCESS_COOKIE: CookieOptions = { ...BASE_COOKIE, maxAge: 15 * 60 * 1000 };
 const REFRESH_COOKIE: CookieOptions = { ...BASE_COOKIE, maxAge: 7 * 24 * 60 * 60 * 1000 }; // 7 days
 const CLEAR_COOKIE: CookieOptions = { ...BASE_COOKIE, maxAge: 0 };
 
+function isStorageNotFoundError(err: unknown): boolean {
+  const e = err as any;
+  const code = String(e?.code ?? '');
+  const statusCode = Number(e?.statusCode ?? e?.status ?? 0);
+  const message = String(e?.message ?? '');
+  return code === 'ENOENT'
+    || statusCode === 404
+    || /not[\s_-]?found/i.test(message)
+    || /no such file or directory/i.test(message);
+}
+
 function setAuthCookies(res: Response, accessToken: string, refreshToken: string): void {
   res.cookie('access_token', accessToken, ACCESS_COOKIE);
   res.cookie('refresh_token', refreshToken, REFRESH_COOKIE);
@@ -118,33 +129,63 @@ export const uploadCover = asyncHandler(async (req: AuthRequest, res: Response) 
 /** Stream profile avatar — private, cookie-authenticated */
 export const getProfileAvatar = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { data } = await authService.getProfileImageObjectName(req.user!.id, 'avatar');
-  if (!data) throw errors.notFound('Avatar not found');
-  const { body, contentType } = await downloadFile(data);
+  if (!data) {
+    res.status(204).setHeader('Cache-Control', 'private, no-store').end();
+    return;
+  }
+  let body: NodeJS.ReadableStream;
+  let contentType: string;
+  try {
+    const downloaded = await downloadFile(data);
+    body = downloaded.body;
+    contentType = downloaded.contentType;
+  } catch (err) {
+    if (isStorageNotFoundError(err)) {
+      // Key missing in storage (stale DB pointer) -> treat as "no avatar"
+      res.status(204).setHeader('Cache-Control', 'private, no-store').end();
+      return;
+    }
+    throw err;
+  }
   res.setHeader('Content-Type', contentType);
   res.setHeader('Cache-Control', 'private, no-store');
-  const stream = body as NodeJS.ReadableStream;
-  stream.on('error', (err) => {
+  body.on('error', (err) => {
     console.error('Profile avatar stream error:', err);
     if (!res.headersSent) res.status(500).json(response.error('INTERNAL_ERROR', 'Failed to load avatar'));
     else res.end();
   });
-  stream.pipe(res);
+  body.pipe(res);
 });
 
 /** Stream profile cover — private, cookie-authenticated */
 export const getProfileCover = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { data } = await authService.getProfileImageObjectName(req.user!.id, 'cover');
-  if (!data) throw errors.notFound('Cover not found');
-  const { body, contentType } = await downloadFile(data);
+  if (!data) {
+    res.status(204).setHeader('Cache-Control', 'private, no-store').end();
+    return;
+  }
+  let body: NodeJS.ReadableStream;
+  let contentType: string;
+  try {
+    const downloaded = await downloadFile(data);
+    body = downloaded.body;
+    contentType = downloaded.contentType;
+  } catch (err) {
+    if (isStorageNotFoundError(err)) {
+      // Key missing in storage (stale DB pointer) -> treat as "no cover"
+      res.status(204).setHeader('Cache-Control', 'private, no-store').end();
+      return;
+    }
+    throw err;
+  }
   res.setHeader('Content-Type', contentType);
   res.setHeader('Cache-Control', 'private, no-store');
-  const stream = body as NodeJS.ReadableStream;
-  stream.on('error', (err) => {
+  body.on('error', (err) => {
     console.error('Profile cover stream error:', err);
     if (!res.headersSent) res.status(500).json(response.error('INTERNAL_ERROR', 'Failed to load cover'));
     else res.end();
   });
-  stream.pipe(res);
+  body.pipe(res);
 });
 
 export const changePassword = asyncHandler(async (req: AuthRequest, res: Response) => {

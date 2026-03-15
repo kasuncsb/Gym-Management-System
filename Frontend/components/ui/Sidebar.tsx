@@ -58,7 +58,6 @@ function navForRole(role: string): NavItem[] {
                 { label: 'Inventory',   href: '/trainer/inventory',   icon: Package },
                 { label: 'Assistance',  href: '/trainer/assistance', icon: HelpCircle },
                 { label: 'Tasks',       href: '/trainer/tasks',      icon: ClipboardList },
-                { label: 'Simulate',    href: '/simulate',            icon: Cpu },
             ];
         case 'manager':
             return [
@@ -72,7 +71,6 @@ function navForRole(role: string): NavItem[] {
                 { label: 'Reports',       href: '/manager/reports',       icon: TrendingUp },
                 { label: 'Check-in',      href: '/manager/checkin',       icon: QrCode },
                 { label: 'Closures',      href: '/manager/closures',      icon: CalendarOff },
-                { label: 'Simulate',      href: '/simulate',              icon: Cpu },
             ];
         case 'admin':
             return [
@@ -86,7 +84,6 @@ function navForRole(role: string): NavItem[] {
                 { label: 'Settings',        href: '/admin/settings',       icon: Settings },
                 { label: 'Check-in',        href: '/admin/checkin',        icon: QrCode },
                 { label: 'System Alerts',   href: '/admin/alerts',         icon: AlertTriangle },
-                { label: 'Simulate',        href: '/simulate',              icon: Cpu },
             ];
         default:
             return [{ label: 'Dashboard', href: '/member/dashboard', icon: LayoutDashboard }];
@@ -97,6 +94,9 @@ export function Sidebar() {
     const { user } = useAuth();
     const pathname = usePathname();
     const [mobileOpen, setMobileOpen] = useState(false);
+
+    // Keep this in sync with the navbar height (h-24 in Navbar.tsx → 6rem → 96px)
+    const NAVBAR_HEIGHT = 96;
 
     const role = user?.role ?? 'member';
     const navItems = navForRole(role);
@@ -130,29 +130,29 @@ export function Sidebar() {
 
     return (
         <>
-            {/* Mobile Header */}
-            <div className="md:hidden fixed top-0 left-0 right-0 z-50 h-16 bg-[#252526]/95 backdrop-blur-xl border-b border-zinc-800/50 flex items-center justify-between px-4">
-                <span className="text-sm font-semibold text-white">PowerWorld</span>
-                <button
-                    onClick={() => setMobileOpen(!mobileOpen)}
-                    className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
-                >
-                    {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-                </button>
-            </div>
-
-            {/* Mobile Sidebar Overlay */}
+            {/* Mobile Sidebar Overlay — starts directly under the existing navbar */}
             {mobileOpen && (
                 <div className="md:hidden fixed inset-0 z-40">
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-                    <div className="absolute left-0 top-16 bottom-0 w-72 bg-[#252526] border-r border-zinc-800/50 shadow-2xl">
+                    {/* Clickable dim behind the drawer, but do NOT cover the navbar (top padding matches navbar height) */}
+                    <div
+                        className="absolute inset-0 bg-black/50"
+                        style={{ paddingTop: NAVBAR_HEIGHT }}
+                        onClick={() => setMobileOpen(false)}
+                    />
+                    <div
+                        className="absolute left-0 bottom-0 w-72 bg-[#252526] border-r border-zinc-800/50 shadow-2xl"
+                        style={{ top: NAVBAR_HEIGHT }}
+                    >
                         <SidebarContent />
                     </div>
                 </div>
             )}
 
-            {/* Desktop Sidebar — full viewport height, no logo */}
-            <aside className="hidden md:flex flex-col w-56 bg-[#252526] border-r border-zinc-800/50 h-screen sticky top-0 shrink-0 overflow-hidden">
+            {/* Desktop Sidebar — starts below navbar and can grow with page height */}
+            <aside
+                className="hidden md:flex flex-col w-56 bg-[#252526] border-r border-zinc-800/50 shrink-0 overflow-hidden sticky"
+                style={{ top: NAVBAR_HEIGHT }}
+            >
                 <SidebarContent />
             </aside>
         </>

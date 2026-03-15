@@ -14,6 +14,8 @@ export interface User {
   fullName: string;
   email: string;
   role: Role;
+  avatarKey?: string | null;
+  coverKey?: string | null;
   avatarUrl?: string;
   phone?: string;
   /** For members: must verify email before dashboard access */
@@ -121,6 +123,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           fullName: d.fullName,
           email: d.email,
           role: d.role,
+          avatarKey: d.avatarKey ?? null,
+          coverKey: d.coverKey ?? null,
           phone: d.phone,
           emailVerified: d.emailVerified,
           isOnboarded: d.profile?.isOnboarded,
@@ -185,6 +189,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fullName: d.fullName,
         email: d.email,
         role: d.role,
+        avatarKey: d.avatarKey ?? null,
+        coverKey: d.coverKey ?? null,
         phone: d.phone,
         emailVerified: d.emailVerified,
         isOnboarded: d.profile?.isOnboarded,

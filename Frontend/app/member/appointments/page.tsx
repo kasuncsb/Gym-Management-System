@@ -39,7 +39,7 @@ export default function AppointmentsPage() {
     useEffect(() => {
         Promise.all([
             opsAPI.myPtSessions(),
-            opsAPI.users('trainer'),
+            opsAPI.trainers(),
         ]).then(([sessions, trainers]) => {
             const trainerMap = new Map((trainers ?? []).map((t: any) => [t.id, t.fullName]));
             const mapped = (sessions ?? []).map((s: any) => {

@@ -530,6 +530,23 @@ export async function listVisits(limit = 100) {
     .limit(limit);
 }
 
+export async function getVisitStats() {
+  const [activeNow] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(visits)
+    .where(eq(visits.status, 'active'));
+
+  const [todayTotal] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(visits)
+    .where(sql`date(${visits.checkInAt}) = curdate()`);
+
+  return {
+    activeNow: Number(activeNow?.count ?? 0),
+    todayTotal: Number(todayTotal?.count ?? 0),
+  };
+}
+
 export async function listMyPtSessions(userId: string) {
   return db
     .select()
@@ -876,6 +893,17 @@ export async function listUsersByRole(role?: Role) {
     return db.select().from(users).where(and(eq(users.role, role), isNull(users.deletedAt))).orderBy(desc(users.createdAt));
   }
   return db.select().from(users).where(isNull(users.deletedAt)).orderBy(desc(users.createdAt));
+}
+
+export async function listTrainers() {
+  return db
+    .select({
+      id: users.id,
+      fullName: users.fullName,
+    })
+    .from(users)
+    .where(and(eq(users.role, 'trainer'), eq(users.isActive, true), isNull(users.deletedAt)))
+    .orderBy(users.fullName);
 }
 
 export async function createUser(input: {

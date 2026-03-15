@@ -19,6 +19,7 @@ router.get('/payments/me', authorize('member'), ops.getMyPayments);
 router.post('/visits/check-in', ops.checkIn);
 router.post('/visits/check-out', ops.checkOut);
 router.get('/visits/me', ops.listMyVisits);
+router.get('/visits/stats', ops.getVisitStats);
 router.get('/visits', authorize('admin', 'manager', 'trainer'), ops.listVisits);
 
 router.get('/pt-sessions/me', authorize('member'), ops.listMyPtSessions);
@@ -43,6 +44,7 @@ router.post('/inventory/transactions', authorize('manager', 'admin', 'trainer'),
 
 router.get('/messages', ops.listMessages);
 router.patch('/messages/:id/read', ops.markMessageRead);
+router.get('/trainers', ops.listTrainers);
 
 router.get('/reports/summary', authorize('manager', 'admin'), ops.getReportSummary);
 router.get('/reports/recent', authorize('manager', 'admin'), ops.getRecentReports);

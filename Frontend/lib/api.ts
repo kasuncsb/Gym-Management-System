@@ -247,6 +247,8 @@ export const opsAPI = {
     apiClient.post('/ops/visits/check-out').then(r => r.data.data),
   myVisits: (limit = 20) =>
     apiClient.get('/ops/visits/me', { params: { limit } }).then(r => r.data.data as any[]),
+  visitStats: () =>
+    apiClient.get('/ops/visits/stats').then(r => r.data.data as { activeNow: number; todayTotal: number }),
   visits: (limit = 100) =>
     apiClient.get('/ops/visits', { params: { limit } }).then(r => r.data.data as any[]),
 
@@ -293,6 +295,8 @@ export const opsAPI = {
     apiClient.get('/ops/messages').then(r => r.data.data as any[]),
   markMessageRead: (id: string) =>
     apiClient.patch(`/ops/messages/${id}/read`).then(r => r.data.data),
+  trainers: () =>
+    apiClient.get('/ops/trainers').then(r => r.data.data as Array<{ id: string; fullName: string }>),
   users: (role?: 'admin' | 'manager' | 'staff' | 'trainer' | 'member') =>
     apiClient.get('/ops/users', { params: role ? { role } : undefined }).then(r => r.data.data as any[]),
   createUser: (payload: { fullName: string; email: string; role: 'admin' | 'manager' | 'staff' | 'trainer' | 'member'; password: string; phone?: string }) =>

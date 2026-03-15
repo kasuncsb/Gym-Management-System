@@ -23,15 +23,14 @@ export default function CheckinPage() {
     const [capacity, setCapacity] = useState({ current: 0, limit: 120 });
 
     const reload = useCallback(async () => {
-        const [myVisits, allVisits] = await Promise.all([opsAPI.myVisits(20), opsAPI.visits(500)]);
+        const [myVisits, stats] = await Promise.all([opsAPI.myVisits(20), opsAPI.visitStats()]);
         const mapped = (myVisits ?? []).map((v: any) => ({
             member: `You (${user?.fullName ?? 'Member'})`,
             type: v.status === 'active' ? 'in' : 'out',
             time: new Date(v.checkInAt ?? v.checkOutAt ?? v.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
         })) as LogEntry[];
-        const current = (allVisits ?? []).filter((v: any) => v.status === 'active').length;
         setLog(mapped);
-        setCapacity({ current, limit: 120 });
+        setCapacity({ current: Number(stats?.activeNow ?? 0), limit: 120 });
         setScanned(mapped[0]?.type === 'in');
     }, [user?.fullName]);
 
