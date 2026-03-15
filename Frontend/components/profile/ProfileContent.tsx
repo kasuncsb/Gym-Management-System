@@ -77,6 +77,9 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
     confirmPassword: '',
   });
 
+  const [coverFailed, setCoverFailed] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
     authAPI.getProfile()
@@ -84,6 +87,8 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
         if (cancelled) return;
         const d = res.data.data as ProfileData;
         setProfileData(d);
+        setCoverFailed(false);
+        setAvatarFailed(false);
         setEditForm({
           fullName: d.fullName ?? '',
           phone: d.phone ?? '',
@@ -155,13 +160,16 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
     }
   };
 
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
   const onAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith('image/')) {
-      toast.error('Invalid file', 'Please choose an image file (JPEG, PNG, etc.)');
+    if (!file) return;
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error('Invalid file', 'Only JPEG, PNG or WebP images are allowed (no GIF).');
       return;
     }
     setAvatarUploading(true);
+    setAvatarFailed(false);
     try {
       await authAPI.uploadAvatar(file);
       setAvatarVersion(prev => prev + 1);
@@ -177,11 +185,13 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
 
   const onCoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith('image/')) {
-      toast.error('Invalid file', 'Please choose an image file (JPEG, PNG, etc.)');
+    if (!file) return;
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error('Invalid file', 'Only JPEG, PNG or WebP images are allowed (no GIF).');
       return;
     }
     setCoverUploading(true);
+    setCoverFailed(false);
     try {
       await authAPI.uploadCover(file);
       setCoverVersion(prev => prev + 1);
@@ -212,6 +222,8 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
   }[idStatus] ?? 'bg-zinc-500/20 text-zinc-400';
   const hasAvatar = !!p?.avatarKey;
   const hasCover = !!p?.coverKey;
+  const showCover = hasCover && !coverFailed;
+  const showAvatar = hasAvatar && !avatarFailed;
   const initials = p?.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
   const roleLabel = p?.role === 'admin' ? 'Administrator' : p?.role === 'manager' ? 'Manager' : p?.role === 'trainer' ? 'Trainer' : 'Member';
 
@@ -219,15 +231,16 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
     <div className="space-y-8">
       <div className="relative rounded-2xl overflow-hidden border border-zinc-800">
         <div className="h-32 sm:h-40 relative bg-gradient-to-br from-zinc-800 via-zinc-800/90 to-red-900/30">
-          {hasCover && (
+          {showCover && (
             <img
               src={authAPI.profileCoverUrl(coverVersion)}
               alt="Cover"
               className="absolute inset-0 w-full h-full object-cover"
+              onError={() => setCoverFailed(true)}
             />
           )}
           <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_60%,rgba(0,0,0,0.4)_100%)]" />
-          <input type="file" ref={coverInputRef} accept="image/*" className="hidden" onChange={onCoverChange} />
+          <input type="file" ref={coverInputRef} accept="image/jpeg,image/png,image/webp" className="hidden" onChange={onCoverChange} />
           <button
             type="button"
             onClick={() => coverInputRef.current?.click()}
@@ -241,13 +254,13 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
         <div className="relative -mt-16 sm:-mt-20 px-6 pb-6 flex flex-col sm:flex-row sm:items-end gap-4">
           <div className="relative shrink-0">
             <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full border-4 border-[#1e1e1e] bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center text-white font-bold text-3xl sm:text-4xl shadow-xl overflow-hidden">
-              {hasAvatar ? (
-                <img src={authAPI.profileAvatarUrl(avatarVersion)} alt="Avatar" className="w-full h-full object-cover" />
+              {showAvatar ? (
+                <img src={authAPI.profileAvatarUrl(avatarVersion)} alt="Avatar" className="w-full h-full object-cover" onError={() => setAvatarFailed(true)} />
               ) : (
                 initials
               )}
             </div>
-            <input type="file" ref={avatarInputRef} accept="image/*" className="hidden" onChange={onAvatarChange} />
+            <input type="file" ref={avatarInputRef} accept="image/jpeg,image/png,image/webp" className="hidden" onChange={onAvatarChange} />
             <button
               type="button"
               onClick={() => avatarInputRef.current?.click()}

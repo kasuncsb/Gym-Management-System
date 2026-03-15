@@ -549,8 +549,7 @@ export async function completeOnboarding(userId: string, input: OnboardingInput)
 
 // ── ID Document Upload ────────────────────────────────────────────────────────
 const MIME_EXT: Record<string, string> = {
-  'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/gif': 'gif',
-  'image/webp': 'webp', 'image/bmp': 'bmp', 'image/heic': 'heic',
+  'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
 };
 
 function extensionFromMime(mimetype: string): string {

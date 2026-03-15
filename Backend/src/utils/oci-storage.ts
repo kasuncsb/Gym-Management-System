@@ -5,6 +5,7 @@
  */
 import * as common from 'oci-common';
 import * as objectstorage from 'oci-objectstorage';
+import { Readable } from 'stream';
 import { env } from '../config/env.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -90,8 +91,25 @@ export async function downloadFile(
     objectName,
   });
 
-  return {
-    body: response.value as unknown as NodeJS.ReadableStream,
-    contentType: response.contentType ?? 'application/octet-stream',
-  };
+  const raw = response.value;
+  const contentType = response.contentType ?? 'application/octet-stream';
+
+  // OCI SDK may return Buffer or a non-Node stream in some environments — normalize to Node Readable.
+  let body: NodeJS.ReadableStream;
+  if (raw == null) {
+    throw new Error('OCI getObject returned no body');
+  }
+  if (Buffer.isBuffer(raw)) {
+    body = Readable.from(raw);
+  } else if (typeof (raw as NodeJS.ReadableStream).pipe === 'function' && typeof (raw as NodeJS.ReadableStream).on === 'function') {
+    body = raw as NodeJS.ReadableStream;
+  } else if (raw instanceof Uint8Array) {
+    body = Readable.from(Buffer.from(raw));
+  } else if (typeof ArrayBuffer !== 'undefined' && raw instanceof ArrayBuffer) {
+    body = Readable.from(Buffer.from(new Uint8Array(raw)));
+  } else {
+    throw new Error('OCI getObject returned unsupported body type; expected Buffer or Node stream');
+  }
+
+  return { body, contentType };
 }

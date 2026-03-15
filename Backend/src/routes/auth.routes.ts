@@ -19,15 +19,17 @@ import {
 
 const router = Router();
 
-// Multer — in-memory storage for OCI uploads. Max 5MB per file.
+// Allowed image types for profile and ID uploads — static only (no GIF/animated).
+const ALLOWED_IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
-    if (file.mimetype.startsWith('image/')) {
+    if (ALLOWED_IMAGE_MIMES.includes(file.mimetype as any)) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are accepted'));
+      cb(new Error('Only JPEG, PNG or WebP images are allowed (max 5MB)'));
     }
   },
 });
