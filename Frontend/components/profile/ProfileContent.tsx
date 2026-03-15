@@ -47,12 +47,10 @@ interface ProfileContentProps {
 }
 
 export function ProfileContent({ isMember = false }: ProfileContentProps) {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, profileMediaVersion, bumpProfileMediaVersion } = useAuth();
   const toast = useToast();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
-  const [avatarVersion, setAvatarVersion] = useState(0);
-  const [coverVersion, setCoverVersion] = useState(0);
   const [editOpen, setEditOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -172,7 +170,7 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
     setAvatarFailed(false);
     try {
       await authAPI.uploadAvatar(file);
-      setAvatarVersion(prev => prev + 1);
+      bumpProfileMediaVersion();
       setProfileData(prev => prev ? { ...prev, avatarKey: 'set' } : null);
       toast.success('Avatar updated', 'Your profile photo has been updated.');
     } catch (err) {
@@ -194,7 +192,7 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
     setCoverFailed(false);
     try {
       await authAPI.uploadCover(file);
-      setCoverVersion(prev => prev + 1);
+      bumpProfileMediaVersion();
       setProfileData(prev => prev ? { ...prev, coverKey: 'set' } : null);
       toast.success('Cover updated', 'Your cover image has been updated.');
     } catch (err) {
@@ -233,10 +231,11 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
         <div className="h-32 sm:h-40 relative bg-gradient-to-br from-zinc-800 via-zinc-800/90 to-red-900/30">
           {showCover && (
             <img
-              src={authAPI.profileCoverUrl(coverVersion)}
+              src={authAPI.profileCoverUrl(profileMediaVersion)}
               alt="Cover"
               className="absolute inset-0 w-full h-full object-cover"
               onError={() => setCoverFailed(true)}
+              key={profileMediaVersion}
             />
           )}
           <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_60%,rgba(0,0,0,0.4)_100%)]" />
@@ -255,7 +254,7 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
           <div className="relative shrink-0">
             <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full border-4 border-[#1e1e1e] bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center text-white font-bold text-3xl sm:text-4xl shadow-xl overflow-hidden">
               {showAvatar ? (
-                <img src={authAPI.profileAvatarUrl(avatarVersion)} alt="Avatar" className="w-full h-full object-cover" onError={() => setAvatarFailed(true)} />
+                <img src={authAPI.profileAvatarUrl(profileMediaVersion)} alt="Avatar" className="w-full h-full object-cover" onError={() => setAvatarFailed(true)} key={profileMediaVersion} />
               ) : (
                 initials
               )}

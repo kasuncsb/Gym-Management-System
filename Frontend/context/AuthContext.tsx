@@ -31,6 +31,9 @@ interface AuthContextType {
   loading: boolean;
   isAuthenticated: boolean;
   hasRole: (...roles: Role[]) => boolean;
+  /** Bump after avatar/cover upload so Navbar and profile section both show new image. */
+  profileMediaVersion: number;
+  bumpProfileMediaVersion: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,7 +59,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // mount to eliminate React hydration error #418 in production builds.
   const [mounted, setMounted] = useState(false);
   const lastProfileSuccessAt = useRef<number>(0);
+  const [profileMediaVersion, setProfileMediaVersion] = useState(0);
   const router = useRouter();
+
+  const bumpProfileMediaVersion = useCallback(() => {
+    setProfileMediaVersion((v) => v + 1);
+  }, []);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -139,15 +147,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await authAPI.logout();
     } catch {
       // Server-side token revocation is best-effort only.
-      // Local cleanup below is what actually matters for UX.
     }
     setUser(null);
     setIsAuthenticated(false);
+    setProfileMediaVersion(0);
     localStorage.removeItem('user');
-    // Clear role cookie
+    sessionStorage.clear();
     document.cookie = 'user_role=; path=/; max-age=0';
-    router.push('/');
-  }, [router]);
+    // Hard navigation so the whole app tree unmounts and no stale state remains (fixes empty dashboard on next login).
+    window.location.href = '/';
+  }, []);
 
   const hasRole = useCallback((...roles: Role[]) => {
     return !!user && roles.includes(user.role);
@@ -185,6 +194,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading, loading: isLoading,
       isAuthenticated,
       hasRole,
+      profileMediaVersion,
+      bumpProfileMediaVersion,
     }}>
       {children}
     </AuthContext.Provider>

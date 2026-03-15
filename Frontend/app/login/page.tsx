@@ -62,7 +62,7 @@ function LoginForm() {
             const response = await authAPI.login(email, password);
             const { user: responseUser } = response.data.data;
 
-            // Cookies set by backend — just update client state
+            // Update client state only; redirect is handled by useEffect below so it runs after state commit (avoids empty dashboard).
             login({
                 id: responseUser.id,
                 fullName: responseUser.fullName,
@@ -72,16 +72,6 @@ function LoginForm() {
                 emailVerified: responseUser.emailVerified,
                 isOnboarded: responseUser.isOnboarded,
             });
-
-            // Members: verify → onboard → dashboard
-            if (responseUser.role === 'member') {
-                if (!responseUser.emailVerified) router.push('/member/verify-email');
-                else if (!responseUser.isOnboarded) router.push('/member/onboard');
-                else router.push('/member/dashboard');
-            } else {
-                router.push(dashboardPathForRole(responseUser.role));
-            }
-
         } catch (err: unknown) {
             console.error('Login failed:', err);
             const msg = getErrorMessage(err);
