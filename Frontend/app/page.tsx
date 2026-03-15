@@ -1,7 +1,6 @@
 'use client';
 
 import Link from "next/link";
-import { Navbar } from "@/components/ui/Navbar";
 import { HeroVideo } from "@/components/ui/HeroVideo";
 import { ArrowRight, Check, Zap, Users, Trophy } from "lucide-react";
 
@@ -39,10 +38,8 @@ const STATS = [
 export default function Home() {
   return (
     <div className="min-h-screen bg-app text-white selection:bg-red-600/30">
-      <Navbar />
-
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-24">
         <div className="absolute inset-0 z-0">
           <HeroVideo className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 min-w-full min-h-full w-auto h-auto object-cover grayscale opacity-30" />
           

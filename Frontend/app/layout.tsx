@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { Navbar } from "@/components/ui/Navbar";
 
 /**
  * next/font/google downloads Inter at build time and injects it as a
@@ -57,7 +58,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`dark ${inter.variable}`}>
       <body className="min-h-screen bg-app text-white antialiased font-sans">
-        <Providers>{children}</Providers>
+        <Providers>
+        <Navbar />
+        {children}
+      </Providers>
       </body>
     </html>
   );

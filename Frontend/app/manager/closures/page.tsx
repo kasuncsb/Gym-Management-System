@@ -75,10 +75,10 @@ export default function ManagerClosuresPage() {
 
             <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title="Add Closure" size="md">
                 <div className="space-y-4">
-                    <Input label="Date" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} required />
-                    <Input label="Reason" value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} placeholder="e.g. National Holiday" required />
-                    <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={form.emergency} onChange={e => setForm(f => ({ ...f, emergency: e.target.checked }))} className="rounded border-zinc-600" />
+                    <Input id="closures-date" label="Date" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} required />
+                    <Input id="closures-reason" label="Reason" value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} placeholder="e.g. National Holiday" required />
+                    <label htmlFor="closures-emergency" className="flex items-center gap-2 cursor-pointer">
+                        <input id="closures-emergency" type="checkbox" checked={form.emergency} onChange={e => setForm(f => ({ ...f, emergency: e.target.checked }))} className="rounded border-zinc-600" />
                         <span className="text-sm text-zinc-300">Emergency closure</span>
                     </label>
                     <div className="flex justify-end gap-3 pt-2">

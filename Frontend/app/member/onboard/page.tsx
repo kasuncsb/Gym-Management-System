@@ -7,7 +7,7 @@ import { useAuth, dashboardPathForRole } from '@/context/AuthContext';
 import {
     ChevronRight, ChevronLeft, Loader2, CheckCircle,
     AlertCircle, Flame, Zap, Wind, Activity, Heart, Upload, FileImage,
-    CreditCard, Dumbbell, Target, Leaf
+    Dumbbell, Target, Leaf, ChevronDown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -49,34 +49,75 @@ export default function Onboard() {
         if (user?.role === 'member' && !user?.emailVerified) { router.replace('/member/verify-email'); }
     }, [authLoading, isAuthenticated, user, router]);
 
-    // Step 4 — NIC document state
-    const [nicFront, setNicFront] = useState<File | null>(null);
-    const [nicBack, setNicBack] = useState<File | null>(null);
-    const [nicFrontPreview, setNicFrontPreview] = useState('');
-    const [nicBackPreview, setNicBackPreview] = useState('');
+    // Step 1 — ID document type and files
+    type DocType = 'nic' | 'driving_license' | 'passport';
+    const [documentType, setDocumentType] = useState<DocType>('nic');
+    const [docFront, setDocFront] = useState<File | null>(null);
+    const [docBack, setDocBack] = useState<File | null>(null);
+    const [docFrontPreview, setDocFrontPreview] = useState('');
+    const [docBackPreview, setDocBackPreview] = useState('');
+    const [idUploaded, setIdUploaded] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [uploading, setUploading] = useState(false);
+    const [uploadedFrontName, setUploadedFrontName] = useState<string | null>(null);
+    const [uploadedBackName, setUploadedBackName] = useState<string | null>(null);
+
+    const isPassport = documentType === 'passport';
+    const needsTwoFiles = !isPassport;
 
     const handleFile = (field: 'front' | 'back', file: File | null) => {
         if (!file) return;
         if (file.size > 5 * 1024 * 1024) { setError('File must be under 5MB'); return; }
+        if (!file.type.startsWith('image/')) { setError('Please select an image file.'); return; }
         const url = URL.createObjectURL(file);
-        if (field === 'front') { setNicFront(file); setNicFrontPreview(url); }
-        else { setNicBack(file); setNicBackPreview(url); }
+        if (field === 'front') { setDocFront(file); setDocFrontPreview(url); }
+        else { setDocBack(file); setDocBackPreview(url); }
         setError('');
     };
 
+    const canUploadStep1 = isPassport ? !!docFront : !!docFront && !!docBack;
     const canProceedStep2 = data.experienceLevel !== '';
     const canProceedStep3 = data.fitnessGoals !== '';
 
+    const handleUploadIdDocs = async () => {
+        if (!canUploadStep1) {
+            setError(isPassport ? 'Please select your passport image.' : 'Please select both front and back images.');
+            return;
+        }
+        setUploading(true);
+        setError('');
+        setUploadProgress(0);
+        try {
+            const formData = new FormData();
+            formData.append('document_type', documentType);
+            formData.append('nic_front', docFront!);
+            if (!isPassport && docBack) formData.append('nic_back', docBack);
+            await authAPI.uploadIdDocuments(formData, {
+                onUploadProgress: (e) => {
+                    const pct = e.total ? Math.round((e.loaded / e.total) * 100) : 0;
+                    setUploadProgress(pct);
+                },
+            });
+            setUploadedFrontName(docFront!.name);
+            if (!isPassport && docBack) setUploadedBackName(docBack.name);
+            setIdUploaded(true);
+        } catch (err) {
+            setError(getErrorMessage(err));
+        } finally {
+            setUploading(false);
+            setUploadProgress(0);
+        }
+    };
+
     const handleNext = () => {
-        if (step === 1 && (!nicFront || !nicBack)) { setError('Please upload both NIC front and back images.'); return; }
-        if (step === 2 && !canProceedStep2) { setError('Please select your experience level.'); return; }
-        if (step === 3 && !canProceedStep3) { setError('Please select at least one fitness goal.'); return; }
+        if (step === 1) {
+            if (!idUploaded) { setError('Please upload your documents first.'); return; }
+        } else if (step === 2 && !canProceedStep2) { setError('Please select your experience level.'); return; }
+        else if (step === 3 && !canProceedStep3) { setError('Please select at least one fitness goal.'); return; }
         setError('');
         setStep(prev => (prev + 1) as Step);
     };
 
-    // Two-phase submit: NIC upload already done on step 1 advance (we hold files)
-    // Final phase: save profile data → redirect
     const handleSubmit = async () => {
         if (!canProceedStep3) {
             setError('Please select at least one fitness goal.');
@@ -85,14 +126,6 @@ export default function Onboard() {
         setSubmitting(true);
         setError('');
         try {
-            // BUG-12 fix: Upload NIC documents FIRST, then mark onboarding complete.
-            // Previously, onboarding was saved first — if OCI upload failed, the
-            // DB would have isOnboarded=true but no ID documents (inconsistent state).
-            const formData = new FormData();
-            formData.append('nic_front', nicFront!);
-            formData.append('nic_back', nicBack!);
-            await authAPI.uploadIdDocuments(formData);
-
             await authAPI.completeOnboarding({
                 experienceLevel: data.experienceLevel as 'beginner' | 'intermediate' | 'advanced',
                 fitnessGoals: data.fitnessGoals || undefined,
@@ -136,74 +169,114 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals'];
                     })}
                 </div>
 
-                <div className="bg-zinc-800/80 backdrop-blur-xl border border-zinc-700 rounded-3xl p-8 shadow-2xl">
+                <div className="bg-zinc-800/80 backdrop-blur-xl border border-zinc-700 rounded-3xl p-8 shadow-2xl" id="onboard-card">
                     {error && (
-                        <div className="mb-5 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-2">
+                        <div className="mb-5 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-2" id="onboard-error" role="alert">
                             <AlertCircle size={16} /> {error}
                         </div>
                     )}
 
                     {step === 1 && (
-                        <div className="space-y-5">
+                        <div className="space-y-5" id="onboard-step-1">
                             <div>
-                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                    <CreditCard size={22} className="text-red-500 shrink-0" /> Identity Verification
-                                </h2>
-                                <p className="text-zinc-400 text-sm mt-1">NIC front and back. Clear images, under 5MB each.</p>
+                                <h2 className="text-xl font-bold text-white">Identity Verification</h2>
+                                <p className="text-zinc-400 text-sm mt-1">
+                                    {documentType === 'nic' && 'Upload front and back of your National Identity Card. Clear images, under 5MB each.'}
+                                    {documentType === 'driving_license' && 'Upload front and back of your Driving License. Clear images, under 5MB each.'}
+                                    {documentType === 'passport' && 'Upload the photo page of your Passport. Clear image, under 5MB.'}
+                                </p>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label htmlFor="onboard-doc-type" className="text-sm font-medium text-zinc-300">Document type</label>
+                                <div className="relative">
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" size={18} />
+                                    <select
+                                        id="onboard-doc-type"
+                                        value={documentType}
+                                        onChange={e => { setDocumentType(e.target.value as DocType); setDocFront(null); setDocBack(null); setDocFrontPreview(''); setDocBackPreview(''); setIdUploaded(false); setUploadedFrontName(null); setUploadedBackName(null); setError(''); }}
+                                        className="w-full appearance-none bg-zinc-800/80 border border-zinc-700 rounded-xl py-2.5 pl-4 pr-10 text-white focus:outline-none focus:border-red-600 text-sm cursor-pointer"
+                                        aria-label="Document type"
+                                    >
+                                        <option value="nic" className="bg-zinc-900">National Identity Card</option>
+                                        <option value="driving_license" className="bg-zinc-900">Driving License</option>
+                                        <option value="passport" className="bg-zinc-900">Passport</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className={cn('grid gap-4', needsTwoFiles ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1')}>
                                 <div className="space-y-1.5">
-                                    <span className="text-sm font-medium text-zinc-300">NIC Front</span>
-                                    <label className={cn(
+                                    <label htmlFor="onboard-nic-front" className="text-sm font-medium text-zinc-300">
+                                        {isPassport ? 'Passport (photo page)' : 'Front'}
+                                    </label>
+                                    <label htmlFor="onboard-nic-front" className={cn(
                                         'flex flex-col items-center justify-center h-36 rounded-xl border-2 border-dashed cursor-pointer transition-all overflow-hidden relative',
-                                        nicFront ? 'border-emerald-500/50' : 'border-zinc-700 hover:border-zinc-500'
+                                        docFront ? 'border-emerald-500/50' : 'border-zinc-700 hover:border-zinc-500'
                                     )}>
-                                        {nicFrontPreview ? (
-                                            <img src={nicFrontPreview} alt="NIC Front" className="absolute inset-0 w-full h-full object-cover" />
+                                        {docFrontPreview ? (
+                                            <img src={docFrontPreview} alt="Front" className="absolute inset-0 w-full h-full object-cover" />
                                         ) : (
                                             <div className="flex flex-col items-center gap-1.5 text-zinc-500">
                                                 <Upload size={24} />
-                                                <span className="text-xs">JPEG / PNG / WebP</span>
+                                                <span className="text-xs">Image files</span>
                                             </div>
                                         )}
-                                        <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only"
+                                        <input id="onboard-nic-front" type="file" accept="image/*" className="sr-only" aria-label={isPassport ? 'Passport' : 'Front'}
                                             onChange={e => handleFile('front', e.target.files?.[0] ?? null)} />
                                     </label>
-                                    {nicFront && <p className="text-xs text-emerald-400 flex items-center gap-1"><CheckCircle size={12} /> {nicFront.name}</p>}
+                                    {idUploaded && uploadedFrontName ? (
+                                        <p className="text-xs text-emerald-400 flex items-center gap-1"><CheckCircle size={12} /> {uploadedFrontName}</p>
+                                    ) : docFront && !idUploaded ? (
+                                        <p className="text-xs text-zinc-400">{docFront.name}</p>
+                                    ) : null}
                                 </div>
-                                <div className="space-y-1.5">
-                                    <span className="text-sm font-medium text-zinc-300">NIC Back</span>
-                                    <label className={cn(
-                                        'flex flex-col items-center justify-center h-36 rounded-xl border-2 border-dashed cursor-pointer transition-all overflow-hidden relative',
-                                        nicBack ? 'border-emerald-500/50' : 'border-zinc-700 hover:border-zinc-500'
-                                    )}>
-                                        {nicBackPreview ? (
-                                            <img src={nicBackPreview} alt="NIC Back" className="absolute inset-0 w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="flex flex-col items-center gap-1.5 text-zinc-500">
-                                                <FileImage size={24} />
-                                                <span className="text-xs">JPEG / PNG / WebP</span>
-                                            </div>
-                                        )}
-                                        <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only"
-                                            onChange={e => handleFile('back', e.target.files?.[0] ?? null)} />
-                                    </label>
-                                    {nicBack && <p className="text-xs text-emerald-400 flex items-center gap-1"><CheckCircle size={12} /> {nicBack.name}</p>}
-                                </div>
+                                {needsTwoFiles && (
+                                    <div className="space-y-1.5">
+                                        <label htmlFor="onboard-nic-back" className="text-sm font-medium text-zinc-300">Back</label>
+                                        <label htmlFor="onboard-nic-back" className={cn(
+                                            'flex flex-col items-center justify-center h-36 rounded-xl border-2 border-dashed cursor-pointer transition-all overflow-hidden relative',
+                                            docBack ? 'border-emerald-500/50' : 'border-zinc-700 hover:border-zinc-500'
+                                        )}>
+                                            {docBackPreview ? (
+                                                <img src={docBackPreview} alt="Back" className="absolute inset-0 w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-1.5 text-zinc-500">
+                                                    <FileImage size={24} />
+                                                    <span className="text-xs">Image files</span>
+                                                </div>
+                                            )}
+                                            <input id="onboard-nic-back" type="file" accept="image/*" className="sr-only" aria-label="Back"
+                                                onChange={e => handleFile('back', e.target.files?.[0] ?? null)} />
+                                        </label>
+                                        {idUploaded && uploadedBackName ? (
+                                            <p className="text-xs text-emerald-400 flex items-center gap-1"><CheckCircle size={12} /> {uploadedBackName}</p>
+                                        ) : docBack && !idUploaded ? (
+                                            <p className="text-xs text-zinc-400">{docBack.name}</p>
+                                        ) : null}
+                                    </div>
+                                )}
                             </div>
+                            {uploading && (
+                                <div className="space-y-1">
+                                    <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                                        <div className="h-full bg-red-600 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                                    </div>
+                                    <p className="text-xs text-zinc-500">Uploading… {uploadProgress}%</p>
+                                </div>
+                            )}
                             <p className="text-xs text-zinc-500">Stored securely; reviewed by staff only.</p>
                         </div>
                     )}
 
                     {step === 2 && (
-                        <div className="space-y-5">
+                        <div className="space-y-5" id="onboard-step-2">
                             <div>
                                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                                     <Dumbbell size={22} className="text-red-500 shrink-0" /> Experience
                                 </h2>
                                 <p className="text-zinc-400 text-sm mt-1">Select your level.</p>
                             </div>
-                            <div className="grid gap-2">
+                            <div className="grid gap-2" role="group" aria-labelledby="onboard-experience-label">
+                                <span id="onboard-experience-label" className="sr-only">Experience level</span>
                                 {[
                                     { value: 'beginner', label: 'New to gym', icon: Leaf },
                                     { value: 'intermediate', label: 'Some experience', icon: Flame },
@@ -211,6 +284,7 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals'];
                                 ].map(opt => (
                                     <button
                                         key={opt.value}
+                                        id={`onboard-experience-${opt.value}`}
                                         type="button"
                                         onClick={() => update('experienceLevel', opt.value)}
                                         className={cn(
@@ -228,17 +302,19 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals'];
                     )}
 
                     {step === 3 && (
-                        <div className="space-y-5">
+                        <div className="space-y-5" id="onboard-step-3">
                             <div>
                                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                                     <Target size={22} className="text-red-500 shrink-0" /> Fitness goal
                                 </h2>
                                 <p className="text-zinc-400 text-sm mt-1">Pick at least one.</p>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="group" aria-labelledby="onboard-goals-label">
+                                <span id="onboard-goals-label" className="sr-only">Fitness goal</span>
                                 {GOALS.map(goal => (
                                     <button
                                         key={goal.id}
+                                        id={`onboard-goal-${goal.id}`}
                                         type="button"
                                         onClick={() => update('fitnessGoals', goal.id)}
                                         className={cn(
@@ -257,6 +333,7 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals'];
                     <div className="flex items-center justify-between mt-6 pt-5 border-t border-zinc-700">
                         {step > 1 ? (
                             <button
+                                id="onboard-back"
                                 type="button"
                                 onClick={() => { setStep(prev => (prev - 1) as Step); setError(''); }}
                                 className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-700 transition-all text-sm font-medium"
@@ -264,8 +341,34 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals'];
                                 <ChevronLeft size={18} /> Back
                             </button>
                         ) : <div />}
-                        {step < 3 ? (
+                        {step === 1 ? (
+                            idUploaded ? (
+                                <button
+                                    id="onboard-continue"
+                                    type="button"
+                                    onClick={handleNext}
+                                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-all"
+                                >
+                                    Continue <ChevronRight size={18} />
+                                </button>
+                            ) : (
+                                <button
+                                    id="onboard-upload"
+                                    type="button"
+                                    onClick={handleUploadIdDocs}
+                                    disabled={!canUploadStep1 || uploading}
+                                    className={cn(
+                                        'flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-all',
+                                        (!canUploadStep1 || uploading) && 'opacity-70 cursor-not-allowed'
+                                    )}
+                                >
+                                    {uploading ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+                                    Upload documents
+                                </button>
+                            )
+                        ) : step < 3 ? (
                             <button
+                                id="onboard-continue"
                                 type="button"
                                 onClick={handleNext}
                                 className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-all"
@@ -274,6 +377,7 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals'];
                             </button>
                         ) : (
                             <button
+                                id="onboard-submit"
                                 type="button"
                                 onClick={handleSubmit}
                                 disabled={submitting}

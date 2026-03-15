@@ -101,10 +101,10 @@ export default function TrainerInventoryPage() {
 
             <Modal isOpen={txOpen} onClose={() => setTxOpen(false)} title="Record Transaction" size="md">
                 <div className="space-y-4">
-                    <Select label="Item" options={ITEM_OPTIONS} value={form.item} onChange={e => setForm(f => ({ ...f, item: e.target.value }))} placeholder="Select item" />
-                    <Select label="Type" options={TX_OPTIONS} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value as TxType }))} />
-                    <Input label="Quantity" type="number" value={form.qty} onChange={e => setForm(f => ({ ...f, qty: e.target.value }))} placeholder="0" />
-                    <Input label="Reference / Notes (optional)" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes" />
+                    <Select id="trainer-inventory-item" label="Item" options={ITEM_OPTIONS} value={form.item} onChange={e => setForm(f => ({ ...f, item: e.target.value }))} placeholder="Select item" />
+                    <Select id="trainer-inventory-type" label="Type" options={TX_OPTIONS} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value as TxType }))} />
+                    <Input id="trainer-inventory-qty" label="Quantity" type="number" value={form.qty} onChange={e => setForm(f => ({ ...f, qty: e.target.value }))} placeholder="0" />
+                    <Input id="trainer-inventory-notes" label="Reference / Notes (optional)" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes" />
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setTxOpen(false)}>Cancel</LoadingButton>
                         <LoadingButton loading={loading} onClick={handleRecord}>Record</LoadingButton>

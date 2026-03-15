@@ -95,7 +95,7 @@ export default function TrainerCheckinPage() {
             <Card padding="lg">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                     <h2 className="text-lg font-semibold text-white">Check-in Log</h2>
-                    <SearchInput value={search} onChange={setSearch} placeholder="Search member..." className="w-full sm:w-56" />
+                    <SearchInput id="trainer-checkin-search" value={search} onChange={setSearch} placeholder="Search member..." className="w-full sm:w-56" aria-label="Search member" />
                 </div>
                 <div className="space-y-2">
                     {filtered.map((m, i) => (

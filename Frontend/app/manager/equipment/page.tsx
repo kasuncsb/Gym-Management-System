@@ -137,10 +137,10 @@ export default function ManagerEquipmentPage() {
 
             <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title="Add Equipment" size="md">
                 <div className="space-y-4">
-                    <Input label="Name" value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Treadmill #3" />
-                    <Select label="Category" options={[{ value: 'Cardio', label: 'Cardio' }, { value: 'Strength', label: 'Strength' }]} value={addForm.category} onChange={e => setAddForm(f => ({ ...f, category: e.target.value }))} />
-                    <Input label="Zone" value={addForm.zone} onChange={e => setAddForm(f => ({ ...f, zone: e.target.value }))} placeholder="e.g. Zone A" />
-                    <Input label="Quantity" type="number" value={addForm.quantity} onChange={e => setAddForm(f => ({ ...f, quantity: e.target.value }))} />
+                    <Input id="equipment-add-name" label="Name" value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Treadmill #3" />
+                    <Select id="equipment-add-category" label="Category" options={[{ value: 'Cardio', label: 'Cardio' }, { value: 'Strength', label: 'Strength' }]} value={addForm.category} onChange={e => setAddForm(f => ({ ...f, category: e.target.value }))} />
+                    <Input id="equipment-add-zone" label="Zone" value={addForm.zone} onChange={e => setAddForm(f => ({ ...f, zone: e.target.value }))} placeholder="e.g. Zone A" />
+                    <Input id="equipment-add-quantity" label="Quantity" type="number" value={addForm.quantity} onChange={e => setAddForm(f => ({ ...f, quantity: e.target.value }))} />
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setAddOpen(false)}>Cancel</LoadingButton>
                         <LoadingButton loading={loading} onClick={handleAdd}>Add</LoadingButton>
@@ -150,8 +150,8 @@ export default function ManagerEquipmentPage() {
 
             <Modal isOpen={resolveOpen} onClose={() => setResolveOpen(false)} title="Resolve Issue" description={selectedReport ? `Resolving: ${selectedReport.eq}` : ''} size="md">
                 <div className="space-y-4">
-                    <Textarea label="Resolution Notes" value={resolveForm.notes} onChange={e => setResolveForm(f => ({ ...f, notes: e.target.value }))} placeholder="What was done?" required />
-                    <Input label="Cost (Rs.) - optional" type="number" value={resolveForm.cost} onChange={e => setResolveForm(f => ({ ...f, cost: e.target.value }))} placeholder="0" />
+                    <Textarea id="equipment-resolve-notes" label="Resolution Notes" value={resolveForm.notes} onChange={e => setResolveForm(f => ({ ...f, notes: e.target.value }))} placeholder="What was done?" required />
+                    <Input id="equipment-resolve-cost" label="Cost (Rs.) - optional" type="number" value={resolveForm.cost} onChange={e => setResolveForm(f => ({ ...f, cost: e.target.value }))} placeholder="0" />
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setResolveOpen(false)}>Cancel</LoadingButton>
                         <LoadingButton loading={loading} onClick={handleResolve}>Resolve</LoadingButton>

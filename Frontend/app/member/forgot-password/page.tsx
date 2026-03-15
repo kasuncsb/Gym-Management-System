@@ -78,23 +78,26 @@ export default function ForgotPassword() {
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="w-full space-y-5">
+                    <form id="forgot-password-form" onSubmit={handleSubmit} className="w-full space-y-5">
                         <div className="space-y-2">
-                            <label className="block text-sm font-medium text-zinc-300">Email Address</label>
+                            <label htmlFor="forgot-password-email" className="block text-sm font-medium text-zinc-300">Email Address</label>
                             <div className="relative group">
-                                <Mail className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={18} />
+                                <Mail className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors pointer-events-none" size={18} />
                                 <input
+                                    id="forgot-password-email"
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-500 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
                                     placeholder="name@example.com"
                                     required
+                                    autoComplete="email"
                                 />
                             </div>
                         </div>
 
                         <button
+                            id="forgot-password-submit"
                             type="submit"
                             disabled={isLoading}
                             className={cn(

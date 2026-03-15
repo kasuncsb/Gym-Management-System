@@ -73,7 +73,12 @@ export const users = mysqlTable('users', {
   memberStatus: mysqlEnum('member_status', ['active', 'inactive', 'suspended']),
   assignedTrainerId: varchar('assigned_trainer', { length: 36 }),
 
-  // ID Verification (NIC documents uploaded to OCI Object Storage)
+  // Profile media (OCI object keys or local paths in development)
+  avatarKey: varchar('avatar_key', { length: 500 }),
+  coverKey: varchar('cover_key', { length: 500 }),
+
+  // ID Verification (document type + files in OCI Object Storage)
+  idDocumentType: mysqlEnum('id_document_type', ['nic', 'driving_license', 'passport']),
   idNicFront: varchar('id_nic_front', { length: 500 }),
   idNicBack: varchar('id_nic_back', { length: 500 }),
   idVerificationStatus: mysqlEnum('id_verification_status', ['pending', 'approved', 'rejected']),

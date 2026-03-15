@@ -95,61 +95,66 @@ function LoginForm() {
                 </div>
 
                 {/* Form card — left-aligned form elements */}
-                <div className="w-full max-w-md bg-zinc-800/80 backdrop-blur-xl border border-zinc-700 p-8 rounded-3xl shadow-2xl">
+                <div className="w-full max-w-md bg-zinc-800/80 backdrop-blur-xl border border-zinc-700 p-8 rounded-3xl shadow-2xl" id="login-card">
                     <div className="mb-8">
-                        <h2 className="text-2xl font-bold mb-2">Sign In</h2>
+                        <h2 className="text-2xl font-bold mb-2" id="login-title">Sign In</h2>
                         <p className="text-zinc-400 text-sm">Enter your details to access your account.</p>
                     </div>
 
                     {successMsg && (
-                        <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm flex items-center gap-2">
+                        <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm flex items-center gap-2" id="login-success" role="status">
                             <CheckCircle size={16} className="shrink-0" />
                             {successMsg}
                         </div>
                     )}
 
                     {error && (
-                        <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm flex items-center gap-2">
+                        <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm flex items-center gap-2" id="login-error" role="alert">
                             <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
                             {error}
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="w-full space-y-5">
+                    <form id="login-form" onSubmit={handleSubmit} className="w-full space-y-5">
                         <div className="space-y-2">
-                            <label className="block text-sm font-medium text-zinc-300">Email Address</label>
+                            <label htmlFor="login-email" className="block text-sm font-medium text-zinc-300">Email Address</label>
                             <div className="relative group">
-                                <Mail className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={18} />
+                                <Mail className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors pointer-events-none" size={18} />
                                 <input
+                                    id="login-email"
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-500 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
                                     placeholder="name@example.com"
                                     required
+                                    autoComplete="email"
                                 />
                             </div>
                         </div>
 
                         <div className="space-y-2">
                             <div className="flex justify-between items-center">
-                                <label className="block text-sm font-medium text-zinc-300">Password</label>
+                                <label htmlFor="login-password" className="block text-sm font-medium text-zinc-300">Password</label>
                                 <Link href="/member/forgot-password" className="text-xs text-red-500 hover:text-red-400">Forgot password?</Link>
                             </div>
                             <div className="relative group">
-                                <Lock className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors" size={18} />
+                                <Lock className="absolute left-3 top-3.5 text-zinc-500 group-focus-within:text-red-500 transition-colors pointer-events-none" size={18} />
                                 <input
+                                    id="login-password"
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-500 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
                                     placeholder="••••••••"
                                     required
+                                    autoComplete="current-password"
                                 />
                             </div>
                         </div>
 
                         <button
+                            id="login-submit"
                             type="submit"
                             disabled={isLoading}
                             className={cn(

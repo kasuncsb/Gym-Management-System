@@ -145,17 +145,19 @@ export default function ManagerSubscriptionsPage() {
 
             <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Plan' : 'Add Plan'} size="md">
                 <div className="space-y-4">
-                    <Input label="Plan Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Premium" required />
+                    <Input id="subscriptions-plan-name" label="Plan Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Premium" required />
                     <Select
+                        id="subscriptions-plan-type"
                         label="Plan Type"
                         options={[{ value: 'monthly', label: 'Monthly' }, { value: 'quarterly', label: 'Quarterly' }, { value: 'annual', label: 'Annual' }]}
                         value={form.planType}
                         onChange={e => setForm(f => ({ ...f, planType: e.target.value }))}
                     />
-                    <Input label="Price (Rs.)" type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="4500" />
-                    <Input label="Duration (days)" type="number" value={form.durationDays} onChange={e => setForm(f => ({ ...f, durationDays: e.target.value }))} placeholder="30" />
-                    <Input label="Included PT Sessions" type="number" value={form.ptSessions} onChange={e => setForm(f => ({ ...f, ptSessions: e.target.value }))} placeholder="4" />
+                    <Input id="subscriptions-price" label="Price (Rs.)" type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="4500" />
+                    <Input id="subscriptions-duration" label="Duration (days)" type="number" value={form.durationDays} onChange={e => setForm(f => ({ ...f, durationDays: e.target.value }))} placeholder="30" />
+                    <Input id="subscriptions-pt-sessions" label="Included PT Sessions" type="number" value={form.ptSessions} onChange={e => setForm(f => ({ ...f, ptSessions: e.target.value }))} placeholder="4" />
                     <Select
+                        id="subscriptions-active"
                         label="Active"
                         options={[{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]}
                         value={String(form.active)}

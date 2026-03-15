@@ -93,9 +93,9 @@ export default function ManagerInventoryPage() {
 
             <Modal isOpen={restockOpen} onClose={() => setRestockOpen(false)} title="Restock / Adjustment" size="md">
                 <div className="space-y-4">
-                    <Select label="Item" options={ITEM_OPTIONS} value={form.item} onChange={e => setForm(f => ({ ...f, item: e.target.value }))} placeholder="Select item" />
-                    <Input label="Quantity" type="number" value={form.qty} onChange={e => setForm(f => ({ ...f, qty: e.target.value }))} placeholder="0" />
-                    <Input label="Notes (optional)" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Reference" />
+                    <Select id="inventory-item" label="Item" options={ITEM_OPTIONS} value={form.item} onChange={e => setForm(f => ({ ...f, item: e.target.value }))} placeholder="Select item" />
+                    <Input id="inventory-qty" label="Quantity" type="number" value={form.qty} onChange={e => setForm(f => ({ ...f, qty: e.target.value }))} placeholder="0" />
+                    <Input id="inventory-notes" label="Notes (optional)" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Reference" />
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setRestockOpen(false)}>Cancel</LoadingButton>
                         <LoadingButton loading={loading} onClick={handleRestock}>Record</LoadingButton>

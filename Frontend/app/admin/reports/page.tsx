@@ -74,9 +74,9 @@ export default function AdminReportsPage() {
                     ))}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-                    <Input label="From" type="date" value={from} onChange={e => setFrom(e.target.value)} />
-                    <Input label="To" type="date" value={to} onChange={e => setTo(e.target.value)} />
-                    <Select label="Format" options={FORMAT_OPTIONS} value={fmt} onChange={e => setFmt(e.target.value as 'PDF' | 'CSV' | 'Excel')} />
+                    <Input id="admin-reports-from" label="From" type="date" value={from} onChange={e => setFrom(e.target.value)} />
+                    <Input id="admin-reports-to" label="To" type="date" value={to} onChange={e => setTo(e.target.value)} />
+                    <Select id="admin-reports-format" label="Format" options={FORMAT_OPTIONS} value={fmt} onChange={e => setFmt(e.target.value as 'PDF' | 'CSV' | 'Excel')} />
                 </div>
                 <LoadingButton
                     onClick={run}

@@ -22,6 +22,7 @@ import type {
   ChangePasswordInput,
   OnboardingInput,
   IdVerificationInput,
+  UpdateProfileInput,
 } from '../validators/auth.validator.js';
 
 // ── Token shape returned to controller ────────────────────────────────────────
@@ -337,14 +338,14 @@ export async function getProfile(userId: string) {
 
   let profile = null;
   if (person.role === 'member') {
-    // BUG-16 fix: Explicitly select only the fields the frontend needs.
-    // Using db.select() with no column spec returns ALL columns including
-    // sensitive fields like medicalConditions, allergies, and emergency contacts.
     const [mp] = await db
       .select({
         isOnboarded: memberProfiles.isOnboarded,
         fitnessGoals: memberProfiles.fitnessGoals,
         experienceLevel: memberProfiles.experienceLevel,
+        emergencyName: memberProfiles.emergencyName,
+        emergencyPhone: memberProfiles.emergencyPhone,
+        emergencyRelation: memberProfiles.emergencyRelation,
       })
       .from(memberProfiles)
       .where(eq(memberProfiles.personId, userId))
@@ -358,6 +359,10 @@ export async function getProfile(userId: string) {
     role: person.role,
     fullName: person.fullName,
     phone: person.phone,
+    dob: person.dob,
+    gender: person.gender,
+    avatarKey: person.avatarKey ?? null,
+    coverKey: person.coverKey ?? null,
     memberCode: person.memberCode,
     memberStatus: person.memberStatus,
     joinDate: person.joinDate,
@@ -367,6 +372,77 @@ export async function getProfile(userId: string) {
     idSubmittedAt: person.idSubmittedAt,
     profile,
   };
+}
+
+// ── Update Profile (basic info: fullName, phone, dob, gender; members: emergency) ──
+export async function updateProfile(userId: string, input: UpdateProfileInput): Promise<void> {
+  const [person] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!person) throw errors.notFound('User');
+
+  const userUpdates: Partial<{
+    fullName: string;
+    phone: string | null;
+    dob: Date | null;
+    gender: 'male' | 'female' | 'other' | null;
+  }> = {};
+  if (input.fullName !== undefined) userUpdates.fullName = input.fullName;
+  if (input.phone !== undefined) userUpdates.phone = input.phone === '' ? null : input.phone;
+  if (input.dob !== undefined) userUpdates.dob = input.dob ? new Date(input.dob) : null;
+  if (input.gender !== undefined) userUpdates.gender = input.gender as 'male' | 'female' | 'other' | null;
+
+  if (Object.keys(userUpdates).length > 0) {
+    await db.update(users).set(userUpdates).where(eq(users.id, userId));
+  }
+
+  if (person.role === 'member' && (input.emergencyName !== undefined || input.emergencyPhone !== undefined || input.emergencyRelation !== undefined)) {
+    const [mp] = await db.select({ personId: memberProfiles.personId }).from(memberProfiles).where(eq(memberProfiles.personId, userId)).limit(1);
+    if (mp) {
+      const mpUpdates: Partial<{ emergencyName: string | null; emergencyPhone: string | null; emergencyRelation: string | null }> = {};
+      if (input.emergencyName !== undefined) mpUpdates.emergencyName = input.emergencyName || null;
+      if (input.emergencyPhone !== undefined) mpUpdates.emergencyPhone = input.emergencyPhone === '' ? null : input.emergencyPhone;
+      if (input.emergencyRelation !== undefined) mpUpdates.emergencyRelation = input.emergencyRelation || null;
+      if (Object.keys(mpUpdates).length > 0) {
+        await db.update(memberProfiles).set(mpUpdates).where(eq(memberProfiles.personId, userId));
+      }
+    }
+  }
+}
+
+// ── Profile avatar/cover upload (OCI in prod, local in dev) ───────────────────
+export type ProfileImageType = 'avatar' | 'cover';
+
+export async function uploadProfileImage(
+  userId: string,
+  type: ProfileImageType,
+  buffer: Buffer,
+  mimetype: string,
+): Promise<void> {
+  const [person] = await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!person) throw errors.notFound('User');
+
+  const ext = extensionFromMime(mimetype);
+  const objectName = `profiles/${userId}/${type}_${Date.now()}.${ext}`;
+  await uploadFile(buffer, objectName, mimetype);
+
+  if (type === 'avatar') {
+    await db.update(users).set({ avatarKey: objectName }).where(eq(users.id, userId));
+  } else {
+    await db.update(users).set({ coverKey: objectName }).where(eq(users.id, userId));
+  }
+}
+
+export async function getProfileImageObjectName(
+  userId: string,
+  type: ProfileImageType,
+): Promise<{ data: string | null }> {
+  const [person] = await db
+    .select({ avatarKey: users.avatarKey, coverKey: users.coverKey })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!person) throw errors.notFound('User');
+  const data = type === 'avatar' ? person.avatarKey ?? null : person.coverKey ?? null;
+  return { data };
 }
 
 // ── Email Verification ────────────────────────────────────────────────────────
@@ -472,14 +548,25 @@ export async function completeOnboarding(userId: string, input: OnboardingInput)
 }
 
 // ── ID Document Upload ────────────────────────────────────────────────────────
+const MIME_EXT: Record<string, string> = {
+  'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/gif': 'gif',
+  'image/webp': 'webp', 'image/bmp': 'bmp', 'image/heic': 'heic',
+};
+
+function extensionFromMime(mimetype: string): string {
+  return MIME_EXT[mimetype?.toLowerCase()] ?? 'jpg';
+}
+
+export type IdDocumentType = 'nic' | 'driving_license' | 'passport';
+
 export async function uploadIdDocuments(
   userId: string,
-  nicFrontBuffer: Buffer,
-  nicBackBuffer: Buffer,
+  documentType: IdDocumentType,
+  frontBuffer: Buffer,
+  frontMimetype: string,
+  backBuffer: Buffer | null,
+  backMimetype: string | null,
 ): Promise<void> {
-  // BUG-18 fix: Prevent re-uploading if identity already approved.
-  // Without this, an approved member re-uploading would silently reset
-  // their verified status back to 'pending'.
   const [current] = await db
     .select({ idVerificationStatus: users.idVerificationStatus })
     .from(users).where(eq(users.id, userId)).limit(1);
@@ -488,12 +575,19 @@ export async function uploadIdDocuments(
   }
 
   const ts = Date.now();
-  const nicFrontUrl = await uploadFile(nicFrontBuffer, `id/${userId}/nic_front_${ts}.jpg`, 'image/jpeg');
-  const nicBackUrl = await uploadFile(nicBackBuffer, `id/${userId}/nic_back_${ts}.jpg`, 'image/jpeg');
+  const extFront = extensionFromMime(frontMimetype);
+  const frontUrl = await uploadFile(frontBuffer, `id/${userId}/doc_front_${ts}.${extFront}`, frontMimetype);
+
+  let backUrl: string | null = null;
+  if (backBuffer && backMimetype) {
+    const extBack = extensionFromMime(backMimetype);
+    backUrl = await uploadFile(backBuffer, `id/${userId}/doc_back_${ts}.${extBack}`, backMimetype);
+  }
 
   await db.update(users).set({
-    idNicFront: nicFrontUrl,
-    idNicBack: nicBackUrl,
+    idDocumentType: documentType,
+    idNicFront: frontUrl,
+    idNicBack: backUrl,
     idVerificationStatus: 'pending',
     idSubmittedAt: new Date(),
     idVerificationNote: null,
@@ -510,6 +604,7 @@ export async function getIdSubmissions() {
       fullName: users.fullName,
       email: users.email,
       memberCode: users.memberCode,
+      idDocumentType: users.idDocumentType,
       idNicFront: users.idNicFront,
       idNicBack: users.idNicBack,
       idVerificationStatus: users.idVerificationStatus,

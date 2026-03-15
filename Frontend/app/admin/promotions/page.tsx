@@ -158,18 +158,19 @@ export default function AdminPromotionsPage() {
 
             <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Promotion' : 'Add Promotion'} size="md">
                 <div className="space-y-4">
-                    <Input label="Code" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} placeholder="NEWYEAR25" required />
-                    <Input label="Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="New Year 25% Off" required />
+                    <Input id="promotions-code" label="Code" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} placeholder="NEWYEAR25" required />
+                    <Input id="promotions-name" label="Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="New Year 25% Off" required />
                     <Select
+                        id="promotions-discount-type"
                         label="Discount Type"
                         options={[{ value: 'percentage', label: 'Percentage' }, { value: 'fixed', label: 'Fixed Amount' }]}
                         value={form.discountType}
                         onChange={e => setForm(f => ({ ...f, discountType: e.target.value as 'percentage' | 'fixed' }))}
                     />
-                    <Input label={form.discountType === 'percentage' ? 'Discount %' : 'Discount (Rs.)'} type="number" value={form.discountValue} onChange={e => setForm(f => ({ ...f, discountValue: e.target.value }))} required />
-                    <Input label="Valid From" type="date" value={form.validFrom} onChange={e => setForm(f => ({ ...f, validFrom: e.target.value }))} required />
-                    <Input label="Valid Until" type="date" value={form.validUntil} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} required />
-                    <Input label="Usage Limit (optional)" type="number" value={form.usageLimit} onChange={e => setForm(f => ({ ...f, usageLimit: e.target.value }))} placeholder="Leave empty for unlimited" />
+                    <Input id="promotions-discount-value" label={form.discountType === 'percentage' ? 'Discount %' : 'Discount (Rs.)'} type="number" value={form.discountValue} onChange={e => setForm(f => ({ ...f, discountValue: e.target.value }))} required />
+                    <Input id="promotions-valid-from" label="Valid From" type="date" value={form.validFrom} onChange={e => setForm(f => ({ ...f, validFrom: e.target.value }))} required />
+                    <Input id="promotions-valid-until" label="Valid Until" type="date" value={form.validUntil} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} required />
+                    <Input id="promotions-usage-limit" label="Usage Limit (optional)" type="number" value={form.usageLimit} onChange={e => setForm(f => ({ ...f, usageLimit: e.target.value }))} placeholder="Leave empty for unlimited" />
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setModalOpen(false)}>Cancel</LoadingButton>
                         <LoadingButton loading={loading} onClick={handleSave}>{editing ? 'Save' : 'Add'}</LoadingButton>

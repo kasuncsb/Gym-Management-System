@@ -86,7 +86,7 @@ export default function TrainerMembersPage() {
             />
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                <SearchInput value={search} onChange={setSearch} placeholder="Search by name or ID..." className="w-full sm:w-64" />
+                <SearchInput id="trainer-members-search" value={search} onChange={setSearch} placeholder="Search by name or ID..." className="w-full sm:w-64" aria-label="Search by name or ID" />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -94,7 +94,7 @@ export default function TrainerMembersPage() {
                     <Card key={m.id} padding="md" className="hover:border-zinc-700/50 transition-colors">
                         <div className="flex items-start justify-between mb-4">
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-xl bg-red-600/20 flex items-center justify-center">
+                                <div className="w-12 h-12 rounded-full bg-red-600/20 flex items-center justify-center">
                                     <Users size={20} className="text-red-400" />
                                 </div>
                                 <div>
@@ -129,10 +129,10 @@ export default function TrainerMembersPage() {
 
             <Modal isOpen={vitalsOpen} onClose={() => setVitalsOpen(false)} title="Log Member Vitals" description={selectedMember ? `Record vitals for ${selectedMember.name}` : ''} size="md">
                 <div className="space-y-4">
-                    <Input label="Weight (kg)" type="number" value={vitalsForm.weight} onChange={e => setVitalsForm(f => ({ ...f, weight: e.target.value }))} placeholder="e.g. 75" />
-                    <Input label="Height (cm)" type="number" value={vitalsForm.height} onChange={e => setVitalsForm(f => ({ ...f, height: e.target.value }))} placeholder="e.g. 175" />
-                    <Input label="Body Fat % (optional)" type="number" value={vitalsForm.bodyFat} onChange={e => setVitalsForm(f => ({ ...f, bodyFat: e.target.value }))} placeholder="e.g. 18" />
-                    <Input label="Notes (optional)" value={vitalsForm.notes} onChange={e => setVitalsForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes" />
+                    <Input id="trainer-vitals-weight" label="Weight (kg)" type="number" value={vitalsForm.weight} onChange={e => setVitalsForm(f => ({ ...f, weight: e.target.value }))} placeholder="e.g. 75" />
+                    <Input id="trainer-vitals-height" label="Height (cm)" type="number" value={vitalsForm.height} onChange={e => setVitalsForm(f => ({ ...f, height: e.target.value }))} placeholder="e.g. 175" />
+                    <Input id="trainer-vitals-body-fat" label="Body Fat % (optional)" type="number" value={vitalsForm.bodyFat} onChange={e => setVitalsForm(f => ({ ...f, bodyFat: e.target.value }))} placeholder="e.g. 18" />
+                    <Input id="trainer-vitals-notes" label="Notes (optional)" value={vitalsForm.notes} onChange={e => setVitalsForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes" />
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setVitalsOpen(false)}>Cancel</LoadingButton>
                         <LoadingButton loading={loading} onClick={handleVitals}>Save</LoadingButton>
@@ -142,8 +142,8 @@ export default function TrainerMembersPage() {
 
             <Modal isOpen={assignOpen} onClose={() => setAssignOpen(false)} title="Assign Workout" description={selectedMember ? `Assign plan to ${selectedMember.name}` : ''} size="md">
                 <div className="space-y-4">
-                    <Select label="Workout Plan" options={MOCK_PLANS} value={assignForm.plan} onChange={e => setAssignForm(f => ({ ...f, plan: e.target.value }))} placeholder="Select plan" />
-                    <Input label="Start Date" type="date" value={assignForm.startDate} onChange={e => setAssignForm(f => ({ ...f, startDate: e.target.value }))} />
+                    <Select id="trainer-assign-plan" label="Workout Plan" options={MOCK_PLANS} value={assignForm.plan} onChange={e => setAssignForm(f => ({ ...f, plan: e.target.value }))} placeholder="Select plan" />
+                    <Input id="trainer-assign-start-date" label="Start Date" type="date" value={assignForm.startDate} onChange={e => setAssignForm(f => ({ ...f, startDate: e.target.value }))} />
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setAssignOpen(false)}>Cancel</LoadingButton>
                         <LoadingButton loading={loading} onClick={handleAssign}>Assign</LoadingButton>

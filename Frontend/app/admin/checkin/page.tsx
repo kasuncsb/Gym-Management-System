@@ -86,7 +86,7 @@ export default function AdminCheckinPage() {
             <Card padding="lg">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                     <h2 className="text-lg font-semibold text-white">Full Access Log</h2>
-                    <SearchInput value={search} onChange={setSearch} placeholder="Search..." className="w-full sm:w-56" />
+                    <SearchInput id="admin-checkin-search" value={search} onChange={setSearch} placeholder="Search..." className="w-full sm:w-56" aria-label="Search" />
                 </div>
                 <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                     {filtered.map((l, i) => (

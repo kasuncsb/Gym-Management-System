@@ -20,6 +20,7 @@ import type {
   VerifyEmailInput,
   OnboardingInput,
   IdVerificationInput,
+  UpdateProfileInput,
 } from '../validators/auth.validator.js';
 
 // ── Cookie config ─────────────────────────────────────────────────────────────
@@ -95,6 +96,57 @@ export const getProfile = asyncHandler(async (req: AuthRequest, res: Response) =
   res.json(response.success(profile));
 });
 
+export const updateProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
+  await authService.updateProfile(req.user!.id, req.body as UpdateProfileInput);
+  res.json(response.success(null, 'Profile updated'));
+});
+
+export const uploadAvatar = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const file = (req as any).file as Express.Multer.File;
+  if (!file) throw errors.badRequest('Avatar image is required');
+  await authService.uploadProfileImage(req.user!.id, 'avatar', file.buffer, file.mimetype);
+  res.json(response.success(null, 'Avatar updated'));
+});
+
+export const uploadCover = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const file = (req as any).file as Express.Multer.File;
+  if (!file) throw errors.badRequest('Cover image is required');
+  await authService.uploadProfileImage(req.user!.id, 'cover', file.buffer, file.mimetype);
+  res.json(response.success(null, 'Cover updated'));
+});
+
+/** Stream profile avatar — private, cookie-authenticated */
+export const getProfileAvatar = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { data } = await authService.getProfileImageObjectName(req.user!.id, 'avatar');
+  if (!data) throw errors.notFound('Avatar not found');
+  const { body, contentType } = await downloadFile(data);
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Cache-Control', 'private, max-age=300');
+  const stream = body as NodeJS.ReadableStream;
+  stream.on('error', (err) => {
+    console.error('Profile avatar stream error:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Failed to load avatar' });
+    else res.end();
+  });
+  stream.pipe(res);
+});
+
+/** Stream profile cover — private, cookie-authenticated */
+export const getProfileCover = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { data } = await authService.getProfileImageObjectName(req.user!.id, 'cover');
+  if (!data) throw errors.notFound('Cover not found');
+  const { body, contentType } = await downloadFile(data);
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Cache-Control', 'private, max-age=300');
+  const stream = body as NodeJS.ReadableStream;
+  stream.on('error', (err) => {
+    console.error('Profile cover stream error:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Failed to load cover' });
+    else res.end();
+  });
+  stream.pipe(res);
+});
+
 export const changePassword = asyncHandler(async (req: AuthRequest, res: Response) => {
   await authService.changePassword(req.user!.id, req.body as ChangePasswordInput);
   clearAuthCookies(res); // Force re-login on all devices
@@ -128,15 +180,30 @@ export const completeOnboarding = asyncHandler(async (req: AuthRequest, res: Res
 });
 
 // ── ID Verification ───────────────────────────────────────────────────────────
+const VALID_DOC_TYPES = ['nic', 'driving_license', 'passport'] as const;
+
 export const uploadIdDocuments = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const files = (req as any).files as { [fieldname: string]: Express.Multer.File[] };
-  if (!files?.nic_front?.[0] || !files?.nic_back?.[0]) {
-    throw errors.badRequest('NIC front and back images are required');
+  const documentType = (req.body?.document_type ?? '').trim().toLowerCase();
+  if (!VALID_DOC_TYPES.includes(documentType as any)) {
+    throw errors.badRequest('document_type must be nic, driving_license, or passport');
   }
+  const files = (req as any).files as { [fieldname: string]: Express.Multer.File[] };
+  const frontFile = files?.nic_front?.[0];
+  if (!frontFile) throw errors.badRequest('Front document image is required');
+
+  const isPassport = documentType === 'passport';
+  const backFile = files?.nic_back?.[0] ?? null;
+  if (!isPassport && !backFile) {
+    throw errors.badRequest('Back document image is required for National ID and Driving License');
+  }
+
   await authService.uploadIdDocuments(
     req.user!.id,
-    files.nic_front[0].buffer,
-    files.nic_back[0].buffer,
+    documentType as authService.IdDocumentType,
+    frontFile.buffer,
+    frontFile.mimetype,
+    backFile?.buffer ?? null,
+    backFile?.mimetype ?? null,
   );
   res.json(response.success(null, 'Documents uploaded. Pending review.'));
 });

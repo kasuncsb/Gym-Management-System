@@ -91,7 +91,7 @@ async function seed() {
   await db.delete(users).where(inArray(users.email, SEED_EMAILS));
   console.log('🗑️  Removed existing seed users');
 
-  // Insert 4 users with fixed password
+  // Insert 4 users with fixed password (avatar_key, cover_key, id_document_type left null)
   const passwordHash = await hashPassword(SEED_PASSWORD);
 
   for (const u of SEED_USERS) {

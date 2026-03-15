@@ -74,6 +74,17 @@ export const idVerificationSchema = z.object({
   note: z.string().max(500).optional(),
 });
 
+/** Basic info (users table) — editable by all roles. Member can also update emergency (member_profiles). */
+export const updateProfileSchema = z.object({
+  fullName: z.string().min(2).max(100).optional(),
+  phone: z.union([z.string().regex(/^\+?[\d\s-]{10,20}$/), z.literal('')]).optional(),
+  dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  gender: z.enum(['male', 'female', 'other']).optional().nullable(),
+  emergencyName: z.string().max(100).optional(),
+  emergencyPhone: z.union([z.string().regex(/^\+?[\d\s-]{10,20}$/), z.literal('')]).optional(),
+  emergencyRelation: z.string().max(50).optional(),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;
@@ -83,3 +94,4 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
 export type OnboardingInput = z.infer<typeof onboardingSchema>;
 export type IdVerificationInput = z.infer<typeof idVerificationSchema>;
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

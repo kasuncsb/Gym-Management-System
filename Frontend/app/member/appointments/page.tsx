@@ -95,7 +95,7 @@ export default function AppointmentsPage() {
                 {filtered.map(a => (
                     <Card key={a.id} padding="md" className="flex items-center justify-between hover:border-zinc-700/50 transition-colors">
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-blue-600/20 rounded-xl flex items-center justify-center">
+                            <div className="w-12 h-12 bg-blue-600/20 rounded-full flex items-center justify-center">
                                 <User size={20} className="text-blue-400" />
                             </div>
                             <div>
@@ -121,10 +121,10 @@ export default function AppointmentsPage() {
             {/* Book modal */}
             <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Book a Session" description="Schedule a personal training or consultation" size="md">
                 <div className="space-y-4">
-                    <Select label="Trainer" options={TRAINER_OPTIONS} value={form.trainer} onChange={e => setForm(f => ({ ...f, trainer: e.target.value }))} placeholder="Select trainer" />
-                    <Select label="Session Type" options={SESSION_OPTIONS} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} placeholder="Select type" />
-                    <Input label="Date" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-                    <Input label="Time" type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} />
+                    <Select id="appointments-trainer" label="Trainer" options={TRAINER_OPTIONS} value={form.trainer} onChange={e => setForm(f => ({ ...f, trainer: e.target.value }))} placeholder="Select trainer" />
+                    <Select id="appointments-type" label="Session Type" options={SESSION_OPTIONS} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} placeholder="Select type" />
+                    <Input id="appointments-date" label="Date" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+                    <Input id="appointments-time" label="Time" type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} />
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setShowModal(false)}>Cancel</LoadingButton>
                         <LoadingButton loading={submitLoading} onClick={handleBook}>Confirm Booking</LoadingButton>

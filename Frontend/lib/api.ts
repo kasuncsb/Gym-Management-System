@@ -108,6 +108,45 @@ export const authAPI = {
 
   getProfile: () => apiClient.get('/auth/profile'),
 
+  /** Update basic info (fullName, phone, dob, gender; members: emergency contact). */
+  updateProfile: (data: {
+    fullName?: string;
+    phone?: string;
+    dob?: string | null;
+    gender?: 'male' | 'female' | 'other' | null;
+    emergencyName?: string;
+    emergencyPhone?: string;
+    emergencyRelation?: string;
+  }) => apiClient.patch('/auth/profile', data),
+
+  /** Upload profile avatar (image file). Use profileAvatarUrl() for img src. */
+  uploadAvatar: (file: File, config?: { onUploadProgress?: (e: { loaded: number; total?: number }) => void }) => {
+    const form = new FormData();
+    form.append('file', file);
+    return apiClient.post('/auth/profile/avatar', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      ...config,
+    });
+  },
+
+  /** Upload profile cover image. Use profileCoverUrl() for img src. */
+  uploadCover: (file: File, config?: { onUploadProgress?: (e: { loaded: number; total?: number }) => void }) => {
+    const form = new FormData();
+    form.append('file', file);
+    return apiClient.post('/auth/profile/cover', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      ...config,
+    });
+  },
+
+  /** URL for profile avatar image (cookie-authenticated). Pass cacheBust (e.g. Date.now()) after upload. */
+  profileAvatarUrl: (cacheBust?: number) =>
+    `/api/auth/profile/avatar${cacheBust != null ? `?t=${cacheBust}` : ''}`,
+
+  /** URL for profile cover image (cookie-authenticated). Pass cacheBust after upload. */
+  profileCoverUrl: (cacheBust?: number) =>
+    `/api/auth/profile/cover${cacheBust != null ? `?t=${cacheBust}` : ''}`,
+
   changePassword: (currentPassword: string, newPassword: string) =>
     apiClient.post('/auth/change-password', { currentPassword, newPassword }, { _noRetry: true } as any),
 
@@ -131,9 +170,10 @@ export const authAPI = {
     emergencyRelation?: string;
   }) => apiClient.post('/auth/onboarding', data),
 
-  uploadIdDocuments: (formData: FormData) =>
+  uploadIdDocuments: (formData: FormData, config?: { onUploadProgress?: (progressEvent: { loaded: number; total?: number }) => void }) =>
     apiClient.post('/auth/upload-id', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      ...config,
     }),
 
   // Admin endpoints (ID documents are streamed from backend; fetch with credentials to display)

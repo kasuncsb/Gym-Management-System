@@ -95,7 +95,7 @@ export default function ManagerStaffPage() {
                 {staff.map((s, i) => (
                     <Card key={i} padding="md" className="flex flex-col gap-4 hover:border-zinc-700/50 transition-colors">
                         <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-600 to-green-800 flex items-center justify-center text-white font-bold">
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-600 to-green-800 flex items-center justify-center text-white font-bold">
                                 {s.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                             </div>
                             <div>
@@ -138,11 +138,11 @@ export default function ManagerStaffPage() {
 
             <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title="Add Staff" size="md">
                 <div className="space-y-4">
-                    <Input label="Full Name" value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="Name" required />
-                    <Input label="Email" type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="email@example.com" required />
-                    <Select label="Role" options={ROLE_OPTIONS} value={addForm.role} onChange={e => setAddForm(f => ({ ...f, role: e.target.value }))} />
-                    <Input label="Employee Code" value={addForm.employeeCode} onChange={e => setAddForm(f => ({ ...f, employeeCode: e.target.value }))} placeholder="Optional" />
-                    <Input label="Hire Date" type="date" value={addForm.hireDate} onChange={e => setAddForm(f => ({ ...f, hireDate: e.target.value }))} />
+                    <Input id="staff-add-name" label="Full Name" value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="Name" required />
+                    <Input id="staff-add-email" label="Email" type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="email@example.com" required />
+                    <Select id="staff-add-role" label="Role" options={ROLE_OPTIONS} value={addForm.role} onChange={e => setAddForm(f => ({ ...f, role: e.target.value }))} />
+                    <Input id="staff-add-employee-code" label="Employee Code" value={addForm.employeeCode} onChange={e => setAddForm(f => ({ ...f, employeeCode: e.target.value }))} placeholder="Optional" />
+                    <Input id="staff-add-hire-date" label="Hire Date" type="date" value={addForm.hireDate} onChange={e => setAddForm(f => ({ ...f, hireDate: e.target.value }))} />
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setAddOpen(false)}>Cancel</LoadingButton>
                         <LoadingButton loading={loading} onClick={handleAddStaff}>Add Staff</LoadingButton>
@@ -152,8 +152,8 @@ export default function ManagerStaffPage() {
 
             <Modal isOpen={scheduleOpen} onClose={() => setScheduleOpen(false)} title="Edit Schedule" description={selectedStaff ? `Schedule for ${selectedStaff.name}` : ''} size="md">
                 <div className="space-y-4">
-                    <Input label="Recurring Shifts" value={scheduleForm.shifts} onChange={e => setScheduleForm(f => ({ ...f, shifts: e.target.value }))} placeholder="e.g. Mon-Fri 6AM-2PM" />
-                    <Input label="Notes / Overrides" value={scheduleForm.notes} onChange={e => setScheduleForm(f => ({ ...f, notes: e.target.value }))} placeholder="Day off, extra shift, etc." />
+                    <Input id="staff-schedule-shifts" label="Recurring Shifts" value={scheduleForm.shifts} onChange={e => setScheduleForm(f => ({ ...f, shifts: e.target.value }))} placeholder="e.g. Mon-Fri 6AM-2PM" />
+                    <Input id="staff-schedule-notes" label="Notes / Overrides" value={scheduleForm.notes} onChange={e => setScheduleForm(f => ({ ...f, notes: e.target.value }))} placeholder="Day off, extra shift, etc." />
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setScheduleOpen(false)}>Cancel</LoadingButton>
                         <LoadingButton loading={loading} onClick={handleSchedule}>Save Schedule</LoadingButton>

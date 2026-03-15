@@ -94,7 +94,7 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {kpis.map(({ label, value, sub, icon: Icon, color }) => (
                     <Card key={label} padding="md" className="hover:border-zinc-700/50 transition-colors">
-                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center mb-4`}>
+                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${color} flex items-center justify-center mb-4`}>
                             <Icon size={18} className="text-white" />
                         </div>
                         <p className="text-xl font-bold text-white">{value}</p>

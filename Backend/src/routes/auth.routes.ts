@@ -13,6 +13,7 @@ import {
   verifyEmailSchema,
   onboardingSchema,
   idVerificationSchema,
+  updateProfileSchema,
 } from '../validators/auth.validator.js';
 
 const router = Router();
@@ -22,10 +23,10 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
-    if (['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
+    if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('Only JPEG, PNG or WebP images are accepted'));
+      cb(new Error('Only image files are accepted'));
     }
   },
 });
@@ -40,6 +41,11 @@ router.post('/reset-password',  validate(resetPasswordSchema),  auth.resetPasswo
 
 // ── Protected ────────────────────────────────────────────────────────────────
 router.get( '/profile',           authenticate,                                                               auth.getProfile);
+router.patch('/profile',          authenticate, validate(updateProfileSchema),                                 auth.updateProfile);
+router.get( '/profile/avatar',    authenticate,                                                               auth.getProfileAvatar);
+router.get( '/profile/cover',     authenticate,                                                               auth.getProfileCover);
+router.post('/profile/avatar',    authenticate, upload.single('file'),                                         auth.uploadAvatar);
+router.post('/profile/cover',     authenticate, upload.single('file'),                                         auth.uploadCover);
 router.post('/send-verification', authenticate,                                                               auth.sendVerificationEmail);
 router.post('/change-password',   authenticate, requireVerified, validate(changePasswordSchema),              auth.changePassword);
 // BUG-04 fix: logout must NOT require authenticate. If access token is expired,

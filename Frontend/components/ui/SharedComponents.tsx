@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, useId } from "react";
 import { cn } from "@/lib/utils";
 import { LucideIcon, X } from "lucide-react";
 
@@ -40,7 +40,8 @@ interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
     ({ label, error, id, className, ...props }, ref) => {
-        const inputId = id || props.name;
+        const fallbackId = useId();
+        const inputId = id ?? props.name ?? fallbackId;
         return (
             <div className="space-y-1.5">
                 {label && <Label htmlFor={inputId}>{label}</Label>}
@@ -67,7 +68,8 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     ({ label, error, id, className, ...props }, ref) => {
-        const textareaId = id || props.name;
+        const fallbackId = useId();
+        const textareaId = id ?? props.name ?? fallbackId;
         return (
             <div className="space-y-1.5">
                 {label && <Label htmlFor={textareaId}>{label}</Label>}
@@ -101,7 +103,8 @@ interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     ({ label, error, options, placeholder, id, className, ...props }, ref) => {
-        const selectId = id || props.name;
+        const fallbackId = useId();
+        const selectId = id ?? props.name ?? fallbackId;
         return (
             <div className="space-y-1.5">
                 {label && <Label htmlFor={selectId}>{label}</Label>}
@@ -448,29 +451,36 @@ interface SearchInputProps {
     onChange: (value: string) => void;
     placeholder?: string;
     className?: string;
+    id?: string;
+    "aria-label"?: string;
 }
 
-export function SearchInput({ value, onChange, placeholder = "Search...", className }: SearchInputProps) {
+export function SearchInput({ value, onChange, placeholder = "Search...", className, id, "aria-label": ariaLabel }: SearchInputProps) {
+    const fallbackId = useId();
+    const inputId = id ?? fallbackId;
     return (
         <div className={cn("relative", className)}>
             <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"
                 width="16"
                 height="16"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
+                aria-hidden
             >
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <input
-                type="text"
+                id={inputId}
+                type="search"
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
                 className="w-full pl-10 pr-4 py-2.5 bg-zinc-800/80 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-red-600 focus:border-red-600 transition-all"
+                aria-label={ariaLabel ?? placeholder}
             />
         </div>
     );

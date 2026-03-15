@@ -54,10 +54,12 @@ export default function AdminActivitiesPage() {
 
             <div className="flex flex-col sm:flex-row gap-3">
                 <SearchInput
+                    id="admin-activities-search"
                     value={search}
                     onChange={setSearch}
                     placeholder="Search events or actors..."
                     className="flex-1 min-w-0"
+                    aria-label="Search events or actors"
                 />
                 <div className="flex gap-2 flex-wrap">
                     {(['all','member','payment','system','security','staff'] as const).map(t => (

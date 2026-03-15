@@ -74,7 +74,7 @@ export default function TrainerAssistancePage() {
                     <Card key={r.id} padding="md" className={r.priority === 'high' && r.status !== 'resolved' ? 'border-red-500/30' : 'hover:border-zinc-700/50 transition-colors'}>
                         <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-purple-600/20 rounded-xl flex items-center justify-center">
+                                <div className="w-10 h-10 bg-purple-600/20 rounded-full flex items-center justify-center">
                                     <User size={18} className="text-purple-400" />
                                 </div>
                                 <div>

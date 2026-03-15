@@ -79,7 +79,7 @@ export default function AdminAlertsPage() {
                     return (
                         <Card key={a.id} padding="md" className={`flex items-center justify-between gap-4 ${a.status === 'resolved' ? 'opacity-60' : ''}`}>
                             <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center">
                                     <Icon size={18} className="text-zinc-400" />
                                 </div>
                                 <div>

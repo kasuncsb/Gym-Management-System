@@ -153,10 +153,12 @@ export default function ManagerMembersPage() {
             {/* Search + filter */}
             <div className="flex flex-col sm:flex-row gap-3">
                 <SearchInput
+                    id="manager-members-search"
                     value={search}
                     onChange={setSearch}
                     placeholder="Search by name or ID..."
                     className="flex-1 min-w-0"
+                    aria-label="Search by name or ID"
                 />
                 <div className="flex gap-2 flex-wrap">
                     {(['all', 'active', 'inactive', 'suspended'] as const).map(f => (

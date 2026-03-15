@@ -106,6 +106,9 @@ CREATE TABLE IF NOT EXISTS `users` (
   `email_verified`   TINYINT(1)    NOT NULL DEFAULT 0,
   `email_verify_token` VARCHAR(255) DEFAULT NULL,
   `qr_secret`        VARCHAR(64)   DEFAULT NULL,  -- QR code for door scan
+  `avatar_key`       VARCHAR(500)  DEFAULT NULL,  -- OCI object key or local path (profile avatar)
+  `cover_key`        VARCHAR(500)  DEFAULT NULL,  -- OCI object key or local path (profile cover)
+  `id_document_type` ENUM('nic','driving_license','passport') DEFAULT NULL,
   `id_nic_front`     VARCHAR(500)  DEFAULT NULL,
   `id_nic_back`      VARCHAR(500)  DEFAULT NULL,
   `id_verification_status` ENUM('pending','approved','rejected') DEFAULT NULL,

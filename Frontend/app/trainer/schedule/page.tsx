@@ -104,7 +104,7 @@ export default function TrainerSchedulePage() {
                     {MOCK_PT_SESSIONS.map((s, i) => (
                         <div key={i} className="flex items-center justify-between bg-zinc-800/30 rounded-xl p-4">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-red-600/20 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-full bg-red-600/20 flex items-center justify-center">
                                     <Calendar size={18} className="text-red-400" />
                                 </div>
                                 <div>

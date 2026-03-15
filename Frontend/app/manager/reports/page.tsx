@@ -61,8 +61,8 @@ export default function ManagerReportsPage() {
                     ))}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-                    <Input label="From" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-                    <Input label="To" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+                    <Input id="manager-reports-from" label="From" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+                    <Input id="manager-reports-to" label="To" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
                 </div>
                 <LoadingButton
                     onClick={generate}

@@ -64,12 +64,12 @@ export default function AdminSettingsPage() {
                     </LoadingButton>
                 </div>
                 <div className="space-y-4">
-                    <Input label="Branch Name" value={gymName} onChange={e => setGymName(e.target.value)} />
+                    <Input id="settings-branch-name" label="Branch Name" value={gymName} onChange={e => setGymName(e.target.value)} />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
-                        <Input label="Phone" value={phone} onChange={e => setPhone(e.target.value)} />
+                        <Input id="settings-email" label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+                        <Input id="settings-phone" label="Phone" value={phone} onChange={e => setPhone(e.target.value)} />
                     </div>
-                    <Input label="Address" value={address} onChange={e => setAddress(e.target.value)} />
+                    <Input id="settings-address" label="Address" value={address} onChange={e => setAddress(e.target.value)} />
                 </div>
             </Card>
 
@@ -81,9 +81,9 @@ export default function AdminSettingsPage() {
                     </LoadingButton>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Input label="Opens at" type="time" value={openTime} onChange={e => setOpenTime(e.target.value)} />
-                    <Input label="Closes at" type="time" value={closeTime} onChange={e => setCloseTime(e.target.value)} />
-                    <Input label="Max Capacity" type="number" value={capacity} onChange={e => setCapacity(e.target.value)} />
+                    <Input id="settings-open-time" label="Opens at" type="time" value={openTime} onChange={e => setOpenTime(e.target.value)} />
+                    <Input id="settings-close-time" label="Closes at" type="time" value={closeTime} onChange={e => setCloseTime(e.target.value)} />
+                    <Input id="settings-capacity" label="Max Capacity" type="number" value={capacity} onChange={e => setCapacity(e.target.value)} />
                 </div>
             </Card>
 

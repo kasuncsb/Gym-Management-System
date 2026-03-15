@@ -71,8 +71,11 @@ export async function downloadFile(
     }
     const fileHandle = await fs.open(filePath, 'r');
     const stream = fileHandle.createReadStream();
-    const contentType = objectName.toLowerCase().endsWith('.jpg') || objectName.toLowerCase().endsWith('.jpeg')
-      ? 'image/jpeg'
+    const lower = objectName.toLowerCase();
+    const contentType = lower.endsWith('.jpg') || lower.endsWith('.jpeg') ? 'image/jpeg'
+      : lower.endsWith('.png') ? 'image/png'
+      : lower.endsWith('.gif') ? 'image/gif'
+      : lower.endsWith('.webp') ? 'image/webp'
       : 'application/octet-stream';
     return {
       body: stream as unknown as NodeJS.ReadableStream,

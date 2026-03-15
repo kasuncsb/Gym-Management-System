@@ -5,12 +5,14 @@ import { Check, X, FileImage, Loader2 } from 'lucide-react';
 import { PageHeader, Card, Modal, Textarea, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
 import { authAPI } from '@/lib/api';
+import { cn } from '@/lib/utils';
 
 interface IdSubmission {
     id: string;
     fullName: string;
     email: string;
     memberCode: string | null;
+    idDocumentType?: 'nic' | 'driving_license' | 'passport' | null;
     idVerificationStatus: string | null;
     idVerificationNote: string | null;
     idSubmittedAt: string | null;
@@ -61,13 +63,14 @@ export default function AdminIdVerificationPage() {
         setDocFrontUrl(null);
         setDocBackUrl(null);
         setDocLoading(true);
+        const isPassport = s.idDocumentType === 'passport';
         try {
-            const [frontBlob, backBlob] = await Promise.all([
-                authAPI.getIdDocumentBlob(s.id, 'front'),
-                authAPI.getIdDocumentBlob(s.id, 'back'),
-            ]);
+            const frontBlob = await authAPI.getIdDocumentBlob(s.id, 'front');
             setDocFrontUrl(URL.createObjectURL(frontBlob));
-            setDocBackUrl(URL.createObjectURL(backBlob));
+            if (!isPassport) {
+                const backBlob = await authAPI.getIdDocumentBlob(s.id, 'back');
+                setDocBackUrl(URL.createObjectURL(backBlob));
+            }
         } catch {
             toast.error('Error', 'Failed to load ID documents');
         } finally {
@@ -208,23 +211,25 @@ export default function AdminIdVerificationPage() {
                             <Loader2 size={24} className="animate-spin" /> Loading documents...
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className={cn('grid gap-4', docMember?.idDocumentType === 'passport' ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2')}>
                             <div>
-                                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">NIC Front</p>
+                                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">{docMember?.idDocumentType === 'passport' ? 'Passport' : 'Front'}</p>
                                 {docFrontUrl ? (
-                                    <img src={docFrontUrl} alt="NIC Front" className="w-full rounded-xl border border-zinc-700 bg-zinc-900 object-contain max-h-80" />
+                                    <img src={docFrontUrl} alt="Document front" className="w-full rounded-xl border border-zinc-700 bg-zinc-900 object-contain max-h-80" />
                                 ) : (
                                     <div className="w-full h-40 rounded-xl border border-zinc-700 bg-zinc-800/50 flex items-center justify-center text-zinc-500 text-sm">Failed to load</div>
                                 )}
                             </div>
-                            <div>
-                                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">NIC Back</p>
-                                {docBackUrl ? (
-                                    <img src={docBackUrl} alt="NIC Back" className="w-full rounded-xl border border-zinc-700 bg-zinc-900 object-contain max-h-80" />
-                                ) : (
-                                    <div className="w-full h-40 rounded-xl border border-zinc-700 bg-zinc-800/50 flex items-center justify-center text-zinc-500 text-sm">Failed to load</div>
-                                )}
-                            </div>
+                            {docMember?.idDocumentType !== 'passport' && (
+                                <div>
+                                    <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Back</p>
+                                    {docBackUrl ? (
+                                        <img src={docBackUrl} alt="Document back" className="w-full rounded-xl border border-zinc-700 bg-zinc-900 object-contain max-h-80" />
+                                    ) : (
+                                        <div className="w-full h-40 rounded-xl border border-zinc-700 bg-zinc-800/50 flex items-center justify-center text-zinc-500 text-sm">Failed to load</div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
                     <div className="flex justify-end pt-2">
@@ -237,6 +242,7 @@ export default function AdminIdVerificationPage() {
                 <div className="space-y-4">
                     {action === 'rejected' && (
                         <Textarea
+                            id="id-verification-reject-note"
                             label="Note (required for rejection)"
                             value={note}
                             onChange={e => setNote(e.target.value)}

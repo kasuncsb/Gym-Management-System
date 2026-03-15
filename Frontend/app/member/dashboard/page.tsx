@@ -78,7 +78,7 @@ export default function MemberDashboard() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {stats.map(({ label, value, sub, icon: Icon, color }) => (
                     <Card key={label} padding="md" className="hover:border-zinc-700/50 transition-colors">
-                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center mb-4`}>
+                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${color} flex items-center justify-center mb-4`}>
                             <Icon size={18} className="text-white" />
                         </div>
                         <p className="text-2xl font-bold text-white">{value}</p>
@@ -97,7 +97,7 @@ export default function MemberDashboard() {
                         {appointments.map((a, i) => (
                             <div key={i} className="flex items-center justify-between bg-zinc-800/30 rounded-xl p-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-blue-600/20 flex items-center justify-center">
+                                    <div className="w-10 h-10 rounded-full bg-blue-600/20 flex items-center justify-center">
                                         <Calendar size={18} className="text-blue-400" />
                                     </div>
                                     <div>

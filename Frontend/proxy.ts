@@ -5,12 +5,13 @@ import type { NextRequest } from 'next/server';
 // Authenticated users are redirected to their role dashboard.
 const AUTH_ONLY_ROUTES = ['/login'];
 
-// ── Member-side public flows ───────────────────────────────────────────────────
-// These don't need a session, but if the user IS logged in, bounce them to dashboard.
-const MEMBER_PUBLIC_PREFIXES = [
+// ── Routes where authenticated users are bounced to dashboard ───────────────────
+// Only login + register + forgot/reset. Do NOT include /member/verify-email or
+// /member/onboard — members must be able to complete verify → onboard flow.
+const BOUNCE_AUTHED_TO_DASHBOARD = [
+  '/login',
   '/member/register',
   '/member/forgot-password',
-  '/member/verify-email',
   '/member/reset-password',
 ];
 
@@ -76,9 +77,10 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // ── Guard: authenticated → public-only / member-auth routes ──────────────
-  const isMemberPublic = MEMBER_PUBLIC_PREFIXES.some(under);
-  if (hasSession && (AUTH_ONLY_ROUTES.includes(pathname) || isMemberPublic)) {
+  // ── Guard: authenticated → bounce to dashboard only for login/register/forgot/reset ──
+  // /member/verify-email and /member/onboard are allowed so members can complete the flow.
+  const bouncePath = BOUNCE_AUTHED_TO_DASHBOARD.some(p => pathname === p || pathname.startsWith(p + '/'));
+  if (hasSession && bouncePath) {
     const url = request.nextUrl.clone();
     url.pathname = homeForRole(role);
     url.search   = '';
