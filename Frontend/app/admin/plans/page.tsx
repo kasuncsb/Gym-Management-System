@@ -41,6 +41,8 @@ export default function AdminPlansPage() {
         price: '',
         billing: 'monthly' as 'monthly' | 'annual',
         features: '',
+        planType: 'individual' as 'individual' | 'couple' | 'student' | 'corporate' | 'daily_pass',
+        includedPtSessions: '0',
     });
     const [submitLoading, setSubmitLoading] = useState(false);
     const [pageLoading, setPageLoading] = useState(true);
@@ -52,8 +54,8 @@ export default function AdminPlansPage() {
             name: p.name,
             price: Number(p.price ?? 0),
             billing: Number(p.durationDays) >= 360 ? 'annual' : Number(p.durationDays) <= 1 ? 'daily_pass' : 'monthly',
-            features: p.description ? String(p.description).split('\n').map((line) => line.trim()).filter(Boolean) : ['Gym Access'],
-            members: 0,
+            features: p.description ? String(p.description).split('\n').map((line: string) => line.trim()).filter(Boolean) : ['Gym Access'],
+            members: p.activeSubscribers ?? 0,
             active: !!p.isActive,
             durationDays: Number(p.durationDays ?? 30),
             planType: p.planType ?? 'individual',
@@ -69,7 +71,7 @@ export default function AdminPlansPage() {
 
     const openAdd = () => {
         setEditingPlan(null);
-        setFormData({ name: '', price: '', billing: 'monthly', features: '' });
+        setFormData({ name: '', price: '', billing: 'monthly', features: '', planType: 'individual', includedPtSessions: '0' });
         setModalOpen(true);
     };
 
@@ -80,6 +82,8 @@ export default function AdminPlansPage() {
             price: String(plan.price),
             billing: plan.durationDays >= 360 ? 'annual' : 'monthly',
             features: plan.features.join('\n'),
+            planType: plan.planType ?? 'individual',
+            includedPtSessions: '0',
         });
         setModalOpen(true);
     };
@@ -108,10 +112,10 @@ export default function AdminPlansPage() {
                 await opsAPI.createPlan({
                     name: formData.name.trim(),
                     description: features.join('\n'),
-                    planType: 'individual',
+                    planType: formData.planType,
                     price,
-                    durationDays: formData.billing === 'annual' ? 365 : 30,
-                    includedPtSessions: 0,
+                    durationDays: formData.billing === 'annual' ? 365 : formData.planType === 'daily_pass' ? 1 : 30,
+                    includedPtSessions: Number(formData.includedPtSessions) || 0,
                 });
                 toast.success('Plan Created', `${formData.name} has been added successfully`);
             }
@@ -211,6 +215,7 @@ export default function AdminPlansPage() {
             >
                 <div className="space-y-4">
                     <Input
+                        id="plan-name"
                         label="Plan Name"
                         placeholder="e.g. Premium"
                         value={formData.name}
@@ -218,6 +223,7 @@ export default function AdminPlansPage() {
                         required
                     />
                     <Input
+                        id="plan-price"
                         label="Price (Rs.)"
                         type="number"
                         placeholder="3500"
@@ -226,11 +232,35 @@ export default function AdminPlansPage() {
                         min={0}
                     />
                     <Select
+                        id="plan-billing"
                         label="Billing Period"
                         options={BILLING_OPTIONS}
                         value={formData.billing}
                         onChange={e => setFormData(prev => ({ ...prev, billing: e.target.value as 'monthly' | 'annual' }))}
                     />
+                    {!editingPlan && (
+                        <>
+                            <Select
+                                label="Plan Type"
+                                options={[
+                                    { value: 'individual', label: 'Individual' },
+                                    { value: 'couple', label: 'Couple' },
+                                    { value: 'student', label: 'Student' },
+                                    { value: 'corporate', label: 'Corporate' },
+                                    { value: 'daily_pass', label: 'Daily Pass' },
+                                ]}
+                                value={formData.planType}
+                                onChange={e => setFormData(prev => ({ ...prev, planType: e.target.value as typeof formData.planType }))}
+                            />
+                            <Input
+                                label="Included PT Sessions"
+                                type="number"
+                                value={formData.includedPtSessions}
+                                onChange={e => setFormData(prev => ({ ...prev, includedPtSessions: e.target.value }))}
+                                min="0"
+                            />
+                        </>
+                    )}
                     <Textarea
                         label="Features (one per line)"
                         placeholder={'Gym Access\nLocker Room\nFree Wi-Fi'}

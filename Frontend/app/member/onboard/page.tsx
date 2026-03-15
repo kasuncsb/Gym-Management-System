@@ -115,13 +115,25 @@ export default function Onboard() {
         }
     };
 
-    const handleNext = () => {
+    const handleNext = (skipId = false) => {
         if (step === 1) {
-            if (!idUploaded) { setError('Please upload your documents first.'); return; }
+            if (!skipId && !idUploaded) { setError('Please upload your documents first, or skip for now.'); return; }
         } else if (step === 2 && !canProceedStep2) { setError('Please select your experience level.'); return; }
         else if (step === 3 && !canProceedStep3) { setError('Please select at least one fitness goal.'); return; }
         setError('');
         setStep(prev => (prev + 1) as Step);
+    };
+
+    const toggleGoal = (goalId: string) => {
+        const current = data.fitnessGoals ? data.fitnessGoals.split(',') : [];
+        const idx = current.indexOf(goalId);
+        let next: string[];
+        if (idx >= 0) {
+            next = current.filter((g) => g !== goalId);
+        } else {
+            next = [...current, goalId];
+        }
+        update('fitnessGoals', next.join(','));
     };
 
     const handleSubmit = async () => {
@@ -336,27 +348,31 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals'];
                         <div className="space-y-5" id="onboard-step-3">
                             <div>
                                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                    <Target size={22} className="text-red-500 shrink-0" /> Fitness goal
+                                    <Target size={22} className="text-red-500 shrink-0" /> Fitness Goals
                                 </h2>
-                                <p className="text-zinc-400 text-sm mt-1">Pick at least one.</p>
+                                <p className="text-zinc-400 text-sm mt-1">Pick one or more goals (tap to select/deselect).</p>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="group" aria-labelledby="onboard-goals-label">
-                                <span id="onboard-goals-label" className="sr-only">Fitness goal</span>
-                                {GOALS.map(goal => (
-                                    <button
-                                        key={goal.id}
-                                        id={`onboard-goal-${goal.id}`}
-                                        type="button"
-                                        onClick={() => update('fitnessGoals', goal.id)}
-                                        className={cn(
-                                            'p-3 rounded-xl border text-left transition-all flex items-center gap-2',
-                                            data.fitnessGoals === goal.id ? 'border-red-600 bg-red-600/10' : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-600'
-                                        )}
-                                    >
-                                        <goal.icon size={18} className={data.fitnessGoals === goal.id ? 'text-red-400' : 'text-zinc-400'} />
-                                        <span className="font-medium text-white text-sm">{goal.label}</span>
-                                    </button>
-                                ))}
+                                <span id="onboard-goals-label" className="sr-only">Fitness goals</span>
+                                {GOALS.map(goal => {
+                                    const selected = data.fitnessGoals.split(',').includes(goal.id);
+                                    return (
+                                        <button
+                                            key={goal.id}
+                                            id={`onboard-goal-${goal.id}`}
+                                            type="button"
+                                            onClick={() => toggleGoal(goal.id)}
+                                            className={cn(
+                                                'p-3 rounded-xl border text-left transition-all flex items-center gap-2',
+                                                selected ? 'border-red-600 bg-red-600/10' : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-600'
+                                            )}
+                                        >
+                                            <goal.icon size={18} className={selected ? 'text-red-400' : 'text-zinc-400'} />
+                                            <span className="font-medium text-white text-sm">{goal.label}</span>
+                                            {selected && <CheckCircle size={16} className="text-red-500 ml-auto shrink-0" />}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -373,30 +389,40 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals'];
                             </button>
                         ) : <div />}
                         {step === 1 ? (
-                            idUploaded ? (
+                            <div className="flex items-center gap-3">
                                 <button
-                                    id="onboard-continue"
+                                    id="onboard-skip-id"
                                     type="button"
-                                    onClick={handleNext}
-                                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-all"
+                                    onClick={() => handleNext(true)}
+                                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700/50 transition-all text-sm font-medium"
                                 >
-                                    Continue <ChevronRight size={18} />
+                                    Skip for now
                                 </button>
-                            ) : (
-                                <button
-                                    id="onboard-upload"
-                                    type="button"
-                                    onClick={handleUploadIdDocs}
-                                    disabled={!canUploadStep1 || uploading}
-                                    className={cn(
-                                        'flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-all',
-                                        (!canUploadStep1 || uploading) && 'opacity-70 cursor-not-allowed'
-                                    )}
-                                >
-                                    {uploading ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-                                    Upload documents
-                                </button>
-                            )
+                                {idUploaded ? (
+                                    <button
+                                        id="onboard-continue"
+                                        type="button"
+                                        onClick={() => handleNext()}
+                                        className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-all"
+                                    >
+                                        Continue <ChevronRight size={18} />
+                                    </button>
+                                ) : (
+                                    <button
+                                        id="onboard-upload"
+                                        type="button"
+                                        onClick={handleUploadIdDocs}
+                                        disabled={!canUploadStep1 || uploading}
+                                        className={cn(
+                                            'flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-all',
+                                            (!canUploadStep1 || uploading) && 'opacity-70 cursor-not-allowed'
+                                        )}
+                                    >
+                                        {uploading ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+                                        Upload documents
+                                    </button>
+                                )}
+                            </div>
                         ) : step < 3 ? (
                             <button
                                 id="onboard-continue"

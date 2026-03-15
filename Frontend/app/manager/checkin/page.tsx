@@ -26,6 +26,14 @@ export default function ManagerCheckinPage() {
     const toast = useToast();
     const [search, setSearch] = useState('');
     const [log, setLog] = useState<LogEntry[]>([]);
+    const [branchCapacity, setBranchCapacity] = useState(80);
+
+    useEffect(() => {
+        opsAPI.config().then((cfg: any[]) => {
+            const cap = cfg?.find((c: any) => c.key === 'branch_capacity');
+            if (cap) setBranchCapacity(Number(cap.value) || 80);
+        }).catch(() => undefined);
+    }, []);
 
     const refresh = async () => {
         const visits = await opsAPI.visits(300);
@@ -76,11 +84,11 @@ export default function ManagerCheckinPage() {
             <Card padding="md">
                 <div className="flex justify-between text-sm mb-2">
                     <span className="text-white font-semibold">Capacity</span>
-                    <span className="text-zinc-400">{inCount} / 80</span>
+                    <span className="text-zinc-400">{inCount} / {branchCapacity}</span>
                 </div>
                 <div className="w-full bg-zinc-800 rounded-full h-3">
-                    <div className={`h-3 rounded-full transition-all ${inCount / 80 > 0.8 ? 'bg-red-500' : inCount / 80 > 0.6 ? 'bg-yellow-500' : 'bg-green-500'}`}
-                        style={{ width: `${(inCount / 80) * 100}%` }} />
+                    <div className={`h-3 rounded-full transition-all ${inCount / branchCapacity > 0.8 ? 'bg-red-500' : inCount / branchCapacity > 0.6 ? 'bg-yellow-500' : 'bg-green-500'}`}
+                        style={{ width: `${Math.min(100, (inCount / branchCapacity) * 100)}%` }} />
                 </div>
             </Card>
 

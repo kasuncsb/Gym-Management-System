@@ -19,7 +19,7 @@ interface Alert {
     status: AlertStatus;
     link?: string;
     createdAt: string;
-    source?: 'message' | 'equipment';
+    source: 'message' | 'equipment';
 }
 
 const typeIcon: Record<AlertType, React.ElementType> = {
@@ -39,56 +39,81 @@ export default function AdminAlertsPage() {
     const toast = useToast();
     const [alerts, setAlerts] = useState<Alert[]>([]);
     const [filter, setFilter] = useState<AlertStatus | 'all'>('all');
+    const [actionId, setActionId] = useState<string | null>(null);
 
     const loadAlerts = async () => {
         const [messages, events] = await Promise.all([opsAPI.messages(), opsAPI.equipmentEvents()]);
         const msgAlerts: Alert[] = (messages ?? []).map((m: any) => ({
             id: m.id,
-            type: m.subject?.toLowerCase().includes('payment') ? 'payment' : 'system',
+            type: m.subject?.toLowerCase().includes('payment') ? 'payment' : 'system' as AlertType,
             title: m.subject ?? 'System message',
             message: m.body ?? '',
-            priority: m.priority ?? 'medium',
+            priority: m.priority === 'critical' ? 'high' : (m.priority ?? 'medium'),
             status: m.status === 'read' ? 'acknowledged' : 'pending',
             createdAt: String(m.createdAt ?? new Date().toISOString()),
-            source: 'message',
+            source: 'message' as const,
         }));
         const eqAlerts: Alert[] = (events ?? [])
             .filter((e: any) => e.status !== 'resolved')
             .map((e: any) => ({
                 id: e.id,
-                type: 'equipment',
-                title: 'Equipment issue',
+                type: 'equipment' as AlertType,
+                title: `Equipment issue${e.equipmentName ? ` — ${e.equipmentName}` : ''}`,
                 message: e.description ?? 'Equipment event',
                 priority: e.severity === 'critical' ? 'high' : (e.severity ?? 'medium'),
                 status: e.status === 'in_progress' ? 'acknowledged' : 'pending',
                 link: '/manager/equipment',
                 createdAt: String(e.createdAt ?? new Date().toISOString()),
-                source: 'equipment',
+                source: 'equipment' as const,
             }));
-        setAlerts([...msgAlerts, ...eqAlerts].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+        setAlerts([...msgAlerts, ...eqAlerts].sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        ));
     };
 
     useEffect(() => {
-        loadAlerts().catch((err) => toast.error('Failed to load alerts', getErrorMessage(err)));
+        loadAlerts().catch(err => toast.error('Failed to load alerts', getErrorMessage(err)));
     }, []);
 
     const filtered = filter === 'all' ? alerts : alerts.filter(a => a.status === filter);
 
-    const acknowledge = (a: Alert) => {
-        if (a.source === 'message') {
-            opsAPI.markMessageRead(a.id)
-                .then(() => loadAlerts())
-                .then(() => toast.success('Acknowledged', 'Alert has been acknowledged'))
-                .catch((err) => toast.error('Error', getErrorMessage(err)));
-            return;
+    const acknowledge = async (a: Alert) => {
+        setActionId(a.id + 'ack');
+        try {
+            if (a.source === 'message') {
+                await opsAPI.markMessageRead(a.id);
+            } else {
+                // For equipment issues, mark as in_progress to acknowledge
+                await opsAPI.resolveEquipmentEvent(a.id);
+                toast.success('Acknowledged', 'Equipment alert acknowledged and marked in-progress.');
+                await loadAlerts();
+                return;
+            }
+            await loadAlerts();
+            toast.success('Acknowledged', 'Alert has been acknowledged');
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
+        } finally {
+            setActionId(null);
         }
-        setAlerts((prev) => prev.map((x) => x.id === a.id ? { ...x, status: 'acknowledged' } : x));
-        toast.success('Acknowledged', 'Equipment alert acknowledged');
     };
 
-    const resolve = (a: Alert) => {
-        setAlerts(prev => prev.map(x => x.id === a.id ? { ...x, status: 'resolved' as AlertStatus } : x));
-        toast.success('Resolved', 'Alert has been marked resolved');
+    const resolve = async (a: Alert) => {
+        setActionId(a.id + 'res');
+        try {
+            if (a.source === 'equipment') {
+                await opsAPI.resolveEquipmentEvent(a.id);
+                toast.success('Resolved', 'Equipment issue has been resolved.');
+            } else {
+                await opsAPI.markMessageRead(a.id);
+                toast.success('Resolved', 'Alert has been marked resolved.');
+            }
+            await loadAlerts();
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
+        } finally {
+            setActionId(null);
+        }
     };
 
     return (
@@ -112,26 +137,28 @@ export default function AdminAlertsPage() {
                     const Icon = typeIcon[a.type];
                     return (
                         <Card key={a.id} padding="md" className={`flex items-center justify-between gap-4 ${a.status === 'resolved' ? 'opacity-60' : ''}`}>
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center">
+                            <div className="flex items-center gap-4 min-w-0">
+                                <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center shrink-0">
                                     <Icon size={18} className="text-zinc-400" />
                                 </div>
-                                <div>
-                                    <p className="text-white font-semibold">{a.title}</p>
-                                    <p className="text-zinc-500 text-sm">{a.message}</p>
+                                <div className="min-w-0">
+                                    <p className="text-white font-semibold truncate">{a.title}</p>
+                                    <p className="text-zinc-500 text-sm truncate">{a.message}</p>
                                     <p className="text-zinc-600 text-xs mt-1">{new Date(a.createdAt).toLocaleString()}</p>
                                 </div>
-                                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold border ${priorityColor[a.priority]}`}>
-                                    {a.priority}
-                                </span>
-                                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                                    a.status === 'pending' ? 'bg-amber-500/20 text-amber-400' :
-                                    a.status === 'acknowledged' ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'
-                                }`}>
-                                    {a.status}
-                                </span>
+                                <div className="flex gap-2 shrink-0">
+                                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold border ${priorityColor[a.priority]}`}>
+                                        {a.priority}
+                                    </span>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                                        a.status === 'pending' ? 'bg-amber-500/20 text-amber-400' :
+                                        a.status === 'acknowledged' ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'
+                                    }`}>
+                                        {a.status}
+                                    </span>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 shrink-0">
                                 {a.link && (
                                     <Link href={a.link}>
                                         <LoadingButton variant="secondary" size="sm">View</LoadingButton>
@@ -139,12 +166,31 @@ export default function AdminAlertsPage() {
                                 )}
                                 {a.status === 'pending' && (
                                     <>
-                                        <LoadingButton variant="secondary" size="sm" onClick={() => acknowledge(a)}>Acknowledge</LoadingButton>
-                                        <LoadingButton size="sm" onClick={() => resolve(a)}>Resolve</LoadingButton>
+                                        <LoadingButton
+                                            variant="secondary"
+                                            size="sm"
+                                            loading={actionId === a.id + 'ack'}
+                                            onClick={() => acknowledge(a)}
+                                        >
+                                            Acknowledge
+                                        </LoadingButton>
+                                        <LoadingButton
+                                            size="sm"
+                                            loading={actionId === a.id + 'res'}
+                                            onClick={() => resolve(a)}
+                                        >
+                                            Resolve
+                                        </LoadingButton>
                                     </>
                                 )}
                                 {a.status === 'acknowledged' && (
-                                    <LoadingButton size="sm" onClick={() => resolve(a)}>Resolve</LoadingButton>
+                                    <LoadingButton
+                                        size="sm"
+                                        loading={actionId === a.id + 'res'}
+                                        onClick={() => resolve(a)}
+                                    >
+                                        Resolve
+                                    </LoadingButton>
                                 )}
                             </div>
                         </Card>

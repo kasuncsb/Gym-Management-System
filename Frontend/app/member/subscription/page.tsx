@@ -67,7 +67,8 @@ export default function MemberSubscriptionPage() {
     }, []);
 
     const idRejected = idStatus === 'rejected';
-    const canPurchase = !idRejected;
+    const idPending = idStatus === 'pending';
+    const canPurchase = !idRejected && !idPending;
     const activeSubscription = subscriptions.find((s) => ['active', 'grace_period', 'frozen'].includes(s.status)) ?? subscriptions[0];
     const planOptions = plans.map((p) => ({
         value: p.id,
@@ -166,6 +167,17 @@ export default function MemberSubscriptionPage() {
                     </div>
                 </div>
             )}
+            {!profileLoading && idPending && (
+                <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4 flex items-start gap-3" role="alert">
+                    <ShieldAlert className="text-yellow-400 shrink-0 mt-0.5" size={20} />
+                    <div>
+                        <p className="font-medium text-yellow-300">ID verification pending</p>
+                        <p className="text-sm text-zinc-400 mt-1">
+                            Your identity documents are being reviewed. Subscription purchases are blocked until your ID is approved.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             <Tabs
                 tabs={[
@@ -178,58 +190,82 @@ export default function MemberSubscriptionPage() {
 
             {tab === 'overview' && (
                 <>
-                    <Card padding="lg">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-                            <div className="flex items-start gap-4">
-                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center">
-                                    <CreditCard size={24} className="text-white" />
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-bold text-white">{activeSubscription?.planName ?? 'No active plan'}</h3>
-                                    <p className="text-zinc-400 text-sm mt-1">
-                                        Rs. {Number(activeSubscription?.pricePaid ?? 0).toLocaleString()}
-                                    </p>
-                                    <p className="text-zinc-500 text-xs mt-2">
-                                        Ends: {activeSubscription?.endDate ?? '—'} · PT sessions left: {activeSubscription?.ptSessionsLeft ?? 0}
-                                    </p>
-                                </div>
+                    {!activeSubscription ? (
+                        <Card padding="lg" className="text-center space-y-5">
+                            <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto">
+                                <CreditCard size={32} className="text-red-400" />
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs bg-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-full font-semibold">
-                                    {activeSubscription?.status ?? 'none'}
-                                </span>
+                            <div>
+                                <h3 className="text-xl font-bold text-white">No Active Plan</h3>
+                                <p className="text-zinc-400 text-sm mt-1">Purchase your first subscription to access PowerWorld Kiribathgoda.</p>
                             </div>
-                        </div>
-                        <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-zinc-700">
                             <LoadingButton
-                                icon={RefreshCw}
-                                variant="secondary"
+                                icon={CreditCard}
                                 onClick={() => canPurchase && setRenewOpen(true)}
-                                size="sm"
                                 disabled={!canPurchase}
+                                size="lg"
                             >
-                                Renew
+                                Purchase Your First Plan
                             </LoadingButton>
-                            <LoadingButton
-                                icon={ArrowUpCircle}
-                                variant="secondary"
-                                onClick={() => canPurchase && setUpgradeOpen(true)}
-                                size="sm"
-                                disabled={!canPurchase}
-                            >
-                                Upgrade
-                            </LoadingButton>
-                            <LoadingButton
-                                icon={Snowflake}
-                                variant="secondary"
-                                onClick={() => canPurchase && setFreezeOpen(true)}
-                                size="sm"
-                                disabled={!canPurchase}
-                            >
-                                Request Freeze
-                            </LoadingButton>
-                        </div>
-                    </Card>
+                        </Card>
+                    ) : (
+                        <Card padding="lg">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+                                <div className="flex items-start gap-4">
+                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center">
+                                        <CreditCard size={24} className="text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-white">{activeSubscription.planName ?? 'No active plan'}</h3>
+                                        <p className="text-zinc-400 text-sm mt-1">
+                                            Rs. {Number(activeSubscription.pricePaid ?? 0).toLocaleString()}
+                                        </p>
+                                        <p className="text-zinc-500 text-xs mt-2">
+                                            Ends: {activeSubscription.endDate ?? '—'} · PT sessions left: {activeSubscription.ptSessionsLeft ?? 0}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${
+                                        activeSubscription.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' :
+                                        activeSubscription.status === 'grace_period' ? 'bg-yellow-500/20 text-yellow-400' :
+                                        activeSubscription.status === 'frozen' ? 'bg-blue-500/20 text-blue-400' :
+                                        'bg-red-500/20 text-red-400'
+                                    }`}>
+                                        {activeSubscription.status?.replace('_', ' ') ?? 'unknown'}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-zinc-700">
+                                <LoadingButton
+                                    icon={RefreshCw}
+                                    variant="secondary"
+                                    onClick={() => canPurchase && setRenewOpen(true)}
+                                    size="sm"
+                                    disabled={!canPurchase}
+                                >
+                                    Renew
+                                </LoadingButton>
+                                <LoadingButton
+                                    icon={ArrowUpCircle}
+                                    variant="secondary"
+                                    onClick={() => canPurchase && setUpgradeOpen(true)}
+                                    size="sm"
+                                    disabled={!canPurchase}
+                                >
+                                    Upgrade
+                                </LoadingButton>
+                                <LoadingButton
+                                    icon={Snowflake}
+                                    variant="secondary"
+                                    onClick={() => setFreezeOpen(true)}
+                                    size="sm"
+                                >
+                                    Request Freeze
+                                </LoadingButton>
+                            </div>
+                        </Card>
+                    )}
                 </>
             )}
 
@@ -280,7 +316,9 @@ export default function MemberSubscriptionPage() {
                         label="Payment Method"
                         options={[
                             { value: 'card', label: 'Credit/Debit Card' },
-                            { value: 'bank', label: 'Bank Transfer' },
+                            { value: 'cash', label: 'Cash' },
+                            { value: 'bank_transfer', label: 'Bank Transfer' },
+                            { value: 'online', label: 'Online Payment' },
                         ]}
                         value={renewForm.payment}
                         onChange={e => setRenewForm(f => ({ ...f, payment: e.target.value }))}

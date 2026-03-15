@@ -4,8 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
     LayoutDashboard,
-    Menu,
-    X,
     Dumbbell,
     Calendar,
     TrendingUp,
@@ -24,12 +22,11 @@ import {
     Tag,
     AlertTriangle,
     CalendarOff,
-    Cpu,
 } from "lucide-react";
-import { useState, useEffect } from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { useAuth } from "@/context/AuthContext";
+import { useSidebar } from "@/context/SidebarContext";
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -93,7 +90,7 @@ function navForRole(role: string): NavItem[] {
 export function Sidebar() {
     const { user } = useAuth();
     const pathname = usePathname();
-    const [mobileOpen, setMobileOpen] = useState(false);
+    const { mobileSidebarOpen, closeMobileSidebar } = useSidebar();
 
     // Keep this in sync with the navbar height (h-24 in Navbar.tsx → 6rem → 96px)
     const NAVBAR_HEIGHT = 96;
@@ -111,7 +108,7 @@ export function Sidebar() {
                         <Link
                             key={href}
                             href={href}
-                            onClick={() => setMobileOpen(false)}
+                            onClick={closeMobileSidebar}
                             className={cn(
                                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                                 isActive
@@ -131,13 +128,13 @@ export function Sidebar() {
     return (
         <>
             {/* Mobile Sidebar Overlay — starts directly under the existing navbar */}
-            {mobileOpen && (
+            {mobileSidebarOpen && (
                 <div className="md:hidden fixed inset-0 z-40">
                     {/* Clickable dim behind the drawer, but do NOT cover the navbar (top padding matches navbar height) */}
                     <div
                         className="absolute inset-0 bg-black/50"
                         style={{ paddingTop: NAVBAR_HEIGHT }}
-                        onClick={() => setMobileOpen(false)}
+                        onClick={closeMobileSidebar}
                     />
                     <div
                         className="absolute left-0 bottom-0 w-72 bg-[#252526] border-r border-zinc-800/50 shadow-2xl"
@@ -150,7 +147,7 @@ export function Sidebar() {
 
             {/* Desktop Sidebar — starts below navbar and can grow with page height */}
             <aside
-                className="hidden md:flex flex-col w-56 bg-[#252526] border-r border-zinc-800/50 shrink-0 overflow-hidden sticky"
+                className="hidden md:flex flex-col w-56 bg-[#252526] border-r border-zinc-800/50 shrink-0 sticky self-start h-[calc(100vh-96px)] overflow-hidden"
                 style={{ top: NAVBAR_HEIGHT }}
             >
                 <SidebarContent />

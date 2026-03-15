@@ -1,122 +1,315 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { TrendingUp, Download, CheckCircle } from 'lucide-react';
+import { useState } from 'react';
+import { Download, TrendingUp, Users, Activity, Wrench, Dumbbell } from 'lucide-react';
 import { PageHeader, Card, Input, Select, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
 import { getErrorMessage, opsAPI } from '@/lib/api';
 
-const reportTypes = [
-    { id: 'financial',   label: 'Financial Summary',   desc: 'Revenue, expenses, outstanding payments' },
-    { id: 'membership',  label: 'Membership Report',   desc: 'New, renewed, and cancelled memberships' },
-    { id: 'operations',  label: 'Operations Report',   desc: 'Check-ins, occupancy, trainer sessions' },
-    { id: 'security',    label: 'Security Audit',      desc: 'Login attempts, access logs, anomalies' },
-    { id: 'maintenance', label: 'Maintenance Log',     desc: 'Equipment repairs, downtime history' },
-    { id: 'payroll',     label: 'Payroll Summary',     desc: 'Staff hours, salaries, overtime' },
+const REPORT_TYPES = [
+    { id: 'revenue',    label: 'Revenue',       icon: TrendingUp, desc: 'Payments by method and plan' },
+    { id: 'membership', label: 'Membership',    icon: Users,      desc: 'New members, subscriptions by plan' },
+    { id: 'attendance', label: 'Attendance',    icon: Activity,   desc: 'Daily visits, peak hours' },
+    { id: 'equipment',  label: 'Equipment',     icon: Wrench,     desc: 'Incidents by severity and equipment' },
+    { id: 'trainer',    label: 'Trainers',      icon: Dumbbell,   desc: 'PT session stats per trainer' },
 ];
 
-const FORMAT_OPTIONS = [
-    { value: 'PDF', label: 'PDF' },
-    { value: 'CSV', label: 'CSV' },
-    { value: 'Excel', label: 'Excel' },
-];
+function downloadJson(data: unknown, filename: string) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
 
 export default function AdminReportsPage() {
     const toast = useToast();
-    const [selected, setSelected] = useState('');
+    const [selected, setSelected] = useState('revenue');
     const [from, setFrom] = useState('');
     const [to, setTo] = useState('');
-    const [fmt, setFmt] = useState<'PDF' | 'CSV' | 'Excel'>('PDF');
     const [loading, setLoading] = useState(false);
-    const [done, setDone] = useState(false);
-    const [recent, setRecent] = useState<Array<{ name: string; generated: string; size: string; format: string }>>([]);
+    const [reportData, setReportData] = useState<any>(null);
 
-    useEffect(() => {
-        opsAPI.recentReports()
-            .then((rows) => {
-                setRecent((rows ?? []).map((r: any) => ({
-                    name: r.title ?? r.kind ?? 'Report item',
-                    generated: String(r.createdAt).slice(0, 10),
-                    size: 'Live',
-                    format: 'JSON',
-                })));
-            })
-            .catch((err) => toast.error('Failed to load reports', getErrorMessage(err)));
-    }, []);
-
-    const run = () => {
-        if (!selected) {
-            toast.error('Select Report', 'Please select a report type first');
-            return;
-        }
+    const run = async () => {
         setLoading(true);
-        setDone(false);
-        opsAPI.reportSummary()
-            .then(() => {
-                setDone(true);
-                toast.success('Report Generated', 'Fresh summary data is available.');
-            })
-            .catch((err) => toast.error('Failed to generate', getErrorMessage(err)))
-            .finally(() => setLoading(false));
+        setReportData(null);
+        try {
+            const data = await opsAPI.reportSummary({
+                type: selected,
+                fromDate: from || undefined,
+                toDate: to || undefined,
+            });
+            setReportData(data);
+            toast.success('Report Generated', 'Data loaded successfully');
+        } catch (err) {
+            toast.error('Failed to generate', getErrorMessage(err));
+        } finally {
+            setLoading(false);
+        }
     };
+
+    const handleDownload = () => {
+        if (!reportData) return;
+        downloadJson(reportData, `report-${selected}-${from || 'all'}-to-${to || 'now'}.json`);
+        toast.success('Download Started', 'Report JSON saved');
+    };
+
+    const label = REPORT_TYPES.find(r => r.id === selected)?.label ?? selected;
 
     return (
         <div className="space-y-8">
             <PageHeader
                 title="System Reports"
-                subtitle="Generate comprehensive operational reports"
+                subtitle="Generate comprehensive operational reports with live data"
             />
 
             <Card padding="lg">
                 <h2 className="text-white font-semibold mb-5">Report Builder</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5">
-                    {reportTypes.map(r => (
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+                    {REPORT_TYPES.map(r => (
                         <div
                             key={r.id}
-                            onClick={() => { setSelected(r.id); setDone(false); }}
+                            onClick={() => { setSelected(r.id); setReportData(null); }}
                             className={`p-4 rounded-xl border cursor-pointer transition-all ${selected === r.id
                                 ? 'border-red-500/60 bg-red-500/10'
                                 : 'border-zinc-800 hover:border-zinc-700'}`}
                         >
+                            <r.icon size={16} className={selected === r.id ? 'text-red-400 mb-1' : 'text-zinc-500 mb-1'} />
                             <p className="text-white text-sm font-semibold">{r.label}</p>
                             <p className="text-zinc-500 text-xs mt-0.5">{r.desc}</p>
                         </div>
                     ))}
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-                    <Input id="admin-reports-from" label="From" type="date" value={from} onChange={e => setFrom(e.target.value)} />
-                    <Input id="admin-reports-to" label="To" type="date" value={to} onChange={e => setTo(e.target.value)} />
-                    <Select id="admin-reports-format" label="Format" options={FORMAT_OPTIONS} value={fmt} onChange={e => setFmt(e.target.value as 'PDF' | 'CSV' | 'Excel')} />
+                <div className="grid grid-cols-2 gap-4 mb-5">
+                    <Input id="rpt-from" label="From Date" type="date" value={from} onChange={e => setFrom(e.target.value)} />
+                    <Input id="rpt-to" label="To Date" type="date" value={to} onChange={e => setTo(e.target.value)} />
                 </div>
-                <LoadingButton
-                    onClick={run}
-                    disabled={!selected || loading}
-                    loading={loading}
-                    className="w-full"
-                >
-                    {done ? <span className="flex items-center justify-center gap-2"><CheckCircle size={18} /> Report Ready — Download</span> : 'Generate Report'}
-                </LoadingButton>
+                <div className="flex gap-3">
+                    <LoadingButton onClick={run} loading={loading} className="flex-1">
+                        Generate {label} Report
+                    </LoadingButton>
+                    {reportData && (
+                        <LoadingButton variant="secondary" icon={Download} onClick={handleDownload}>
+                            Download JSON
+                        </LoadingButton>
+                    )}
+                </div>
             </Card>
 
-            <Card padding="lg">
-                <h2 className="text-white font-semibold mb-4">Recent Reports</h2>
-                <div className="space-y-3">
-                    {recent.map((r, i) => (
-                        <div key={i} className="flex items-center justify-between bg-zinc-800/30 rounded-xl p-4 hover:bg-zinc-800/50 transition-colors">
-                            <div>
-                                <p className="text-white text-sm font-semibold">{r.name}</p>
-                                <p className="text-zinc-500 text-xs">{r.generated} · {r.size} · {r.format}</p>
+            {reportData && <ReportResults data={reportData} />}
+        </div>
+    );
+}
+
+function ReportResults({ data }: { data: any }) {
+    const type = data.type ?? 'overview';
+
+    return (
+        <div className="space-y-6">
+            {/* Overview KPIs always shown */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                    { label: 'Monthly Revenue', value: `Rs. ${Number(data.monthlyRevenue ?? 0).toLocaleString()}` },
+                    { label: 'Active Members', value: data.activeMembers ?? '—' },
+                    { label: 'Visits in Range', value: data.visitsInRange ?? '—' },
+                    { label: 'Open Incidents', value: data.openEquipmentIncidents ?? '—' },
+                ].map(kpi => (
+                    <Card key={kpi.label} padding="md">
+                        <p className="text-zinc-400 text-xs">{kpi.label}</p>
+                        <p className="text-white text-2xl font-bold mt-1">{kpi.value}</p>
+                    </Card>
+                ))}
+            </div>
+
+            {type === 'revenue' && data.byMethod && (
+                <Card padding="lg">
+                    <h3 className="text-white font-semibold mb-4">Revenue by Payment Method</h3>
+                    <table className="w-full text-sm">
+                        <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
+                            <th className="text-left py-2">Method</th>
+                            <th className="text-right py-2">Transactions</th>
+                            <th className="text-right py-2">Total</th>
+                        </tr></thead>
+                        <tbody>{(data.byMethod ?? []).map((r: any, i: number) => (
+                            <tr key={i} className="border-b border-zinc-800/50">
+                                <td className="py-2 text-zinc-300 capitalize">{String(r.method).replace('_', ' ')}</td>
+                                <td className="py-2 text-right text-zinc-400">{r.count}</td>
+                                <td className="py-2 text-right text-white font-medium">Rs. {Number(r.total).toLocaleString()}</td>
+                            </tr>
+                        ))}</tbody>
+                    </table>
+                    {data.byPlan && (
+                        <>
+                            <h3 className="text-white font-semibold mt-6 mb-4">Revenue by Plan</h3>
+                            <table className="w-full text-sm">
+                                <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
+                                    <th className="text-left py-2">Plan</th>
+                                    <th className="text-right py-2">Total</th>
+                                </tr></thead>
+                                <tbody>{(data.byPlan ?? []).map((r: any, i: number) => (
+                                    <tr key={i} className="border-b border-zinc-800/50">
+                                        <td className="py-2 text-zinc-300">{r.planName ?? 'Unknown'}</td>
+                                        <td className="py-2 text-right text-white font-medium">Rs. {Number(r.total).toLocaleString()}</td>
+                                    </tr>
+                                ))}</tbody>
+                            </table>
+                        </>
+                    )}
+                </Card>
+            )}
+
+            {type === 'membership' && (
+                <Card padding="lg">
+                    <h3 className="text-white font-semibold mb-4">Membership Summary</h3>
+                    <p className="text-zinc-400 text-sm mb-4">New members in range: <span className="text-white font-bold">{data.newMembers ?? 0}</span></p>
+                    {data.byPlan && (
+                        <>
+                            <h4 className="text-zinc-300 font-medium mb-2">Active Subscriptions by Plan</h4>
+                            <table className="w-full text-sm mb-6">
+                                <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
+                                    <th className="text-left py-2">Plan</th>
+                                    <th className="text-right py-2">Active</th>
+                                </tr></thead>
+                                <tbody>{(data.byPlan ?? []).map((r: any, i: number) => (
+                                    <tr key={i} className="border-b border-zinc-800/50">
+                                        <td className="py-2 text-zinc-300">{r.planName ?? 'Unknown'}</td>
+                                        <td className="py-2 text-right text-white font-medium">{r.count}</td>
+                                    </tr>
+                                ))}</tbody>
+                            </table>
+                        </>
+                    )}
+                    {data.byStatus && (
+                        <>
+                            <h4 className="text-zinc-300 font-medium mb-2">Subscription Status Breakdown</h4>
+                            <div className="flex flex-wrap gap-3">
+                                {(data.byStatus ?? []).map((r: any, i: number) => (
+                                    <div key={i} className="bg-zinc-800/50 rounded-lg px-4 py-2 text-center">
+                                        <p className="text-white font-bold">{r.count}</p>
+                                        <p className="text-zinc-400 text-xs capitalize">{String(r.status).replace('_', ' ')}</p>
+                                    </div>
+                                ))}
                             </div>
-                            <button
-                                onClick={() => toast.success('Download Started', r.name)}
-                                className="flex items-center gap-1.5 text-red-400 hover:text-red-300 text-xs font-semibold transition-colors"
-                            >
-                                <Download size={14} /> Download
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            </Card>
+                        </>
+                    )}
+                </Card>
+            )}
+
+            {type === 'attendance' && (
+                <Card padding="lg">
+                    <h3 className="text-white font-semibold mb-4">Attendance Analysis</h3>
+                    {data.byHour && (
+                        <>
+                            <h4 className="text-zinc-300 font-medium mb-3">Peak Hours</h4>
+                            <div className="flex items-end gap-1 h-24 mb-6">
+                                {Array.from({ length: 24 }, (_, h) => {
+                                    const found = (data.byHour ?? []).find((r: any) => Number(r.hour) === h);
+                                    const max = Math.max(...(data.byHour ?? []).map((r: any) => Number(r.count)), 1);
+                                    const pct = found ? (Number(found.count) / max) * 100 : 0;
+                                    return (
+                                        <div key={h} className="flex-1 flex flex-col items-center gap-0.5">
+                                            <div className="w-full bg-red-500/60 rounded-t" style={{ height: `${pct}%`, minHeight: pct > 0 ? 2 : 0 }} />
+                                            {h % 6 === 0 && <span className="text-zinc-500 text-xs">{h}h</span>}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </>
+                    )}
+                    {data.daily && (
+                        <>
+                            <h4 className="text-zinc-300 font-medium mb-2">Daily Visits</h4>
+                            <div className="max-h-60 overflow-y-auto">
+                                <table className="w-full text-sm">
+                                    <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
+                                        <th className="text-left py-2">Date</th>
+                                        <th className="text-right py-2">Visits</th>
+                                        <th className="text-right py-2">Avg Duration</th>
+                                    </tr></thead>
+                                    <tbody>{(data.daily ?? []).map((r: any, i: number) => (
+                                        <tr key={i} className="border-b border-zinc-800/50">
+                                            <td className="py-2 text-zinc-300">{r.date}</td>
+                                            <td className="py-2 text-right text-white">{r.count}</td>
+                                            <td className="py-2 text-right text-zinc-400">{r.avgDurationMin ? `${r.avgDurationMin} min` : '—'}</td>
+                                        </tr>
+                                    ))}</tbody>
+                                </table>
+                            </div>
+                        </>
+                    )}
+                </Card>
+            )}
+
+            {type === 'equipment' && (
+                <Card padding="lg">
+                    <h3 className="text-white font-semibold mb-4">Equipment Incident Analysis</h3>
+                    {data.bySeverity && (
+                        <>
+                            <h4 className="text-zinc-300 font-medium mb-2">By Severity & Status</h4>
+                            <table className="w-full text-sm mb-6">
+                                <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
+                                    <th className="text-left py-2">Severity</th>
+                                    <th className="text-left py-2">Status</th>
+                                    <th className="text-right py-2">Count</th>
+                                </tr></thead>
+                                <tbody>{(data.bySeverity ?? []).map((r: any, i: number) => (
+                                    <tr key={i} className="border-b border-zinc-800/50">
+                                        <td className="py-2 text-zinc-300 capitalize">{r.severity ?? '—'}</td>
+                                        <td className="py-2 text-zinc-400 capitalize">{r.status ?? '—'}</td>
+                                        <td className="py-2 text-right text-white font-medium">{r.count}</td>
+                                    </tr>
+                                ))}</tbody>
+                            </table>
+                        </>
+                    )}
+                    {data.byEquipment && (
+                        <>
+                            <h4 className="text-zinc-300 font-medium mb-2">Most Reported Equipment</h4>
+                            <table className="w-full text-sm">
+                                <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
+                                    <th className="text-left py-2">Equipment</th>
+                                    <th className="text-right py-2">Incidents</th>
+                                </tr></thead>
+                                <tbody>{(data.byEquipment ?? []).map((r: any, i: number) => (
+                                    <tr key={i} className="border-b border-zinc-800/50">
+                                        <td className="py-2 text-zinc-300">{r.equipmentName ?? 'Unknown'}</td>
+                                        <td className="py-2 text-right text-white font-medium">{r.count}</td>
+                                    </tr>
+                                ))}</tbody>
+                            </table>
+                        </>
+                    )}
+                </Card>
+            )}
+
+            {type === 'trainer' && data.trainerStats && (
+                <Card padding="lg">
+                    <h3 className="text-white font-semibold mb-4">Trainer Performance</h3>
+                    <table className="w-full text-sm">
+                        <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
+                            <th className="text-left py-2">Trainer</th>
+                            <th className="text-right py-2">Total Sessions</th>
+                            <th className="text-right py-2">Completed</th>
+                            <th className="text-right py-2">Cancelled</th>
+                            <th className="text-right py-2">Completion %</th>
+                        </tr></thead>
+                        <tbody>{(data.trainerStats ?? []).map((r: any, i: number) => {
+                            const pct = r.total > 0 ? Math.round((Number(r.completed) / Number(r.total)) * 100) : 0;
+                            return (
+                                <tr key={i} className="border-b border-zinc-800/50">
+                                    <td className="py-2 text-zinc-300">{r.trainerName ?? 'Unknown'}</td>
+                                    <td className="py-2 text-right text-white">{r.total}</td>
+                                    <td className="py-2 text-right text-emerald-400">{r.completed}</td>
+                                    <td className="py-2 text-right text-red-400">{r.cancelled}</td>
+                                    <td className="py-2 text-right text-white font-medium">{pct}%</td>
+                                </tr>
+                            );
+                        })}</tbody>
+                    </table>
+                </Card>
+            )}
         </div>
     );
 }

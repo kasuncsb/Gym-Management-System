@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Tag, Plus, Pencil } from 'lucide-react';
+import { Tag, Plus, Pencil, ToggleLeft, ToggleRight } from 'lucide-react';
 import { PageHeader, Card, Modal, Input, Select, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
 import { getErrorMessage, opsAPI } from '@/lib/api';
@@ -11,13 +11,21 @@ interface Promotion {
     code: string;
     name: string;
     discountType: 'percentage' | 'fixed';
-    discountValue: number;
+    discountValue: string | number;
     validFrom: string;
-    validUntil: string;
-    usageLimit: number | null;
-    usageCount: number;
-    active: boolean;
+    validUntil: string | null;
+    isActive: boolean;
+    usedCount: number;
 }
+
+const emptyForm = {
+    code: '',
+    name: '',
+    discountType: 'percentage' as 'percentage' | 'fixed',
+    discountValue: '',
+    validFrom: '',
+    validUntil: '',
+};
 
 export default function AdminPromotionsPage() {
     const toast = useToast();
@@ -25,39 +33,20 @@ export default function AdminPromotionsPage() {
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<Promotion | null>(null);
     const [loading, setLoading] = useState(false);
-    const [form, setForm] = useState({
-        code: '',
-        name: '',
-        discountType: 'percentage' as 'percentage' | 'fixed',
-        discountValue: '',
-        validFrom: '',
-        validUntil: '',
-        usageLimit: '',
-    });
+    const [pageLoading, setPageLoading] = useState(true);
+    const [form, setForm] = useState(emptyForm);
 
-    const persistPromos = async (next: Promotion[]) => {
-        await opsAPI.updateConfig({ promotions_json: JSON.stringify(next) });
-        setPromos(next);
-    };
+    const loadPromos = () =>
+        opsAPI.promotions()
+            .then(data => setPromos(data as Promotion[]))
+            .catch(err => toast.error('Failed to load promotions', getErrorMessage(err)))
+            .finally(() => setPageLoading(false));
 
-    useEffect(() => {
-        opsAPI.config()
-            .then((rows) => {
-                const raw = (rows ?? []).find((r) => r.key === 'promotions_json')?.value;
-                if (!raw) return;
-                try {
-                    const parsed = JSON.parse(raw) as Promotion[];
-                    if (Array.isArray(parsed)) setPromos(parsed);
-                } catch {
-                    // keep empty state if malformed
-                }
-            })
-            .catch((err) => toast.error('Failed to load promotions', getErrorMessage(err)));
-    }, []);
+    useEffect(() => { loadPromos(); }, []);
 
     const openAdd = () => {
         setEditing(null);
-        setForm({ code: '', name: '', discountType: 'percentage', discountValue: '', validFrom: '', validUntil: '', usageLimit: '' });
+        setForm(emptyForm);
         setModalOpen(true);
     };
 
@@ -68,42 +57,35 @@ export default function AdminPromotionsPage() {
             name: p.name,
             discountType: p.discountType,
             discountValue: String(p.discountValue),
-            validFrom: p.validFrom,
-            validUntil: p.validUntil,
-            usageLimit: p.usageLimit != null ? String(p.usageLimit) : '',
+            validFrom: p.validFrom ? String(p.validFrom).slice(0, 10) : '',
+            validUntil: p.validUntil ? String(p.validUntil).slice(0, 10) : '',
         });
         setModalOpen(true);
     };
 
     const handleSave = async () => {
-        if (!form.code.trim() || !form.name.trim() || !form.discountValue || !form.validFrom || !form.validUntil) {
-            toast.error('Validation Error', 'Code, name, discount, and dates are required');
+        if (!form.code.trim() || !form.name.trim() || !form.discountValue || !form.validFrom) {
+            toast.error('Validation Error', 'Code, name, discount, and valid-from date are required');
             return;
         }
         setLoading(true);
         try {
-            let next: Promotion[];
+            const payload = {
+                code: form.code.toUpperCase().trim(),
+                name: form.name,
+                discountType: form.discountType,
+                discountValue: Number(form.discountValue),
+                validFrom: form.validFrom,
+                validUntil: form.validUntil || undefined,
+            };
             if (editing) {
-                next = promos.map(p => p.id === editing.id
-                    ? { ...p, ...form, discountValue: Number(form.discountValue), usageLimit: form.usageLimit ? Number(form.usageLimit) : null }
-                    : p);
-                toast.success('Promotion Updated', `${form.code} has been updated`);
+                await opsAPI.updatePromotion(editing.id, payload);
+                toast.success('Promotion Updated', `${payload.code} has been updated`);
             } else {
-                next = [{
-                    id: String(Date.now()),
-                    code: form.code,
-                    name: form.name,
-                    discountType: form.discountType,
-                    discountValue: Number(form.discountValue),
-                    validFrom: form.validFrom,
-                    validUntil: form.validUntil,
-                    usageLimit: form.usageLimit ? Number(form.usageLimit) : null,
-                    usageCount: 0,
-                    active: true,
-                }, ...promos];
-                toast.success('Promotion Added', `${form.code} has been added`);
+                await opsAPI.createPromotion(payload);
+                toast.success('Promotion Added', `${payload.code} has been created`);
             }
-            await persistPromos(next);
+            await loadPromos();
             setModalOpen(false);
         } catch (err) {
             toast.error('Error', getErrorMessage(err));
@@ -112,12 +94,25 @@ export default function AdminPromotionsPage() {
         }
     };
 
-    const toggleActive = (p: Promotion) => {
-        const next = promos.map((x) => x.id === p.id ? { ...x, active: !x.active } : x);
-        persistPromos(next)
-            .then(() => toast.success(p.active ? 'Disabled' : 'Enabled', `${p.code} has been ${p.active ? 'disabled' : 'enabled'}`))
-            .catch((err) => toast.error('Error', getErrorMessage(err)));
+    const toggleActive = async (p: Promotion) => {
+        try {
+            if (p.isActive) {
+                await opsAPI.deactivatePromotion(p.id);
+                toast.success('Disabled', `${p.code} has been deactivated`);
+            } else {
+                await opsAPI.updatePromotion(p.id, { isActive: true });
+                toast.success('Enabled', `${p.code} has been activated`);
+            }
+            await loadPromos();
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
+        }
     };
+
+    const formatDiscount = (p: Promotion) =>
+        p.discountType === 'percentage' ? `${Number(p.discountValue)}%` : `Rs. ${Number(p.discountValue).toLocaleString()}`;
+
+    const formatDate = (d: string | null) => d ? String(d).slice(0, 10) : '—';
 
     return (
         <div className="space-y-8">
@@ -139,34 +134,48 @@ export default function AdminPromotionsPage() {
                                 <th className="text-left text-xs font-semibold text-zinc-400 uppercase px-6 py-4">Code</th>
                                 <th className="text-left text-xs font-semibold text-zinc-400 uppercase px-6 py-4">Name</th>
                                 <th className="text-left text-xs font-semibold text-zinc-400 uppercase px-6 py-4">Discount</th>
-                                <th className="text-left text-xs font-semibold text-zinc-400 uppercase px-6 py-4">Valid</th>
-                                <th className="text-left text-xs font-semibold text-zinc-400 uppercase px-6 py-4">Usage</th>
+                                <th className="text-left text-xs font-semibold text-zinc-400 uppercase px-6 py-4">Valid From</th>
+                                <th className="text-left text-xs font-semibold text-zinc-400 uppercase px-6 py-4">Valid Until</th>
+                                <th className="text-left text-xs font-semibold text-zinc-400 uppercase px-6 py-4">Used</th>
                                 <th className="text-left text-xs font-semibold text-zinc-400 uppercase px-6 py-4">Status</th>
                                 <th className="text-left text-xs font-semibold text-zinc-400 uppercase px-6 py-4">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {promos.map(p => (
+                            {pageLoading ? (
+                                <tr><td colSpan={8} className="px-6 py-12 text-center text-zinc-500">Loading promotions…</td></tr>
+                            ) : promos.length === 0 ? (
+                                <tr><td colSpan={8} className="px-6 py-12 text-center text-zinc-500">No promotions found. Add one to get started.</td></tr>
+                            ) : promos.map(p => (
                                 <tr key={p.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
-                                    <td className="px-6 py-4 text-white font-mono font-semibold">{p.code}</td>
-                                    <td className="px-6 py-4 text-zinc-400">{p.name}</td>
-                                    <td className="px-6 py-4 text-zinc-400">
-                                        {p.discountType === 'percentage' ? `${p.discountValue}%` : `Rs.${p.discountValue}`}
-                                    </td>
-                                    <td className="px-6 py-4 text-zinc-400">{p.validFrom} – {p.validUntil}</td>
-                                    <td className="px-6 py-4 text-zinc-400">{p.usageCount}{p.usageLimit != null ? ` / ${p.usageLimit}` : ''}</td>
                                     <td className="px-6 py-4">
-                                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${p.active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-500/20 text-zinc-400'}`}>
-                                            {p.active ? 'Active' : 'Disabled'}
+                                        <div className="flex items-center gap-2">
+                                            <Tag size={14} className="text-red-400" />
+                                            <span className="text-white font-mono font-semibold">{p.code}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-zinc-300">{p.name}</td>
+                                    <td className="px-6 py-4 text-zinc-300 font-medium">{formatDiscount(p)}</td>
+                                    <td className="px-6 py-4 text-zinc-400 text-sm">{formatDate(p.validFrom)}</td>
+                                    <td className="px-6 py-4 text-zinc-400 text-sm">{formatDate(p.validUntil)}</td>
+                                    <td className="px-6 py-4 text-zinc-400 text-sm">{p.usedCount ?? 0}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${p.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-500/20 text-zinc-400'}`}>
+                                            {p.isActive ? 'Active' : 'Inactive'}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 flex gap-2">
-                                        <button onClick={() => openEdit(p)} className="text-red-400 hover:text-red-300 text-sm font-medium flex items-center gap-1">
-                                            <Pencil size={14} /> Edit
-                                        </button>
-                                        <button onClick={() => toggleActive(p)} className="text-zinc-400 hover:text-white text-sm font-medium">
-                                            {p.active ? 'Disable' : 'Enable'}
-                                        </button>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <button onClick={() => openEdit(p)} className="text-red-400 hover:text-red-300 text-sm font-medium flex items-center gap-1">
+                                                <Pencil size={13} /> Edit
+                                            </button>
+                                            <button onClick={() => toggleActive(p)} className="text-zinc-400 hover:text-white text-sm font-medium flex items-center gap-1">
+                                                {p.isActive
+                                                    ? <><ToggleLeft size={14} /> Disable</>
+                                                    : <><ToggleRight size={14} className="text-emerald-400" /> Enable</>
+                                                }
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -177,22 +186,62 @@ export default function AdminPromotionsPage() {
 
             <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Promotion' : 'Add Promotion'} size="md">
                 <div className="space-y-4">
-                    <Input id="promotions-code" label="Code" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} placeholder="NEWYEAR25" required />
-                    <Input id="promotions-name" label="Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="New Year 25% Off" required />
+                    <Input
+                        id="promo-code"
+                        label="Promo Code"
+                        value={form.code}
+                        onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
+                        placeholder="SUMMER25"
+                        required
+                        disabled={!!editing}
+                    />
+                    <Input
+                        id="promo-name"
+                        label="Name"
+                        value={form.name}
+                        onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                        placeholder="Summer 25% Off"
+                        required
+                    />
                     <Select
-                        id="promotions-discount-type"
+                        id="promo-discount-type"
                         label="Discount Type"
-                        options={[{ value: 'percentage', label: 'Percentage' }, { value: 'fixed', label: 'Fixed Amount' }]}
+                        options={[
+                            { value: 'percentage', label: 'Percentage (%)' },
+                            { value: 'fixed', label: 'Fixed Amount (Rs.)' },
+                        ]}
                         value={form.discountType}
                         onChange={e => setForm(f => ({ ...f, discountType: e.target.value as 'percentage' | 'fixed' }))}
                     />
-                    <Input id="promotions-discount-value" label={form.discountType === 'percentage' ? 'Discount %' : 'Discount (Rs.)'} type="number" value={form.discountValue} onChange={e => setForm(f => ({ ...f, discountValue: e.target.value }))} required />
-                    <Input id="promotions-valid-from" label="Valid From" type="date" value={form.validFrom} onChange={e => setForm(f => ({ ...f, validFrom: e.target.value }))} required />
-                    <Input id="promotions-valid-until" label="Valid Until" type="date" value={form.validUntil} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} required />
-                    <Input id="promotions-usage-limit" label="Usage Limit (optional)" type="number" value={form.usageLimit} onChange={e => setForm(f => ({ ...f, usageLimit: e.target.value }))} placeholder="Leave empty for unlimited" />
+                    <Input
+                        id="promo-discount-value"
+                        label={form.discountType === 'percentage' ? 'Discount %' : 'Discount Amount (Rs.)'}
+                        type="number"
+                        value={form.discountValue}
+                        onChange={e => setForm(f => ({ ...f, discountValue: e.target.value }))}
+                        required
+                        min="0"
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                        <Input
+                            id="promo-valid-from"
+                            label="Valid From"
+                            type="date"
+                            value={form.validFrom}
+                            onChange={e => setForm(f => ({ ...f, validFrom: e.target.value }))}
+                            required
+                        />
+                        <Input
+                            id="promo-valid-until"
+                            label="Valid Until (optional)"
+                            type="date"
+                            value={form.validUntil}
+                            onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))}
+                        />
+                    </div>
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setModalOpen(false)}>Cancel</LoadingButton>
-                        <LoadingButton loading={loading} onClick={handleSave}>{editing ? 'Save' : 'Add'}</LoadingButton>
+                        <LoadingButton loading={loading} onClick={handleSave}>{editing ? 'Save Changes' : 'Add Promotion'}</LoadingButton>
                     </div>
                 </div>
             </Modal>

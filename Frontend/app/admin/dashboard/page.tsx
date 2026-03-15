@@ -50,7 +50,7 @@ export default function AdminDashboard() {
         setPlans((subscriptions ?? []).slice(0, 6).map((p: any) => ({
             name: p.name,
             price: `Rs.${Number(p.price).toLocaleString()}`,
-            members: 0,
+            members: p.activeSubscribers ?? 0,
         })));
     };
     useRealtimePolling(() => { refresh().catch(() => undefined); }, 15000);
@@ -132,7 +132,7 @@ export default function AdminDashboard() {
                 <Card className="lg:col-span-2">
                     <div className="flex items-center justify-between mb-5">
                         <h2 className="text-lg font-semibold text-white flex items-center gap-2"><Activity size={18} className="text-red-500" /> Recent Activity</h2>
-                        <Link href="/admin/activities" className="text-sm text-red-500 hover:text-red-400">View All</Link>
+                        <Link href="/admin/reports" className="text-sm text-red-500 hover:text-red-400">View Reports</Link>
                     </div>
                     <div className="space-y-3">
                         {activities.map((a, i) => (

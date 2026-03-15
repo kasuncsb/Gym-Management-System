@@ -217,6 +217,12 @@ export const resetPassword = asyncHandler(async (req: AuthRequest, res: Response
 
 export const completeOnboarding = asyncHandler(async (req: AuthRequest, res: Response) => {
   await authService.completeOnboarding(req.user!.id, req.body as OnboardingInput);
+
+  // Auto-generate an AI workout plan in the background — non-blocking, failures are silent
+  import('../services/ops.service.js').then(ops =>
+    ops.generateAiWorkoutPlan(req.user!.id, req.user!.id, 'member').catch(() => {/* silent */})
+  ).catch(() => {/* silent */});
+
   res.json(response.success(null, 'Onboarding complete'));
 });
 

@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { TrendingUp, Flame, Clock, Award, Activity } from 'lucide-react';
-import { PageHeader, Card } from '@/components/ui/SharedComponents';
-import { opsAPI } from '@/lib/api';
+import { TrendingUp, Flame, Clock, Award, Activity, Plus } from 'lucide-react';
+import { PageHeader, Card, Modal, Input, LoadingButton } from '@/components/ui/SharedComponents';
+import { opsAPI, getErrorMessage } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 
 export default function ProgressPage() {
@@ -11,15 +11,45 @@ export default function ProgressPage() {
     const [period, setPeriod] = useState<'week' | 'month' | '3month'>('month');
     const [metrics, setMetrics] = useState<any[]>([]);
     const [logs, setLogs] = useState<any[]>([]);
+    const [vitalsOpen, setVitalsOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [vitalsForm, setVitalsForm] = useState({ weightKg: '', heightCm: '', bmi: '', restingHr: '', notes: '' });
 
-    useEffect(() => {
+    const loadData = () =>
         Promise.all([opsAPI.myMetrics(), opsAPI.myWorkoutLogs()])
             .then(([m, l]) => {
                 setMetrics((m ?? []) as any[]);
                 setLogs((l ?? []) as any[]);
             })
             .catch(() => toast.error('Error', 'Failed to load progress data'));
-    }, []);
+
+    useEffect(() => { loadData(); }, []);
+
+    const handleLogVitals = async () => {
+        const payload = {
+            weightKg: vitalsForm.weightKg ? Number(vitalsForm.weightKg) : undefined,
+            heightCm: vitalsForm.heightCm ? Number(vitalsForm.heightCm) : undefined,
+            bmi: vitalsForm.bmi ? Number(vitalsForm.bmi) : undefined,
+            restingHr: vitalsForm.restingHr ? Number(vitalsForm.restingHr) : undefined,
+            notes: vitalsForm.notes || undefined,
+        };
+        if (!payload.weightKg && !payload.bmi && !payload.restingHr) {
+            toast.error('Validation', 'Enter at least one measurement');
+            return;
+        }
+        setSaving(true);
+        try {
+            await opsAPI.addMetric(payload);
+            await loadData();
+            toast.success('Vitals Logged', 'Your measurements have been recorded');
+            setVitalsOpen(false);
+            setVitalsForm({ weightKg: '', heightCm: '', bmi: '', restingHr: '', notes: '' });
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const latestMetric = metrics[0];
     const previousMetric = metrics[1];
@@ -54,18 +84,26 @@ export default function ProgressPage() {
         return out;
     }, [logs, period]);
     const maxVal     = Math.max(...data, 1);
-    const prs = metrics.slice(0, 5).map((m) => ({
-        exercise: 'Body Weight',
-        weight: m.weightKg ? `${Number(m.weightKg).toFixed(1)} kg` : '—',
-        date: String(m.recordedAt).slice(0, 10),
-        improvement: m.notes ? String(m.notes).slice(0, 40) : 'Recorded',
-    }));
+    // Distinct stats from metrics: latest weight, lowest BMI, best resting HR
+    const latestWeight = metrics.find(m => m.weightKg != null);
+    const lowestBmi = metrics.filter(m => m.bmi != null).sort((a, b) => Number(a.bmi) - Number(b.bmi))[0];
+    const bestHr = metrics.filter(m => m.restingHr != null).sort((a, b) => Number(a.restingHr) - Number(b.restingHr))[0];
+    const prs = [
+        latestWeight && { label: 'Latest Weight', value: `${Number(latestWeight.weightKg).toFixed(1)} kg`, date: String(latestWeight.recordedAt ?? '').slice(0, 10) },
+        lowestBmi && { label: 'Best BMI', value: Number(lowestBmi.bmi).toFixed(1), date: String(lowestBmi.recordedAt ?? '').slice(0, 10) },
+        bestHr && { label: 'Best Resting HR', value: `${bestHr.restingHr} bpm`, date: String(bestHr.recordedAt ?? '').slice(0, 10) },
+    ].filter(Boolean) as { label: string; value: string; date: string }[];
 
     return (
         <div className="space-y-8">
             <PageHeader
                 title="Progress & Stats"
                 subtitle="Track your fitness journey at PowerWorld Kiribathgoda"
+                action={
+                    <LoadingButton icon={Plus} onClick={() => setVitalsOpen(true)} size="md">
+                        Log Vitals
+                    </LoadingButton>
+                }
             />
 
             <div className="flex gap-2">
@@ -117,23 +155,43 @@ export default function ProgressPage() {
 
             <Card padding="lg">
                 <h2 className="text-lg font-semibold text-white mb-5 flex items-center gap-2">
-                    <Award size={18} className="text-yellow-500" /> Personal Records
+                    <Award size={18} className="text-yellow-500" /> Best Metrics
                 </h2>
-                <div className="space-y-3">
-                    {prs.map((pr, i) => (
-                        <div key={i} className="flex items-center justify-between bg-zinc-800/30 rounded-xl p-4">
-                            <div>
-                                <p className="text-white font-semibold">{pr.exercise}</p>
-                                <p className="text-zinc-500 text-xs">{pr.date}</p>
+                {prs.length === 0 ? (
+                    <p className="text-zinc-500 text-sm">No vitals recorded yet. Use "Log Vitals" to add your measurements.</p>
+                ) : (
+                    <div className="space-y-3">
+                        {prs.map((pr, i) => (
+                            <div key={i} className="flex items-center justify-between bg-zinc-800/30 rounded-xl p-4">
+                                <div>
+                                    <p className="text-white font-semibold">{pr.label}</p>
+                                    <p className="text-zinc-500 text-xs">{pr.date}</p>
+                                </div>
+                                <p className="text-white font-bold">{pr.value}</p>
                             </div>
-                            <div className="text-right">
-                                <p className="text-white font-bold">{pr.weight}</p>
-                                <p className="text-green-400 text-xs">{pr.improvement}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                )}
             </Card>
+
+            {/* Log Vitals Modal */}
+            <Modal isOpen={vitalsOpen} onClose={() => setVitalsOpen(false)} title="Log Vitals" description="Record your current measurements" size="md">
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <Input id="v-weight" label="Weight (kg)" type="number" value={vitalsForm.weightKg} onChange={e => setVitalsForm(f => ({ ...f, weightKg: e.target.value }))} placeholder="70.5" min="0" />
+                        <Input id="v-height" label="Height (cm)" type="number" value={vitalsForm.heightCm} onChange={e => setVitalsForm(f => ({ ...f, heightCm: e.target.value }))} placeholder="175" min="0" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <Input id="v-bmi" label="BMI (optional)" type="number" value={vitalsForm.bmi} onChange={e => setVitalsForm(f => ({ ...f, bmi: e.target.value }))} placeholder="22.4" min="0" step="0.1" />
+                        <Input id="v-hr" label="Resting HR (bpm)" type="number" value={vitalsForm.restingHr} onChange={e => setVitalsForm(f => ({ ...f, restingHr: e.target.value }))} placeholder="65" min="0" />
+                    </div>
+                    <Input id="v-notes" label="Notes (optional)" value={vitalsForm.notes} onChange={e => setVitalsForm(f => ({ ...f, notes: e.target.value }))} placeholder="Feeling good today..." />
+                    <div className="flex justify-end gap-3 pt-2">
+                        <LoadingButton variant="secondary" onClick={() => setVitalsOpen(false)}>Cancel</LoadingButton>
+                        <LoadingButton loading={saving} onClick={handleLogVitals}>Save Vitals</LoadingButton>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

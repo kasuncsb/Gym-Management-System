@@ -16,7 +16,7 @@ dotenv.config({ path: join(scriptDir, '..', '..', '.env') });
 dotenv.config({ path: join(scriptDir, '..', '.env') });
 
 import { db } from '../src/config/database.js';
-import { users, memberProfiles, config } from '../src/db/schema.js';
+import { users, memberProfiles, config, subscriptionPlans, inventoryItems } from '../src/db/schema.js';
 import { ids } from '../src/utils/id.js';
 import { hashPassword } from '../src/utils/password.js';
 import { inArray } from 'drizzle-orm';
@@ -126,8 +126,77 @@ async function seed() {
     }
   }
 
-  console.log('✅ 4 users created (admin, manager, trainer, member)\n');
-  console.log('📋 Login credentials (password for all):', SEED_PASSWORD);
+  console.log('✅ 4 users created (admin, manager, trainer, member)');
+
+  // Seed subscription plans (upsert by planCode)
+  const SEED_PLANS = [
+    {
+      id: ids.uuid(),
+      planCode: 'BASIC-MTH',
+      name: 'Basic Monthly',
+      description: 'Full gym access for 30 days. No PT sessions included.',
+      planType: 'individual' as const,
+      price: '2500.00',
+      durationDays: 30,
+      includedPtSessions: 0,
+      isActive: true,
+      sortOrder: 1,
+    },
+    {
+      id: ids.uuid(),
+      planCode: 'PREM-MTH',
+      name: 'Premium Monthly',
+      description: 'Full gym access + 2 personal training sessions per month.',
+      planType: 'individual' as const,
+      price: '4500.00',
+      durationDays: 30,
+      includedPtSessions: 2,
+      isActive: true,
+      sortOrder: 2,
+    },
+    {
+      id: ids.uuid(),
+      planCode: 'PREM-ANN',
+      name: 'Annual Premium',
+      description: 'Best value — 12 months access + 24 PT sessions + priority booking.',
+      planType: 'individual' as const,
+      price: '42000.00',
+      durationDays: 365,
+      includedPtSessions: 24,
+      isActive: true,
+      sortOrder: 3,
+    },
+  ];
+
+  for (const plan of SEED_PLANS) {
+    // Check if plan with this code exists
+    const existing = await db.select({ id: subscriptionPlans.id }).from(subscriptionPlans)
+      .where(inArray(subscriptionPlans.planCode, [plan.planCode])).limit(1);
+    if (existing.length === 0) {
+      await db.insert(subscriptionPlans).values(plan);
+    }
+  }
+  console.log('✅ Subscription plans seeded (Basic Monthly, Premium Monthly, Annual Premium)');
+
+  // Seed inventory / equipment items
+  const SEED_INVENTORY = [
+    { id: ids.uuid(), name: 'Treadmill', category: 'cardio', qtyInStock: 5, reorderThreshold: 2, isActive: true },
+    { id: ids.uuid(), name: 'Bench Press Station', category: 'strength', qtyInStock: 4, reorderThreshold: 1, isActive: true },
+    { id: ids.uuid(), name: 'Squat Rack', category: 'strength', qtyInStock: 3, reorderThreshold: 1, isActive: true },
+    { id: ids.uuid(), name: 'Dumbbell Set (5–50kg)', category: 'free_weights', qtyInStock: 2, reorderThreshold: 1, isActive: true },
+    { id: ids.uuid(), name: 'Rowing Machine', category: 'cardio', qtyInStock: 3, reorderThreshold: 1, isActive: true },
+  ];
+
+  for (const item of SEED_INVENTORY) {
+    const existing = await db.select({ id: inventoryItems.id }).from(inventoryItems)
+      .where(inArray(inventoryItems.name, [item.name])).limit(1);
+    if (existing.length === 0) {
+      await db.insert(inventoryItems).values(item);
+    }
+  }
+  console.log('✅ Inventory items seeded (5 items)');
+
+  console.log('\n📋 Login credentials (password for all):', SEED_PASSWORD);
   console.log('─'.repeat(60));
   for (const u of SEED_USERS) {
     console.log(`   ${u.role.padEnd(8)} ${u.email}`);

@@ -208,17 +208,28 @@ export interface OpsDashboard {
   todayVisits: number;
   openIssues: number;
   monthlyRevenue: number;
+  // member extras
   myVisits?: number;
   myWorkouts?: number;
+  // trainer extras
   sessionsToday?: number;
+  upcomingSessions?: number;
+  assignedMembersCount?: number;
+  pendingEquipmentIssues?: number;
+  // manager extras
+  trainersOnShift?: number;
+  frozenSubscriptions?: number;
+  pendingIdVerifications?: number;
+  // admin extras
+  systemAlertCount?: number;
 }
 
 export const opsAPI = {
   // dashboards/reports
   dashboard: (role: 'admin' | 'manager' | 'trainer' | 'member' | 'staff') =>
     apiClient.get<{ success: boolean; data: OpsDashboard }>(`/ops/dashboard/${role}`).then(r => r.data.data),
-  reportSummary: () =>
-    apiClient.get('/ops/reports/summary').then(r => r.data.data),
+  reportSummary: (params?: { type?: string; fromDate?: string; toDate?: string }) =>
+    apiClient.get('/ops/reports/summary', { params }).then(r => r.data.data),
   recentReports: () =>
     apiClient.get('/ops/reports/recent').then(r => r.data.data),
 
@@ -257,36 +268,64 @@ export const opsAPI = {
     apiClient.get('/ops/pt-sessions/me').then(r => r.data.data as any[]),
   trainerPtSessions: () =>
     apiClient.get('/ops/pt-sessions/trainer').then(r => r.data.data as any[]),
+  allPtSessions: () =>
+    apiClient.get('/ops/pt-sessions').then(r => r.data.data as any[]),
   createPtSession: (payload: { memberId: string; trainerId: string; sessionDate: string; startTime: string; endTime: string }) =>
     apiClient.post('/ops/pt-sessions', payload).then(r => r.data.data),
+  updatePtSession: (id: string, payload: { status: 'confirmed' | 'completed' | 'cancelled' | 'no_show'; cancelReason?: string }) =>
+    apiClient.patch(`/ops/pt-sessions/${id}`, payload).then(r => r.data.data),
 
   // workouts / metrics
   myWorkoutPlans: () =>
     apiClient.get('/ops/workouts/plans/me').then(r => r.data.data as any[]),
+  memberWorkoutPlans: (memberId: string) =>
+    apiClient.get(`/ops/workouts/plans/member/${memberId}`).then(r => r.data.data as any[]),
   assignWorkoutPlan: (payload: { memberId: string; name: string; description?: string; difficulty?: 'beginner' | 'intermediate' | 'advanced'; durationWeeks: number; daysPerWeek: number }) =>
     apiClient.post('/ops/workouts/plans/assign', payload).then(r => r.data.data),
+  generateAiWorkoutPlan: (payload?: { memberId?: string }) =>
+    apiClient.post('/ops/workouts/plans/generate', payload ?? {}).then(r => r.data.data),
   myWorkoutLogs: () =>
     apiClient.get('/ops/workouts/logs/me').then(r => r.data.data as any[]),
   addWorkoutLog: (payload: { planId?: string; workoutDate: string; durationMin?: number; mood?: 'great' | 'good' | 'okay' | 'tired' | 'poor'; caloriesBurned?: number; notes?: string }) =>
     apiClient.post('/ops/workouts/logs', payload).then(r => r.data.data),
   myMetrics: () =>
     apiClient.get('/ops/metrics/me').then(r => r.data.data as any[]),
+  memberMetrics: (memberId: string) =>
+    apiClient.get(`/ops/metrics/member/${memberId}`).then(r => r.data.data as any[]),
   addMetric: (payload: { weightKg?: number; heightCm?: number; bmi?: number; restingHr?: number; notes?: string }) =>
     apiClient.post('/ops/metrics/me', payload).then(r => r.data.data),
   addMemberMetric: (memberId: string, payload: { weightKg?: number; heightCm?: number; bmi?: number; restingHr?: number; notes?: string }) =>
     apiClient.post(`/ops/metrics/member/${memberId}`, payload).then(r => r.data.data),
 
+  // subscriptions (admin/manager)
+  allSubscriptions: () =>
+    apiClient.get('/ops/subscriptions').then(r => r.data.data as any[]),
+  unfreezeSubscription: (id: string) =>
+    apiClient.post(`/ops/subscriptions/${id}/unfreeze`).then(r => r.data.data),
+  allPayments: () =>
+    apiClient.get('/ops/payments').then(r => r.data.data as any[]),
+
   // equipment / inventory
   equipment: () =>
     apiClient.get('/ops/equipment').then(r => r.data.data as any[]),
+  createEquipment: (payload: { name: string; category: 'cardio' | 'strength_machine' | 'free_weight' | 'bench' | 'accessory' | 'other'; quantity: number; zoneLabel?: string }) =>
+    apiClient.post('/ops/equipment', payload).then(r => r.data.data),
   updateEquipment: (id: string, payload: { status: 'operational' | 'needs_maintenance' | 'under_maintenance' | 'retired'; zoneLabel?: string }) =>
     apiClient.patch(`/ops/equipment/${id}`, payload).then(r => r.data.data),
   equipmentEvents: () =>
     apiClient.get('/ops/equipment-events').then(r => r.data.data as any[]),
   addEquipmentEvent: (payload: { equipmentId: string; eventType: 'issue_reported' | 'maintenance_done'; severity?: 'low' | 'medium' | 'high' | 'critical'; description: string; status?: 'open' | 'in_progress' | 'resolved' }) =>
     apiClient.post('/ops/equipment-events', payload).then(r => r.data.data),
+  resolveEquipmentEvent: (id: string) =>
+    apiClient.patch(`/ops/equipment-events/${id}/resolve`).then(r => r.data.data),
   inventoryItems: () =>
     apiClient.get('/ops/inventory/items').then(r => r.data.data as any[]),
+  createInventoryItem: (payload: { name: string; category: string; qtyInStock: number; reorderThreshold: number }) =>
+    apiClient.post('/ops/inventory/items', payload).then(r => r.data.data),
+  updateInventoryItem: (id: string, payload: Partial<{ name: string; category: string; reorderThreshold: number; isActive: boolean }>) =>
+    apiClient.patch(`/ops/inventory/items/${id}`, payload).then(r => r.data.data),
+  inventoryTransactions: (itemId?: string) =>
+    apiClient.get('/ops/inventory/transactions', { params: itemId ? { itemId } : undefined }).then(r => r.data.data as any[]),
   addInventoryTxn: (payload: { itemId: string; txnType: 'restock' | 'sale' | 'adjustment' | 'waste'; qtyChange: number; reference?: string }) =>
     apiClient.post('/ops/inventory/transactions', payload).then(r => r.data.data),
 
@@ -295,6 +334,8 @@ export const opsAPI = {
     apiClient.get('/ops/messages').then(r => r.data.data as any[]),
   markMessageRead: (id: string) =>
     apiClient.patch(`/ops/messages/${id}/read`).then(r => r.data.data),
+  broadcastMessage: (payload: { subject: string; body: string; targetRole?: string | null; toPersonId?: string | null; priority?: 'low' | 'normal' | 'high' | 'critical' }) =>
+    apiClient.post('/ops/messages', payload).then(r => r.data.data),
   trainers: () =>
     apiClient.get('/ops/trainers').then(r => r.data.data as Array<{ id: string; fullName: string }>),
   users: (role?: 'admin' | 'manager' | 'staff' | 'trainer' | 'member') =>
@@ -316,6 +357,36 @@ export const opsAPI = {
   updateConfig: (values: Record<string, string>) =>
     apiClient.patch('/ops/config', values).then(r => r.data.data),
 
+  // promotions
+  promotions: () =>
+    apiClient.get('/ops/promotions').then(r => r.data.data as any[]),
+  createPromotion: (payload: { code: string; name: string; discountType: 'percentage' | 'fixed'; discountValue: number; validFrom: string; validUntil?: string; isActive?: boolean }) =>
+    apiClient.post('/ops/promotions', payload).then(r => r.data.data),
+  updatePromotion: (id: string, payload: Partial<{ name: string; discountType: 'percentage' | 'fixed'; discountValue: number; validFrom: string; validUntil: string; isActive: boolean }>) =>
+    apiClient.patch(`/ops/promotions/${id}`, payload).then(r => r.data.data),
+  deactivatePromotion: (id: string) =>
+    apiClient.delete(`/ops/promotions/${id}`).then(r => r.data.data),
+
+  // exercises
+  exercises: (filters?: { muscleGroup?: string; difficulty?: string }) =>
+    apiClient.get('/ops/workouts/exercises', { params: filters }).then(r => r.data.data as any[]),
+  createExercise: (payload: { name: string; muscleGroup?: string; equipmentNeeded?: string; instructions?: string; difficulty?: 'beginner' | 'intermediate' | 'advanced'; videoUrl?: string }) =>
+    apiClient.post('/ops/workouts/exercises', payload).then(r => r.data.data),
+  planExercises: (planId: string) =>
+    apiClient.get(`/ops/workouts/plans/${planId}/exercises`).then(r => r.data.data as any[]),
+  addExerciseToPlan: (planId: string, payload: { exerciseId?: string; exerciseName?: string; dayNumber: number; sets?: number; reps?: number; durationSec?: number; restSec?: number; notes?: string; sortOrder?: number }) =>
+    apiClient.post(`/ops/workouts/plans/${planId}/exercises`, payload).then(r => r.data.data),
+
+  // shifts
+  shifts: (filters?: { staffId?: string; shiftDate?: string }) =>
+    apiClient.get('/ops/shifts', { params: filters }).then(r => r.data.data as any[]),
+  myShifts: () =>
+    apiClient.get('/ops/shifts/me').then(r => r.data.data as any[]),
+  createShift: (payload: { staffId: string; shiftType: 'morning' | 'afternoon' | 'evening' | 'full_day'; shiftDate: string; startTime: string; endTime: string; notes?: string }) =>
+    apiClient.post('/ops/shifts', payload).then(r => r.data.data),
+  updateShift: (id: string, status: 'scheduled' | 'active' | 'completed' | 'missed' | 'swapped') =>
+    apiClient.patch(`/ops/shifts/${id}`, { status }).then(r => r.data.data),
+
   // simulator
   simulateGenerateDoorOtp: (expiresInSec = 120) =>
     apiClient.post('/ops/simulate/door/otp', { expiresInSec }).then(r => r.data.data as { token: string; code: string; expiresAt: string }),
@@ -329,6 +400,8 @@ export const opsAPI = {
     apiClient.post('/ops/simulate/trainer-shift', payload).then(r => r.data.data),
   simulateAppointment: (payload: { memberId: string; trainerId: string; sessionDate: string; startTime: string; endTime: string }) =>
     apiClient.post('/ops/simulate/appointment', payload).then(r => r.data.data),
+  simulateVitals: (payload: { memberId: string; weightKg?: number; heightCm?: number; bmi?: number; restingHr?: number; notes?: string }) =>
+    apiClient.post('/ops/simulate/vitals', payload).then(r => r.data.data),
   simulationState: () =>
     apiClient.get('/ops/simulate/state').then(r => r.data.data as any),
 };

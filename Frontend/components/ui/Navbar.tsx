@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Menu, X, User, LogOut, Home, LayoutDashboard } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useAuth, dashboardPathForRole } from "@/context/AuthContext";
+import { useSidebar } from "@/context/SidebarContext";
 import { authAPI } from "@/lib/api";
 
 /** Routes where the shared navbar is hidden (standalone / intermediate auth pages). */
@@ -50,6 +51,7 @@ function ProfileAvatar({ initials, userId, hasAvatar, cacheBust }: { initials: s
 export function Navbar() {
   const pathname = usePathname();
   const { user, logout, isAuthenticated, isLoading: authLoading, avatarMediaVersion } = useAuth();
+  const { mobileSidebarOpen, toggleMobileSidebar } = useSidebar();
   const [isOpen, setIsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -58,6 +60,10 @@ export function Navbar() {
 
   const excluded = NAVBAR_EXCLUDED_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
   const isHome = pathname === '/';
+  const isSidebarRoute =
+    isAuthenticated &&
+    (pathname.startsWith('/member/') || pathname.startsWith('/trainer/') || pathname.startsWith('/manager/') || pathname.startsWith('/admin/'));
+  const menuExpanded = isSidebarRoute ? mobileSidebarOpen : isOpen;
   const showNavLinks = isHome; // Features, Classes, Pricing only on home
   const role = user?.role ?? 'member';
   const initials = user?.fullName?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
@@ -190,17 +196,25 @@ export function Navbar() {
         {/* Mobile menu button */}
         <button
           className="md:hidden p-2 text-zinc-400 hover:text-white transition-all duration-300 active:scale-95"
-          onClick={() => setIsOpen(!isOpen)}
-          aria-expanded={isOpen}
+          onClick={() => {
+            if (isSidebarRoute) {
+              toggleMobileSidebar();
+              setIsOpen(false);
+              return;
+            }
+            setIsOpen(!isOpen);
+          }}
+          aria-expanded={menuExpanded}
         >
           <div className="relative w-7 h-7 flex items-center justify-center">
-            <Menu size={28} className={cn("absolute transition-all duration-300", isOpen ? "opacity-0 scale-50" : "opacity-100 scale-100")} />
-            <X size={28} className={cn("absolute transition-all duration-300", isOpen ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+            <Menu size={28} className={cn("absolute transition-all duration-300", menuExpanded ? "opacity-0 scale-50" : "opacity-100 scale-100")} />
+            <X size={28} className={cn("absolute transition-all duration-300", menuExpanded ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
           </div>
         </button>
       </div>
 
       {/* Mobile dropdown */}
+      {!isSidebarRoute && (
       <div
         className={cn(
           "md:hidden relative w-full px-6 flex flex-col items-center gap-5 transition-all duration-500 ease-out overflow-hidden border-t",
@@ -262,6 +276,7 @@ export function Navbar() {
           </div>
         )}
       </div>
+      )}
     </nav>
   );
 }

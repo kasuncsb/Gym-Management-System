@@ -1,19 +1,23 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Calendar, Clock, User, Plus } from 'lucide-react';
+import { Calendar, Clock, User, Plus, X, CheckCircle } from 'lucide-react';
 import { PageHeader, Card, Modal, Input, Select, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
+import axios from 'axios';
 import { getErrorMessage, opsAPI } from '@/lib/api';
 
-interface Appointment {
+interface Session {
     id: string;
-    trainer: string;
-    date: string;
-    time: string;
-    type: string;
-    status: 'upcoming' | 'completed' | 'cancelled';
+    trainerId: string;
+    trainerName: string;
+    sessionDate: string;
+    startTime: string;
+    endTime: string;
+    status: 'booked' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+    cancelReason?: string | null;
 }
+
 const SESSION_OPTIONS = [
     { value: 'Personal Training', label: 'Personal Training' },
     { value: 'Nutrition Consultation', label: 'Nutrition Consultation' },
@@ -22,48 +26,54 @@ const SESSION_OPTIONS = [
 ];
 
 const statusStyles: Record<string, string> = {
-    upcoming:  'bg-blue-500/20 text-blue-400',
-    completed: 'bg-green-500/20 text-green-400',
+    booked:    'bg-blue-500/20 text-blue-400',
+    confirmed: 'bg-green-500/20 text-green-400',
+    completed: 'bg-zinc-500/20 text-zinc-400',
     cancelled: 'bg-red-500/20 text-red-400',
+    no_show:   'bg-orange-500/20 text-orange-400',
 };
+
+const displayFilter = (s: string) => s.replace('_', ' ');
 
 export default function AppointmentsPage() {
     const toast = useToast();
-    const [filter, setFilter] = useState<'all' | 'upcoming' | 'completed' | 'cancelled'>('all');
+    const [filter, setFilter] = useState<'all' | 'booked' | 'confirmed' | 'completed' | 'cancelled'>('all');
     const [showModal, setShowModal] = useState(false);
+    const [cancelModal, setCancelModal] = useState<{ id: string; trainerName: string } | null>(null);
+    const [cancelReason, setCancelReason] = useState('');
     const [form, setForm] = useState({ trainer: '', date: '', time: '', type: '' });
     const [submitLoading, setSubmitLoading] = useState(false);
-    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [cancelLoading, setCancelLoading] = useState(false);
+    const [sessions, setSessions] = useState<Session[]>([]);
     const [trainerOptions, setTrainerOptions] = useState<Array<{ value: string; label: string }>>([]);
 
-    useEffect(() => {
-        Promise.all([
-            opsAPI.myPtSessions(),
-            opsAPI.trainers(),
-        ]).then(([sessions, trainers]) => {
+    const loadSessions = async () => {
+        try {
+            const [rawSessions, trainers] = await Promise.all([
+                opsAPI.myPtSessions(),
+                opsAPI.trainers(),
+            ]);
             const trainerMap = new Map((trainers ?? []).map((t: any) => [t.id, t.fullName]));
-            const mapped = (sessions ?? []).map((s: any) => {
-                const status: Appointment['status'] = s.status === 'completed'
-                    ? 'completed'
-                    : s.status === 'cancelled' ? 'cancelled' : 'upcoming';
-                const date = String(s.sessionDate).slice(0, 10);
-                return {
-                    id: s.id,
-                    trainer: trainerMap.get(s.trainerId) ?? s.trainerId,
-                    date,
-                    time: String(s.startTime).slice(0, 5),
-                    type: 'Personal Training',
-                    status,
-                };
-            }) as Appointment[];
-            setAppointments(mapped);
+            setSessions((rawSessions ?? []).map((s: any) => ({
+                id: s.id,
+                trainerId: s.trainerId,
+                trainerName: s.trainerName ?? trainerMap.get(s.trainerId) ?? s.trainerId,
+                sessionDate: String(s.sessionDate).slice(0, 10),
+                startTime: String(s.startTime).slice(0, 5),
+                endTime: String(s.endTime).slice(0, 5),
+                status: s.status,
+                cancelReason: s.cancelReason ?? null,
+            })));
             setTrainerOptions((trainers ?? []).map((t: any) => ({ value: t.id, label: t.fullName })));
-        }).catch(() => {
+        } catch {
             toast.error('Error', 'Failed to load appointments');
-        });
-    }, []);
+        }
+    };
 
-    const filtered = filter === 'all' ? appointments : appointments.filter((a) => a.status === filter);
+    useEffect(() => { loadSessions(); }, []);
+
+    const isUpcoming = (s: Session) => ['booked', 'confirmed'].includes(s.status);
+    const filtered = filter === 'all' ? sessions : sessions.filter(s => s.status === filter);
 
     const handleBook = async () => {
         if (!form.trainer || !form.date || !form.time || !form.type) {
@@ -81,23 +91,37 @@ export default function AppointmentsPage() {
                 startTime: `${form.time}:00`,
                 endTime,
             });
-            const refreshed = await opsAPI.myPtSessions();
-            const trainerMap = new Map(trainerOptions.map((t) => [t.value, t.label]));
-            setAppointments((refreshed ?? []).map((s: any) => ({
-                id: s.id,
-                trainer: trainerMap.get(s.trainerId) ?? s.trainerId,
-                date: String(s.sessionDate).slice(0, 10),
-                time: String(s.startTime).slice(0, 5),
-                type: 'Personal Training',
-                status: s.status === 'completed' ? 'completed' : s.status === 'cancelled' ? 'cancelled' : 'upcoming',
-            })));
             toast.success('Booking Confirmed', `Session booked on ${form.date} at ${form.time}`);
             setShowModal(false);
             setForm({ trainer: '', date: '', time: '', type: '' });
+            await loadSessions();
+        } catch (err) {
+            if (axios.isAxiosError(err) && err.response?.status === 409) {
+                toast.error('Time Slot Unavailable', 'This time slot is already booked — please choose a different time.');
+            } else {
+                toast.error('Error', getErrorMessage(err));
+            }
+        } finally {
+            setSubmitLoading(false);
+        }
+    };
+
+    const handleCancel = async () => {
+        if (!cancelModal) return;
+        setCancelLoading(true);
+        try {
+            await opsAPI.updatePtSession(cancelModal.id, {
+                status: 'cancelled',
+                cancelReason: cancelReason.trim() || 'Cancelled by member',
+            });
+            toast.success('Session Cancelled', 'Your PT session has been cancelled.');
+            setCancelModal(null);
+            setCancelReason('');
+            await loadSessions();
         } catch (err) {
             toast.error('Error', getErrorMessage(err));
         } finally {
-            setSubmitLoading(false);
+            setCancelLoading(false);
         }
     };
 
@@ -113,40 +137,59 @@ export default function AppointmentsPage() {
                 }
             />
 
-            <div className="flex gap-2">
-                {(['all', 'upcoming', 'completed', 'cancelled'] as const).map(f => (
+            <div className="flex gap-2 flex-wrap">
+                {(['all', 'booked', 'confirmed', 'completed', 'cancelled'] as const).map(f => (
                     <button key={f} onClick={() => setFilter(f)}
                         className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all ${filter === f ? 'bg-red-600 text-white border border-red-500' : 'bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:bg-zinc-800/50'}`}>
-                        {f}
+                        {displayFilter(f)}
                     </button>
                 ))}
             </div>
 
             <div className="space-y-3">
                 {filtered.length === 0 && (
-                    <div className="text-center py-12 text-zinc-600">No {filter} appointments.</div>
+                    <div className="text-center py-12 text-zinc-600">No {displayFilter(filter)} appointments.</div>
                 )}
-                {filtered.map(a => (
-                    <Card key={a.id} padding="md" className="flex items-center justify-between hover:border-zinc-700/50 transition-colors">
+                {filtered.map(s => (
+                    <Card key={s.id} padding="md" className="flex items-center justify-between hover:border-zinc-700/50 transition-colors gap-4">
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-blue-600/20 rounded-full flex items-center justify-center">
+                            <div className="w-12 h-12 bg-blue-600/20 rounded-full flex items-center justify-center shrink-0">
                                 <User size={20} className="text-blue-400" />
                             </div>
                             <div>
-                                <p className="text-white font-semibold">{a.trainer}</p>
-                                <p className="text-zinc-500 text-sm">{a.type}</p>
+                                <p className="text-white font-semibold">{s.trainerName}</p>
+                                <p className="text-zinc-500 text-sm">Personal Training</p>
+                                {s.cancelReason && (
+                                    <p className="text-zinc-600 text-xs mt-0.5">Reason: {s.cancelReason}</p>
+                                )}
                             </div>
                         </div>
-                        <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-4">
                             <div className="text-right">
                                 <p className="text-white text-sm font-semibold flex items-center gap-1 justify-end">
-                                    <Calendar size={12} className="text-zinc-500" /> {a.date}
+                                    <Calendar size={12} className="text-zinc-500" /> {s.sessionDate}
                                 </p>
                                 <p className="text-zinc-500 text-xs flex items-center gap-1 justify-end">
-                                    <Clock size={11} /> {a.time}
+                                    <Clock size={11} /> {s.startTime} – {s.endTime}
                                 </p>
                             </div>
-                            <span className={`text-xs px-2 py-1 rounded-full font-semibold ${statusStyles[a.status]}`}>{a.status}</span>
+                            <div className="flex items-center gap-2">
+                                <span className={`text-xs px-2 py-1 rounded-full font-semibold capitalize ${statusStyles[s.status]}`}>
+                                    {displayFilter(s.status)}
+                                </span>
+                                {isUpcoming(s) && (
+                                    <button
+                                        onClick={() => setCancelModal({ id: s.id, trainerName: s.trainerName })}
+                                        title="Cancel session"
+                                        className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                )}
+                                {s.status === 'confirmed' && (
+                                    <span title="Confirmed by trainer"><CheckCircle size={16} className="text-green-400" /></span>
+                                )}
+                            </div>
                         </div>
                     </Card>
                 ))}
@@ -162,6 +205,33 @@ export default function AppointmentsPage() {
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setShowModal(false)}>Cancel</LoadingButton>
                         <LoadingButton loading={submitLoading} onClick={handleBook}>Confirm Booking</LoadingButton>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Cancel confirmation modal */}
+            <Modal
+                isOpen={!!cancelModal}
+                onClose={() => { setCancelModal(null); setCancelReason(''); }}
+                title="Cancel Session"
+                description={`Cancel your session with ${cancelModal?.trainerName ?? ''}?`}
+                size="sm"
+            >
+                <div className="space-y-4">
+                    <Input
+                        id="cancel-reason"
+                        label="Reason (optional)"
+                        value={cancelReason}
+                        onChange={e => setCancelReason(e.target.value)}
+                        placeholder="Why are you cancelling?"
+                    />
+                    <div className="flex justify-end gap-3">
+                        <LoadingButton variant="secondary" onClick={() => { setCancelModal(null); setCancelReason(''); }}>
+                            Keep Session
+                        </LoadingButton>
+                        <LoadingButton variant="danger" loading={cancelLoading} onClick={handleCancel}>
+                            Cancel Session
+                        </LoadingButton>
                     </div>
                 </div>
             </Modal>

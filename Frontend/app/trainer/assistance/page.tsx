@@ -22,9 +22,11 @@ const statusColor: Record<ReqStatus, string> = {
 
 interface Request {
     id: number;
+    messageId: string;
     member: string;
     memberId: string;
     request: string;
+    subject: string;
     time: string;
     priority: Priority;
     status: ReqStatus;
@@ -36,13 +38,15 @@ export default function TrainerAssistancePage() {
     const [requests, setRequests] = useState<Request[]>([]);
     const [filter, setFilter] = useState<ReqStatus | 'all'>('all');
 
-    useEffect(() => {
+    const loadMessages = () =>
         opsAPI.messages()
             .then((rows) => {
                 setRequests((rows ?? []).map((r: any, idx: number) => ({
                     id: idx + 1,
-                    member: r.subject?.split(' - ')[0] ?? 'Member',
+                    messageId: r.id,
+                    member: r.subject?.split(' - ')[0] ?? `Member ${idx + 1}`,
                     memberId: r.toPersonId ?? '—',
+                    subject: r.subject ?? '',
                     request: r.body ?? '',
                     time: new Date(r.createdAt ?? new Date()).toLocaleString(),
                     priority: (r.priority === 'critical' ? 'high' : r.priority ?? 'medium') as Priority,
@@ -50,13 +54,20 @@ export default function TrainerAssistancePage() {
                     location: 'Gym floor',
                 })));
             })
-            .catch((err) => toast.error('Failed to load assistance queue', getErrorMessage(err)));
-    }, []);
+            .catch((err) => toast.error('Failed to load messages', getErrorMessage(err)));
 
-    const resolve = (id: number) => {
-        setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'resolved' as ReqStatus } : r));
+    useEffect(() => { loadMessages(); }, []);
+
+    const resolve = async (id: number) => {
         const req = requests.find(r => r.id === id);
-        if (req) toast.success('Request Resolved', `${req.member}'s request has been marked resolved`);
+        if (!req) return;
+        try {
+            await opsAPI.markMessageRead(req.messageId);
+            await loadMessages();
+            toast.success('Marked as Read', `Message has been marked as read`);
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
+        }
     };
 
     const filtered = filter === 'all' ? requests : requests.filter(r => r.status === filter);

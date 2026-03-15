@@ -44,12 +44,16 @@ export default function TrainerDashboard() {
         return () => clearInterval(t);
     }, []);
     const refresh = async () => {
-        const [dash, visits, equipmentRows, eventRows] = await Promise.all([
+        const [dash, visits, equipmentRows, eventRows, myVisits] = await Promise.all([
             opsAPI.dashboard('trainer'),
             opsAPI.visits(100),
             opsAPI.equipment(),
             opsAPI.equipmentEvents(),
+            opsAPI.myVisits(1),
         ]);
+        if (myVisits?.[0]) {
+            setIsCheckedIn(myVisits[0].status === 'active');
+        }
         setDashboard(dash);
         setRecentCheckIns((visits ?? []).slice(0, 6).map((v: any) => ({
             member: v.fullName ?? 'Member',

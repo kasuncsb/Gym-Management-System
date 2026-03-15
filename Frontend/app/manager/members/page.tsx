@@ -33,12 +33,6 @@ const statusVariant: Record<MemberStatus, 'success' | 'error' | 'warning' | 'def
     suspended: 'error',
 };
 
-const PLAN_OPTIONS = [
-    { value: 'Basic', label: 'Basic' },
-    { value: 'Premium', label: 'Premium' },
-    { value: 'Elite', label: 'Elite' },
-    { value: 'Annual Basic', label: 'Annual Basic' },
-];
 
 const STATUS_OPTIONS = [
     { value: 'active', label: 'Active' },
@@ -53,21 +47,29 @@ export default function ManagerMembersPage() {
     const [filter, setFilter] = useState<MemberStatus | 'all'>('all');
     const [modalOpen, setModalOpen] = useState(false);
     const [editingMember, setEditingMember] = useState<Member | null>(null);
+    const [planOptions, setPlanOptions] = useState<Array<{ value: string; label: string }>>([]);
     const [formData, setFormData] = useState({
         name: '',
-        plan: 'Basic',
+        email: '',
+        planId: '',
         status: 'active' as MemberStatus,
-        trainerName: '—',
+        trainerId: '',
     });
     const [submitLoading, setSubmitLoading] = useState(false);
-    const [trainerOptions, setTrainerOptions] = useState<Array<{ value: string; label: string }>>([{ value: '—', label: 'No trainer' }]);
+    const [trainerOptions, setTrainerOptions] = useState<Array<{ value: string; label: string }>>([{ value: '', label: 'No trainer' }]);
 
     const loadMembers = async () => {
-        const [rows, visits, trainers] = await Promise.all([opsAPI.members(), opsAPI.visits(500), opsAPI.users('trainer')]);
+        const [rows, visits, trainers, plans] = await Promise.all([
+            opsAPI.members(),
+            opsAPI.visits(500),
+            opsAPI.trainers(),
+            opsAPI.plans(),
+        ]);
         const byPerson = new Map<string, number>();
         (visits ?? []).forEach((v: any) => byPerson.set(v.personId, (byPerson.get(v.personId) ?? 0) + 1));
         const trainerMap = new Map((trainers ?? []).map((t: any) => [t.id, t.fullName]));
-        setTrainerOptions([{ value: '—', label: 'No trainer' }, ...(trainers ?? []).map((t: any) => ({ value: t.fullName, label: t.fullName }))]);
+        setTrainerOptions([{ value: '', label: 'No trainer' }, ...(trainers ?? []).map((t: any) => ({ value: t.id, label: t.fullName }))]);
+        setPlanOptions((plans ?? []).map((p: any) => ({ value: p.id, label: p.name })));
         setMembers((rows ?? []).map((m: any) => ({
             id: m.id,
             name: m.fullName,
@@ -75,7 +77,7 @@ export default function ManagerMembersPage() {
             joined: m.joinDate ? String(m.joinDate).slice(0, 10) : String(m.createdAt).slice(0, 10),
             status: (m.memberStatus ?? 'inactive') as MemberStatus,
             checkins: byPerson.get(m.id) ?? 0,
-            trainerName: trainerMap.get(m.assignedTrainerId) ?? m.assignedTrainerName ?? '—',
+            trainerName: trainerMap.get(m.assignedTrainerId) ?? '—',
         })));
     };
 
@@ -91,13 +93,13 @@ export default function ManagerMembersPage() {
 
     const openAdd = () => {
         setEditingMember(null);
-        setFormData({ name: '', plan: 'Basic', status: 'active', trainerName: '—' });
+        setFormData({ name: '', email: '', planId: planOptions[0]?.value ?? '', status: 'active', trainerId: '' });
         setModalOpen(true);
     };
 
     const openEdit = (m: Member) => {
         setEditingMember(m);
-        setFormData({ name: m.name, plan: m.plan, status: m.status, trainerName: m.trainerName });
+        setFormData({ name: m.name, email: '', planId: '', status: m.status, trainerId: '' });
         setModalOpen(true);
     };
 
@@ -112,16 +114,22 @@ export default function ManagerMembersPage() {
                 await opsAPI.updateUser(editingMember.id, {
                     fullName: formData.name.trim(),
                     memberStatus: formData.status,
+                    ...(formData.trainerId ? { assignedTrainerId: formData.trainerId } : {}),
                 });
                 toast.success('Member Updated', `${formData.name} has been updated successfully`);
             } else {
+                if (!formData.email.trim() || !formData.email.includes('@')) {
+                    toast.error('Validation Error', 'A valid email is required');
+                    setSubmitLoading(false);
+                    return;
+                }
                 await opsAPI.createUser({
                     fullName: formData.name.trim(),
-                    email: `${formData.name.toLowerCase().replace(/\s+/g, '.')}@powerworld.local`,
+                    email: formData.email.trim(),
                     role: 'member',
                     password: 'TempPass123!',
                 });
-                toast.success('Member Added', `${formData.name} has been added successfully`);
+                toast.success('Member Added', `${formData.name} has been added. Default password: TempPass123!`);
             }
             await loadMembers();
             setModalOpen(false);
@@ -246,12 +254,16 @@ export default function ManagerMembersPage() {
                         onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
                         required
                     />
-                    <Select
-                        label="Plan"
-                        options={PLAN_OPTIONS}
-                        value={formData.plan}
-                        onChange={e => setFormData(prev => ({ ...prev, plan: e.target.value }))}
-                    />
+                    {!editingMember && (
+                        <Input
+                            label="Email"
+                            type="email"
+                            placeholder="member@email.com"
+                            value={formData.email}
+                            onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                            required
+                        />
+                    )}
                     <Select
                         label="Status"
                         options={STATUS_OPTIONS}
@@ -261,8 +273,8 @@ export default function ManagerMembersPage() {
                     <Select
                         label="Assigned Trainer"
                         options={trainerOptions}
-                        value={formData.trainerName}
-                        onChange={e => setFormData(prev => ({ ...prev, trainerName: e.target.value }))}
+                        value={formData.trainerId}
+                        onChange={e => setFormData(prev => ({ ...prev, trainerId: e.target.value }))}
                     />
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setModalOpen(false)}>

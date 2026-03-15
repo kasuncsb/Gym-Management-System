@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { QrCode, CheckCircle2, LogOut, Users } from 'lucide-react';
 import { PageHeader, Card, LoadingButton } from '@/components/ui/SharedComponents';
 import { useAuth } from '@/context/AuthContext';
@@ -20,7 +20,14 @@ export default function CheckinPage() {
     const [scanned, setScanned] = useState(false);
     const [scanning, setScanning] = useState(false);
     const [log, setLog] = useState<LogEntry[]>([]);
-    const [capacity, setCapacity] = useState({ current: 0, limit: 120 });
+    const [capacity, setCapacity] = useState({ current: 0, limit: 80 });
+
+    useEffect(() => {
+        opsAPI.config().then((cfg: any[]) => {
+            const cap = cfg?.find((c: any) => c.key === 'branch_capacity');
+            if (cap) setCapacity(prev => ({ ...prev, limit: Number(cap.value) || 80 }));
+        }).catch(() => undefined);
+    }, []);
 
     const reload = useCallback(async () => {
         const [myVisits, stats] = await Promise.all([opsAPI.myVisits(20), opsAPI.visitStats()]);
@@ -30,7 +37,7 @@ export default function CheckinPage() {
             time: new Date(v.checkInAt ?? v.checkOutAt ?? v.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
         })) as LogEntry[];
         setLog(mapped);
-        setCapacity({ current: Number(stats?.activeNow ?? 0), limit: 120 });
+        setCapacity(prev => ({ ...prev, current: Number(stats?.activeNow ?? 0) }));
         setScanned(mapped[0]?.type === 'in');
     }, [user?.fullName]);
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { QrCode, DoorOpen, CreditCard, Dumbbell, UserRoundCog, CalendarClock, RefreshCw } from 'lucide-react';
+import { QrCode, DoorOpen, CreditCard, Dumbbell, UserRoundCog, CalendarClock, RefreshCw, Activity } from 'lucide-react';
 import { Card, Input, LoadingButton, PageHeader, Select } from '@/components/ui/SharedComponents';
 import { getErrorMessage, opsAPI } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
@@ -19,6 +19,7 @@ export default function SimulatePage() {
   const [workout, setWorkout] = useState({ memberId: '', durationMin: '45', caloriesBurned: '300' });
   const [shift, setShift] = useState({ trainerId: '', action: 'in' as 'in' | 'out' });
   const [session, setSession] = useState({ memberId: '', trainerId: '', sessionDate: '', startTime: '', endTime: '' });
+  const [vitals, setVitals] = useState({ memberId: '', weightKg: '', heightCm: '', bmi: '', restingHr: '' });
 
   const refresh = useCallback(async () => {
     const [m, t, p, s] = await Promise.all([
@@ -124,6 +125,33 @@ export default function SimulatePage() {
             <Select label="Action" options={[{ value: 'in', label: 'Check In' }, { value: 'out', label: 'Check Out' }]} value={shift.action} onChange={(e) => setShift((f) => ({ ...f, action: e.target.value as 'in' | 'out' }))} />
             <LoadingButton loading={loading} onClick={() => run(() => opsAPI.simulateTrainerShift({ trainerId: shift.trainerId, action: shift.action }), 'Trainer shift simulated')}>
               Simulate Shift
+            </LoadingButton>
+          </div>
+        </Card>
+
+        <Card padding="lg">
+          <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Activity size={16} className="text-red-400" /> Device Vitals</h3>
+          <div className="space-y-3">
+            <Select label="Member" options={memberOptions} value={vitals.memberId} onChange={(e) => setVitals((f) => ({ ...f, memberId: e.target.value }))} />
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Weight (kg)" type="number" value={vitals.weightKg} onChange={(e) => setVitals((f) => ({ ...f, weightKg: e.target.value }))} placeholder="70.5" />
+              <Input label="Height (cm)" type="number" value={vitals.heightCm} onChange={(e) => setVitals((f) => ({ ...f, heightCm: e.target.value }))} placeholder="175" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="BMI" type="number" value={vitals.bmi} onChange={(e) => setVitals((f) => ({ ...f, bmi: e.target.value }))} placeholder="22.4" />
+              <Input label="Resting HR (bpm)" type="number" value={vitals.restingHr} onChange={(e) => setVitals((f) => ({ ...f, restingHr: e.target.value }))} placeholder="65" />
+            </div>
+            <LoadingButton
+              loading={loading}
+              onClick={() => run(() => opsAPI.simulateVitals({
+                memberId: vitals.memberId,
+                weightKg: vitals.weightKg ? Number(vitals.weightKg) : undefined,
+                heightCm: vitals.heightCm ? Number(vitals.heightCm) : undefined,
+                bmi: vitals.bmi ? Number(vitals.bmi) : undefined,
+                restingHr: vitals.restingHr ? Number(vitals.restingHr) : undefined,
+              }), 'Device vitals simulated')}
+            >
+              Simulate Vitals Capture
             </LoadingButton>
           </div>
         </Card>

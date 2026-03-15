@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Package, AlertTriangle, Plus } from 'lucide-react';
+import { Package, AlertTriangle, Plus, History } from 'lucide-react';
 import { PageHeader, Card, Modal, Select, Input, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
 import { getErrorMessage, opsAPI } from '@/lib/api';
@@ -23,9 +23,13 @@ export default function TrainerInventoryPage() {
     const [loading, setLoading] = useState(false);
     const [items, setItems] = useState<Item[]>([]);
     const [form, setForm] = useState({ item: '', type: 'restock' as TxType, qty: '', notes: '' });
+    const [txHistory, setTxHistory] = useState<any[]>([]);
 
     const loadItems = async () => {
-        const rows = await opsAPI.inventoryItems();
+        const [rows, history] = await Promise.all([
+            opsAPI.inventoryItems(),
+            opsAPI.inventoryTransactions(),
+        ]);
         setItems((rows ?? []).map((i: any) => {
             const qty = Number(i.qtyInStock ?? 0);
             const threshold = Number(i.reorderThreshold ?? 0);
@@ -38,6 +42,7 @@ export default function TrainerInventoryPage() {
                 lowStock: qty < threshold,
             };
         }));
+        setTxHistory((history ?? []).slice(0, 30));
     };
 
     useEffect(() => {
@@ -123,6 +128,31 @@ export default function TrainerInventoryPage() {
                     </table>
                 </div>
             </Card>
+
+            {txHistory.length > 0 && (
+                <Card padding="lg">
+                    <div className="flex items-center gap-2 mb-4">
+                        <History size={18} className="text-zinc-400" />
+                        <h2 className="text-white font-semibold">Recent Transactions</h2>
+                    </div>
+                    <div className="space-y-2">
+                        {txHistory.map((t: any) => (
+                            <div key={t.id} className="flex items-center justify-between bg-zinc-800/30 rounded-xl p-3">
+                                <div>
+                                    <p className="text-white text-sm font-semibold">{t.itemName ?? t.itemId}</p>
+                                    <p className="text-zinc-500 text-xs">{t.txnType} · by {t.recorderName ?? 'staff'}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className={`text-sm font-semibold ${t.qtyChange > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                        {t.qtyChange > 0 ? '+' : ''}{t.qtyChange}
+                                    </p>
+                                    <p className="text-zinc-600 text-xs">{String(t.createdAt).slice(0, 10)}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </Card>
+            )}
 
             <Modal isOpen={txOpen} onClose={() => setTxOpen(false)} title="Record Transaction" size="md">
                 <div className="space-y-4">

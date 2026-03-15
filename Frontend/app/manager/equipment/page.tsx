@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Wrench, Plus, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Plus, CheckCircle2, AlertTriangle, Wrench } from 'lucide-react';
 import { PageHeader, Card, Modal, Select, Input, Textarea, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
 import { getErrorMessage, opsAPI } from '@/lib/api';
@@ -9,25 +9,30 @@ import { getErrorMessage, opsAPI } from '@/lib/api';
 type EqStatus = 'operational' | 'maintenance' | 'out_of_order';
 type ReportStatus = 'open' | 'in_progress' | 'resolved';
 
-type EquipmentRow = { id: string; name: string; category: string; zone: string; status: EqStatus };
-type EventRow = { id: string; equipmentId: string; issue: string; status: ReportStatus };
+type EquipmentRow = { id: string; name: string; category: string; zone: string; quantity: number; status: EqStatus };
+type EventRow = { id: string; equipmentId: string; issue: string; severity: string; status: ReportStatus };
 
 const toUiStatus = (status: string): EqStatus =>
     status === 'operational' ? 'operational' : status === 'needs_maintenance' ? 'maintenance' : 'out_of_order';
-const toApiStatus = (status: EqStatus): 'operational' | 'needs_maintenance' | 'under_maintenance' =>
-    status === 'operational' ? 'operational' : status === 'maintenance' ? 'needs_maintenance' : 'under_maintenance';
 
 export default function ManagerEquipmentPage() {
     const toast = useToast();
-    const [addOpen, setAddOpen] = useState(false);
+    const [addEquipOpen, setAddEquipOpen] = useState(false);
+    const [reportOpen, setReportOpen] = useState(false);
     const [resolveOpen, setResolveOpen] = useState(false);
     const [selectedReport, setSelectedReport] = useState<EventRow | null>(null);
     const [loading, setLoading] = useState(false);
     const [equipment, setEquipment] = useState<EquipmentRow[]>([]);
     const [reports, setReports] = useState<EventRow[]>([]);
-    const [addForm, setAddForm] = useState({ name: '', category: 'Cardio', zone: '', quantity: '1' });
-    const [resolveForm, setResolveForm] = useState({ notes: '', cost: '' });
-    const [reportForm, setReportForm] = useState({ equipmentId: '', issue: '' });
+
+    const [addEquipForm, setAddEquipForm] = useState({
+        name: '',
+        category: 'cardio' as 'cardio' | 'strength_machine' | 'free_weight' | 'bench' | 'accessory' | 'other',
+        zoneLabel: '',
+        quantity: '1',
+    });
+    const [reportForm, setReportForm] = useState({ equipmentId: '', severity: 'medium' as 'low' | 'medium' | 'high' | 'critical', issue: '' });
+    const [resolveNotes, setResolveNotes] = useState('');
 
     const loadData = async () => {
         const [eq, events] = await Promise.all([opsAPI.equipment(), opsAPI.equipmentEvents()]);
@@ -36,12 +41,14 @@ export default function ManagerEquipmentPage() {
             name: e.name,
             category: e.category,
             zone: e.zoneLabel ?? '—',
+            quantity: e.quantity ?? 1,
             status: toUiStatus(e.status),
         })));
         setReports((events ?? []).map((r: any) => ({
             id: r.id,
             equipmentId: r.equipmentId,
             issue: r.description,
+            severity: r.severity ?? 'medium',
             status: (r.status ?? 'open') as ReportStatus,
         })));
     };
@@ -50,7 +57,31 @@ export default function ManagerEquipmentPage() {
         loadData().catch((err) => toast.error('Failed to load equipment', getErrorMessage(err)));
     }, []);
 
-    const handleAdd = async () => {
+    const handleAddEquipment = async () => {
+        if (!addEquipForm.name.trim()) {
+            toast.error('Validation Error', 'Equipment name is required');
+            return;
+        }
+        setLoading(true);
+        try {
+            await opsAPI.createEquipment({
+                name: addEquipForm.name.trim(),
+                category: addEquipForm.category,
+                quantity: Number(addEquipForm.quantity) || 1,
+                zoneLabel: addEquipForm.zoneLabel || undefined,
+            });
+            await loadData();
+            toast.success('Equipment Added', `${addEquipForm.name} has been added to inventory`);
+            setAddEquipOpen(false);
+            setAddEquipForm({ name: '', category: 'cardio', zoneLabel: '', quantity: '1' });
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleReportIssue = async () => {
         if (!reportForm.equipmentId || !reportForm.issue.trim()) {
             toast.error('Validation Error', 'Select equipment and describe the issue');
             return;
@@ -60,14 +91,14 @@ export default function ManagerEquipmentPage() {
             await opsAPI.addEquipmentEvent({
                 equipmentId: reportForm.equipmentId,
                 eventType: 'issue_reported',
-                severity: 'medium',
+                severity: reportForm.severity,
                 description: reportForm.issue.trim(),
                 status: 'open',
             });
             await loadData();
             toast.success('Issue Reported', 'Equipment issue has been logged');
-            setAddOpen(false);
-            setReportForm({ equipmentId: '', issue: '' });
+            setReportOpen(false);
+            setReportForm({ equipmentId: '', severity: 'medium', issue: '' });
         } catch (err) {
             toast.error('Error', getErrorMessage(err));
         } finally {
@@ -76,25 +107,20 @@ export default function ManagerEquipmentPage() {
     };
 
     const handleResolve = async () => {
-        if (!resolveForm.notes.trim()) {
+        if (!resolveNotes.trim()) {
             toast.error('Validation Error', 'Resolution notes are required');
             return;
         }
+        if (!selectedReport) return;
         setLoading(true);
         try {
-            if (!selectedReport) return;
-            await opsAPI.addEquipmentEvent({
-                equipmentId: selectedReport.equipmentId,
-                eventType: 'maintenance_done',
-                description: resolveForm.notes.trim(),
-                status: 'resolved',
-            });
+            await opsAPI.resolveEquipmentEvent(selectedReport.id);
             await opsAPI.updateEquipment(selectedReport.equipmentId, { status: 'operational' });
             await loadData();
-            toast.success('Issue Resolved', 'Report has been marked resolved');
+            toast.success('Issue Resolved', 'Equipment event has been resolved');
             setResolveOpen(false);
             setSelectedReport(null);
-            setResolveForm({ notes: '', cost: '' });
+            setResolveNotes('');
         } catch (err) {
             toast.error('Error', getErrorMessage(err));
         } finally {
@@ -104,28 +130,34 @@ export default function ManagerEquipmentPage() {
 
     const openResolve = (r: EventRow) => {
         setSelectedReport(r);
-        setResolveForm({ notes: '', cost: '' });
+        setResolveNotes('');
         setResolveOpen(true);
     };
 
     const equipmentNameById = useMemo(() => new Map(equipment.map((e) => [e.id, e.name])), [equipment]);
+    const openReports = reports.filter(r => r.status !== 'resolved');
 
     return (
         <div className="space-y-8">
             <PageHeader
                 title="Equipment"
-                subtitle="Manage equipment and resolve issues"
+                subtitle="Manage gym equipment and resolve maintenance issues"
                 action={
-                    <LoadingButton icon={Plus} onClick={() => setAddOpen(true)} size="md">
-                        Add Equipment
-                    </LoadingButton>
+                    <div className="flex gap-3">
+                        <LoadingButton variant="secondary" icon={Wrench} onClick={() => setReportOpen(true)} size="md">
+                            Report Issue
+                        </LoadingButton>
+                        <LoadingButton icon={Plus} onClick={() => setAddEquipOpen(true)} size="md">
+                            Add Equipment
+                        </LoadingButton>
+                    </div>
                 }
             />
 
             <div className="grid grid-cols-3 gap-4">
                 {[
                     { label: 'Operational', value: equipment.filter(e => e.status === 'operational').length, icon: CheckCircle2, color: 'text-emerald-400' },
-                    { label: 'Maintenance', value: equipment.filter(e => e.status === 'maintenance').length, icon: AlertTriangle, color: 'text-amber-400' },
+                    { label: 'Needs Maintenance', value: equipment.filter(e => e.status === 'maintenance').length, icon: AlertTriangle, color: 'text-amber-400' },
                     { label: 'Out of Order', value: equipment.filter(e => e.status === 'out_of_order').length, icon: AlertTriangle, color: 'text-red-400' },
                 ].map(({ label, value, icon: Icon, color }) => (
                     <Card key={label} padding="md" className="text-center">
@@ -137,13 +169,14 @@ export default function ManagerEquipmentPage() {
             </div>
 
             <Card padding="lg">
-                <h2 className="text-lg font-semibold text-white mb-4">Equipment List</h2>
+                <h2 className="text-lg font-semibold text-white mb-4">Equipment List ({equipment.length})</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {equipment.length === 0 && <p className="text-zinc-500 text-sm col-span-2">No equipment found.</p>}
                     {equipment.map(e => (
                         <div key={e.id} className="flex items-center justify-between bg-zinc-800/30 rounded-xl p-4">
                             <div>
                                 <p className="text-white font-semibold">{e.name}</p>
-                                <p className="text-zinc-500 text-sm">{e.category} · {e.zone}</p>
+                                <p className="text-zinc-500 text-sm capitalize">{e.category.replace('_', ' ')} · Zone: {e.zone} · Qty: {e.quantity}</p>
                             </div>
                             <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
                                 e.status === 'operational' ? 'bg-emerald-500/20 text-emerald-400' :
@@ -157,13 +190,19 @@ export default function ManagerEquipmentPage() {
             </Card>
 
             <Card padding="lg">
-                <h2 className="text-lg font-semibold text-white mb-4">Issue Reports</h2>
+                <h2 className="text-lg font-semibold text-white mb-4">Open Issue Reports ({openReports.length})</h2>
                 <div className="space-y-3">
-                    {reports.filter((r) => r.status !== 'resolved').map(r => (
+                    {openReports.length === 0 && <p className="text-zinc-500 text-sm">No open issues.</p>}
+                    {openReports.map(r => (
                         <div key={r.id} className="flex items-center justify-between bg-zinc-800/30 rounded-xl p-4">
                             <div>
-                                <p className="text-white font-semibold">{equipmentNameById.get(r.equipmentId) ?? 'Equipment'} — {r.issue}</p>
-                                <p className="text-zinc-500 text-xs">{r.status.replace('_', ' ')}</p>
+                                <p className="text-white font-semibold">{equipmentNameById.get(r.equipmentId) ?? 'Equipment'}</p>
+                                <p className="text-zinc-400 text-sm">{r.issue}</p>
+                                <span className={`text-xs font-medium ${
+                                    r.severity === 'critical' ? 'text-red-400' : r.severity === 'high' ? 'text-orange-400' : r.severity === 'medium' ? 'text-amber-400' : 'text-zinc-400'
+                                }`}>
+                                    {r.severity} severity · {r.status}
+                                </span>
                             </div>
                             <LoadingButton variant="secondary" size="sm" onClick={() => openResolve(r)}>
                                 Mark Resolved
@@ -173,24 +212,106 @@ export default function ManagerEquipmentPage() {
                 </div>
             </Card>
 
-            <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title="Add Equipment" size="md">
+            {/* Add Equipment Modal */}
+            <Modal isOpen={addEquipOpen} onClose={() => setAddEquipOpen(false)} title="Add New Equipment" size="md">
                 <div className="space-y-4">
-                    <Select id="equipment-select" label="Equipment" options={equipment.map((e) => ({ value: e.id, label: e.name }))} value={reportForm.equipmentId} onChange={e => setReportForm(f => ({ ...f, equipmentId: e.target.value }))} placeholder="Select equipment" />
-                    <Textarea id="equipment-issue" label="Issue Description" value={reportForm.issue} onChange={e => setReportForm(f => ({ ...f, issue: e.target.value }))} placeholder="Describe the issue..." />
+                    <Input
+                        id="eq-name"
+                        label="Equipment Name"
+                        value={addEquipForm.name}
+                        onChange={e => setAddEquipForm(f => ({ ...f, name: e.target.value }))}
+                        placeholder="e.g. Treadmill Pro X"
+                        required
+                    />
+                    <Select
+                        id="eq-category"
+                        label="Category"
+                        options={[
+                            { value: 'cardio', label: 'Cardio' },
+                            { value: 'strength_machine', label: 'Strength Machine' },
+                            { value: 'free_weight', label: 'Free Weight' },
+                            { value: 'bench', label: 'Bench' },
+                            { value: 'accessory', label: 'Accessory' },
+                            { value: 'other', label: 'Other' },
+                        ]}
+                        value={addEquipForm.category}
+                        onChange={e => setAddEquipForm(f => ({ ...f, category: e.target.value as typeof addEquipForm.category }))}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                        <Input
+                            id="eq-zone"
+                            label="Zone / Location"
+                            value={addEquipForm.zoneLabel}
+                            onChange={e => setAddEquipForm(f => ({ ...f, zoneLabel: e.target.value }))}
+                            placeholder="e.g. Zone A"
+                        />
+                        <Input
+                            id="eq-qty"
+                            label="Quantity"
+                            type="number"
+                            value={addEquipForm.quantity}
+                            onChange={e => setAddEquipForm(f => ({ ...f, quantity: e.target.value }))}
+                            min="1"
+                        />
+                    </div>
                     <div className="flex justify-end gap-3 pt-2">
-                        <LoadingButton variant="secondary" onClick={() => setAddOpen(false)}>Cancel</LoadingButton>
-                        <LoadingButton loading={loading} onClick={handleAdd}>Report Issue</LoadingButton>
+                        <LoadingButton variant="secondary" onClick={() => setAddEquipOpen(false)}>Cancel</LoadingButton>
+                        <LoadingButton loading={loading} onClick={handleAddEquipment}>Add Equipment</LoadingButton>
                     </div>
                 </div>
             </Modal>
 
+            {/* Report Issue Modal */}
+            <Modal isOpen={reportOpen} onClose={() => setReportOpen(false)} title="Report Equipment Issue" size="md">
+                <div className="space-y-4">
+                    <Select
+                        id="report-eq"
+                        label="Equipment"
+                        options={equipment.map(e => ({ value: e.id, label: e.name }))}
+                        value={reportForm.equipmentId}
+                        onChange={e => setReportForm(f => ({ ...f, equipmentId: e.target.value }))}
+                        placeholder="Select equipment"
+                    />
+                    <Select
+                        id="report-severity"
+                        label="Severity"
+                        options={[
+                            { value: 'low', label: 'Low' },
+                            { value: 'medium', label: 'Medium' },
+                            { value: 'high', label: 'High' },
+                            { value: 'critical', label: 'Critical' },
+                        ]}
+                        value={reportForm.severity}
+                        onChange={e => setReportForm(f => ({ ...f, severity: e.target.value as typeof reportForm.severity }))}
+                    />
+                    <Textarea
+                        id="report-issue"
+                        label="Issue Description"
+                        value={reportForm.issue}
+                        onChange={e => setReportForm(f => ({ ...f, issue: e.target.value }))}
+                        placeholder="Describe the issue in detail..."
+                    />
+                    <div className="flex justify-end gap-3 pt-2">
+                        <LoadingButton variant="secondary" onClick={() => setReportOpen(false)}>Cancel</LoadingButton>
+                        <LoadingButton loading={loading} onClick={handleReportIssue}>Report Issue</LoadingButton>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Resolve Modal */}
             <Modal isOpen={resolveOpen} onClose={() => setResolveOpen(false)} title="Resolve Issue" description={selectedReport ? `Resolving: ${selectedReport.issue}` : ''} size="md">
                 <div className="space-y-4">
-                    <Textarea id="equipment-resolve-notes" label="Resolution Notes" value={resolveForm.notes} onChange={e => setResolveForm(f => ({ ...f, notes: e.target.value }))} placeholder="What was done?" required />
-                    <Input id="equipment-resolve-cost" label="Cost (Rs.) - optional" type="number" value={resolveForm.cost} onChange={e => setResolveForm(f => ({ ...f, cost: e.target.value }))} placeholder="0" />
+                    <Textarea
+                        id="resolve-notes"
+                        label="Resolution Notes"
+                        value={resolveNotes}
+                        onChange={e => setResolveNotes(e.target.value)}
+                        placeholder="Describe what was done to fix the issue..."
+                        required
+                    />
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setResolveOpen(false)}>Cancel</LoadingButton>
-                        <LoadingButton loading={loading} onClick={handleResolve}>Resolve</LoadingButton>
+                        <LoadingButton loading={loading} onClick={handleResolve}>Mark Resolved</LoadingButton>
                     </div>
                 </div>
             </Modal>

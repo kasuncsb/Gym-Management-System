@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Users, Plus, Pencil } from 'lucide-react';
+import { Users, Plus, Pencil, UserX } from 'lucide-react';
 import {
     PageHeader,
     Card,
@@ -63,6 +63,8 @@ export default function AdminUsersPage() {
     const [formData, setFormData] = useState({ name: '', email: '', role: 'member' as Role, status: 'active' as UserStatus, password: '' });
     const [submitLoading, setSubmitLoading] = useState(false);
     const [pageLoading, setPageLoading] = useState(true);
+    const [deactivateTarget, setDeactivateTarget] = useState<User | null>(null);
+    const [deactivateLoading, setDeactivateLoading] = useState(false);
 
     const loadUsers = async () => {
         const data = await opsAPI.users();
@@ -137,6 +139,21 @@ export default function AdminUsersPage() {
             toast.error('Error', getErrorMessage(err));
         } finally {
             setSubmitLoading(false);
+        }
+    };
+
+    const handleDeactivate = async () => {
+        if (!deactivateTarget) return;
+        setDeactivateLoading(true);
+        try {
+            await opsAPI.updateUser(deactivateTarget.id, { isActive: false });
+            toast.success('User Deactivated', `${deactivateTarget.name} has been deactivated.`);
+            setDeactivateTarget(null);
+            await loadUsers();
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
+        } finally {
+            setDeactivateLoading(false);
         }
     };
 
@@ -227,12 +244,22 @@ export default function AdminUsersPage() {
                                         <Badge variant={statusVariant[u.status]}>{u.status}</Badge>
                                     </td>
                                     <td className="px-5 py-4 text-center">
-                                        <button
-                                            onClick={() => openEdit(u)}
-                                            className="inline-flex items-center gap-1.5 text-sm text-red-400 hover:text-red-300 font-medium transition-colors"
-                                        >
-                                            <Pencil size={14} /> Edit
-                                        </button>
+                                        <div className="flex items-center justify-center gap-3">
+                                            <button
+                                                onClick={() => openEdit(u)}
+                                                className="inline-flex items-center gap-1.5 text-sm text-red-400 hover:text-red-300 font-medium transition-colors"
+                                            >
+                                                <Pencil size={14} /> Edit
+                                            </button>
+                                            {u.status !== 'inactive' && (
+                                                <button
+                                                    onClick={() => setDeactivateTarget(u)}
+                                                    className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 font-medium transition-colors"
+                                                >
+                                                    <UserX size={14} /> Deactivate
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -299,6 +326,21 @@ export default function AdminUsersPage() {
                             {editingUser ? 'Save Changes' : 'Create User'}
                         </LoadingButton>
                     </div>
+                </div>
+            </Modal>
+            {/* Deactivate Confirmation Modal */}
+            <Modal
+                isOpen={!!deactivateTarget}
+                onClose={() => setDeactivateTarget(null)}
+                title="Deactivate User"
+                description={`Are you sure you want to deactivate ${deactivateTarget?.name}? They will no longer be able to log in.`}
+                size="sm"
+            >
+                <div className="flex justify-end gap-3 pt-2">
+                    <LoadingButton variant="secondary" onClick={() => setDeactivateTarget(null)}>Cancel</LoadingButton>
+                    <LoadingButton variant="danger" loading={deactivateLoading} onClick={handleDeactivate}>
+                        Deactivate
+                    </LoadingButton>
                 </div>
             </Modal>
         </div>

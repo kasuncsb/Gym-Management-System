@@ -23,17 +23,20 @@ export default function MemberDashboard() {
     }, []);
 
     const refresh = async () => {
-        const [dash, subs, pt, visits, logs] = await Promise.all([
+        const [dash, subs, pt, visits, logs, trainerList] = await Promise.all([
             opsAPI.dashboard('member'),
             opsAPI.mySubscriptions(),
             opsAPI.myPtSessions(),
             opsAPI.myVisits(6),
             opsAPI.myWorkoutLogs(),
+            opsAPI.trainers(),
         ]);
         setDashboard(dash);
         setMySubscriptions((subs ?? []) as any[]);
+        const trainerMap: Record<string, string> = {};
+        (trainerList ?? []).forEach((t: any) => { trainerMap[t.id] = t.fullName ?? t.email; });
         setAppointments((pt ?? []).slice(0, 3).map((s: any) => ({
-            trainer: s.trainerId,
+            trainer: s.trainerName ?? trainerMap[s.trainerId] ?? s.trainerId,
             date: String(s.sessionDate).slice(0, 10),
             time: String(s.startTime).slice(0, 5),
             type: 'Personal Training',
@@ -91,11 +94,20 @@ export default function MemberDashboard() {
                 <div className="flex items-center gap-3">
                     <Award className="text-red-500" size={20} />
                     <div>
-                        <p className="text-white font-semibold text-sm">{activeSub?.planName ?? 'No active subscription'} — {activeSub?.status ?? 'none'}</p>
+                        <p className="text-white font-semibold text-sm">{activeSub?.planName ?? 'No active subscription'}</p>
                         <p className="text-zinc-500 text-xs">Member: {user?.fullName ?? 'Member'} · Ends: {activeSub?.endDate ?? 'N/A'}</p>
                     </div>
                 </div>
-                <span className="text-xs bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full font-semibold">Active</span>
+                {activeSub ? (
+                    <span className={`text-xs px-3 py-1 rounded-full font-semibold ${
+                        activeSub.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' :
+                        activeSub.status === 'grace_period' ? 'bg-yellow-500/20 text-yellow-400' :
+                        activeSub.status === 'frozen' ? 'bg-blue-500/20 text-blue-400' :
+                        'bg-red-500/20 text-red-400'
+                    }`}>{activeSub.status?.replace('_', ' ') ?? 'unknown'}</span>
+                ) : (
+                    <span className="text-xs bg-zinc-700 text-zinc-400 px-3 py-1 rounded-full font-semibold">No Plan</span>
+                )}
             </Card>
 
             {/* Quick Actions */}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { QrCode, CheckCircle2, XCircle, LogOut, Users } from 'lucide-react';
 import { PageHeader, Card, SearchInput, LoadingButton } from '@/components/ui/SharedComponents';
 import { getErrorMessage, opsAPI } from '@/lib/api';
@@ -24,6 +24,14 @@ export default function TrainerCheckinPage() {
     const [recentLog, setRecentLog] = useState<MemberEntry[]>([]);
     const [members, setMembers] = useState<Array<{ id: string; fullName: string }>>([]);
     const [selectedMemberId, setSelectedMemberId] = useState('');
+    const [branchCapacity, setBranchCapacity] = useState(80);
+
+    useEffect(() => {
+        opsAPI.config().then((cfg: any[]) => {
+            const cap = cfg?.find((c: any) => c.key === 'branch_capacity');
+            if (cap) setBranchCapacity(Number(cap.value) || 80);
+        }).catch(() => undefined);
+    }, []);
 
     const refresh = async () => {
         const [visits, memberRows] = await Promise.all([opsAPI.visits(200), opsAPI.members()]);
@@ -128,11 +136,11 @@ export default function TrainerCheckinPage() {
                             <Users size={18} className="text-blue-400" />
                             <h2 className="text-white font-semibold">Current Capacity</h2>
                         </div>
-                        <p className="text-4xl font-bold text-white">{inNow} <span className="text-zinc-600 text-xl">/ 80</span></p>
+                        <p className="text-4xl font-bold text-white">{inNow} <span className="text-zinc-600 text-xl">/ {branchCapacity}</span></p>
                         <div className="w-full bg-zinc-800 rounded-full h-2 mt-3">
-                            <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${Math.min(100, (inNow / 80) * 100)}%` }} />
+                            <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${Math.min(100, (inNow / branchCapacity) * 100)}%` }} />
                         </div>
-                        <p className="text-zinc-500 text-xs mt-1">{Math.round(Math.min(100, (inNow / 80) * 100))}% capacity</p>
+                        <p className="text-zinc-500 text-xs mt-1">{Math.round(Math.min(100, (inNow / branchCapacity) * 100))}% capacity</p>
                     </Card>
                     <div className="grid grid-cols-2 gap-3">
                         <Card padding="md" className="text-center">

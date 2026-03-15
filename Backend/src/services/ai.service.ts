@@ -146,7 +146,7 @@ Active members: ${dashboard.activeMembers}
 Visits today: ${dashboard.todayVisits}
 Open issues: ${dashboard.openIssues}
 Monthly revenue: ${dashboard.monthlyRevenue}
-Visits last 30 days: ${report.visitsLast30Days}
+Visits last 30 days: ${(report as any).visitsInRange ?? (report as any).visitsLast30Days ?? 0}
 Open incidents: ${report.openEquipmentIncidents}
 `;
 

@@ -27,6 +27,19 @@ export const listPlans = asyncHandler(async (req: AuthRequest, res: Response) =>
     && (user.role === 'admin' || user.role === 'manager');
   res.json(response.success(await opsService.listPlans({ includeInactive: allowInactive })));
 });
+
+export const listPromotions = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.listPromotions()));
+});
+export const createPromotion = asyncHandler(async (req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.createPromotion(req.body), 'Promotion created'));
+});
+export const updatePromotion = asyncHandler(async (req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.updatePromotion(req.params.id, req.body), 'Promotion updated'));
+});
+export const deactivatePromotion = asyncHandler(async (req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.deactivatePromotion(req.params.id), 'Promotion deactivated'));
+});
 export const createPlan = asyncHandler(async (req: AuthRequest, res: Response) => {
   res.json(response.success(await opsService.createPlan(req.body), 'Plan created'));
 });
@@ -42,6 +55,12 @@ export const getMyPayments = asyncHandler(async (req: AuthRequest, res: Response
   const user = requireUser(req);
   res.json(response.success(await opsService.getMyPayments(user.id)));
 });
+export const listAllSubscriptions = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.listAllSubscriptions()));
+});
+export const listAllPayments = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.listAllPayments()));
+});
 export const purchaseSubscription = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   res.json(response.success(await opsService.purchaseSubscription(user.id, req.body), 'Subscription purchased'));
@@ -49,6 +68,9 @@ export const purchaseSubscription = asyncHandler(async (req: AuthRequest, res: R
 export const requestFreeze = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   res.json(response.success(await opsService.requestFreeze(user.id, req.body), 'Freeze requested'));
+});
+export const unfreezeSubscription = asyncHandler(async (req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.unfreezeSubscription(req.params.id), 'Subscription unfrozen'));
 });
 
 export const checkIn = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -82,6 +104,9 @@ export const listTrainerPtSessions = asyncHandler(async (req: AuthRequest, res: 
   const user = requireUser(req);
   res.json(response.success(await opsService.listTrainerPtSessions(user.id)));
 });
+export const listAllPtSessions = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.listAllPtSessions()));
+});
 export const createPtSession = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   const payload = { ...req.body } as { memberId?: string; trainerId: string; sessionDate: string; startTime: string; endTime: string };
@@ -89,10 +114,21 @@ export const createPtSession = asyncHandler(async (req: AuthRequest, res: Respon
   if (!payload.memberId) throw errors.badRequest('memberId is required');
   res.json(response.success(await opsService.createPtSession(payload as { memberId: string; trainerId: string; sessionDate: string; startTime: string; endTime: string }), 'PT session created'));
 });
+export const updatePtSession = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  const sessionId = req.params.id;
+  if (!sessionId) throw errors.badRequest('Session ID is required');
+  res.json(response.success(await opsService.updatePtSession(sessionId, user.id, user.role as Role, req.body), 'PT session updated'));
+});
 
 export const listMyWorkoutPlans = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   res.json(response.success(await opsService.listMyWorkoutPlans(user.id)));
+});
+export const getMemberWorkoutPlans = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const memberId = String(req.params.memberId ?? '').trim();
+  if (!memberId) throw errors.badRequest('memberId is required');
+  res.json(response.success(await opsService.getMemberWorkoutPlans(memberId)));
 });
 export const listMyWorkoutLogs = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
@@ -101,6 +137,12 @@ export const listMyWorkoutLogs = asyncHandler(async (req: AuthRequest, res: Resp
 export const addWorkoutLog = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   res.json(response.success(await opsService.addWorkoutLog(user.id, req.body), 'Workout logged'));
+});
+export const generateAiWorkoutPlan = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  const memberId = user.role === 'member' ? user.id : String(req.body?.memberId ?? '').trim();
+  if (!memberId) throw errors.badRequest('memberId is required');
+  res.json(response.success(await opsService.generateAiWorkoutPlan(memberId, user.id, user.role as Role), 'AI workout plan generated'));
 });
 
 export const getMyMetrics = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -117,6 +159,12 @@ export const addMetricForMember = asyncHandler(async (req: AuthRequest, res: Res
   const memberId = String(req.params.memberId ?? '').trim();
   if (!memberId) throw errors.badRequest('memberId is required');
   res.json(response.success(await opsService.addMetricForMember(user.id, memberId, req.body), 'Member metric recorded'));
+});
+
+export const getMemberMetrics = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const memberId = String(req.params.memberId ?? '').trim();
+  if (!memberId) throw errors.badRequest('memberId is required');
+  res.json(response.success(await opsService.getMemberMetrics(memberId)));
 });
 
 export const assignWorkoutPlan = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -136,6 +184,9 @@ export const assignWorkoutPlan = asyncHandler(async (req: AuthRequest, res: Resp
 export const listEquipment = asyncHandler(async (_req: AuthRequest, res: Response) => {
   res.json(response.success(await opsService.listEquipment()));
 });
+export const createEquipment = asyncHandler(async (req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.createEquipment(req.body), 'Equipment created'));
+});
 export const updateEquipmentStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
   res.json(response.success(await opsService.updateEquipmentStatus(req.params.id, req.body), 'Equipment updated'));
 });
@@ -146,9 +197,23 @@ export const addEquipmentEvent = asyncHandler(async (req: AuthRequest, res: Resp
   const user = requireUser(req);
   res.json(response.success(await opsService.addEquipmentEvent(user.id, req.body), 'Equipment event logged'));
 });
+export const resolveEquipmentEvent = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  res.json(response.success(await opsService.resolveEquipmentEvent(req.params.id, user.id), 'Equipment event resolved'));
+});
 
 export const listInventoryItems = asyncHandler(async (_req: AuthRequest, res: Response) => {
   res.json(response.success(await opsService.listInventoryItems()));
+});
+export const createInventoryItem = asyncHandler(async (req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.createInventoryItem(req.body), 'Inventory item created'));
+});
+export const updateInventoryItem = asyncHandler(async (req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.updateInventoryItem(req.params.id, req.body), 'Inventory item updated'));
+});
+export const listInventoryTransactions = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const itemId = req.query.itemId as string | undefined;
+  res.json(response.success(await opsService.listInventoryTransactions(itemId)));
 });
 export const addInventoryTransaction = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
@@ -163,10 +228,11 @@ export const markMessageRead = asyncHandler(async (req: AuthRequest, res: Respon
   const user = requireUser(req);
   res.json(response.success(await opsService.markMessageRead(req.params.id, user.id, user.role), 'Message marked as read'));
 });
-
-export const getReportSummary = asyncHandler(async (_req: AuthRequest, res: Response) => {
-  res.json(response.success(await opsService.getReportSummary()));
+export const broadcastMessage = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  res.json(response.success(await opsService.broadcastMessage(user.id, req.body), 'Message broadcast'));
 });
+
 export const getRecentReports = asyncHandler(async (_req: AuthRequest, res: Response) => {
   res.json(response.success(await opsService.getRecentReportItems()));
 });
@@ -244,3 +310,72 @@ export const getSimulationState = asyncHandler(async (_req: AuthRequest, res: Re
   res.json(response.success(await opsService.getSimulationState()));
 });
 
+export const simulateVitals = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const memberId = String(req.body?.memberId ?? '').trim();
+  if (!memberId) throw errors.badRequest('memberId is required');
+  res.json(response.success(await opsService.simulateVitals(memberId, req.body), 'Vitals simulation recorded'));
+});
+
+// ── Exercises ──────────────────────────────────────────────────────────────────
+
+export const listExercises = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const filters = {
+    muscleGroup: req.query.muscleGroup as string | undefined,
+    difficulty: req.query.difficulty as string | undefined,
+  };
+  res.json(response.success(await opsService.listExercises(filters)));
+});
+
+export const createExercise = asyncHandler(async (req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.createExercise(req.body), 'Exercise created'));
+});
+
+export const getPlanExercises = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const planId = String(req.params.planId ?? '').trim();
+  if (!planId) throw errors.badRequest('planId is required');
+  res.json(response.success(await opsService.getPlanExercises(planId)));
+});
+
+export const addExerciseToPlan = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const planId = String(req.params.planId ?? '').trim();
+  if (!planId) throw errors.badRequest('planId is required');
+  res.json(response.success(await opsService.addExerciseToPlan(planId, req.body), 'Exercise added to plan'));
+});
+
+// ── Shifts ────────────────────────────────────────────────────────────────────
+
+export const listShifts = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const filters = {
+    staffId: req.query.staffId as string | undefined,
+    shiftDate: req.query.shiftDate as string | undefined,
+  };
+  res.json(response.success(await opsService.listShifts(filters)));
+});
+
+export const getMyShifts = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  res.json(response.success(await opsService.getMyShifts(user.id)));
+});
+
+export const createShift = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  res.json(response.success(await opsService.createShift({ ...req.body, createdBy: user.id }), 'Shift created'));
+});
+
+export const updateShiftStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  const { status } = req.body as { status: 'scheduled' | 'active' | 'completed' | 'missed' | 'swapped' };
+  if (!status) throw errors.badRequest('status is required');
+  res.json(response.success(await opsService.updateShiftStatus(req.params.id, status, user.id), 'Shift updated'));
+});
+
+// ── Reports (parameterised) ────────────────────────────────────────────────────
+
+export const getReportSummary = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const params = {
+    type: req.query.type as string | undefined,
+    fromDate: req.query.fromDate as string | undefined,
+    toDate: req.query.toDate as string | undefined,
+  };
+  res.json(response.success(await opsService.getReportSummary(params)));
+});

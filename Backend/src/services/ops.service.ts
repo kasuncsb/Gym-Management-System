@@ -1,216 +1,33 @@
-import {
-  mysqlTable,
-  varchar,
-  text,
-  tinyint,
-  decimal,
-  date,
-  timestamp,
-  mysqlEnum,
-  smallint,
-  boolean,
-} from 'drizzle-orm/mysql-core';
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../config/database.js';
-import { config, users } from '../db/schema.js';
+import {
+  config,
+  users,
+  memberProfiles,
+  subscriptionPlans,
+  promotions,
+  subscriptions,
+  subscriptionFreezes,
+  payments,
+  visits,
+  ptSessions,
+  workoutPlans,
+  workoutLogs,
+  memberMetrics,
+  equipment,
+  equipmentEvents,
+  inventoryItems,
+  inventoryTransactions,
+  messages,
+  branchClosures,
+  exercises,
+  workoutPlanExercises,
+  shifts,
+} from '../db/schema.js';
 import { ids } from '../utils/id.js';
 import { errors } from '../utils/errors.js';
 import { hashPassword } from '../utils/password.js';
 import { assertMemberCanPurchaseSubscription } from './auth.service.js';
-
-const subscriptionPlans = mysqlTable('subscription_plans', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  planCode: varchar('plan_code', { length: 30 }),
-  name: varchar('name', { length: 100 }).notNull(),
-  description: text('description'),
-  planType: mysqlEnum('plan_type', ['individual', 'couple', 'student', 'corporate', 'daily_pass']).notNull(),
-  price: decimal('price', { precision: 10, scale: 2 }).notNull(),
-  durationDays: smallint('duration_days').notNull(),
-  includedPtSessions: tinyint('included_pt_sessions').notNull(),
-  isActive: boolean('is_active').notNull(),
-  sortOrder: tinyint('sort_order').notNull(),
-  createdAt: timestamp('created_at'),
-  deletedAt: timestamp('deleted_at'),
-});
-
-const promotions = mysqlTable('promotions', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  code: varchar('code', { length: 50 }).notNull(),
-  name: varchar('name', { length: 100 }).notNull(),
-  discountType: mysqlEnum('discount_type', ['percentage', 'fixed']).notNull(),
-  discountValue: decimal('discount_value', { precision: 10, scale: 2 }).notNull(),
-  validFrom: date('valid_from').notNull(),
-  validUntil: date('valid_until'),
-  isActive: boolean('is_active').notNull(),
-  usedCount: smallint('used_count').notNull(),
-  createdAt: timestamp('created_at'),
-});
-
-const subscriptions = mysqlTable('subscriptions', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  memberId: varchar('member_id', { length: 36 }).notNull(),
-  planId: varchar('plan_id', { length: 36 }).notNull(),
-  startDate: date('start_date').notNull(),
-  endDate: date('end_date').notNull(),
-  status: mysqlEnum('status', ['pending_payment', 'active', 'frozen', 'grace_period', 'expired', 'cancelled']).notNull(),
-  pricePaid: decimal('price_paid', { precision: 10, scale: 2 }),
-  discountAmount: decimal('discount_amount', { precision: 10, scale: 2 }).notNull(),
-  promotionId: varchar('promotion_id', { length: 36 }),
-  ptSessionsLeft: tinyint('pt_sessions_left').notNull(),
-  notes: text('notes'),
-  createdAt: timestamp('created_at'),
-});
-
-const subscriptionFreezes = mysqlTable('subscription_freezes', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  subscriptionId: varchar('subscription_id', { length: 36 }).notNull(),
-  freezeStart: date('freeze_start').notNull(),
-  freezeEnd: date('freeze_end').notNull(),
-  reason: varchar('reason', { length: 255 }),
-  requestedBy: varchar('requested_by', { length: 36 }),
-  createdAt: timestamp('created_at'),
-});
-
-const payments = mysqlTable('payments', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  subscriptionId: varchar('subscription_id', { length: 36 }).notNull(),
-  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
-  paymentMethod: mysqlEnum('payment_method', ['cash', 'card', 'bank_transfer', 'online']).notNull(),
-  paymentDate: date('payment_date').notNull(),
-  status: mysqlEnum('status', ['completed', 'partially_refunded', 'refunded', 'disputed']).notNull(),
-  receiptNumber: varchar('receipt_number', { length: 50 }),
-  referenceNumber: varchar('reference_number', { length: 100 }),
-  promotionId: varchar('promotion_id', { length: 36 }),
-  discountAmount: decimal('discount_amount', { precision: 10, scale: 2 }).notNull(),
-  recordedBy: varchar('recorded_by', { length: 36 }),
-  createdAt: timestamp('created_at'),
-});
-
-const visits = mysqlTable('visits', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  personId: varchar('person_id', { length: 36 }).notNull(),
-  checkInAt: timestamp('check_in_at').notNull(),
-  checkOutAt: timestamp('check_out_at'),
-  durationMin: smallint('duration_min'),
-  status: mysqlEnum('status', ['active', 'completed', 'auto_closed', 'denied']).notNull(),
-  denyReason: varchar('deny_reason', { length: 100 }),
-  createdAt: timestamp('created_at'),
-});
-
-const ptSessions = mysqlTable('pt_sessions', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  memberId: varchar('member_id', { length: 36 }).notNull(),
-  trainerId: varchar('trainer_id', { length: 36 }).notNull(),
-  sessionDate: date('session_date').notNull(),
-  startTime: varchar('start_time', { length: 8 }).notNull(),
-  endTime: varchar('end_time', { length: 8 }).notNull(),
-  status: mysqlEnum('status', ['booked', 'confirmed', 'completed', 'cancelled', 'no_show']).notNull(),
-  cancelReason: varchar('cancel_reason', { length: 255 }),
-  reviewRating: tinyint('review_rating'),
-  reviewComment: text('review_comment'),
-  createdAt: timestamp('created_at'),
-});
-
-const workoutPlans = mysqlTable('workout_plans', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  memberId: varchar('member_id', { length: 36 }),
-  trainerId: varchar('trainer_id', { length: 36 }),
-  name: varchar('name', { length: 150 }).notNull(),
-  description: text('description'),
-  source: mysqlEnum('source', ['trainer_created', 'ai_generated', 'library']).notNull(),
-  difficulty: mysqlEnum('difficulty', ['beginner', 'intermediate', 'advanced']),
-  durationWeeks: tinyint('duration_weeks').notNull(),
-  daysPerWeek: tinyint('days_per_week').notNull(),
-  isActive: boolean('is_active').notNull(),
-  createdAt: timestamp('created_at'),
-});
-
-const workoutLogs = mysqlTable('workout_logs', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  personId: varchar('person_id', { length: 36 }).notNull(),
-  planId: varchar('plan_id', { length: 36 }),
-  workoutDate: date('workout_date').notNull(),
-  durationMin: smallint('duration_min'),
-  mood: mysqlEnum('mood', ['great', 'good', 'okay', 'tired', 'poor']),
-  caloriesBurned: smallint('calories_burned'),
-  notes: text('notes'),
-  createdAt: timestamp('created_at'),
-});
-
-const memberMetrics = mysqlTable('member_metrics', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  personId: varchar('person_id', { length: 36 }).notNull(),
-  recordedAt: timestamp('recorded_at'),
-  source: mysqlEnum('source', ['manual', 'trainer', 'device']).notNull(),
-  weightKg: decimal('weight_kg', { precision: 5, scale: 2 }),
-  heightCm: decimal('height_cm', { precision: 5, scale: 2 }),
-  bmi: decimal('bmi', { precision: 4, scale: 1 }),
-  restingHr: tinyint('resting_hr'),
-  notes: text('notes'),
-});
-
-const equipment = mysqlTable('equipment', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  name: varchar('name', { length: 100 }).notNull(),
-  category: mysqlEnum('category', ['cardio', 'strength_machine', 'free_weight', 'bench', 'accessory', 'other']).notNull(),
-  quantity: tinyint('quantity').notNull(),
-  status: mysqlEnum('status', ['operational', 'needs_maintenance', 'under_maintenance', 'retired']).notNull(),
-  zoneLabel: varchar('zone_label', { length: 50 }),
-  createdAt: timestamp('created_at'),
-});
-
-const equipmentEvents = mysqlTable('equipment_events', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  equipmentId: varchar('equipment_id', { length: 36 }).notNull(),
-  eventType: mysqlEnum('event_type', ['issue_reported', 'maintenance_done']).notNull(),
-  severity: mysqlEnum('severity', ['low', 'medium', 'high', 'critical']),
-  description: text('description').notNull(),
-  status: mysqlEnum('status', ['open', 'in_progress', 'resolved']),
-  loggedBy: varchar('logged_by', { length: 36 }),
-  createdAt: timestamp('created_at'),
-});
-
-const inventoryItems = mysqlTable('inventory_items', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  name: varchar('name', { length: 100 }).notNull(),
-  category: varchar('category', { length: 50 }).notNull(),
-  qtyInStock: smallint('qty_in_stock').notNull(),
-  reorderThreshold: smallint('reorder_threshold').notNull(),
-  isActive: boolean('is_active').notNull(),
-  createdAt: timestamp('created_at'),
-});
-
-const inventoryTransactions = mysqlTable('inventory_transactions', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  itemId: varchar('item_id', { length: 36 }).notNull(),
-  txnType: mysqlEnum('txn_type', ['restock', 'sale', 'adjustment', 'waste']).notNull(),
-  qtyChange: smallint('qty_change').notNull(),
-  reference: varchar('reference', { length: 100 }),
-  recordedBy: varchar('recorded_by', { length: 36 }),
-  createdAt: timestamp('created_at'),
-});
-
-const messages = mysqlTable('messages', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  type: mysqlEnum('type', ['notification', 'announcement', 'email']).notNull(),
-  channel: mysqlEnum('channel', ['in_app', 'email', 'sms']).notNull(),
-  toPersonId: varchar('to_person_id', { length: 36 }),
-  targetRole: mysqlEnum('target_role', ['admin', 'manager', 'staff', 'trainer', 'member']),
-  subject: varchar('subject', { length: 255 }),
-  body: text('body').notNull(),
-  priority: mysqlEnum('priority', ['low', 'normal', 'high', 'critical']).notNull(),
-  status: mysqlEnum('status', ['pending', 'sent', 'read', 'failed']).notNull(),
-  createdAt: timestamp('created_at'),
-});
-
-const branchClosures = mysqlTable('branch_closures', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  closureDate: date('closure_date').notNull(),
-  reason: varchar('reason', { length: 255 }),
-  isEmergency: boolean('is_emergency').notNull(),
-  closedBy: varchar('closed_by', { length: 36 }),
-  createdAt: timestamp('created_at'),
-});
 
 type Role = 'admin' | 'manager' | 'staff' | 'trainer' | 'member';
 
@@ -235,6 +52,8 @@ function safeDate(v: unknown): Date {
   return d;
 }
 
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
 export async function getDashboard(role: Role, userId: string) {
   const [activeMembersRow] = await db.select({ count: sql<number>`count(*)` }).from(users).where(and(eq(users.role, 'member'), isNull(users.deletedAt), eq(users.memberStatus, 'active')));
   const [todayVisitsRow] = await db.select({ count: sql<number>`count(*)` }).from(visits).where(sql`date(${visits.checkInAt}) = curdate()`);
@@ -256,21 +75,126 @@ export async function getDashboard(role: Role, userId: string) {
 
   if (role === 'trainer') {
     const [sessionsToday] = await db.select({ count: sql<number>`count(*)` }).from(ptSessions).where(and(eq(ptSessions.trainerId, userId), sql`${ptSessions.sessionDate} = curdate()`));
-    return { ...base, sessionsToday: Number(sessionsToday?.count ?? 0) };
+    const [upcomingSessions] = await db.select({ count: sql<number>`count(*)` }).from(ptSessions).where(and(eq(ptSessions.trainerId, userId), sql`${ptSessions.sessionDate} >= curdate()`, sql`${ptSessions.status} in ('booked','confirmed')`));
+    const [assignedMembers] = await db.select({ count: sql<number>`count(*)` }).from(users).where(and(eq(users.role, 'member'), eq(users.assignedTrainerId, userId), isNull(users.deletedAt)));
+    const [pendingIssues] = await db.select({ count: sql<number>`count(*)` }).from(equipmentEvents).where(and(eq(equipmentEvents.loggedBy, userId), eq(equipmentEvents.status, 'open')));
+    return {
+      ...base,
+      sessionsToday: Number(sessionsToday?.count ?? 0),
+      upcomingSessions: Number(upcomingSessions?.count ?? 0),
+      assignedMembersCount: Number(assignedMembers?.count ?? 0),
+      pendingEquipmentIssues: Number(pendingIssues?.count ?? 0),
+    };
+  }
+
+  if (role === 'manager') {
+    const [trainersOnShift] = await db.select({ count: sql<number>`count(*)` }).from(visits).leftJoin(users, eq(users.id, visits.personId)).where(and(eq(visits.status, 'active'), eq(users.role, 'trainer')));
+    const [frozenSubs] = await db.select({ count: sql<number>`count(*)` }).from(subscriptions).where(eq(subscriptions.status, 'frozen'));
+    const [pendingId] = await db.select({ count: sql<number>`count(*)` }).from(users).where(and(eq(users.idVerificationStatus, 'pending'), isNull(users.deletedAt)));
+    return {
+      ...base,
+      trainersOnShift: Number(trainersOnShift?.count ?? 0),
+      frozenSubscriptions: Number(frozenSubs?.count ?? 0),
+      pendingIdVerifications: Number(pendingId?.count ?? 0),
+    };
+  }
+
+  if (role === 'admin') {
+    const [pendingId] = await db.select({ count: sql<number>`count(*)` }).from(users).where(and(eq(users.idVerificationStatus, 'pending'), isNull(users.deletedAt)));
+    const [frozenSubs] = await db.select({ count: sql<number>`count(*)` }).from(subscriptions).where(eq(subscriptions.status, 'frozen'));
+    const [systemAlerts] = await db.select({ count: sql<number>`count(*)` }).from(messages).where(and(eq(messages.status, 'sent'), sql`${messages.priority} in ('high','critical')`));
+    return {
+      ...base,
+      pendingIdVerifications: Number(pendingId?.count ?? 0),
+      frozenSubscriptions: Number(frozenSubs?.count ?? 0),
+      systemAlertCount: Number(systemAlerts?.count ?? 0),
+    };
   }
 
   return base;
 }
 
+// ── Subscription Plans ────────────────────────────────────────────────────────
+
 export async function listPlans(options?: { includeInactive?: boolean }) {
   const includeInactive = options?.includeInactive ?? false;
-  return db
+  const plans = await db
     .select()
     .from(subscriptionPlans)
     .where(includeInactive
       ? isNull(subscriptionPlans.deletedAt)
       : and(eq(subscriptionPlans.isActive, true), isNull(subscriptionPlans.deletedAt)))
     .orderBy(subscriptionPlans.sortOrder, subscriptionPlans.createdAt);
+
+  // Attach active subscriber count per plan
+  const counts = await db
+    .select({ planId: subscriptions.planId, count: sql<number>`count(*)` })
+    .from(subscriptions)
+    .where(eq(subscriptions.status, 'active'))
+    .groupBy(subscriptions.planId);
+
+  const countMap = Object.fromEntries(counts.map(c => [c.planId, Number(c.count)]));
+  return plans.map(p => ({ ...p, activeSubscribers: countMap[p.id] ?? 0 }));
+}
+
+// ── Promotions ─────────────────────────────────────────────────────────────────
+
+export async function listPromotions() {
+  return db.select().from(promotions).orderBy(desc(promotions.createdAt));
+}
+
+export async function createPromotion(input: {
+  code: string;
+  name: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  validFrom: string;
+  validUntil?: string;
+  isActive?: boolean;
+}) {
+  const id = ids.uuid();
+  await db.insert(promotions).values({
+    id,
+    code: input.code.toUpperCase().trim(),
+    name: input.name,
+    discountType: input.discountType,
+    discountValue: String(input.discountValue),
+    validFrom: safeDate(input.validFrom),
+    validUntil: input.validUntil ? safeDate(input.validUntil) : null,
+    isActive: input.isActive ?? true,
+    usedCount: 0,
+  });
+  const [promo] = await db.select().from(promotions).where(eq(promotions.id, id));
+  return promo;
+}
+
+export async function updatePromotion(
+  promoId: string,
+  input: Partial<{
+    name: string;
+    discountType: 'percentage' | 'fixed';
+    discountValue: number;
+    validFrom: string;
+    validUntil: string;
+    isActive: boolean;
+  }>,
+) {
+  await db.update(promotions).set({
+    name: input.name,
+    discountType: input.discountType,
+    discountValue: input.discountValue != null ? String(input.discountValue) : undefined,
+    validFrom: input.validFrom ? safeDate(input.validFrom) : undefined,
+    validUntil: input.validUntil ? safeDate(input.validUntil) : undefined,
+    isActive: input.isActive,
+  }).where(eq(promotions.id, promoId));
+  const [promo] = await db.select().from(promotions).where(eq(promotions.id, promoId));
+  if (!promo) throw errors.notFound('Promotion');
+  return promo;
+}
+
+export async function deactivatePromotion(promoId: string) {
+  await db.update(promotions).set({ isActive: false }).where(eq(promotions.id, promoId));
+  return { id: promoId, deactivated: true };
 }
 
 export async function createPlan(input: {
@@ -314,6 +238,8 @@ export async function updatePlan(
   return plan;
 }
 
+// ── Subscriptions & Payments ──────────────────────────────────────────────────
+
 export async function getMySubscriptions(userId: string) {
   return db
     .select({
@@ -348,6 +274,52 @@ export async function getMyPayments(userId: string) {
     .leftJoin(subscriptions, eq(subscriptions.id, payments.subscriptionId))
     .leftJoin(subscriptionPlans, eq(subscriptionPlans.id, subscriptions.planId))
     .where(eq(subscriptions.memberId, userId))
+    .orderBy(desc(payments.createdAt));
+}
+
+export async function listAllSubscriptions() {
+  return db
+    .select({
+      id: subscriptions.id,
+      memberId: subscriptions.memberId,
+      memberName: users.fullName,
+      memberCode: users.memberCode,
+      planId: subscriptions.planId,
+      planName: subscriptionPlans.name,
+      planType: subscriptionPlans.planType,
+      status: subscriptions.status,
+      startDate: subscriptions.startDate,
+      endDate: subscriptions.endDate,
+      pricePaid: subscriptions.pricePaid,
+      ptSessionsLeft: subscriptions.ptSessionsLeft,
+      createdAt: subscriptions.createdAt,
+    })
+    .from(subscriptions)
+    .leftJoin(users, eq(users.id, subscriptions.memberId))
+    .leftJoin(subscriptionPlans, eq(subscriptionPlans.id, subscriptions.planId))
+    .orderBy(desc(subscriptions.createdAt));
+}
+
+export async function listAllPayments() {
+  return db
+    .select({
+      id: payments.id,
+      amount: payments.amount,
+      paymentMethod: payments.paymentMethod,
+      paymentDate: payments.paymentDate,
+      status: payments.status,
+      receiptNumber: payments.receiptNumber,
+      referenceNumber: payments.referenceNumber,
+      discountAmount: payments.discountAmount,
+      memberId: subscriptions.memberId,
+      memberName: users.fullName,
+      planName: subscriptionPlans.name,
+      createdAt: payments.createdAt,
+    })
+    .from(payments)
+    .leftJoin(subscriptions, eq(subscriptions.id, payments.subscriptionId))
+    .leftJoin(users, eq(users.id, subscriptions.memberId))
+    .leftJoin(subscriptionPlans, eq(subscriptionPlans.id, subscriptions.planId))
     .orderBy(desc(payments.createdAt));
 }
 
@@ -455,6 +427,40 @@ export async function requestFreeze(
   return freeze;
 }
 
+export async function unfreezeSubscription(subscriptionId: string) {
+  const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.id, subscriptionId)).limit(1);
+  if (!sub) throw errors.notFound('Subscription');
+  if (sub.status !== 'frozen') throw errors.badRequest('Subscription is not frozen');
+
+  // Find the latest freeze record and extend endDate by the number of frozen days
+  const [freeze] = await db
+    .select()
+    .from(subscriptionFreezes)
+    .where(eq(subscriptionFreezes.subscriptionId, subscriptionId))
+    .orderBy(desc(subscriptionFreezes.createdAt))
+    .limit(1);
+
+  let newEndDate: Date | undefined;
+  if (freeze) {
+    const freezeStart = new Date(freeze.freezeStart);
+    const freezeEnd = new Date(freeze.freezeEnd);
+    const frozenDays = Math.ceil((freezeEnd.getTime() - freezeStart.getTime()) / 86_400_000);
+    const currentEnd = new Date(sub.endDate);
+    newEndDate = addDays(currentEnd, frozenDays);
+  }
+
+  await db.update(subscriptions).set({
+    status: 'active',
+    notes: 'Unfrozen by admin/manager',
+    ...(newEndDate && { endDate: newEndDate }),
+  }).where(eq(subscriptions.id, subscriptionId));
+
+  const [updated] = await db.select().from(subscriptions).where(eq(subscriptions.id, subscriptionId));
+  return updated;
+}
+
+// ── Check-in / Check-out ──────────────────────────────────────────────────────
+
 export async function checkIn(userId: string) {
   const [current] = await db.select().from(visits).where(and(eq(visits.personId, userId), eq(visits.status, 'active'))).limit(1);
   if (current) throw errors.conflict('Already checked in');
@@ -547,37 +553,108 @@ export async function getVisitStats() {
   };
 }
 
+// ── PT Sessions ───────────────────────────────────────────────────────────────
+
 export async function listMyPtSessions(userId: string) {
   return db
-    .select()
+    .select({
+      id: ptSessions.id,
+      memberId: ptSessions.memberId,
+      trainerId: ptSessions.trainerId,
+      sessionDate: ptSessions.sessionDate,
+      startTime: ptSessions.startTime,
+      endTime: ptSessions.endTime,
+      status: ptSessions.status,
+      cancelReason: ptSessions.cancelReason,
+      reviewRating: ptSessions.reviewRating,
+      createdAt: ptSessions.createdAt,
+      trainerName: users.fullName,
+    })
     .from(ptSessions)
+    .leftJoin(users, eq(users.id, ptSessions.trainerId))
     .where(eq(ptSessions.memberId, userId))
     .orderBy(desc(ptSessions.sessionDate));
 }
 
 export async function listTrainerPtSessions(userId: string) {
+  const memberAlias = users;
   return db
-    .select()
+    .select({
+      id: ptSessions.id,
+      memberId: ptSessions.memberId,
+      trainerId: ptSessions.trainerId,
+      sessionDate: ptSessions.sessionDate,
+      startTime: ptSessions.startTime,
+      endTime: ptSessions.endTime,
+      status: ptSessions.status,
+      cancelReason: ptSessions.cancelReason,
+      reviewRating: ptSessions.reviewRating,
+      createdAt: ptSessions.createdAt,
+      memberName: memberAlias.fullName,
+    })
     .from(ptSessions)
+    .leftJoin(memberAlias, eq(memberAlias.id, ptSessions.memberId))
     .where(eq(ptSessions.trainerId, userId))
+    .orderBy(desc(ptSessions.sessionDate));
+}
+
+export async function listAllPtSessions() {
+  const members = db.$with('members').as(db.select({ id: users.id, fullName: users.fullName }).from(users));
+  const trainers = db.$with('trainers').as(db.select({ id: users.id, fullName: users.fullName }).from(users));
+
+  return db
+    .select({
+      id: ptSessions.id,
+      memberId: ptSessions.memberId,
+      trainerId: ptSessions.trainerId,
+      sessionDate: ptSessions.sessionDate,
+      startTime: ptSessions.startTime,
+      endTime: ptSessions.endTime,
+      status: ptSessions.status,
+      cancelReason: ptSessions.cancelReason,
+      reviewRating: ptSessions.reviewRating,
+      createdAt: ptSessions.createdAt,
+      memberName: sql<string>`(SELECT full_name FROM users WHERE id = ${ptSessions.memberId})`,
+      trainerName: sql<string>`(SELECT full_name FROM users WHERE id = ${ptSessions.trainerId})`,
+    })
+    .from(ptSessions)
     .orderBy(desc(ptSessions.sessionDate));
 }
 
 export async function createPtSession(
   input: { memberId: string; trainerId: string; sessionDate: string; startTime: string; endTime: string },
 ) {
+  const sessionDateObj = safeDate(input.sessionDate);
+
+  // Trainer overlap check
+  const trainerConflict = await db.select({ id: ptSessions.id }).from(ptSessions).where(and(
+    eq(ptSessions.trainerId, input.trainerId),
+    sql`date(${ptSessions.sessionDate}) = ${dateOnlyIso(sessionDateObj)}`,
+    sql`${ptSessions.status} IN ('booked','confirmed')`,
+    sql`${ptSessions.startTime} < ${input.endTime} AND ${ptSessions.endTime} > ${input.startTime}`,
+  )).limit(1);
+  if (trainerConflict.length) throw errors.conflict('Trainer already has a session at this time');
+
+  // Member double-booking check
+  const memberConflict = await db.select({ id: ptSessions.id }).from(ptSessions).where(and(
+    eq(ptSessions.memberId, input.memberId),
+    sql`date(${ptSessions.sessionDate}) = ${dateOnlyIso(sessionDateObj)}`,
+    sql`${ptSessions.status} IN ('booked','confirmed')`,
+    sql`${ptSessions.startTime} < ${input.endTime} AND ${ptSessions.endTime} > ${input.startTime}`,
+  )).limit(1);
+  if (memberConflict.length) throw errors.conflict('Member already has a session at this time');
+
   const id = ids.uuid();
   await db.insert(ptSessions).values({
     id,
     memberId: input.memberId,
     trainerId: input.trainerId,
-    sessionDate: safeDate(input.sessionDate),
+    sessionDate: sessionDateObj,
     startTime: input.startTime,
     endTime: input.endTime,
     status: 'booked',
   });
 
-  // Notify trainer + member so session scheduling is actionable in-app.
   const when = `${input.sessionDate} ${input.startTime} - ${input.endTime}`;
   await db.insert(messages).values([
     {
@@ -606,11 +683,97 @@ export async function createPtSession(
   return session;
 }
 
+export async function updatePtSession(
+  sessionId: string,
+  actorId: string,
+  actorRole: Role,
+  input: { status: 'confirmed' | 'completed' | 'cancelled' | 'no_show'; cancelReason?: string },
+) {
+  const [session] = await db.select().from(ptSessions).where(eq(ptSessions.id, sessionId)).limit(1);
+  if (!session) throw errors.notFound('PT session');
+
+  // Access control: members can only cancel their own sessions; trainers can confirm/complete/no-show their sessions
+  if (actorRole === 'member') {
+    if (session.memberId !== actorId) throw errors.forbidden('You can only manage your own sessions');
+    if (input.status !== 'cancelled') throw errors.forbidden('Members can only cancel sessions');
+  } else if (actorRole === 'trainer') {
+    if (session.trainerId !== actorId) throw errors.forbidden('You can only manage sessions assigned to you');
+    if (input.status === 'cancelled' && !input.cancelReason) throw errors.badRequest('Cancel reason is required');
+  }
+
+  await db.update(ptSessions).set({
+    status: input.status,
+    cancelReason: input.cancelReason ?? null,
+  }).where(eq(ptSessions.id, sessionId));
+
+  const when = `${String(session.sessionDate).slice(0, 10)} ${session.startTime} - ${session.endTime}`;
+
+  // Cross-role notification on status change
+  const notifyMap: Record<string, { toId: string; subject: string; body: string; priority: 'normal' | 'high' }> = {
+    confirmed: {
+      toId: session.memberId,
+      subject: 'PT session confirmed',
+      body: `Your PT session on ${when} has been confirmed by your trainer.`,
+      priority: 'normal',
+    },
+    completed: {
+      toId: session.memberId,
+      subject: 'PT session completed',
+      body: `Your PT session on ${when} has been marked as completed. Great work!`,
+      priority: 'normal',
+    },
+    no_show: {
+      toId: session.memberId,
+      subject: 'PT session no-show recorded',
+      body: `You were marked as no-show for your PT session on ${when}. Contact a trainer to reschedule.`,
+      priority: 'high',
+    },
+    cancelled: {
+      toId: actorRole === 'member' ? session.trainerId : session.memberId,
+      subject: 'PT session cancelled',
+      body: actorRole === 'member'
+        ? `Your PT session scheduled for ${when} was cancelled by the member.`
+        : `Your PT session on ${when} was cancelled. Reason: ${input.cancelReason ?? 'Not specified'}.`,
+      priority: 'high',
+    },
+  };
+
+  const n = notifyMap[input.status];
+  if (n) {
+    await db.insert(messages).values({
+      id: ids.uuid(),
+      type: 'notification',
+      channel: 'in_app',
+      toPersonId: n.toId,
+      subject: n.subject,
+      body: n.body,
+      priority: n.priority,
+      status: 'sent',
+    });
+  }
+
+  const [updated] = await db.select().from(ptSessions).where(eq(ptSessions.id, sessionId));
+  return updated;
+}
+
+// ── Workout Plans & Logs ──────────────────────────────────────────────────────
+
 export async function listMyWorkoutPlans(userId: string) {
   return db
     .select()
     .from(workoutPlans)
     .where(and(eq(workoutPlans.memberId, userId), eq(workoutPlans.isActive, true)))
+    .orderBy(desc(workoutPlans.createdAt));
+}
+
+export async function getMemberWorkoutPlans(memberId: string) {
+  const [member] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, memberId)).limit(1);
+  if (!member || member.role !== 'member') throw errors.notFound('Member');
+
+  return db
+    .select()
+    .from(workoutPlans)
+    .where(and(eq(workoutPlans.memberId, memberId), eq(workoutPlans.isActive, true)))
     .orderBy(desc(workoutPlans.createdAt));
 }
 
@@ -641,8 +804,227 @@ export async function addWorkoutLog(
   return row;
 }
 
+export async function assignWorkoutPlanToMember(
+  trainerId: string,
+  input: {
+    memberId: string;
+    name: string;
+    description?: string;
+    difficulty?: 'beginner' | 'intermediate' | 'advanced';
+    durationWeeks: number;
+    daysPerWeek: number;
+  },
+) {
+  const [member] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, input.memberId)).limit(1);
+  if (!member || member.role !== 'member') throw errors.notFound('Member');
+
+  const id = ids.uuid();
+  await db.insert(workoutPlans).values({
+    id,
+    memberId: input.memberId,
+    trainerId,
+    name: input.name,
+    description: input.description ?? null,
+    source: 'trainer_created',
+    difficulty: input.difficulty ?? 'beginner',
+    durationWeeks: safeInt(input.durationWeeks, 4),
+    daysPerWeek: safeInt(input.daysPerWeek, 3),
+    isActive: true,
+  });
+
+  await db.insert(messages).values({
+    id: ids.uuid(),
+    type: 'notification',
+    channel: 'in_app',
+    toPersonId: input.memberId,
+    subject: 'New workout plan assigned',
+    body: `Your trainer assigned "${input.name}" (${input.daysPerWeek} days/week for ${input.durationWeeks} weeks).`,
+    priority: 'normal',
+    status: 'sent',
+  });
+
+  const [row] = await db.select().from(workoutPlans).where(eq(workoutPlans.id, id));
+  return row;
+}
+
+export async function generateAiWorkoutPlan(
+  memberId: string,
+  requesterId: string,
+  requesterRole: Role,
+) {
+  const [member] = await db
+    .select({
+      id: users.id,
+      fullName: users.fullName,
+      role: users.role,
+    })
+    .from(users)
+    .where(eq(users.id, memberId))
+    .limit(1);
+
+  if (!member || member.role !== 'member') throw errors.notFound('Member');
+
+  const [profile] = await db
+    .select()
+    .from(memberProfiles)
+    .where(eq(memberProfiles.personId, memberId))
+    .limit(1);
+
+  // Build AI prompt with member context
+  const goals = profile?.fitnessGoals ?? 'general fitness';
+  const level = profile?.experienceLevel ?? 'beginner';
+  const conditions = profile?.medicalConditions ?? 'none';
+
+  const prompt = `
+You are a fitness trainer AI at PowerWorld Gyms Kiribathgoda.
+Create a personalised workout plan for this member:
+- Experience level: ${level}
+- Fitness goals: ${goals}
+- Medical conditions: ${conditions}
+
+Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
+{
+  "name": "<plan name>",
+  "description": "<2-3 sentence description of the plan>",
+  "difficulty": "${level}",
+  "durationWeeks": <number 4-12>,
+  "daysPerWeek": <number 3-5>,
+  "exercises": [
+    {
+      "day": <1-based day number>,
+      "name": "<exercise name>",
+      "muscleGroup": "<muscle group>",
+      "sets": <number>,
+      "reps": <number or null>,
+      "durationSec": <seconds or null>,
+      "restSec": <rest seconds>,
+      "instructions": "<brief instructions>",
+      "sortOrder": <order within day>
+    }
+  ]
+}
+`;
+
+  type AiExercise = { day: number; name: string; muscleGroup?: string; sets?: number; reps?: number; durationSec?: number; restSec?: number; instructions?: string; sortOrder?: number };
+  let planData = {
+    name: `AI Plan — ${goals}`,
+    description: `A personalised ${level} plan focused on ${goals}.`,
+    difficulty: level as 'beginner' | 'intermediate' | 'advanced',
+    durationWeeks: 8,
+    daysPerWeek: 3,
+    exerciseList: [] as AiExercise[],
+  };
+
+  // Attempt Gemini call
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (apiKey) {
+      const model = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.3, topP: 0.9, maxOutputTokens: 1200 },
+        }),
+      });
+      if (resp.ok) {
+        const json = await resp.json() as any;
+        const text: string = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+        const clean = text.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(clean);
+        if (parsed.name && parsed.durationWeeks && parsed.daysPerWeek) {
+          planData = {
+            name: String(parsed.name),
+            description: String(parsed.description ?? planData.description),
+            difficulty: ['beginner', 'intermediate', 'advanced'].includes(parsed.difficulty) ? parsed.difficulty : level as 'beginner' | 'intermediate' | 'advanced',
+            durationWeeks: safeInt(parsed.durationWeeks, 8),
+            daysPerWeek: safeInt(parsed.daysPerWeek, 3),
+            exerciseList: Array.isArray(parsed.exercises) ? parsed.exercises : [],
+          };
+        }
+      }
+    }
+  } catch {
+    // Use fallback plan data already set
+  }
+
+  const id = ids.uuid();
+  await db.insert(workoutPlans).values({
+    id,
+    memberId,
+    trainerId: requesterRole !== 'member' ? requesterId : null,
+    name: planData.name,
+    description: planData.description,
+    source: 'ai_generated',
+    difficulty: planData.difficulty,
+    durationWeeks: planData.durationWeeks,
+    daysPerWeek: planData.daysPerWeek,
+    isActive: true,
+  });
+
+  // Persist AI-generated exercises: upsert into exercises table, then link to plan
+  if (planData.exerciseList.length > 0) {
+    try {
+      for (const ex of planData.exerciseList) {
+        const exName = String(ex.name ?? '').trim();
+        if (!exName) continue;
+        // Find or create exercise in library
+        let [existingEx] = await db.select({ id: exercises.id }).from(exercises).where(sql`lower(${exercises.name}) = lower(${exName})`).limit(1);
+        if (!existingEx) {
+          const exId = ids.uuid();
+          await db.insert(exercises).values({
+            id: exId,
+            name: exName,
+            muscleGroup: ex.muscleGroup ?? null,
+            instructions: ex.instructions ?? null,
+            difficulty: planData.difficulty,
+          });
+          existingEx = { id: exId };
+        }
+        await db.insert(workoutPlanExercises).values({
+          id: ids.uuid(),
+          planId: id,
+          exerciseId: existingEx.id,
+          dayNumber: safeInt(ex.day, 1),
+          sets: ex.sets ?? null,
+          reps: ex.reps ?? null,
+          durationSec: ex.durationSec ?? null,
+          restSec: ex.restSec ?? null,
+          sortOrder: safeInt(ex.sortOrder, 0),
+        });
+      }
+    } catch {
+      // Exercise insertion is non-blocking
+    }
+  }
+
+  await db.insert(messages).values({
+    id: ids.uuid(),
+    type: 'notification',
+    channel: 'in_app',
+    toPersonId: memberId,
+    subject: 'Your AI workout plan is ready',
+    body: `Your personalised workout plan "${planData.name}" (${planData.daysPerWeek} days/week for ${planData.durationWeeks} weeks) has been created.`,
+    priority: 'normal',
+    status: 'sent',
+  });
+
+  const [row] = await db.select().from(workoutPlans).where(eq(workoutPlans.id, id));
+  return row;
+}
+
+// ── Member Metrics / Body Vitals ──────────────────────────────────────────────
+
 export async function getMyMetrics(userId: string) {
   return db.select().from(memberMetrics).where(eq(memberMetrics.personId, userId)).orderBy(desc(memberMetrics.recordedAt));
+}
+
+export async function getMemberMetrics(memberId: string) {
+  const [member] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, memberId)).limit(1);
+  if (!member || member.role !== 'member') throw errors.notFound('Member');
+  return db.select().from(memberMetrics).where(eq(memberMetrics.personId, memberId)).orderBy(desc(memberMetrics.recordedAt));
 }
 
 export async function addMetric(
@@ -699,51 +1081,214 @@ export async function addMetricForMember(
   return row;
 }
 
-export async function assignWorkoutPlanToMember(
-  trainerId: string,
-  input: {
-    memberId: string;
-    name: string;
-    description?: string;
-    difficulty?: 'beginner' | 'intermediate' | 'advanced';
-    durationWeeks: number;
-    daysPerWeek: number;
-  },
-) {
-  const [member] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, input.memberId)).limit(1);
-  if (!member || member.role !== 'member') throw errors.notFound('Member');
+// ── Exercises (library) ───────────────────────────────────────────────────────
+
+export async function listExercises(filters?: { muscleGroup?: string; difficulty?: string }) {
+  let query = db.select().from(exercises).$dynamic();
+  if (filters?.muscleGroup) query = query.where(sql`lower(${exercises.muscleGroup}) = lower(${filters.muscleGroup})`);
+  if (filters?.difficulty) query = query.where(sql`${exercises.difficulty} = ${filters.difficulty}`);
+  return query.orderBy(exercises.muscleGroup, exercises.name);
+}
+
+export async function createExercise(input: {
+  name: string;
+  muscleGroup?: string;
+  equipmentNeeded?: string;
+  instructions?: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  videoUrl?: string;
+}) {
+  const id = ids.uuid();
+  await db.insert(exercises).values({
+    id,
+    name: input.name,
+    muscleGroup: input.muscleGroup ?? null,
+    equipmentNeeded: input.equipmentNeeded ?? null,
+    instructions: input.instructions ?? null,
+    difficulty: input.difficulty ?? null,
+    videoUrl: input.videoUrl ?? null,
+  });
+  const [row] = await db.select().from(exercises).where(eq(exercises.id, id));
+  return row;
+}
+
+export async function getPlanExercises(planId: string) {
+  const [plan] = await db.select({ id: workoutPlans.id }).from(workoutPlans).where(eq(workoutPlans.id, planId)).limit(1);
+  if (!plan) throw errors.notFound('Workout plan');
+  return db
+    .select({
+      id: workoutPlanExercises.id,
+      planId: workoutPlanExercises.planId,
+      exerciseId: workoutPlanExercises.exerciseId,
+      dayNumber: workoutPlanExercises.dayNumber,
+      sets: workoutPlanExercises.sets,
+      reps: workoutPlanExercises.reps,
+      durationSec: workoutPlanExercises.durationSec,
+      restSec: workoutPlanExercises.restSec,
+      notes: workoutPlanExercises.notes,
+      sortOrder: workoutPlanExercises.sortOrder,
+      exerciseName: exercises.name,
+      muscleGroup: exercises.muscleGroup,
+      equipmentNeeded: exercises.equipmentNeeded,
+      instructions: exercises.instructions,
+      difficulty: exercises.difficulty,
+    })
+    .from(workoutPlanExercises)
+    .leftJoin(exercises, eq(workoutPlanExercises.exerciseId, exercises.id))
+    .where(eq(workoutPlanExercises.planId, planId))
+    .orderBy(workoutPlanExercises.dayNumber, workoutPlanExercises.sortOrder);
+}
+
+export async function addExerciseToPlan(planId: string, input: {
+  exerciseId?: string;
+  exerciseName?: string;
+  dayNumber: number;
+  sets?: number;
+  reps?: number;
+  durationSec?: number;
+  restSec?: number;
+  notes?: string;
+  sortOrder?: number;
+}) {
+  const [plan] = await db.select({ id: workoutPlans.id }).from(workoutPlans).where(eq(workoutPlans.id, planId)).limit(1);
+  if (!plan) throw errors.notFound('Workout plan');
+
+  let exerciseId = input.exerciseId;
+  if (!exerciseId && input.exerciseName) {
+    // Auto-create exercise if not found
+    const [existing] = await db.select({ id: exercises.id }).from(exercises).where(sql`lower(${exercises.name}) = lower(${input.exerciseName})`).limit(1);
+    if (existing) {
+      exerciseId = existing.id;
+    } else {
+      const newEx = await createExercise({ name: input.exerciseName });
+      exerciseId = newEx!.id;
+    }
+  }
+  if (!exerciseId) throw errors.badRequest('exerciseId or exerciseName required');
 
   const id = ids.uuid();
-  await db.insert(workoutPlans).values({
+  await db.insert(workoutPlanExercises).values({
     id,
-    memberId: input.memberId,
-    trainerId,
-    name: input.name,
-    description: input.description ?? null,
-    source: 'trainer_created',
-    difficulty: input.difficulty ?? 'beginner',
-    durationWeeks: safeInt(input.durationWeeks, 4),
-    daysPerWeek: safeInt(input.daysPerWeek, 3),
-    isActive: true,
+    planId,
+    exerciseId,
+    dayNumber: input.dayNumber,
+    sets: input.sets ?? null,
+    reps: input.reps ?? null,
+    durationSec: input.durationSec ?? null,
+    restSec: input.restSec ?? null,
+    notes: input.notes ?? null,
+    sortOrder: input.sortOrder ?? 0,
+  });
+  const [row] = await db.select().from(workoutPlanExercises).where(eq(workoutPlanExercises.id, id));
+  return row;
+}
+
+// ── Shifts ────────────────────────────────────────────────────────────────────
+
+export async function listShifts(filters?: { staffId?: string; shiftDate?: string }) {
+  const conditions = [];
+  if (filters?.staffId) conditions.push(eq(shifts.staffId, filters.staffId));
+  if (filters?.shiftDate) conditions.push(sql`date(${shifts.shiftDate}) = ${filters.shiftDate}`);
+
+  const rows = await db
+    .select({
+      id: shifts.id,
+      staffId: shifts.staffId,
+      staffName: users.fullName,
+      shiftType: shifts.shiftType,
+      shiftDate: shifts.shiftDate,
+      startTime: shifts.startTime,
+      endTime: shifts.endTime,
+      status: shifts.status,
+      notes: shifts.notes,
+      createdAt: shifts.createdAt,
+    })
+    .from(shifts)
+    .leftJoin(users, eq(shifts.staffId, users.id))
+    .where(conditions.length ? and(...conditions as [ReturnType<typeof eq>, ...ReturnType<typeof eq>[]]) : undefined)
+    .orderBy(desc(shifts.shiftDate), shifts.startTime);
+  return rows;
+}
+
+export async function getMyShifts(staffId: string) {
+  return listShifts({ staffId });
+}
+
+export async function createShift(input: {
+  staffId: string;
+  shiftType: 'morning' | 'afternoon' | 'evening' | 'full_day';
+  shiftDate: string;
+  startTime: string;
+  endTime: string;
+  notes?: string;
+  createdBy: string;
+}) {
+  const id = ids.uuid();
+  await db.insert(shifts).values({
+    id,
+    staffId: input.staffId,
+    shiftType: input.shiftType,
+    shiftDate: safeDate(input.shiftDate),
+    startTime: input.startTime,
+    endTime: input.endTime,
+    status: 'scheduled',
+    notes: input.notes ?? null,
+    createdBy: input.createdBy,
   });
 
   await db.insert(messages).values({
     id: ids.uuid(),
     type: 'notification',
     channel: 'in_app',
-    toPersonId: input.memberId,
-    subject: 'New workout plan assigned',
-    body: `Your trainer assigned "${input.name}" (${input.daysPerWeek} days/week for ${input.durationWeeks} weeks).`,
+    toPersonId: input.staffId,
+    subject: 'New shift scheduled',
+    body: `You have a ${input.shiftType} shift on ${input.shiftDate} (${input.startTime} – ${input.endTime}).`,
     priority: 'normal',
     status: 'sent',
   });
 
-  const [row] = await db.select().from(workoutPlans).where(eq(workoutPlans.id, id));
+  const [row] = await db.select().from(shifts).where(eq(shifts.id, id));
   return row;
 }
 
+export async function updateShiftStatus(
+  shiftId: string,
+  status: 'scheduled' | 'active' | 'completed' | 'missed' | 'swapped',
+  actorId?: string,
+) {
+  const [shift] = await db.select().from(shifts).where(eq(shifts.id, shiftId)).limit(1);
+  if (!shift) throw errors.notFound('Shift');
+  if (actorId && shift.staffId !== actorId) {
+    // Only manager/admin can update others' shifts — controller should enforce role check
+  }
+  await db.update(shifts).set({ status }).where(eq(shifts.id, shiftId));
+  const [row] = await db.select().from(shifts).where(eq(shifts.id, shiftId));
+  return row;
+}
+
+// ── Equipment ─────────────────────────────────────────────────────────────────
+
 export async function listEquipment() {
   return db.select().from(equipment).orderBy(equipment.name);
+}
+
+export async function createEquipment(input: {
+  name: string;
+  category: 'cardio' | 'strength_machine' | 'free_weight' | 'bench' | 'accessory' | 'other';
+  quantity: number;
+  zoneLabel?: string;
+}) {
+  const id = ids.uuid();
+  await db.insert(equipment).values({
+    id,
+    name: input.name,
+    category: input.category,
+    quantity: input.quantity,
+    status: 'operational',
+    zoneLabel: input.zoneLabel ?? null,
+  });
+  const [row] = await db.select().from(equipment).where(eq(equipment.id, id));
+  return row;
 }
 
 export async function updateEquipmentStatus(
@@ -760,7 +1305,23 @@ export async function updateEquipmentStatus(
 }
 
 export async function listEquipmentEvents() {
-  return db.select().from(equipmentEvents).orderBy(desc(equipmentEvents.createdAt));
+  return db
+    .select({
+      id: equipmentEvents.id,
+      equipmentId: equipmentEvents.equipmentId,
+      equipmentName: equipment.name,
+      eventType: equipmentEvents.eventType,
+      severity: equipmentEvents.severity,
+      description: equipmentEvents.description,
+      status: equipmentEvents.status,
+      loggedBy: equipmentEvents.loggedBy,
+      resolvedBy: equipmentEvents.resolvedBy,
+      resolvedAt: equipmentEvents.resolvedAt,
+      createdAt: equipmentEvents.createdAt,
+    })
+    .from(equipmentEvents)
+    .leftJoin(equipment, eq(equipment.id, equipmentEvents.equipmentId))
+    .orderBy(desc(equipmentEvents.createdAt));
 }
 
 export async function addEquipmentEvent(
@@ -781,8 +1342,93 @@ export async function addEquipmentEvent(
   return row;
 }
 
+export async function resolveEquipmentEvent(eventId: string, resolvedByUserId: string) {
+  const [event] = await db.select().from(equipmentEvents).where(eq(equipmentEvents.id, eventId)).limit(1);
+  if (!event) throw errors.notFound('Equipment event');
+
+  await db.update(equipmentEvents).set({
+    status: 'resolved',
+    resolvedBy: resolvedByUserId,
+    resolvedAt: new Date(),
+  }).where(eq(equipmentEvents.id, eventId));
+
+  // Check remaining open events for this equipment; if none, reset to operational
+  const [openCount] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(equipmentEvents)
+    .where(and(eq(equipmentEvents.equipmentId, event.equipmentId), eq(equipmentEvents.status, 'open')));
+
+  if (Number(openCount?.count ?? 1) === 0) {
+    await db.update(equipment).set({ status: 'operational' }).where(eq(equipment.id, event.equipmentId));
+  }
+
+  const [updated] = await db.select().from(equipmentEvents).where(eq(equipmentEvents.id, eventId));
+  return updated;
+}
+
+// ── Inventory ─────────────────────────────────────────────────────────────────
+
 export async function listInventoryItems() {
   return db.select().from(inventoryItems).where(eq(inventoryItems.isActive, true)).orderBy(inventoryItems.name);
+}
+
+export async function createInventoryItem(input: {
+  name: string;
+  category: string;
+  qtyInStock: number;
+  reorderThreshold: number;
+}) {
+  const id = ids.uuid();
+  await db.insert(inventoryItems).values({
+    id,
+    name: input.name,
+    category: input.category,
+    qtyInStock: input.qtyInStock,
+    reorderThreshold: input.reorderThreshold,
+    isActive: true,
+  });
+  const [row] = await db.select().from(inventoryItems).where(eq(inventoryItems.id, id));
+  return row;
+}
+
+export async function updateInventoryItem(
+  itemId: string,
+  input: Partial<{ name: string; category: string; reorderThreshold: number; isActive: boolean }>,
+) {
+  await db.update(inventoryItems).set({
+    name: input.name,
+    category: input.category,
+    reorderThreshold: input.reorderThreshold,
+    isActive: input.isActive,
+  }).where(eq(inventoryItems.id, itemId));
+  const [row] = await db.select().from(inventoryItems).where(eq(inventoryItems.id, itemId));
+  if (!row) throw errors.notFound('Inventory item');
+  return row;
+}
+
+export async function listInventoryTransactions(itemId?: string) {
+  const query = db
+    .select({
+      id: inventoryTransactions.id,
+      itemId: inventoryTransactions.itemId,
+      itemName: inventoryItems.name,
+      txnType: inventoryTransactions.txnType,
+      qtyChange: inventoryTransactions.qtyChange,
+      reference: inventoryTransactions.reference,
+      recordedBy: inventoryTransactions.recordedBy,
+      recorderName: users.fullName,
+      createdAt: inventoryTransactions.createdAt,
+    })
+    .from(inventoryTransactions)
+    .leftJoin(inventoryItems, eq(inventoryItems.id, inventoryTransactions.itemId))
+    .leftJoin(users, eq(users.id, inventoryTransactions.recordedBy))
+    .orderBy(desc(inventoryTransactions.createdAt))
+    .limit(200);
+
+  if (itemId) {
+    return query.where(eq(inventoryTransactions.itemId, itemId));
+  }
+  return query;
 }
 
 export async function addInventoryTransaction(
@@ -810,6 +1456,8 @@ export async function addInventoryTransaction(
   return txn;
 }
 
+// ── Messages ──────────────────────────────────────────────────────────────────
+
 export async function listMessagesForUser(userId: string, role: Role) {
   return db
     .select()
@@ -834,18 +1482,143 @@ export async function markMessageRead(messageId: string, userId: string, role: R
   return updated!;
 }
 
-export async function getReportSummary() {
+export async function broadcastMessage(
+  senderId: string,
+  input: {
+    subject: string;
+    body: string;
+    targetRole?: 'admin' | 'manager' | 'staff' | 'trainer' | 'member' | null;
+    toPersonId?: string | null;
+    priority?: 'low' | 'normal' | 'high' | 'critical';
+  },
+) {
+  const id = ids.uuid();
+  await db.insert(messages).values({
+    id,
+    type: 'announcement',
+    channel: 'in_app',
+    toPersonId: input.toPersonId ?? null,
+    targetRole: input.targetRole ?? null,
+    subject: input.subject,
+    body: input.body,
+    priority: input.priority ?? 'normal',
+    status: 'sent',
+    sentBy: senderId,
+  });
+  const [row] = await db.select().from(messages).where(eq(messages.id, id));
+  return row;
+}
+
+// ── Reports ───────────────────────────────────────────────────────────────────
+
+export async function getReportSummary(params?: { type?: string; fromDate?: string; toDate?: string }) {
+  const from = params?.fromDate ? `'${params.fromDate}'` : `date_sub(curdate(), interval 30 day)`;
+  const to = params?.toDate ? `'${params.toDate}'` : `curdate()`;
+  const type = params?.type ?? 'overview';
+
+  // Base overview metrics (always returned)
   const [revenue] = await db.select({ total: sql<string>`coalesce(sum(${payments.amount}), 0)` }).from(payments).where(sql`month(${payments.paymentDate}) = month(curdate()) and year(${payments.paymentDate}) = year(curdate())`);
   const [activeMembers] = await db.select({ count: sql<number>`count(*)` }).from(users).where(and(eq(users.role, 'member'), eq(users.memberStatus, 'active'), isNull(users.deletedAt)));
-  const [totalVisits] = await db.select({ count: sql<number>`count(*)` }).from(visits).where(sql`date(${visits.checkInAt}) >= date_sub(curdate(), interval 30 day)`);
+  const [totalVisits] = await db.select({ count: sql<number>`count(*)` }).from(visits).where(sql`date(${visits.checkInAt}) >= ${sql.raw(from)} and date(${visits.checkInAt}) <= ${sql.raw(to)}`);
   const [openIncidents] = await db.select({ count: sql<number>`count(*)` }).from(equipmentEvents).where(eq(equipmentEvents.status, 'open'));
 
-  return {
+  const overview = {
     monthlyRevenue: Number(revenue?.total ?? 0),
     activeMembers: Number(activeMembers?.count ?? 0),
-    visitsLast30Days: Number(totalVisits?.count ?? 0),
+    visitsInRange: Number(totalVisits?.count ?? 0),
     openEquipmentIncidents: Number(openIncidents?.count ?? 0),
   };
+
+  if (type === 'revenue') {
+    const byMethod = await db.select({
+      method: payments.paymentMethod,
+      total: sql<string>`coalesce(sum(${payments.amount}), 0)`,
+      count: sql<number>`count(*)`,
+    }).from(payments).where(sql`date(${payments.paymentDate}) >= ${sql.raw(from)} and date(${payments.paymentDate}) <= ${sql.raw(to)}`).groupBy(payments.paymentMethod);
+
+    const byPlan = await db.select({
+      planId: subscriptions.planId,
+      planName: subscriptionPlans.name,
+      total: sql<string>`coalesce(sum(${payments.amount}), 0)`,
+    }).from(payments)
+      .leftJoin(subscriptions, eq(payments.subscriptionId, subscriptions.id))
+      .leftJoin(subscriptionPlans, eq(subscriptions.planId, subscriptionPlans.id))
+      .where(sql`date(${payments.paymentDate}) >= ${sql.raw(from)} and date(${payments.paymentDate}) <= ${sql.raw(to)}`)
+      .groupBy(subscriptions.planId, subscriptionPlans.name);
+
+    return { ...overview, type, fromDate: params?.fromDate, toDate: params?.toDate, byMethod, byPlan };
+  }
+
+  if (type === 'membership') {
+    const newMembers = await db.select({ count: sql<number>`count(*)` }).from(users).where(and(eq(users.role, 'member'), sql`date(${users.createdAt}) >= ${sql.raw(from)} and date(${users.createdAt}) <= ${sql.raw(to)}`));
+    const byStatus = await db.select({
+      status: subscriptions.status,
+      count: sql<number>`count(*)`,
+    }).from(subscriptions).where(sql`date(${subscriptions.createdAt}) >= ${sql.raw(from)} and date(${subscriptions.createdAt}) <= ${sql.raw(to)}`).groupBy(subscriptions.status);
+    const byPlan = await db.select({
+      planId: subscriptions.planId,
+      planName: subscriptionPlans.name,
+      count: sql<number>`count(*)`,
+    }).from(subscriptions)
+      .leftJoin(subscriptionPlans, eq(subscriptions.planId, subscriptionPlans.id))
+      .where(and(eq(subscriptions.status, 'active')))
+      .groupBy(subscriptions.planId, subscriptionPlans.name);
+
+    return { ...overview, type, fromDate: params?.fromDate, toDate: params?.toDate, newMembers: Number(newMembers[0]?.count ?? 0), byStatus, byPlan };
+  }
+
+  if (type === 'attendance') {
+    const daily = await db.select({
+      date: sql<string>`date(${visits.checkInAt})`,
+      count: sql<number>`count(*)`,
+      avgDurationMin: sql<number>`round(avg(${visits.durationMin}), 0)`,
+    }).from(visits).where(sql`date(${visits.checkInAt}) >= ${sql.raw(from)} and date(${visits.checkInAt}) <= ${sql.raw(to)}`).groupBy(sql`date(${visits.checkInAt})`).orderBy(sql`date(${visits.checkInAt})`);
+
+    const byHour = await db.select({
+      hour: sql<number>`hour(${visits.checkInAt})`,
+      count: sql<number>`count(*)`,
+    }).from(visits).where(sql`date(${visits.checkInAt}) >= ${sql.raw(from)} and date(${visits.checkInAt}) <= ${sql.raw(to)}`).groupBy(sql`hour(${visits.checkInAt})`).orderBy(sql`hour(${visits.checkInAt})`);
+
+    return { ...overview, type, fromDate: params?.fromDate, toDate: params?.toDate, daily, byHour };
+  }
+
+  if (type === 'equipment') {
+    const bySeverity = await db.select({
+      severity: equipmentEvents.severity,
+      status: equipmentEvents.status,
+      count: sql<number>`count(*)`,
+    }).from(equipmentEvents).where(sql`date(${equipmentEvents.createdAt}) >= ${sql.raw(from)} and date(${equipmentEvents.createdAt}) <= ${sql.raw(to)}`).groupBy(equipmentEvents.severity, equipmentEvents.status);
+
+    const byEquipment = await db.select({
+      equipmentId: equipmentEvents.equipmentId,
+      equipmentName: equipment.name,
+      count: sql<number>`count(*)`,
+    }).from(equipmentEvents)
+      .leftJoin(equipment, eq(equipmentEvents.equipmentId, equipment.id))
+      .where(sql`date(${equipmentEvents.createdAt}) >= ${sql.raw(from)} and date(${equipmentEvents.createdAt}) <= ${sql.raw(to)}`)
+      .groupBy(equipmentEvents.equipmentId, equipment.name)
+      .orderBy(sql`count(*) desc`);
+
+    return { ...overview, type, fromDate: params?.fromDate, toDate: params?.toDate, bySeverity, byEquipment };
+  }
+
+  if (type === 'trainer') {
+    const trainerStats = await db.select({
+      trainerId: ptSessions.trainerId,
+      trainerName: users.fullName,
+      total: sql<number>`count(*)`,
+      completed: sql<number>`sum(case when ${ptSessions.status} = 'completed' then 1 else 0 end)`,
+      cancelled: sql<number>`sum(case when ${ptSessions.status} = 'cancelled' then 1 else 0 end)`,
+    }).from(ptSessions)
+      .leftJoin(users, eq(ptSessions.trainerId, users.id))
+      .where(sql`date(${ptSessions.sessionDate}) >= ${sql.raw(from)} and date(${ptSessions.sessionDate}) <= ${sql.raw(to)}`)
+      .groupBy(ptSessions.trainerId, users.fullName);
+
+    return { ...overview, type, fromDate: params?.fromDate, toDate: params?.toDate, trainerStats };
+  }
+
+  // Default overview
+  return { ...overview, type: 'overview', fromDate: params?.fromDate, toDate: params?.toDate };
 }
 
 export async function getRecentReportItems() {
@@ -876,6 +1649,8 @@ export async function getRecentReportItems() {
     .slice(0, 8);
 }
 
+// ── Config ────────────────────────────────────────────────────────────────────
+
 export async function listConfig() {
   return db.select().from(config);
 }
@@ -887,6 +1662,8 @@ export async function updateConfigValues(values: Record<string, string>) {
   }
   return listConfig();
 }
+
+// ── User / Member Management ──────────────────────────────────────────────────
 
 export async function listUsersByRole(role?: Role) {
   if (role) {
@@ -955,6 +1732,8 @@ export async function listMembers() {
   return db.select().from(users).where(and(eq(users.role, 'member'), isNull(users.deletedAt))).orderBy(desc(users.createdAt));
 }
 
+// ── Branch Closures ───────────────────────────────────────────────────────────
+
 export async function listClosures() {
   return db.select().from(branchClosures).orderBy(desc(branchClosures.closureDate));
 }
@@ -978,6 +1757,8 @@ export async function createClosure(
 export async function deleteClosure(id: string) {
   await db.delete(branchClosures).where(eq(branchClosures.id, id));
 }
+
+// ── Simulation Helpers ────────────────────────────────────────────────────────
 
 type SimOtp = { code: string; expiresAt: number; generatedBy: string };
 const simulateDoorOtpStore = new Map<string, SimOtp>();
@@ -1047,6 +1828,31 @@ export async function simulateAppointment(input: { memberId: string; trainerId: 
   return createPtSession(input);
 }
 
+export async function simulateVitals(memberId: string, input: {
+  weightKg?: number;
+  heightCm?: number;
+  bmi?: number;
+  restingHr?: number;
+  notes?: string;
+}) {
+  const [member] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, memberId)).limit(1);
+  if (!member || member.role !== 'member') throw errors.notFound('Member');
+
+  const id = ids.uuid();
+  await db.insert(memberMetrics).values({
+    id,
+    personId: memberId,
+    source: 'device',
+    weightKg: input.weightKg != null ? String(input.weightKg) : null,
+    heightCm: input.heightCm != null ? String(input.heightCm) : null,
+    bmi: input.bmi != null ? String(input.bmi) : null,
+    restingHr: input.restingHr ?? null,
+    notes: input.notes ?? 'Simulated device capture',
+  });
+  const [row] = await db.select().from(memberMetrics).where(eq(memberMetrics.id, id));
+  return row;
+}
+
 export async function getSimulationState() {
   const [todayVisits, todayPayments, recentWorkouts, upcomingSessions] = await Promise.all([
     db.select().from(visits).orderBy(desc(visits.createdAt)).limit(20),
@@ -1070,4 +1876,3 @@ export async function getSimulationState() {
     })),
   };
 }
-

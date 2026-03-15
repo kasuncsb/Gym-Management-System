@@ -755,7 +755,72 @@ CREATE TABLE IF NOT EXISTS `branch_closures` (
 
 
 -- ============================================================================
--- SCHEMA SUMMARY  —  21 tables (was 44 → 27 → 21)
+-- 22. EXERCISES  (exercise library)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `exercises` (
+  `id`                VARCHAR(36)   NOT NULL,
+  `name`              VARCHAR(120)  NOT NULL,
+  `muscle_group`      VARCHAR(60)   DEFAULT NULL,
+  `equipment_needed`  VARCHAR(100)  DEFAULT NULL,
+  `instructions`      TEXT          DEFAULT NULL,
+  `difficulty`        ENUM('beginner','intermediate','advanced') DEFAULT NULL,
+  `video_url`         VARCHAR(255)  DEFAULT NULL,
+  `created_at`        TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (`id`),
+  INDEX `idx_ex_difficulty` (`difficulty`),
+  INDEX `idx_ex_muscle`     (`muscle_group`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================================
+-- 23. WORKOUT_PLAN_EXERCISES  (plan → exercise join with sets/reps per day)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `workout_plan_exercises` (
+  `id`           VARCHAR(36) NOT NULL,
+  `plan_id`      VARCHAR(36) NOT NULL,
+  `exercise_id`  VARCHAR(36) NOT NULL,
+  `day_number`   TINYINT     NOT NULL,
+  `sets`         TINYINT     DEFAULT NULL,
+  `reps`         TINYINT     DEFAULT NULL,
+  `duration_sec` SMALLINT    DEFAULT NULL,
+  `rest_sec`     SMALLINT    DEFAULT NULL,
+  `notes`        TEXT        DEFAULT NULL,
+  `sort_order`   TINYINT     NOT NULL DEFAULT 0,
+
+  PRIMARY KEY (`id`),
+  INDEX `idx_wpe_plan`     (`plan_id`),
+  INDEX `idx_wpe_exercise` (`exercise_id`),
+  CONSTRAINT `fk_wpe_plan`     FOREIGN KEY (`plan_id`)     REFERENCES `workout_plans`(`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_wpe_exercise` FOREIGN KEY (`exercise_id`) REFERENCES `exercises`(`id`)     ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================================
+-- 24. SHIFTS  (staff roster — separate from visits check-in/out log)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `shifts` (
+  `id`          VARCHAR(36)  NOT NULL,
+  `staff_id`    VARCHAR(36)  NOT NULL,
+  `shift_type`  ENUM('morning','afternoon','evening','full_day') NOT NULL,
+  `shift_date`  DATE         NOT NULL,
+  `start_time`  VARCHAR(8)   NOT NULL,
+  `end_time`    VARCHAR(8)   NOT NULL,
+  `status`      ENUM('scheduled','active','completed','missed','swapped') NOT NULL DEFAULT 'scheduled',
+  `notes`       VARCHAR(255) DEFAULT NULL,
+  `created_by`  VARCHAR(36)  DEFAULT NULL,
+  `created_at`  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (`id`),
+  INDEX `idx_shift_staff` (`staff_id`),
+  INDEX `idx_shift_date`  (`shift_date`),
+  CONSTRAINT `fk_shift_staff`   FOREIGN KEY (`staff_id`)   REFERENCES `users`(`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_shift_creator` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================================
+-- SCHEMA SUMMARY  —  24 tables
 -- ============================================================================
 --
 -- Domain              Table(s)
