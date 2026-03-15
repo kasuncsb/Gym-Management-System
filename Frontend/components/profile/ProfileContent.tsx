@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { User, Mail, Phone, Calendar, Shield, Edit, Lock, Camera, Loader2 } from 'lucide-react';
+import { User, Mail, Phone, Calendar, Shield, Edit, Lock, Camera, Loader2, Upload, FileImage } from 'lucide-react';
 import { PageHeader, Card, Modal, Input, LoadingButton } from '@/components/ui/SharedComponents';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
@@ -47,7 +47,7 @@ interface ProfileContentProps {
 }
 
 export function ProfileContent({ isMember = false }: ProfileContentProps) {
-  const { user, refreshUser, profileMediaVersion, bumpProfileMediaVersion } = useAuth();
+  const { user, refreshUser, avatarMediaVersion, coverMediaVersion, bumpAvatarMediaVersion, bumpCoverMediaVersion } = useAuth();
   const toast = useToast();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -77,6 +77,18 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
 
   const [coverFailed, setCoverFailed] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
+
+  // ID resubmit (members with pending/rejected can resubmit from profile)
+  type DocType = 'nic' | 'driving_license' | 'passport';
+  const [idResubmitOpen, setIdResubmitOpen] = useState(false);
+  const [idDocType, setIdDocType] = useState<DocType>('nic');
+  const [idDocFront, setIdDocFront] = useState<File | null>(null);
+  const [idDocBack, setIdDocBack] = useState<File | null>(null);
+  const [idDocFrontPreview, setIdDocFrontPreview] = useState('');
+  const [idDocBackPreview, setIdDocBackPreview] = useState('');
+  const [idUploading, setIdUploading] = useState(false);
+  const [idUploadProgress, setIdUploadProgress] = useState(0);
+  const [idResubmitError, setIdResubmitError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -170,7 +182,7 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
     setAvatarFailed(false);
     try {
       await authAPI.uploadAvatar(file);
-      bumpProfileMediaVersion();
+      bumpAvatarMediaVersion();
       setProfileData(prev => prev ? { ...prev, avatarKey: 'set' } : null);
       toast.success('Avatar updated', 'Your profile photo has been updated.');
     } catch (err) {
@@ -192,7 +204,7 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
     setCoverFailed(false);
     try {
       await authAPI.uploadCover(file);
-      bumpProfileMediaVersion();
+      bumpCoverMediaVersion();
       setProfileData(prev => prev ? { ...prev, coverKey: 'set' } : null);
       toast.success('Cover updated', 'Your cover image has been updated.');
     } catch (err) {
@@ -231,11 +243,11 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
         <div className="h-32 sm:h-40 relative bg-gradient-to-br from-zinc-800 via-zinc-800/90 to-red-900/30">
           {showCover && (
             <img
-              src={authAPI.profileCoverUrl(profileMediaVersion)}
+              src={authAPI.profileCoverUrl(user?.id, coverMediaVersion)}
               alt="Cover"
               className="absolute inset-0 w-full h-full object-cover"
               onError={() => setCoverFailed(true)}
-              key={profileMediaVersion}
+              key={`cover-${user?.id}-${coverMediaVersion}`}
             />
           )}
           <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_60%,rgba(0,0,0,0.4)_100%)]" />
@@ -254,7 +266,7 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
           <div className="relative shrink-0">
             <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full border-4 border-[#1e1e1e] bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center text-white font-bold text-3xl sm:text-4xl shadow-xl overflow-hidden">
               {showAvatar ? (
-                <img src={authAPI.profileAvatarUrl(profileMediaVersion)} alt="Avatar" className="w-full h-full object-cover" onError={() => setAvatarFailed(true)} key={profileMediaVersion} />
+                <img src={authAPI.profileAvatarUrl(user?.id, avatarMediaVersion)} alt="Avatar" className="w-full h-full object-cover" onError={() => setAvatarFailed(true)} key={`avatar-${user?.id}-${avatarMediaVersion}`} />
               ) : (
                 initials
               )}
@@ -382,7 +394,7 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
           </Card>
           <Card padding="lg">
             <h3 className="text-lg font-semibold text-white mb-6">ID Verification</h3>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center">
                   <Shield size={18} className="text-zinc-400" />
@@ -390,9 +402,32 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
                 <div>
                   <p className="text-white font-medium">Status</p>
                   <p className="text-xs text-zinc-500">NIC verification status</p>
+                  {idStatus === 'rejected' && p?.idVerificationNote && (
+                    <p className="text-xs text-zinc-400 mt-1">Note: {p.idVerificationNote}</p>
+                  )}
                 </div>
               </div>
-              <span className={`text-xs px-3 py-1.5 rounded-full font-semibold capitalize ${idStatusBadge}`}>{idStatus}</span>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs px-3 py-1.5 rounded-full font-semibold capitalize ${idStatusBadge}`}>{idStatus}</span>
+                {(idStatus === 'rejected' || idStatus === 'pending') && (
+                  <LoadingButton
+                    variant="secondary"
+                    size="sm"
+                    icon={Upload}
+                    onClick={() => {
+                      setIdResubmitOpen(true);
+                      setIdDocType('nic');
+                      setIdDocFront(null);
+                      setIdDocBack(null);
+                      setIdDocFrontPreview('');
+                      setIdDocBackPreview('');
+                      setIdResubmitError('');
+                    }}
+                  >
+                    Resubmit documents
+                  </LoadingButton>
+                )}
+              </div>
             </div>
           </Card>
         </>
@@ -458,6 +493,177 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
           </div>
         </div>
       </Modal>
+
+      <Modal isOpen={idResubmitOpen} onClose={() => setIdResubmitOpen(false)} title="Resubmit ID documents" size="md">
+        <IdResubmitForm
+          documentType={idDocType}
+          setDocumentType={setIdDocType}
+          docFront={idDocFront}
+          docBack={idDocBack}
+          docFrontPreview={idDocFrontPreview}
+          docBackPreview={idDocBackPreview}
+          onCancel={() => setIdResubmitOpen(false)}
+          onFrontChange={(file) => {
+            setIdDocFront(file);
+            setIdDocFrontPreview(file ? URL.createObjectURL(file) : '');
+            setIdDocBack(null);
+            setIdDocBackPreview('');
+            setIdResubmitError('');
+          }}
+          onBackChange={(file) => {
+            setIdDocBack(file);
+            setIdDocBackPreview(file ? URL.createObjectURL(file) : '');
+            setIdResubmitError('');
+          }}
+          uploading={idUploading}
+          uploadProgress={idUploadProgress}
+          error={idResubmitError}
+          onUpload={async () => {
+            const isPassport = idDocType === 'passport';
+            if (!idDocFront) {
+              setIdResubmitError(isPassport ? 'Select passport image.' : 'Select front image.');
+              return;
+            }
+            if (!isPassport && !idDocBack) {
+              setIdResubmitError('Select back image.');
+              return;
+            }
+            setIdUploading(true);
+            setIdResubmitError('');
+            setIdUploadProgress(0);
+            try {
+              const formData = new FormData();
+              formData.append('document_type', idDocType);
+              formData.append('nic_front', idDocFront);
+              if (!isPassport && idDocBack) formData.append('nic_back', idDocBack);
+              await authAPI.uploadIdDocuments(formData, {
+                onUploadProgress: (e) => setIdUploadProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0),
+              });
+              const res = await authAPI.getProfile();
+              const d = res.data.data as ProfileData;
+              setProfileData(d);
+              toast.success('Documents submitted', 'Your ID documents have been resubmitted for verification.');
+              setIdResubmitOpen(false);
+              setIdDocFront(null);
+              setIdDocBack(null);
+              setIdDocFrontPreview('');
+              setIdDocBackPreview('');
+            } catch (err) {
+              setIdResubmitError(getErrorMessage(err) ?? 'Upload failed');
+            } finally {
+              setIdUploading(false);
+              setIdUploadProgress(0);
+            }
+          }}
+        />
+      </Modal>
+    </div>
+  );
+}
+
+function IdResubmitForm({
+  documentType,
+  setDocumentType,
+  docFront,
+  docBack,
+  docFrontPreview,
+  docBackPreview,
+  onCancel,
+  onFrontChange,
+  onBackChange,
+  uploading,
+  uploadProgress,
+  error,
+  onUpload,
+}: {
+  documentType: 'nic' | 'driving_license' | 'passport';
+  setDocumentType: (v: 'nic' | 'driving_license' | 'passport') => void;
+  docFront: File | null;
+  docBack: File | null;
+  docFrontPreview: string;
+  docBackPreview: string;
+  onCancel: () => void;
+  onFrontChange: (file: File | null) => void;
+  onBackChange: (file: File | null) => void;
+  uploading: boolean;
+  uploadProgress: number;
+  error: string;
+  onUpload: () => void;
+}) {
+  const isPassport = documentType === 'passport';
+  const needsTwoFiles = !isPassport;
+  const canUpload = isPassport ? !!docFront : !!docFront && !!docBack;
+  const handleFile = (field: 'front' | 'back', file: File | null) => {
+    if (file && (file.size > 5 * 1024 * 1024 || !file.type.startsWith('image/'))) return;
+    if (field === 'front') onFrontChange(file);
+    else onBackChange(file);
+  };
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-zinc-300 mb-1">Document type</label>
+        <select
+          value={documentType}
+          onChange={e => {
+            const v = e.target.value as 'nic' | 'driving_license' | 'passport';
+            setDocumentType(v);
+            onFrontChange(null);
+            onBackChange(null);
+          }}
+          className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:border-red-600"
+        >
+          <option value="nic">National Identity Card</option>
+          <option value="driving_license">Driving License</option>
+          <option value="passport">Passport</option>
+        </select>
+      </div>
+      <div className={needsTwoFiles ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'space-y-4'}>
+        <div>
+          <label className="block text-sm font-medium text-zinc-300 mb-1">{isPassport ? 'Passport (photo page)' : 'Front'}</label>
+          <label className="flex flex-col items-center justify-center h-32 rounded-xl border-2 border-dashed border-zinc-700 hover:border-zinc-500 cursor-pointer overflow-hidden">
+            {docFrontPreview ? (
+              <img src={docFrontPreview} alt="Front" className="w-full h-full object-cover" />
+            ) : (
+              <div className="flex flex-col items-center gap-1 text-zinc-500 py-4">
+                <Upload size={22} />
+                <span className="text-xs">Image, max 5MB</span>
+              </div>
+            )}
+            <input type="file" accept="image/*" className="sr-only" onChange={e => handleFile('front', e.target.files?.[0] ?? null)} />
+          </label>
+        </div>
+        {needsTwoFiles && (
+          <div>
+            <label className="block text-sm font-medium text-zinc-300 mb-1">Back</label>
+            <label className="flex flex-col items-center justify-center h-32 rounded-xl border-2 border-dashed border-zinc-700 hover:border-zinc-500 cursor-pointer overflow-hidden">
+              {docBackPreview ? (
+                <img src={docBackPreview} alt="Back" className="w-full h-full object-cover" />
+              ) : (
+                <div className="flex flex-col items-center gap-1 text-zinc-500 py-4">
+                  <FileImage size={22} />
+                  <span className="text-xs">Image, max 5MB</span>
+                </div>
+              )}
+              <input type="file" accept="image/*" className="sr-only" onChange={e => handleFile('back', e.target.files?.[0] ?? null)} />
+            </label>
+          </div>
+        )}
+      </div>
+      {error && <p className="text-sm text-red-400">{error}</p>}
+      {uploading && (
+        <div className="space-y-1">
+          <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+            <div className="h-full bg-red-600 transition-all" style={{ width: `${uploadProgress}%` }} />
+          </div>
+          <p className="text-xs text-zinc-500">Uploading… {uploadProgress}%</p>
+        </div>
+      )}
+      <div className="flex justify-end gap-2 pt-2">
+        <LoadingButton variant="secondary" onClick={onCancel}>Cancel</LoadingButton>
+        <LoadingButton loading={uploading} onClick={onUpload} disabled={!canUpload || uploading}>
+          Upload documents
+        </LoadingButton>
+      </div>
     </div>
   );
 }

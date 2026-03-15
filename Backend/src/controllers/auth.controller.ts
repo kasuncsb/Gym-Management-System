@@ -121,7 +121,7 @@ export const getProfileAvatar = asyncHandler(async (req: AuthRequest, res: Respo
   if (!data) throw errors.notFound('Avatar not found');
   const { body, contentType } = await downloadFile(data);
   res.setHeader('Content-Type', contentType);
-  res.setHeader('Cache-Control', 'private, max-age=300');
+  res.setHeader('Cache-Control', 'private, no-store');
   const stream = body as NodeJS.ReadableStream;
   stream.on('error', (err) => {
     console.error('Profile avatar stream error:', err);
@@ -137,7 +137,7 @@ export const getProfileCover = asyncHandler(async (req: AuthRequest, res: Respon
   if (!data) throw errors.notFound('Cover not found');
   const { body, contentType } = await downloadFile(data);
   res.setHeader('Content-Type', contentType);
-  res.setHeader('Cache-Control', 'private, max-age=300');
+  res.setHeader('Cache-Control', 'private, no-store');
   const stream = body as NodeJS.ReadableStream;
   stream.on('error', (err) => {
     console.error('Profile cover stream error:', err);

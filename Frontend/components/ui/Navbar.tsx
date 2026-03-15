@@ -29,10 +29,10 @@ function profileHrefForRole(role: string): string {
   }
 }
 
-function ProfileAvatar({ initials, cacheBust }: { initials: string; cacheBust: number }) {
+function ProfileAvatar({ initials, userId, cacheBust }: { initials: string; userId: string | undefined; cacheBust: number }) {
   const [imgFailed, setImgFailed] = useState(false);
-  useEffect(() => { setImgFailed(false); }, [cacheBust]);
-  const url = authAPI.profileAvatarUrl(cacheBust);
+  useEffect(() => { setImgFailed(false); }, [userId, cacheBust]);
+  const url = authAPI.profileAvatarUrl(userId, cacheBust);
   if (imgFailed) {
     return (
       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center text-white font-bold text-sm shrink-0">
@@ -42,14 +42,14 @@ function ProfileAvatar({ initials, cacheBust }: { initials: string; cacheBust: n
   }
   return (
     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden">
-      <img src={url} alt="" className="w-full h-full object-cover" onError={() => setImgFailed(true)} key={cacheBust} />
+      <img src={url} alt="" className="w-full h-full object-cover" onError={() => setImgFailed(true)} key={`nav-avatar-${userId ?? ''}-${cacheBust}`} />
     </div>
   );
 }
 
 export function Navbar() {
   const pathname = usePathname();
-  const { user, logout, isAuthenticated, isLoading: authLoading, profileMediaVersion } = useAuth();
+  const { user, logout, isAuthenticated, isLoading: authLoading, avatarMediaVersion } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -131,7 +131,7 @@ export function Navbar() {
                 aria-expanded={menuOpen}
                 aria-haspopup="true"
               >
-                <ProfileAvatar initials={initials} cacheBust={profileMediaVersion} />
+                <ProfileAvatar initials={initials} userId={user?.id} cacheBust={avatarMediaVersion} />
               </button>
               {menuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-48 py-1 rounded-xl bg-zinc-800 border border-zinc-700 shadow-xl z-50">

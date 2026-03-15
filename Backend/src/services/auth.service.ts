@@ -653,3 +653,17 @@ export async function adminVerifyId(
 
   sendEmail(person.email, subject, body).catch(err => console.error('ID verification email failed:', err));
 }
+
+/** Call before allowing a member to purchase, renew, or upgrade a subscription. Throws if ID verification was rejected. */
+export async function assertMemberCanPurchaseSubscription(userId: string): Promise<void> {
+  const [person] = await db
+    .select({ idVerificationStatus: users.idVerificationStatus, role: users.role })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!person) throw errors.notFound('User');
+  if (person.role !== 'member') return; // Only members are subject to ID verification for subscription
+  if (person.idVerificationStatus === 'rejected') {
+    throw errors.forbidden('You cannot purchase a subscription while your ID verification is rejected. Please resubmit documents from your profile or contact support.');
+  }
+}

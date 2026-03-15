@@ -31,7 +31,12 @@ interface AuthContextType {
   loading: boolean;
   isAuthenticated: boolean;
   hasRole: (...roles: Role[]) => boolean;
-  /** Bump after avatar/cover upload so Navbar and profile section both show new image. */
+  /** Separate versions so uploading cover does not refetch avatar (and vice versa). */
+  avatarMediaVersion: number;
+  coverMediaVersion: number;
+  bumpAvatarMediaVersion: () => void;
+  bumpCoverMediaVersion: () => void;
+  /** @deprecated Use avatarMediaVersion / bumpAvatarMediaVersion for navbar/profile avatar. */
   profileMediaVersion: number;
   bumpProfileMediaVersion: () => void;
 }
@@ -59,11 +64,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // mount to eliminate React hydration error #418 in production builds.
   const [mounted, setMounted] = useState(false);
   const lastProfileSuccessAt = useRef<number>(0);
-  const [profileMediaVersion, setProfileMediaVersion] = useState(0);
+  const [avatarMediaVersion, setAvatarMediaVersion] = useState(0);
+  const [coverMediaVersion, setCoverMediaVersion] = useState(0);
   const router = useRouter();
 
+  const bumpAvatarMediaVersion = useCallback(() => {
+    setAvatarMediaVersion((v) => v + 1);
+  }, []);
+  const bumpCoverMediaVersion = useCallback(() => {
+    setCoverMediaVersion((v) => v + 1);
+  }, []);
   const bumpProfileMediaVersion = useCallback(() => {
-    setProfileMediaVersion((v) => v + 1);
+    setAvatarMediaVersion((v) => v + 1);
+    setCoverMediaVersion((v) => v + 1);
   }, []);
 
   useEffect(() => { setMounted(true); }, []);
@@ -150,7 +163,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setUser(null);
     setIsAuthenticated(false);
-    setProfileMediaVersion(0);
+    setAvatarMediaVersion(0);
+    setCoverMediaVersion(0);
     localStorage.removeItem('user');
     sessionStorage.clear();
     document.cookie = 'user_role=; path=/; max-age=0';
@@ -194,7 +208,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading, loading: isLoading,
       isAuthenticated,
       hasRole,
-      profileMediaVersion,
+      avatarMediaVersion,
+      coverMediaVersion,
+      bumpAvatarMediaVersion,
+      bumpCoverMediaVersion,
+      profileMediaVersion: avatarMediaVersion,
       bumpProfileMediaVersion,
     }}>
       {children}

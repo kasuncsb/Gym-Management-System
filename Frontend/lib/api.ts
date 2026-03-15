@@ -144,13 +144,23 @@ export const authAPI = {
     });
   },
 
-  /** URL for profile avatar image (cookie-authenticated). Pass cacheBust (e.g. Date.now()) after upload. */
-  profileAvatarUrl: (cacheBust?: number) =>
-    `/api/auth/profile/avatar${cacheBust != null ? `?t=${cacheBust}` : ''}`,
+  /** URL for profile avatar (cookie-authenticated). Include userId so cache keys are per-user; cacheBust after upload. */
+  profileAvatarUrl: (userId?: string | null, cacheBust?: number) => {
+    const params = new URLSearchParams();
+    if (userId) params.set('u', userId);
+    if (cacheBust != null) params.set('t', String(cacheBust));
+    const q = params.toString();
+    return `/api/auth/profile/avatar${q ? `?${q}` : ''}`;
+  },
 
-  /** URL for profile cover image (cookie-authenticated). Pass cacheBust after upload. */
-  profileCoverUrl: (cacheBust?: number) =>
-    `/api/auth/profile/cover${cacheBust != null ? `?t=${cacheBust}` : ''}`,
+  /** URL for profile cover (cookie-authenticated). Include userId so cache keys are per-user; cacheBust after upload. */
+  profileCoverUrl: (userId?: string | null, cacheBust?: number) => {
+    const params = new URLSearchParams();
+    if (userId) params.set('u', userId);
+    if (cacheBust != null) params.set('t', String(cacheBust));
+    const q = params.toString();
+    return `/api/auth/profile/cover${q ? `?${q}` : ''}`;
+  },
 
   changePassword: (currentPassword: string, newPassword: string) =>
     apiClient.post('/auth/change-password', { currentPassword, newPassword }, { _noRetry: true } as any),

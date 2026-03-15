@@ -1,9 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { CreditCard, RefreshCw, ArrowUpCircle, Snowflake } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { CreditCard, RefreshCw, ArrowUpCircle, Snowflake, ShieldAlert } from 'lucide-react';
 import { PageHeader, Card, Modal, Input, Select, Textarea, LoadingButton, Tabs } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
+import { authAPI } from '@/lib/api';
+
+type IdVerificationStatus = 'pending' | 'approved' | 'rejected' | null;
 
 const MOCK_PLAN = {
     name: 'Premium Plan',
@@ -30,6 +34,8 @@ const PLAN_OPTIONS = [
 export default function MemberSubscriptionPage() {
     const toast = useToast();
     const [tab, setTab] = useState<'overview' | 'history'>('overview');
+    const [idStatus, setIdStatus] = useState<IdVerificationStatus>(null);
+    const [profileLoading, setProfileLoading] = useState(true);
     const [renewOpen, setRenewOpen] = useState(false);
     const [freezeOpen, setFreezeOpen] = useState(false);
     const [upgradeOpen, setUpgradeOpen] = useState(false);
@@ -39,7 +45,21 @@ export default function MemberSubscriptionPage() {
     const [freezeForm, setFreezeForm] = useState({ startDate: '', endDate: '', reason: '' });
     const [upgradeForm, setUpgradeForm] = useState({ plan: '' });
 
+    useEffect(() => {
+        authAPI.getProfile()
+            .then(res => {
+                const data = res.data?.data as { idVerificationStatus?: IdVerificationStatus } | undefined;
+                setIdStatus(data?.idVerificationStatus ?? null);
+            })
+            .catch(() => setIdStatus(null))
+            .finally(() => setProfileLoading(false));
+    }, []);
+
+    const idRejected = idStatus === 'rejected';
+    const canPurchase = !idRejected;
+
     const handleRenew = async () => {
+        if (!canPurchase) return;
         if (!renewForm.plan) {
             toast.error('Validation Error', 'Please select a plan');
             return;
@@ -76,6 +96,7 @@ export default function MemberSubscriptionPage() {
     };
 
     const handleUpgrade = async () => {
+        if (!canPurchase) return;
         if (!upgradeForm.plan) {
             toast.error('Validation Error', 'Please select a plan');
             return;
@@ -99,6 +120,19 @@ export default function MemberSubscriptionPage() {
                 title="My Subscription"
                 subtitle="Manage your membership plan and payment history"
             />
+
+            {!profileLoading && idRejected && (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 flex items-start gap-3" role="alert">
+                    <ShieldAlert className="text-red-400 shrink-0 mt-0.5" size={20} />
+                    <div>
+                        <p className="font-medium text-red-300">ID verification was rejected</p>
+                        <p className="text-sm text-zinc-400 mt-1">
+                            You cannot purchase, renew, or upgrade a subscription until your identity is verified. Please resubmit your ID documents from your{' '}
+                            <Link href="/member/profile" className="text-red-400 hover:text-red-300 underline">Profile</Link> or contact support.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             <Tabs
                 tabs={[
@@ -134,13 +168,31 @@ export default function MemberSubscriptionPage() {
                             </div>
                         </div>
                         <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-zinc-700">
-                            <LoadingButton icon={RefreshCw} variant="secondary" onClick={() => setRenewOpen(true)} size="sm">
+                            <LoadingButton
+                                icon={RefreshCw}
+                                variant="secondary"
+                                onClick={() => canPurchase && setRenewOpen(true)}
+                                size="sm"
+                                disabled={!canPurchase}
+                            >
                                 Renew
                             </LoadingButton>
-                            <LoadingButton icon={ArrowUpCircle} variant="secondary" onClick={() => setUpgradeOpen(true)} size="sm">
+                            <LoadingButton
+                                icon={ArrowUpCircle}
+                                variant="secondary"
+                                onClick={() => canPurchase && setUpgradeOpen(true)}
+                                size="sm"
+                                disabled={!canPurchase}
+                            >
                                 Upgrade
                             </LoadingButton>
-                            <LoadingButton icon={Snowflake} variant="secondary" onClick={() => setFreezeOpen(true)} size="sm">
+                            <LoadingButton
+                                icon={Snowflake}
+                                variant="secondary"
+                                onClick={() => canPurchase && setFreezeOpen(true)}
+                                size="sm"
+                                disabled={!canPurchase}
+                            >
                                 Request Freeze
                             </LoadingButton>
                         </div>
