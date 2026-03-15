@@ -1,8 +1,11 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI } from '../lib/api';
+
+/** Throttle profile re-validation to avoid 429 when navigating / remounting. */
+const PROFILE_CACHE_MS = 60_000; // 60s — skip API if we validated recently
 
 export type Role = 'admin' | 'manager' | 'trainer' | 'member';
 
@@ -52,6 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // paint is byte-identical to the SSR output. localStorage is only read after
   // mount to eliminate React hydration error #418 in production builds.
   const [mounted, setMounted] = useState(false);
+  const lastProfileSuccessAt = useRef<number>(0);
   const router = useRouter();
 
   useEffect(() => { setMounted(true); }, []);
@@ -81,6 +85,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Throttle: if we validated successfully in the last PROFILE_CACHE_MS, trust cache to avoid 429
+    if (Date.now() - lastProfileSuccessAt.current < PROFILE_CACHE_MS) {
+      setIsAuthenticated(true);
+      setIsLoading(false);
+      return;
+    }
+
     authAPI.getProfile()
       .then(res => {
         const d = res.data.data;
@@ -93,12 +104,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           emailVerified: d.emailVerified,
           isOnboarded: d.profile?.isOnboarded,
         };
+        lastProfileSuccessAt.current = Date.now();
         setUser(freshUser);
         setIsAuthenticated(true);
         localStorage.setItem('user', JSON.stringify(freshUser));
       })
       .catch(() => {
-        // Session invalid or expired — clear everything
+        lastProfileSuccessAt.current = 0;
         setUser(null);
         setIsAuthenticated(false);
         localStorage.removeItem('user');
@@ -108,6 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /** Call after login/register — user object from server response */
   const login = useCallback((newUser: User) => {
+    lastProfileSuccessAt.current = Date.now(); // avoid immediate re-fetch on next mount
     setUser(newUser);
     setIsAuthenticated(true);
     localStorage.setItem('user', JSON.stringify(newUser));
@@ -153,10 +166,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         emailVerified: d.emailVerified,
         isOnboarded: d.profile?.isOnboarded,
       };
+      lastProfileSuccessAt.current = Date.now();
       setUser(freshUser);
       localStorage.setItem('user', JSON.stringify(freshUser));
       return freshUser;
     } catch {
+      lastProfileSuccessAt.current = 0;
       setUser(null);
       setIsAuthenticated(false);
       localStorage.removeItem('user');

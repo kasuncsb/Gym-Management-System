@@ -3,6 +3,7 @@ import multer, { FileFilterCallback } from 'multer';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { requireVerified } from '../middleware/require-verified.js';
 import { validate } from '../middleware/error.js';
+import { loginRateLimiter } from '../middleware/rate-limit.js';
 import * as auth from '../controllers/auth.controller.js';
 import {
   loginSchema,
@@ -32,7 +33,7 @@ const upload = multer({
 });
 
 // ── Public ───────────────────────────────────────────────────────────────────
-router.post('/login',           validate(loginSchema),          auth.login);
+router.post('/login',           loginRateLimiter, validate(loginSchema), auth.login);
 router.post('/register',        validate(registerSchema),       auth.register);
 router.post('/refresh',                                         auth.refresh);
 router.post('/verify-email',    validate(verifyEmailSchema),    auth.verifyEmail);

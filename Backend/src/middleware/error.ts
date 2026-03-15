@@ -7,6 +7,11 @@ export function notFound(req: Request, res: Response): void {
   res.status(404).json(response.error('NOT_FOUND', `${req.method} ${req.path} not found`));
 }
 
+/** Multer errors (file size, etc.) — check by code to avoid importing multer here */
+function isMulterError(err: unknown): err is { code: string; message?: string } {
+  return typeof err === 'object' && err !== null && 'code' in err && typeof (err as { code: unknown }).code === 'string';
+}
+
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   if (err instanceof AppError) {
     if (err.statusCode >= 500) {
@@ -19,6 +24,19 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   if (err instanceof ZodError) {
     const details = err.errors.map(e => ({ field: e.path.join('.'), message: e.message }));
     res.status(422).json(response.error('VALIDATION_ERROR', 'Validation failed', details));
+    return;
+  }
+
+  if (isMulterError(err)) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      res.status(413).json(response.error('PAYLOAD_TOO_LARGE', 'File size exceeds the allowed limit (max 5MB per file).'));
+      return;
+    }
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      res.status(400).json(response.error('BAD_REQUEST', err.message ?? 'Unexpected file field'));
+      return;
+    }
+    res.status(400).json(response.error('BAD_REQUEST', err.message ?? 'File upload error'));
     return;
   }
 

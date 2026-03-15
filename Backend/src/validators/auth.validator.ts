@@ -72,6 +72,9 @@ export const onboardingSchema = z.object({
 export const idVerificationSchema = z.object({
   status: z.enum(['approved', 'rejected']),
   note: z.string().max(500).optional(),
+}).refine((data) => data.status !== 'rejected' || (data.note != null && data.note.trim().length > 0), {
+  message: 'A note is required when rejecting identity verification',
+  path: ['note'],
 });
 
 /** Basic info (users table) — editable by all roles. Member can also update emergency (member_profiles). */

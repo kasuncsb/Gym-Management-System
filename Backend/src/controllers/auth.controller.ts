@@ -125,7 +125,7 @@ export const getProfileAvatar = asyncHandler(async (req: AuthRequest, res: Respo
   const stream = body as NodeJS.ReadableStream;
   stream.on('error', (err) => {
     console.error('Profile avatar stream error:', err);
-    if (!res.headersSent) res.status(500).json({ error: 'Failed to load avatar' });
+    if (!res.headersSent) res.status(500).json(response.error('INTERNAL_ERROR', 'Failed to load avatar'));
     else res.end();
   });
   stream.pipe(res);
@@ -141,7 +141,7 @@ export const getProfileCover = asyncHandler(async (req: AuthRequest, res: Respon
   const stream = body as NodeJS.ReadableStream;
   stream.on('error', (err) => {
     console.error('Profile cover stream error:', err);
-    if (!res.headersSent) res.status(500).json({ error: 'Failed to load cover' });
+    if (!res.headersSent) res.status(500).json(response.error('INTERNAL_ERROR', 'Failed to load cover'));
     else res.end();
   });
   stream.pipe(res);
@@ -238,7 +238,7 @@ export const downloadIdDocument = asyncHandler(async (req: AuthRequest, res: Res
   stream.on('error', (err) => {
     console.error(`OCI download stream error for user ${userId}:`, err);
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Failed to download document' });
+      res.status(500).json(response.error('INTERNAL_ERROR', 'Failed to download document'));
     } else {
       res.end();
     }

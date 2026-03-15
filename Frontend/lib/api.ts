@@ -26,6 +26,11 @@ apiClient.interceptors.response.use(
   async (error) => {
     const original = error.config;
 
+    // 429: do not retry (avoids amplifying rate-limit lockout). Reject with clear message.
+    if (error.response?.status === 429) {
+      return Promise.reject(error);
+    }
+
     // Don't retry refresh, login/register requests, or endpoints flagged with _noRetry.
     // BUG-13 fix: Without the _noRetry guard, mutation endpoints (logout,
     // change-password, send-verification) would be silently re-fired after a
@@ -187,9 +192,30 @@ export const authAPI = {
     apiClient.post(`/auth/admin/verify-id/${userId}`, { status, note }),
 };
 
+/** Safely read API error message; handles HTML or non-standard response bodies from proxies. */
+function getApiErrorMessage(error: unknown): string | null {
+  if (!axios.isAxiosError(error) || !error.response?.data) return null;
+  const data = error.response.data;
+  if (typeof data !== 'object' || data === null) return null;
+  const err = (data as Record<string, unknown>).error;
+  if (typeof err !== 'object' || err === null) return null;
+  const msg = (err as Record<string, unknown>).message;
+  return typeof msg === 'string' ? msg : null;
+}
+
 export function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
-    return error.response?.data?.error?.message ?? error.message;
+    const apiMsg = getApiErrorMessage(error);
+    if (apiMsg) return apiMsg;
+    if (error.response?.status === 429) {
+      return 'Too many requests. Please wait a few minutes and try again.';
+    }
+    if (error.response?.status === 403) return 'You do not have permission to perform this action.';
+    if (error.response?.status === 404) return 'The requested resource was not found.';
+    if (error.response?.status && error.response.status >= 500) {
+      return 'The server is temporarily unavailable. Please try again later.';
+    }
+    return error.message || 'Request failed';
   }
   if (error instanceof Error) return error.message;
   return 'An unexpected error occurred';

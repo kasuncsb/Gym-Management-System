@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authAPI, getErrorMessage } from "@/lib/api";
@@ -18,6 +18,7 @@ function LoginForm() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
+    const [cooldownUntil, setCooldownUntil] = useState(0); // 429 cooldown (ms)
     const { login, user, isAuthenticated, isLoading: authLoading } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -41,6 +42,16 @@ function LoginForm() {
             setSuccessMsg('Password changed successfully. Please log in with your new password.');
         }
     }, [searchParams]);
+
+    // Clear 429 cooldown after 60s so submit button re-enables
+    const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => {
+        if (cooldownUntil <= 0) return;
+        cooldownTimerRef.current = setTimeout(() => setCooldownUntil(0), 60_000);
+        return () => {
+            if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+        };
+    }, [cooldownUntil]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -73,7 +84,12 @@ function LoginForm() {
 
         } catch (err: unknown) {
             console.error('Login failed:', err);
-            setError(getErrorMessage(err));
+            const msg = getErrorMessage(err);
+            setError(msg);
+            // On 429, avoid immediate retries that worsen rate-limit lockout
+            if (typeof err === 'object' && err !== null && 'response' in err && (err as { response?: { status?: number } }).response?.status === 429) {
+                setCooldownUntil(Date.now() + 60_000); // 1 min
+            }
         } finally {
             setIsLoading(false);
         }
@@ -156,7 +172,7 @@ function LoginForm() {
                         <button
                             id="login-submit"
                             type="submit"
-                            disabled={isLoading}
+                            disabled={isLoading || Date.now() < cooldownUntil}
                             className={cn(
                                 "w-full py-3.5 rounded-xl font-bold text-white bg-red-700 hover:bg-red-800 transition-all shadow-lg shadow-red-600/10 flex items-center justify-center gap-2",
                                 isLoading && "opacity-70 cursor-not-allowed"

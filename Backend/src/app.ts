@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { env } from './config/env.js';
 import { notFound, errorHandler } from './middleware/error.js';
+import { apiRateLimiter } from './middleware/rate-limit.js';
 import authRoutes from './routes/auth.routes.js';
 
 const app = express();
@@ -30,13 +31,13 @@ app.use(express.json({ limit: '10kb', strict: false }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
 
-// Health check
+// Health check (no rate limit — for load balancers / readiness)
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API Routes
-app.use('/api/auth', authRoutes);
+// API Routes — generous rate limit so normal SPA traffic doesn't trigger 429
+app.use('/api/auth', apiRateLimiter, authRoutes);
 
 // Error handling
 app.use(notFound);
