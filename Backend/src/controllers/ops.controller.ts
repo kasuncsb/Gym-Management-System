@@ -281,6 +281,59 @@ export const simulateGenerateDoorOtp = asyncHandler(async (req: AuthRequest, res
   res.json(response.success(await opsService.simulateGenerateDoorOtp(user.id, expiresInSec), 'Simulation OTP generated'));
 });
 
+// ── Public Simulation (no auth required) ──────────────────────────────────────
+
+export const publicSimulationBootstrap = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  const [members, trainers, plans, state] = await Promise.all([
+    opsService.listSimulationPeople('member'),
+    opsService.listSimulationPeople('trainer'),
+    opsService.listPlans({ includeInactive: false }),
+    opsService.getSimulationState(),
+  ]);
+  res.json(response.success({ members, trainers, plans, state }));
+});
+
+export const publicSimulateGenerateDoorOtp = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const raw = Number(req.body?.expiresInSec ?? 120);
+  const expiresInSec = Number.isFinite(raw) && raw > 0 ? raw : 120;
+  res.json(response.success(await opsService.simulateGenerateDoorOtp('public-simulate', expiresInSec), 'Simulation OTP generated'));
+});
+
+export const publicSimulateDoorScan = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const payload = req.body as { token?: string; code?: string; personId?: string };
+  const personId = String(payload.personId ?? '').trim();
+  const token = String(payload.token ?? '').trim();
+  const code = String(payload.code ?? '').trim();
+  if (!personId || !token || !code) throw errors.badRequest('token, code and personId are required');
+  res.json(response.success(await opsService.simulateDoorScan({ token, code, personId }), 'Door simulation processed'));
+});
+
+export const publicSimulatePayment = asyncHandler(async (req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.simulatePayment(req.body), 'Payment simulation processed'));
+});
+
+export const publicSimulateWorkout = asyncHandler(async (req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.simulateWorkout(req.body), 'Workout simulation processed'));
+});
+
+export const publicSimulateTrainerShift = asyncHandler(async (req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.simulateTrainerShift(req.body), 'Trainer shift simulation processed'));
+});
+
+export const publicSimulateAppointment = asyncHandler(async (req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.simulateAppointment(req.body), 'Appointment simulation processed'));
+});
+
+export const publicSimulateVitals = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const memberId = String(req.body?.memberId ?? '').trim();
+  if (!memberId) throw errors.badRequest('memberId is required');
+  res.json(response.success(await opsService.simulateVitals(memberId, req.body), 'Vitals simulation recorded'));
+});
+
+export const publicGetSimulationState = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.getSimulationState()));
+});
+
 export const simulateDoorScan = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   const payload = req.body as { token: string; code: string; personId?: string };

@@ -404,6 +404,26 @@ export const opsAPI = {
     apiClient.post('/ops/simulate/vitals', payload).then(r => r.data.data),
   simulationState: () =>
     apiClient.get('/ops/simulate/state').then(r => r.data.data as any),
+
+  // public simulator endpoints (no auth required)
+  publicSimulationBootstrap: () =>
+    apiClient.get('/ops/simulate/public/bootstrap').then(r => r.data.data as { members: any[]; trainers: any[]; plans: any[]; state: any }),
+  publicSimulateGenerateDoorOtp: (expiresInSec = 120) =>
+    apiClient.post('/ops/simulate/public/door/otp', { expiresInSec }).then(r => r.data.data as { token: string; code: string; expiresAt: string }),
+  publicSimulateDoorScan: (payload: { token: string; code: string; personId: string }) =>
+    apiClient.post('/ops/simulate/public/door/scan', payload).then(r => r.data.data),
+  publicSimulatePayment: (payload: { memberId: string; planId: string; paymentMethod?: 'cash' | 'card' | 'bank_transfer' | 'online' }) =>
+    apiClient.post('/ops/simulate/public/payment', payload).then(r => r.data.data),
+  publicSimulateWorkout: (payload: { memberId: string; durationMin?: number; caloriesBurned?: number; notes?: string }) =>
+    apiClient.post('/ops/simulate/public/workout', payload).then(r => r.data.data),
+  publicSimulateTrainerShift: (payload: { trainerId: string; action?: 'in' | 'out' }) =>
+    apiClient.post('/ops/simulate/public/trainer-shift', payload).then(r => r.data.data),
+  publicSimulateAppointment: (payload: { memberId: string; trainerId: string; sessionDate: string; startTime: string; endTime: string }) =>
+    apiClient.post('/ops/simulate/public/appointment', payload).then(r => r.data.data),
+  publicSimulateVitals: (payload: { memberId: string; weightKg?: number; heightCm?: number; bmi?: number; restingHr?: number; notes?: string }) =>
+    apiClient.post('/ops/simulate/public/vitals', payload).then(r => r.data.data),
+  publicSimulationState: () =>
+    apiClient.get('/ops/simulate/public/state').then(r => r.data.data as any),
 };
 
 // ── AI API ────────────────────────────────────────────────────────────────────

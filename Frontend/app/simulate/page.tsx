@@ -22,16 +22,11 @@ export default function SimulatePage() {
   const [vitals, setVitals] = useState({ memberId: '', weightKg: '', heightCm: '', bmi: '', restingHr: '' });
 
   const refresh = useCallback(async () => {
-    const [m, t, p, s] = await Promise.all([
-      opsAPI.users('member'),
-      opsAPI.users('trainer'),
-      opsAPI.plans(),
-      opsAPI.simulationState(),
-    ]);
-    setMembers(m ?? []);
-    setTrainers(t ?? []);
-    setPlans(p ?? []);
-    setState(s ?? { visits: [], payments: [], workouts: [], ptSessions: [], activeDoorOtps: [] });
+    const bootstrap = await opsAPI.publicSimulationBootstrap();
+    setMembers(bootstrap?.members ?? []);
+    setTrainers(bootstrap?.trainers ?? []);
+    setPlans(bootstrap?.plans ?? []);
+    setState(bootstrap?.state ?? { visits: [], payments: [], workouts: [], ptSessions: [], activeDoorOtps: [] });
   }, []);
 
   useRealtimePolling(() => refresh().catch(() => undefined), 10000);
@@ -69,7 +64,7 @@ export default function SimulatePage() {
               loading={loading}
               icon={DoorOpen}
               onClick={() => run(async () => {
-                const otp = await opsAPI.simulateGenerateDoorOtp(120);
+                const otp = await opsAPI.publicSimulateGenerateDoorOtp(120);
                 setDoor((d) => ({ ...d, token: otp.token, code: otp.code }));
               }, 'Door OTP generated')}
             >
@@ -78,7 +73,7 @@ export default function SimulatePage() {
             <Input label="Token" value={door.token} onChange={(e) => setDoor((d) => ({ ...d, token: e.target.value }))} />
             <Input label="OTP Code" value={door.code} onChange={(e) => setDoor((d) => ({ ...d, code: e.target.value }))} />
             <Select label="Person" options={[...memberOptions, ...trainerOptions]} value={door.personId} onChange={(e) => setDoor((d) => ({ ...d, personId: e.target.value }))} />
-            <LoadingButton loading={loading} onClick={() => run(() => opsAPI.simulateDoorScan({ token: door.token, code: door.code, personId: door.personId }), 'Door scan simulated')}>
+            <LoadingButton loading={loading} onClick={() => run(() => opsAPI.publicSimulateDoorScan({ token: door.token, code: door.code, personId: door.personId }), 'Door scan simulated')}>
               Simulate Door Scan
             </LoadingButton>
           </div>
@@ -100,7 +95,7 @@ export default function SimulatePage() {
               value={payment.method}
               onChange={(e) => setPayment((f) => ({ ...f, method: e.target.value }))}
             />
-            <LoadingButton loading={loading} onClick={() => run(() => opsAPI.simulatePayment({ memberId: payment.memberId, planId: payment.planId, paymentMethod: payment.method as any }), 'Payment simulated')}>
+            <LoadingButton loading={loading} onClick={() => run(() => opsAPI.publicSimulatePayment({ memberId: payment.memberId, planId: payment.planId, paymentMethod: payment.method as any }), 'Payment simulated')}>
               Simulate Payment
             </LoadingButton>
           </div>
@@ -112,7 +107,7 @@ export default function SimulatePage() {
             <Select label="Member" options={memberOptions} value={workout.memberId} onChange={(e) => setWorkout((f) => ({ ...f, memberId: e.target.value }))} />
             <Input label="Duration (min)" type="number" value={workout.durationMin} onChange={(e) => setWorkout((f) => ({ ...f, durationMin: e.target.value }))} />
             <Input label="Calories" type="number" value={workout.caloriesBurned} onChange={(e) => setWorkout((f) => ({ ...f, caloriesBurned: e.target.value }))} />
-            <LoadingButton loading={loading} onClick={() => run(() => opsAPI.simulateWorkout({ memberId: workout.memberId, durationMin: Number(workout.durationMin), caloriesBurned: Number(workout.caloriesBurned) }), 'Workout simulated')}>
+            <LoadingButton loading={loading} onClick={() => run(() => opsAPI.publicSimulateWorkout({ memberId: workout.memberId, durationMin: Number(workout.durationMin), caloriesBurned: Number(workout.caloriesBurned) }), 'Workout simulated')}>
               Simulate Workout
             </LoadingButton>
           </div>
@@ -123,7 +118,7 @@ export default function SimulatePage() {
           <div className="space-y-3">
             <Select label="Trainer" options={trainerOptions} value={shift.trainerId} onChange={(e) => setShift((f) => ({ ...f, trainerId: e.target.value }))} />
             <Select label="Action" options={[{ value: 'in', label: 'Check In' }, { value: 'out', label: 'Check Out' }]} value={shift.action} onChange={(e) => setShift((f) => ({ ...f, action: e.target.value as 'in' | 'out' }))} />
-            <LoadingButton loading={loading} onClick={() => run(() => opsAPI.simulateTrainerShift({ trainerId: shift.trainerId, action: shift.action }), 'Trainer shift simulated')}>
+            <LoadingButton loading={loading} onClick={() => run(() => opsAPI.publicSimulateTrainerShift({ trainerId: shift.trainerId, action: shift.action }), 'Trainer shift simulated')}>
               Simulate Shift
             </LoadingButton>
           </div>
@@ -143,7 +138,7 @@ export default function SimulatePage() {
             </div>
             <LoadingButton
               loading={loading}
-              onClick={() => run(() => opsAPI.simulateVitals({
+              onClick={() => run(() => opsAPI.publicSimulateVitals({
                 memberId: vitals.memberId,
                 weightKg: vitals.weightKg ? Number(vitals.weightKg) : undefined,
                 heightCm: vitals.heightCm ? Number(vitals.heightCm) : undefined,
@@ -168,7 +163,7 @@ export default function SimulatePage() {
             </div>
           </div>
           <div className="pt-3">
-            <LoadingButton loading={loading} onClick={() => run(() => opsAPI.simulateAppointment({ ...session, startTime: `${session.startTime}:00`, endTime: `${session.endTime}:00` }), 'Appointment simulated')}>
+            <LoadingButton loading={loading} onClick={() => run(() => opsAPI.publicSimulateAppointment({ ...session, startTime: `${session.startTime}:00`, endTime: `${session.endTime}:00` }), 'Appointment simulated')}>
               Simulate Appointment
             </LoadingButton>
           </div>

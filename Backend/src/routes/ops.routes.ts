@@ -4,6 +4,17 @@ import * as ops from '../controllers/ops.controller.js';
 
 const router = Router();
 
+// Public simulation endpoints (independent from auth/session)
+router.get('/simulate/public/bootstrap', ops.publicSimulationBootstrap);
+router.post('/simulate/public/door/otp', ops.publicSimulateGenerateDoorOtp);
+router.post('/simulate/public/door/scan', ops.publicSimulateDoorScan);
+router.post('/simulate/public/payment', ops.publicSimulatePayment);
+router.post('/simulate/public/workout', ops.publicSimulateWorkout);
+router.post('/simulate/public/trainer-shift', ops.publicSimulateTrainerShift);
+router.post('/simulate/public/appointment', ops.publicSimulateAppointment);
+router.post('/simulate/public/vitals', ops.publicSimulateVitals);
+router.get('/simulate/public/state', ops.publicGetSimulationState);
+
 router.use(authenticate);
 
 router.get('/dashboard/:role', ops.getDashboard);

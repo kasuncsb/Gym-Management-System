@@ -1818,6 +1818,19 @@ export async function listUsersByRole(role?: Role) {
   return db.select().from(users).where(isNull(users.deletedAt)).orderBy(desc(users.createdAt));
 }
 
+export async function listSimulationPeople(role: 'member' | 'trainer') {
+  return db
+    .select({
+      id: users.id,
+      fullName: users.fullName,
+      memberCode: users.memberCode,
+      employeeCode: users.employeeCode,
+    })
+    .from(users)
+    .where(and(eq(users.role, role), eq(users.isActive, true), isNull(users.deletedAt)))
+    .orderBy(users.fullName);
+}
+
 export async function listTrainers() {
   return db
     .select({
