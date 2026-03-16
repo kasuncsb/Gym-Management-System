@@ -79,11 +79,14 @@ export default function Register() {
             const { user, verificationEmailSent } = response.data.data;
 
             // Auto-login — cookies already set by backend. New members need verify → onboard.
+            // Include avatar/cover so navbar/profile can render images immediately after registration.
             login({
                 id: user.id,
                 fullName: user.fullName,
                 email: user.email,
                 role: user.role,
+                avatarKey: user.avatarKey ?? null,
+                coverKey: user.coverKey ?? null,
                 emailVerified: user.emailVerified ?? false,
                 isOnboarded: user.isOnboarded ?? false,
             });

@@ -63,12 +63,15 @@ function LoginForm() {
             const { user: responseUser } = response.data.data;
 
             // Update client state only; redirect is handled by useEffect below so it runs after state commit (avoids empty dashboard).
+            // Include avatar/cover keys so the navbar can immediately render the correct profile image after login.
             login({
                 id: responseUser.id,
                 fullName: responseUser.fullName,
                 email: responseUser.email,
                 role: responseUser.role,
                 phone: responseUser.phone,
+                avatarKey: responseUser.avatarKey ?? null,
+                coverKey: responseUser.coverKey ?? null,
                 emailVerified: responseUser.emailVerified,
                 isOnboarded: responseUser.isOnboarded,
             });

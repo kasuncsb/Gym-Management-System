@@ -184,6 +184,9 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
       await authAPI.uploadAvatar(file);
       bumpAvatarMediaVersion();
       setProfileData(prev => prev ? { ...prev, avatarKey: 'set' } : null);
+      // Refresh the authenticated user so navbar and other consumers immediately
+      // see the new avatarKey without requiring a full page reload.
+      await refreshUser();
       toast.success('Avatar updated', 'Your profile photo has been updated.');
     } catch (err) {
       toast.error('Upload failed', getErrorMessage(err));
