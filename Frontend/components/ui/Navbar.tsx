@@ -32,7 +32,14 @@ function profileHrefForRole(role: string): string {
 
 function ProfileAvatar({ initials, userId, hasAvatar, cacheBust }: { initials: string; userId: string | undefined; hasAvatar: boolean; cacheBust: number }) {
   const [imgFailed, setImgFailed] = useState(false);
-  useEffect(() => { setImgFailed(false); }, [userId, hasAvatar, cacheBust]);
+  const [retryTick, setRetryTick] = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
+
+  useEffect(() => {
+    setImgFailed(false);
+    setRetryTick(0);
+    setRetryCount(0);
+  }, [userId, hasAvatar, cacheBust]);
   if (!hasAvatar || imgFailed) {
     return (
       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center text-white font-bold text-sm shrink-0">
@@ -40,10 +47,25 @@ function ProfileAvatar({ initials, userId, hasAvatar, cacheBust }: { initials: s
       </div>
     );
   }
-  const url = authAPI.profileAvatarUrl(userId, cacheBust);
+  const url = authAPI.profileAvatarUrl(userId, cacheBust + retryTick);
   return (
     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden">
-      <img src={url} alt="" className="w-full h-full object-cover" onError={() => setImgFailed(true)} key={`nav-avatar-${userId ?? ''}-${cacheBust}`} />
+      <img
+        src={url}
+        alt=""
+        className="w-full h-full object-cover"
+        onError={() => {
+          // Avoid getting stuck on transient 401/404 races right after login/upload.
+          if (retryCount < 3) {
+            const nextRetry = retryCount + 1;
+            setRetryCount(nextRetry);
+            setTimeout(() => setRetryTick((t) => t + 1), nextRetry * 400);
+            return;
+          }
+          setImgFailed(true);
+        }}
+        key={`nav-avatar-${userId ?? ''}-${cacheBust}-${retryTick}`}
+      />
     </div>
   );
 }

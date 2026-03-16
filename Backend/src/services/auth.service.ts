@@ -37,6 +37,9 @@ export interface AuthResult extends TokenPair {
     email: string;
     role: string;
     fullName: string;
+    phone?: string | null;
+    avatarKey?: string | null;
+    coverKey?: string | null;
     memberCode?: string | null;
     emailVerified?: boolean;
     isOnboarded?: boolean;
@@ -130,6 +133,9 @@ export async function login(input: LoginInput): Promise<AuthResult> {
       email: person.email,
       role: person.role,
       fullName: person.fullName,
+      phone: person.phone ?? null,
+      avatarKey: person.avatarKey ?? null,
+      coverKey: person.coverKey ?? null,
       memberCode: person.memberCode,
       emailVerified: person.emailVerified,
       isOnboarded,
@@ -205,6 +211,9 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
       email: input.email,
       role: 'member',
       fullName: input.fullName,
+      phone: input.phone ?? null,
+      avatarKey: null,
+      coverKey: null,
       memberCode,
       emailVerified: false,
       isOnboarded: false,
@@ -285,6 +294,9 @@ export async function refresh(refreshToken: string): Promise<AuthResult> {
       email: person.email,
       role: person.role,
       fullName: person.fullName,
+      phone: person.phone ?? null,
+      avatarKey: person.avatarKey ?? null,
+      coverKey: person.coverKey ?? null,
       memberCode: person.memberCode,
       emailVerified: person.emailVerified,
       isOnboarded,
