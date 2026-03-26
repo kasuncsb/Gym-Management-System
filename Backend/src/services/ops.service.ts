@@ -2223,11 +2223,22 @@ export async function simulateVitals(memberId: string, input: {
 }
 
 export async function getSimulationState() {
+  // Public simulator must stay online even if some tables/columns are missing
+  // on stale environments. Fail soft per query and return empty slices.
+  async function safeQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+    try {
+      return await fn();
+    } catch (err) {
+      console.error('[simulate.state] query failed, using fallback:', err);
+      return fallback;
+    }
+  }
+
   const [todayVisits, todayPayments, recentWorkouts, upcomingSessions] = await Promise.all([
-    db.select().from(visits).orderBy(desc(visits.createdAt)).limit(20),
-    db.select().from(payments).orderBy(desc(payments.createdAt)).limit(20),
-    db.select().from(workoutLogs).orderBy(desc(workoutLogs.createdAt)).limit(20),
-    db.select().from(ptSessions).orderBy(desc(ptSessions.createdAt)).limit(20),
+    safeQuery(() => db.select().from(visits).orderBy(desc(visits.createdAt)).limit(20), [] as any[]),
+    safeQuery(() => db.select().from(payments).orderBy(desc(payments.createdAt)).limit(20), [] as any[]),
+    safeQuery(() => db.select().from(workoutLogs).orderBy(desc(workoutLogs.createdAt)).limit(20), [] as any[]),
+    safeQuery(() => db.select().from(ptSessions).orderBy(desc(ptSessions.createdAt)).limit(20), [] as any[]),
   ]);
 
   return {

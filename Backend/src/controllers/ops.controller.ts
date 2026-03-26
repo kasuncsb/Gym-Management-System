@@ -314,12 +314,18 @@ export const simulateGenerateDoorOtp = asyncHandler(async (req: AuthRequest, res
 // ── Public Simulation (no auth required) ──────────────────────────────────────
 
 export const publicSimulationBootstrap = asyncHandler(async (_req: AuthRequest, res: Response) => {
-  const [members, trainers, plans, state] = await Promise.all([
+  const [membersR, trainersR, plansR, stateR] = await Promise.allSettled([
     opsService.listSimulationPeople('member'),
     opsService.listSimulationPeople('trainer'),
     opsService.listPlans({ includeInactive: false }),
     opsService.getSimulationState(),
   ]);
+  const members = membersR.status === 'fulfilled' ? membersR.value : [];
+  const trainers = trainersR.status === 'fulfilled' ? trainersR.value : [];
+  const plans = plansR.status === 'fulfilled' ? plansR.value : [];
+  const state = stateR.status === 'fulfilled'
+    ? stateR.value
+    : { now: new Date().toISOString(), visits: [], payments: [], workouts: [], ptSessions: [], activeDoorOtps: [] };
   res.json(response.success({ members, trainers, plans, state }));
 });
 
