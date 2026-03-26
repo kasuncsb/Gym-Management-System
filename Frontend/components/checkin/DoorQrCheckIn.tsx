@@ -70,6 +70,9 @@ export function DoorQrCheckIn({
     const [capacity, setCapacity] = useState({ current: 0, limit: 120 });
     const [scannedIn, setScannedIn] = useState(false);
     const scanSubmittedRef = useRef(false);
+    const [scanHint, setScanHint] = useState<string | null>(null);
+    const scanStartedAtRef = useRef<number | null>(null);
+    const scanHintShownRef = useRef(false);
 
     const reload = useCallback(async () => {
         if (!mountedRef.current) return;
@@ -138,6 +141,9 @@ export function DoorQrCheckIn({
 
         readerRef.current = null;
         if (mountedRef.current) setCameraOn(false);
+        if (mountedRef.current) setScanHint(null);
+        scanStartedAtRef.current = null;
+        scanHintShownRef.current = false;
     }, []);
 
     useEffect(() => () => {
@@ -195,6 +201,9 @@ export function DoorQrCheckIn({
 
             // Reset scan submission flag for this camera session.
             scanSubmittedRef.current = false;
+            scanStartedAtRef.current = Date.now();
+            scanHintShownRef.current = false;
+            if (mountedRef.current) setScanHint(null);
 
             // Lazy import: keeps camera libs out of the server bundle.
             const zx = await import('@zxing/browser');
@@ -216,7 +225,16 @@ export function DoorQrCheckIn({
                 // Expected: "no QR found in this frame".
                 if (name === 'NotFoundException' || /no qr|not found|notfound/i.test(msg)) return;
 
-                // Only toast for fatal streaming/camera errors.
+                // Surface a single helpful hint after a few seconds with no decode.
+                if (mountedRef.current && !scanHintShownRef.current && scanStartedAtRef.current) {
+                    const age = Date.now() - scanStartedAtRef.current;
+                    if (age > 6000) {
+                        scanHintShownRef.current = true;
+                        setScanHint('No QR detected yet. Increase screen brightness, move closer, and keep the QR centered.');
+                    }
+                }
+
+                // Only toast/stop for fatal streaming/camera errors.
                 const fatal = /NotAllowed|Permission|denied|overconstrained|not supported|stream|Method not allowed/i.test(msg);
                 if (fatal && mountedRef.current) {
                     toast.error('Camera error', getErrorMessage(err) ?? 'Failed to start camera stream.');
@@ -318,6 +336,12 @@ export function DoorQrCheckIn({
                         </div>
                     )}
                 </div>
+
+                {scanHint && (
+                    <p className="text-amber-300 text-sm">
+                        {scanHint}
+                    </p>
+                )}
 
                 {scannedIn && (
                     <p className="text-emerald-400 text-sm flex items-center gap-2">

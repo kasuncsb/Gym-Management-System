@@ -11,6 +11,13 @@ const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 export const apiRateLimiter = rateLimit({
   windowMs: WINDOW_MS,
   limit: 500,
+  // Simulator pages poll frequently in dev/prod; don't let that create 429 storms.
+  // These endpoints are already scoped to the in-memory OTP store and return no secrets.
+  skip: (req) => {
+    const p = req.path || '';
+    // Note: this middleware is mounted at /api/*, so req.path is the path after that mount.
+    return p.startsWith('/ops/simulate/public/');
+  },
   message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Too many requests. Please wait a few minutes and try again.' } },
   standardHeaders: true,
   legacyHeaders: false,

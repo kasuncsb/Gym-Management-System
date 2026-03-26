@@ -12,6 +12,14 @@ function isMulterError(err: unknown): err is { code: string; message?: string } 
   return typeof err === 'object' && err !== null && 'code' in err && typeof (err as { code: unknown }).code === 'string';
 }
 
+function isBodyParserJsonError(err: unknown): err is { type: string; status?: number; statusCode?: number; message?: string } {
+  return typeof err === 'object'
+    && err !== null
+    && 'type' in err
+    && typeof (err as any).type === 'string'
+    && (err as any).type === 'entity.parse.failed';
+}
+
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   if (err instanceof AppError) {
     if (err.statusCode >= 500) {
@@ -37,6 +45,12 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
       return;
     }
     res.status(400).json(response.error('BAD_REQUEST', err.message ?? 'File upload error'));
+    return;
+  }
+
+  // JSON body parse errors should be 400, not 500.
+  if (isBodyParserJsonError(err)) {
+    res.status(400).json(response.error('BAD_REQUEST', 'Malformed JSON body'));
     return;
   }
 

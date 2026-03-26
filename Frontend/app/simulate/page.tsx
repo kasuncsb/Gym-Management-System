@@ -28,19 +28,17 @@ export default function SimulatePage() {
   const refreshQr = useCallback(async () => {
     try {
       const otp = await opsAPI.publicSimulateGenerateDoorOtp(120);
-      const payload = JSON.stringify({
-        token: otp.token,
-        code: otp.code,
-        exp: otp.expiresAt,
-        ts: (otp as { serverTime?: string }).serverTime ?? new Date().toISOString(),
-      });
+      // Keep QR payload compact for maximum scan reliability (screen → camera).
+      // The check-in scanner accepts both JSON and `token|code`.
+      const payload = `${otp.token}|${otp.code}`;
       const QR = (await import('qrcode')).default;
-      // Screen-to-camera scanning needs bigger modules + higher error correction for reliability.
+      // Screen-to-camera scanning needs standard dark-on-light, big quiet zone,
+      // and high error correction for real devices.
       const url = await QR.toDataURL(payload, {
-        width: 360,
-        margin: 2,
+        width: 420,
+        margin: 4,
         errorCorrectionLevel: 'H',
-        color: { dark: '#f8fafc', light: '#18181b' },
+        color: { dark: '#000000', light: '#ffffff' },
       });
       setQrUrl(url);
       setMeta({ code: otp.code, expiresAt: otp.expiresAt, serverTime: (otp as { serverTime?: string }).serverTime });
@@ -80,8 +78,11 @@ export default function SimulatePage() {
       refreshQr().catch(() => undefined);
     }, 45_000);
     const doorTimer = window.setInterval(() => {
-      pollDoor().catch(() => undefined);
-    }, 2000);
+      // 2s polling quickly triggers rate limiting in production; keep it light.
+      if (document.visibilityState === 'visible') {
+        pollDoor().catch(() => undefined);
+      }
+    }, 6000);
     return () => {
       window.clearInterval(qrTimer);
       window.clearInterval(doorTimer);
@@ -164,9 +165,14 @@ export default function SimulatePage() {
           <div className="flex flex-col sm:flex-row items-center gap-6 justify-center">
             {qrUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={qrUrl} alt="Door QR" className="rounded-xl border border-zinc-700 w-[280px] h-[280px] bg-zinc-950" />
+              <img
+                src={qrUrl}
+                alt="Door QR"
+                className="rounded-xl border border-zinc-700 w-[360px] h-[360px] bg-white"
+                style={{ imageRendering: 'pixelated' }}
+              />
             ) : (
-              <div className="w-[280px] h-[280px] rounded-xl border border-zinc-700 bg-zinc-950 animate-pulse" />
+              <div className="w-[360px] h-[360px] rounded-xl border border-zinc-700 bg-white/10 animate-pulse" />
             )}
             <div className="text-center sm:text-left space-y-1">
               <p className="text-zinc-500 text-xs">OTP token</p>
