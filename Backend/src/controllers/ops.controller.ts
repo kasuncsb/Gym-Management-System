@@ -66,6 +66,21 @@ export const purchaseSubscription = asyncHandler(async (req: AuthRequest, res: R
   const user = requireUser(req);
   res.json(response.success(await opsService.purchaseSubscription(user.id, req.body), 'Subscription purchased'));
 });
+export const createPaymentSession = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  res.json(response.success(await opsService.createPaymentSession(user.id, req.body), 'Payment session created'));
+});
+export const getMyPaymentSession = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  res.json(response.success(await opsService.getPaymentSessionById(req.params.id, user.id)));
+});
+export const getMyPaymentInvoice = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  const invoice = await opsService.getPaymentInvoiceHtml(req.params.paymentId, user.id);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${invoice.invoiceNumber}.html"`);
+  res.status(200).send(invoice.htmlContent);
+});
 export const requestFreeze = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   res.json(response.success(await opsService.requestFreeze(user.id, req.body), 'Freeze requested'));
@@ -350,6 +365,17 @@ export const publicSimulatePayment = asyncHandler(async (req: AuthRequest, res: 
 
 export const publicSimulateCardPayment = asyncHandler(async (req: AuthRequest, res: Response) => {
   res.json(response.success(await opsService.publicSimulateCardPayment(req.body), 'Card payment approved (simulator)'));
+});
+export const publicListPaymentRequests = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  const rows = await opsService.listPendingPaymentSessions();
+  res.json(response.success(rows));
+});
+export const publicApprovePaymentRequest = asyncHandler(async (req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.approvePaymentSession(req.params.id), 'Payment request approved'));
+});
+export const publicDeclinePaymentRequest = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const reason = String(req.body?.reason ?? '').trim() || undefined;
+  res.json(response.success(await opsService.declinePaymentSession(req.params.id, reason), 'Payment request declined'));
 });
 
 export const publicSimulateWorkout = asyncHandler(async (req: AuthRequest, res: Response) => {

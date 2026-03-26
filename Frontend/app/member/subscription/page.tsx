@@ -30,7 +30,10 @@ interface MyPayment {
     amount: string;
     paymentMethod: string;
     receiptNumber: string | null;
+    invoiceNumber?: string | null;
 }
+
+type CheckoutState = 'idle' | 'awaiting_processor' | 'processing' | 'approved' | 'declined' | 'expired';
 
 export default function MemberSubscriptionPage() {
     const toast = useToast();
@@ -48,6 +51,16 @@ export default function MemberSubscriptionPage() {
     const [renewForm, setRenewForm] = useState({ plan: '', promo: '', payment: 'card' });
     const [freezeForm, setFreezeForm] = useState({ startDate: '', endDate: '', reason: '' });
     const [upgradeForm, setUpgradeForm] = useState({ plan: '' });
+    const [checkoutOpen, setCheckoutOpen] = useState(false);
+    const [checkout, setCheckout] = useState({
+        planId: '',
+        promotionCode: '',
+        paymentMethod: 'card',
+        cardPan: '',
+        cardHolder: '',
+    });
+    const [checkoutSessionId, setCheckoutSessionId] = useState('');
+    const [checkoutState, setCheckoutState] = useState<CheckoutState>('idle');
 
     useEffect(() => {
         authAPI.getProfile()
@@ -75,29 +88,81 @@ export default function MemberSubscriptionPage() {
         label: `${p.name} — ${p.durationDays} days — Rs. ${Number(p.price ?? 0).toLocaleString()}`,
     }));
 
+    const openCheckout = (payload: { planId: string; promotionCode?: string; paymentMethod?: string }) => {
+        setCheckout({
+            planId: payload.planId,
+            promotionCode: payload.promotionCode ?? '',
+            paymentMethod: payload.paymentMethod ?? 'card',
+            cardPan: '',
+            cardHolder: '',
+        });
+        setCheckoutState('idle');
+        setCheckoutSessionId('');
+        setCheckoutOpen(true);
+    };
+
+    const pollSessionUntilFinal = async (sessionId: string) => {
+        const started = Date.now();
+        while (Date.now() - started < 90_000) {
+            const s = await opsAPI.getPaymentSession(sessionId) as { status: CheckoutState };
+            if (s.status === 'approved' || s.status === 'declined' || s.status === 'expired') return s.status;
+            setCheckoutState(s.status === 'processing' ? 'processing' : 'awaiting_processor');
+            await new Promise((r) => setTimeout(r, 1800));
+        }
+        return 'expired' as CheckoutState;
+    };
+
+    const submitCheckout = async () => {
+        if (!checkout.planId) {
+            toast.error('Validation Error', 'Plan is required');
+            return;
+        }
+        if (checkout.paymentMethod === 'card' && checkout.cardPan.replace(/\D/g, '').length < 13) {
+            toast.error('Validation Error', 'Enter a valid card number');
+            return;
+        }
+        setLoading(true);
+        try {
+            const session = await opsAPI.createPaymentSession({
+                planId: checkout.planId,
+                promotionCode: checkout.promotionCode || undefined,
+                paymentMethod: checkout.paymentMethod as any,
+                cardPan: checkout.cardPan || undefined,
+                cardHolder: checkout.cardHolder || undefined,
+                ttlSec: 180,
+            });
+            setCheckoutSessionId(session.id);
+            setCheckoutState('awaiting_processor');
+            const finalState = await pollSessionUntilFinal(session.id);
+            setCheckoutState(finalState);
+            if (finalState !== 'approved') {
+                toast.error('Payment Not Approved', `Processor state: ${finalState}`);
+                return;
+            }
+            setSubscriptions(await opsAPI.mySubscriptions() as MySubscription[]);
+            setPayments(await opsAPI.myPayments() as MyPayment[]);
+            toast.success('Payment Successful', 'Subscription activated and invoice issued.');
+            setCheckoutOpen(false);
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleRenew = async () => {
         if (!canPurchase) return;
         if (!renewForm.plan) {
             toast.error('Validation Error', 'Please select a plan');
             return;
         }
-        setLoading(true);
-        try {
-            await opsAPI.purchaseSubscription({
-                planId: renewForm.plan,
-                paymentMethod: renewForm.payment as 'card' | 'cash' | 'bank_transfer' | 'online',
-                promotionCode: renewForm.promo || undefined,
-            });
-            setSubscriptions(await opsAPI.mySubscriptions() as MySubscription[]);
-            setPayments(await opsAPI.myPayments() as MyPayment[]);
-            toast.success('Subscription Renewed', 'Your plan has been renewed successfully.');
-            setRenewOpen(false);
-            setRenewForm({ plan: '', promo: '', payment: 'card' });
-        } catch (err) {
-            toast.error('Error', getErrorMessage(err));
-        } finally {
-            setLoading(false);
-        }
+        setRenewOpen(false);
+        openCheckout({
+            planId: renewForm.plan,
+            promotionCode: renewForm.promo || undefined,
+            paymentMethod: renewForm.payment,
+        });
+        setRenewForm({ plan: '', promo: '', payment: 'card' });
     };
 
     const handleFreeze = async () => {
@@ -130,22 +195,8 @@ export default function MemberSubscriptionPage() {
             toast.error('Validation Error', 'Please select a plan');
             return;
         }
-        setLoading(true);
-        try {
-            await opsAPI.purchaseSubscription({
-                planId: upgradeForm.plan,
-                paymentMethod: 'online',
-            });
-            setSubscriptions(await opsAPI.mySubscriptions() as MySubscription[]);
-            setPayments(await opsAPI.myPayments() as MyPayment[]);
-            toast.success('Plan Upgraded', 'Your plan has been upgraded successfully.');
-            setUpgradeOpen(false);
-            setUpgradeForm({ plan: '' });
-        } catch (err) {
-            toast.error('Error', getErrorMessage(err));
-        } finally {
-            setLoading(false);
-        }
+        setUpgradeOpen(false);
+        openCheckout({ planId: upgradeForm.plan, paymentMethod: 'online' });
     };
 
     return (
@@ -279,6 +330,7 @@ export default function MemberSubscriptionPage() {
                                     <th className="text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider px-6 py-4">Amount</th>
                                     <th className="text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider px-6 py-4">Method</th>
                                     <th className="text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider px-6 py-4">Receipt</th>
+                                    <th className="text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider px-6 py-4">Invoice</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -288,6 +340,29 @@ export default function MemberSubscriptionPage() {
                                         <td className="px-6 py-4 text-sm text-white">Rs. {Number(p.amount ?? 0).toLocaleString()}</td>
                                         <td className="px-6 py-4 text-sm text-zinc-400">{p.paymentMethod}</td>
                                         <td className="px-6 py-4 text-sm text-zinc-400">{p.receiptNumber ?? '-'}</td>
+                                        <td className="px-6 py-4 text-sm text-zinc-400">
+                                            <LoadingButton
+                                                size="sm"
+                                                variant="secondary"
+                                                disabled={!p.invoiceNumber}
+                                                onClick={async () => {
+                                                    try {
+                                                        const html = await opsAPI.downloadInvoiceHtml(p.id);
+                                                        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                                                        const url = URL.createObjectURL(blob);
+                                                        const a = document.createElement('a');
+                                                        a.href = url;
+                                                        a.download = `${p.invoiceNumber ?? `invoice-${p.id}`}.html`;
+                                                        a.click();
+                                                        URL.revokeObjectURL(url);
+                                                    } catch (e) {
+                                                        toast.error('Invoice', getErrorMessage(e));
+                                                    }
+                                                }}
+                                            >
+                                                Download
+                                            </LoadingButton>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -326,6 +401,42 @@ export default function MemberSubscriptionPage() {
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setRenewOpen(false)}>Cancel</LoadingButton>
                         <LoadingButton loading={loading} onClick={handleRenew}>Confirm Renewal</LoadingButton>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal isOpen={checkoutOpen} onClose={() => setCheckoutOpen(false)} title="Secure checkout" size="md">
+                <div className="space-y-4">
+                    <Select
+                        label="Payment Method"
+                        options={[
+                            { value: 'card', label: 'Credit/Debit Card' },
+                            { value: 'online', label: 'Online Payment' },
+                            { value: 'bank_transfer', label: 'Bank Transfer' },
+                            { value: 'cash', label: 'Cash' },
+                        ]}
+                        value={checkout.paymentMethod}
+                        onChange={e => setCheckout((f) => ({ ...f, paymentMethod: e.target.value }))}
+                    />
+                    <Input
+                        label="Card Number"
+                        placeholder="4242 4242 4242 4242"
+                        value={checkout.cardPan}
+                        onChange={e => setCheckout((f) => ({ ...f, cardPan: e.target.value }))}
+                    />
+                    <Input
+                        label="Cardholder Name"
+                        placeholder="NAME ON CARD"
+                        value={checkout.cardHolder}
+                        onChange={e => setCheckout((f) => ({ ...f, cardHolder: e.target.value }))}
+                    />
+                    <div className="rounded-lg border border-zinc-700 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-300">
+                        Status: <span className="font-semibold text-white">{checkoutState.replace('_', ' ')}</span>
+                        {checkoutSessionId ? ` · Session ${checkoutSessionId.slice(0, 8)}` : ''}
+                    </div>
+                    <div className="flex justify-end gap-3 pt-2">
+                        <LoadingButton variant="secondary" onClick={() => setCheckoutOpen(false)}>Cancel</LoadingButton>
+                        <LoadingButton loading={loading} onClick={submitCheckout}>Pay</LoadingButton>
                     </div>
                 </div>
             </Modal>

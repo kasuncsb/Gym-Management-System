@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, lt, sql } from 'drizzle-orm';
 import { db } from '../config/database.js';
 import {
   config,
@@ -10,6 +10,7 @@ import {
   subscriptions,
   subscriptionFreezes,
   payments,
+  paymentSessions,
   visits,
   ptSessions,
   workoutPlans,
@@ -25,6 +26,7 @@ import {
   workoutPlanExercises,
   shifts,
   trainerCertifications,
+  invoiceRecords,
 } from '../db/schema.js';
 import { ids } from '../utils/id.js';
 import { errors } from '../utils/errors.js';
@@ -32,6 +34,7 @@ import { hashPassword } from '../utils/password.js';
 import { assertMemberCanPurchaseSubscription } from './auth.service.js';
 import * as audit from './audit.service.js';
 import { getConfigValue } from './config.service.js';
+import { sendEmail } from '../utils/email.js';
 
 type Role = 'admin' | 'manager' | 'trainer' | 'member';
 
@@ -61,6 +64,195 @@ export function hashPaymentInstrument(pan: string): { fullHash: string; lastFour
   const lastFour = digits.length >= 4 ? digits.slice(-4) : null;
   const fullHash = createHash('sha256').update(digits, 'utf8').digest('hex');
   return { fullHash, lastFour };
+}
+
+function generateInvoiceHtml(input: {
+  invoiceNumber: string;
+  memberName: string;
+  planName: string;
+  amount: number;
+  paymentDate: Date;
+  receiptNumber: string;
+  referenceNumber: string;
+}) {
+  return `<!doctype html>
+<html>
+  <head><meta charset="utf-8" /><title>${input.invoiceNumber}</title></head>
+  <body style="font-family:Arial,sans-serif;line-height:1.45;color:#222">
+    <h2>PowerWorld Gyms Invoice</h2>
+    <p><strong>Invoice:</strong> ${input.invoiceNumber}</p>
+    <p><strong>Date:</strong> ${dateOnlyIso(input.paymentDate)}</p>
+    <hr />
+    <p><strong>Member:</strong> ${input.memberName}</p>
+    <p><strong>Plan:</strong> ${input.planName}</p>
+    <p><strong>Amount:</strong> Rs. ${input.amount.toLocaleString()}</p>
+    <p><strong>Receipt:</strong> ${input.receiptNumber}</p>
+    <p><strong>Reference:</strong> ${input.referenceNumber}</p>
+    <hr />
+    <p>Payment received successfully. Thank you.</p>
+  </body>
+</html>`;
+}
+
+async function issueInvoiceRecord(input: {
+  paymentId: string;
+  memberId: string;
+  memberName: string;
+  memberEmail: string | null;
+  planName: string;
+  amount: number;
+  paymentDate: Date;
+  receiptNumber: string;
+  referenceNumber: string;
+}) {
+  const [existing] = await db.select().from(invoiceRecords).where(eq(invoiceRecords.paymentId, input.paymentId)).limit(1);
+  if (existing) return existing;
+  const invoiceId = ids.uuid();
+  const invoiceNumber = `INV-${Date.now()}-${Math.floor(Math.random() * 900 + 100)}`;
+  const html = generateInvoiceHtml({
+    invoiceNumber,
+    memberName: input.memberName,
+    planName: input.planName,
+    amount: input.amount,
+    paymentDate: input.paymentDate,
+    receiptNumber: input.receiptNumber,
+    referenceNumber: input.referenceNumber,
+  });
+  await db.insert(invoiceRecords).values({
+    id: invoiceId,
+    paymentId: input.paymentId,
+    memberId: input.memberId,
+    invoiceNumber,
+    status: 'issued',
+    emailTo: input.memberEmail,
+    htmlContent: html,
+  });
+  if (input.memberEmail) {
+    try {
+      await sendEmail(input.memberEmail, `Invoice ${invoiceNumber}`, html);
+      await db.update(invoiceRecords).set({ status: 'emailed' }).where(eq(invoiceRecords.id, invoiceId));
+    } catch {
+      // keep issued status when email fails
+    }
+  }
+  await audit.appendAudit({
+    actorId: input.memberId,
+    action: 'invoice_issued',
+    category: 'payment',
+    entityType: 'payment',
+    entityId: input.paymentId,
+    detail: invoiceNumber,
+  });
+  const [invoice] = await db.select().from(invoiceRecords).where(eq(invoiceRecords.id, invoiceId)).limit(1);
+  return invoice!;
+}
+
+async function settleSubscriptionPurchase(
+  userId: string,
+  input: {
+    planId: string;
+    paymentMethod: 'cash' | 'card' | 'bank_transfer' | 'online';
+    promotionCode?: string;
+    cardPan?: string;
+    sessionId?: string;
+  },
+) {
+  await assertMemberCanPurchaseSubscription(userId);
+  const [plan] = await db
+    .select()
+    .from(subscriptionPlans)
+    .where(and(eq(subscriptionPlans.id, input.planId), eq(subscriptionPlans.isActive, true), isNull(subscriptionPlans.deletedAt)));
+  if (!plan) throw errors.notFound('Subscription plan');
+
+  let discountAmount = 0;
+  let promotionId: string | null = null;
+  if (input.promotionCode?.trim()) {
+    const [promo] = await db.select().from(promotions).where(and(eq(promotions.code, input.promotionCode.trim()), eq(promotions.isActive, true)));
+    if (promo) {
+      promotionId = promo.id;
+      const planPrice = Number(plan.price);
+      discountAmount = promo.discountType === 'percentage'
+        ? Math.round((planPrice * Number(promo.discountValue)) / 100)
+        : Number(promo.discountValue);
+      if (discountAmount > planPrice) discountAmount = planPrice;
+      await db.update(promotions).set({ usedCount: (promo.usedCount ?? 0) + 1 }).where(eq(promotions.id, promo.id));
+    }
+  }
+
+  const startDate = new Date();
+  const endDate = addDays(startDate, plan.durationDays);
+  const subscriptionId = ids.uuid();
+  const pricePaid = Math.max(0, Number(plan.price) - discountAmount);
+
+  await db.insert(subscriptions).values({
+    id: subscriptionId,
+    memberId: userId,
+    planId: plan.id,
+    startDate,
+    endDate,
+    status: 'active',
+    pricePaid: String(pricePaid),
+    discountAmount: String(discountAmount),
+    promotionId,
+    ptSessionsLeft: plan.includedPtSessions ?? 0,
+  });
+
+  const instrumentHash = input.cardPan?.trim() ? hashPaymentInstrument(input.cardPan).fullHash : null;
+  const paymentId = ids.uuid();
+  const receiptNumber = `RCPT-${Date.now()}`;
+  const referenceNumber = `REF-${Math.floor(Math.random() * 1_000_000)}`;
+  await db.insert(payments).values({
+    id: paymentId,
+    subscriptionId,
+    amount: String(pricePaid),
+    paymentMethod: input.paymentMethod,
+    paymentDate: startDate,
+    status: 'completed',
+    receiptNumber,
+    referenceNumber,
+    instrumentHash,
+    promotionId,
+    discountAmount: String(discountAmount),
+    recordedBy: userId,
+  });
+
+  await db.update(users).set({
+    memberStatus: 'active',
+    joinDate: sql`coalesce(${users.joinDate}, curdate())`,
+  }).where(eq(users.id, userId));
+
+  if (input.sessionId) {
+    await db.update(paymentSessions).set({
+      status: 'approved',
+      approvedSubscriptionId: subscriptionId,
+      approvedPaymentId: paymentId,
+      decisionPayload: JSON.stringify({ approvedAt: new Date().toISOString() }),
+    }).where(eq(paymentSessions.id, input.sessionId));
+  }
+
+  const [u] = await db.select({ fullName: users.fullName, email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
+  await audit.appendAudit({
+    actorId: userId,
+    actorLabel: u?.fullName ?? u?.email ?? null,
+    action: input.sessionId ? 'session_approved' : 'subscription_purchased',
+    category: 'payment',
+    entityType: input.sessionId ? 'payment_session' : 'subscription',
+    entityId: input.sessionId ?? subscriptionId,
+    detail: `plan=${plan.id} method=${input.paymentMethod}`,
+  });
+  const invoice = await issueInvoiceRecord({
+    paymentId,
+    memberId: userId,
+    memberName: u?.fullName ?? 'Member',
+    memberEmail: u?.email ?? null,
+    planName: plan.name,
+    amount: pricePaid,
+    paymentDate: startDate,
+    receiptNumber,
+    referenceNumber,
+  });
+  const [created] = await db.select().from(subscriptions).where(eq(subscriptions.id, subscriptionId));
+  return { subscription: created!, paymentId, invoice };
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -280,10 +472,13 @@ export async function getMyPayments(userId: string) {
       status: payments.status,
       receiptNumber: payments.receiptNumber,
       planName: subscriptionPlans.name,
+      invoiceId: invoiceRecords.id,
+      invoiceNumber: invoiceRecords.invoiceNumber,
     })
     .from(payments)
     .leftJoin(subscriptions, eq(subscriptions.id, payments.subscriptionId))
     .leftJoin(subscriptionPlans, eq(subscriptionPlans.id, subscriptions.planId))
+    .leftJoin(invoiceRecords, eq(invoiceRecords.paymentId, payments.id))
     .where(eq(subscriptions.memberId, userId))
     .orderBy(desc(payments.createdAt));
 }
@@ -344,87 +539,140 @@ export async function purchaseSubscription(
     cardPan?: string;
   },
 ) {
-  await assertMemberCanPurchaseSubscription(userId);
+  const result = await settleSubscriptionPurchase(userId, input);
+  return result.subscription;
+}
 
-  const [plan] = await db
-    .select()
-    .from(subscriptionPlans)
-    .where(and(eq(subscriptionPlans.id, input.planId), eq(subscriptionPlans.isActive, true), isNull(subscriptionPlans.deletedAt)));
+export async function expireStaleSessions() {
+  await db.update(paymentSessions).set({ status: 'expired' }).where(
+    and(eq(paymentSessions.status, 'pending'), lt(paymentSessions.expiresAt, new Date())),
+  );
+}
+
+export async function createPaymentSession(
+  memberId: string,
+  input: { planId: string; promotionCode?: string; paymentMethod?: 'card' | 'online' | 'bank_transfer' | 'cash'; cardPan?: string; cardHolder?: string; ttlSec?: number },
+) {
+  await expireStaleSessions();
+  const [existing] = await db.select().from(paymentSessions).where(and(eq(paymentSessions.memberId, memberId), eq(paymentSessions.planId, input.planId), eq(paymentSessions.status, 'pending'))).orderBy(desc(paymentSessions.createdAt)).limit(1);
+  if (existing) return existing;
+  const [plan] = await db.select().from(subscriptionPlans).where(and(eq(subscriptionPlans.id, input.planId), eq(subscriptionPlans.isActive, true), isNull(subscriptionPlans.deletedAt))).limit(1);
   if (!plan) throw errors.notFound('Subscription plan');
-
-  let discountAmount = 0;
-  let promotionId: string | null = null;
-  if (input.promotionCode?.trim()) {
-    const [promo] = await db
-      .select()
-      .from(promotions)
-      .where(and(eq(promotions.code, input.promotionCode.trim()), eq(promotions.isActive, true)));
-    if (promo) {
-      promotionId = promo.id;
-      const planPrice = Number(plan.price);
-      discountAmount = promo.discountType === 'percentage'
-        ? Math.round((planPrice * Number(promo.discountValue)) / 100)
-        : Number(promo.discountValue);
-      if (discountAmount > planPrice) discountAmount = planPrice;
-      await db.update(promotions).set({ usedCount: (promo.usedCount ?? 0) + 1 }).where(eq(promotions.id, promo.id));
-    }
-  }
-
-  const startDate = new Date();
-  const endDate = addDays(startDate, plan.durationDays);
-  const subscriptionId = ids.uuid();
-  const pricePaid = Math.max(0, Number(plan.price) - discountAmount);
-
-  await db.insert(subscriptions).values({
-    id: subscriptionId,
-    memberId: userId,
-    planId: plan.id,
-    startDate: startDate,
-    endDate: endDate,
-    status: 'active',
-    pricePaid: String(pricePaid),
-    discountAmount: String(discountAmount),
-    promotionId,
-    ptSessionsLeft: plan.includedPtSessions ?? 0,
+  const amount = Number(plan.price);
+  const ttlSec = Math.max(30, Math.min(600, Number(input.ttlSec ?? 180)));
+  const id = ids.uuid();
+  const expiresAt = new Date(Date.now() + ttlSec * 1000);
+  const requestPayload = JSON.stringify({
+    paymentMethod: input.paymentMethod ?? 'card',
+    cardHolder: input.cardHolder ?? null,
+    cardPanMasked: input.cardPan ? `**** **** **** ${input.cardPan.replace(/\D/g, '').slice(-4)}` : null,
   });
-
-  let instrumentHash: string | null = null;
-  if (input.cardPan?.trim()) {
-    instrumentHash = hashPaymentInstrument(input.cardPan).fullHash;
-  }
-
-  await db.insert(payments).values({
-    id: ids.uuid(),
-    subscriptionId,
-    amount: String(pricePaid),
-    paymentMethod: input.paymentMethod,
-    paymentDate: startDate,
-    status: 'completed',
-    receiptNumber: `RCPT-${Date.now()}`,
-    referenceNumber: `REF-${Math.floor(Math.random() * 1_000_000)}`,
-    instrumentHash,
-    promotionId,
-    discountAmount: String(discountAmount),
-    recordedBy: userId,
+  await db.insert(paymentSessions).values({
+    id,
+    memberId,
+    planId: input.planId,
+    promotionCode: input.promotionCode ?? null,
+    amount: String(amount),
+    status: 'pending',
+    providerRef: `SIM-PROC-${Date.now()}`,
+    requestPayload,
+    expiresAt,
   });
-
-  await db.update(users).set({
-    memberStatus: 'active',
-    joinDate: sql`coalesce(${users.joinDate}, curdate())`,
-  }).where(eq(users.id, userId));
-
-  const [created] = await db.select().from(subscriptions).where(eq(subscriptions.id, subscriptionId));
-  const [u] = await db.select({ fullName: users.fullName, email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
   await audit.appendAudit({
-    actorId: userId,
-    actorLabel: u?.fullName ?? u?.email ?? null,
-    action: 'subscription_purchased',
+    actorId: memberId,
+    action: 'session_created',
     category: 'payment',
-    entityType: 'subscription',
-    entityId: subscriptionId,
-    detail: `plan=${plan.id} method=${input.paymentMethod}`,
+    entityType: 'payment_session',
+    entityId: id,
+    detail: `plan=${input.planId}`,
   });
-  return created;
+  const [session] = await db.select().from(paymentSessions).where(eq(paymentSessions.id, id)).limit(1);
+  return session!;
+}
+
+export async function listPendingPaymentSessions() {
+  await expireStaleSessions();
+  return db.select({
+    id: paymentSessions.id,
+    memberId: paymentSessions.memberId,
+    memberName: users.fullName,
+    planId: paymentSessions.planId,
+    planName: subscriptionPlans.name,
+    amount: paymentSessions.amount,
+    status: paymentSessions.status,
+    providerRef: paymentSessions.providerRef,
+    expiresAt: paymentSessions.expiresAt,
+    createdAt: paymentSessions.createdAt,
+  })
+    .from(paymentSessions)
+    .leftJoin(users, eq(users.id, paymentSessions.memberId))
+    .leftJoin(subscriptionPlans, eq(subscriptionPlans.id, paymentSessions.planId))
+    .where(eq(paymentSessions.status, 'pending'))
+    .orderBy(paymentSessions.createdAt);
+}
+
+export async function getPaymentSessionById(sessionId: string, memberId?: string) {
+  await expireStaleSessions();
+  const conditions = memberId ? and(eq(paymentSessions.id, sessionId), eq(paymentSessions.memberId, memberId)) : eq(paymentSessions.id, sessionId);
+  const [session] = await db.select().from(paymentSessions).where(conditions).limit(1);
+  if (!session) throw errors.notFound('Payment session');
+  return session;
+}
+
+export async function setPaymentSessionProcessing(sessionId: string) {
+  const [session] = await db.select().from(paymentSessions).where(eq(paymentSessions.id, sessionId)).limit(1);
+  if (!session) throw errors.notFound('Payment session');
+  if (session.status !== 'pending') return session;
+  await db.update(paymentSessions).set({ status: 'processing' }).where(eq(paymentSessions.id, sessionId));
+  await audit.appendAudit({ actorId: session.memberId, action: 'session_processing', category: 'payment', entityType: 'payment_session', entityId: session.id });
+  const [updated] = await db.select().from(paymentSessions).where(eq(paymentSessions.id, sessionId)).limit(1);
+  return updated!;
+}
+
+export async function approvePaymentSession(sessionId: string) {
+  const [session] = await db.select().from(paymentSessions).where(eq(paymentSessions.id, sessionId)).limit(1);
+  if (!session) throw errors.notFound('Payment session');
+  if (session.status === 'approved' && session.approvedSubscriptionId) {
+    const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.id, session.approvedSubscriptionId)).limit(1);
+    return { subscription: sub ?? null, reused: true };
+  }
+  if (session.status === 'declined' || session.status === 'expired') throw errors.conflict(`Session is ${session.status}`);
+  await setPaymentSessionProcessing(sessionId);
+  const payload = session.requestPayload ? (JSON.parse(session.requestPayload) as any) : {};
+  const result = await settleSubscriptionPurchase(session.memberId, {
+    planId: session.planId,
+    promotionCode: session.promotionCode ?? undefined,
+    paymentMethod: (payload.paymentMethod ?? 'card') as any,
+    cardPan: undefined,
+    sessionId: session.id,
+  });
+  return { subscription: result.subscription, invoice: result.invoice, reused: false };
+}
+
+export async function declinePaymentSession(sessionId: string, reason?: string) {
+  const [session] = await db.select().from(paymentSessions).where(eq(paymentSessions.id, sessionId)).limit(1);
+  if (!session) throw errors.notFound('Payment session');
+  if (session.status === 'approved') throw errors.conflict('Approved session cannot be declined');
+  await db.update(paymentSessions).set({
+    status: 'declined',
+    decisionPayload: JSON.stringify({ reason: reason ?? 'declined by processor', declinedAt: new Date().toISOString() }),
+  }).where(eq(paymentSessions.id, sessionId));
+  await audit.appendAudit({
+    actorId: session.memberId,
+    action: 'session_declined',
+    category: 'payment',
+    entityType: 'payment_session',
+    entityId: session.id,
+    detail: reason ?? 'declined',
+  });
+  const [updated] = await db.select().from(paymentSessions).where(eq(paymentSessions.id, sessionId)).limit(1);
+  return updated!;
+}
+
+export async function getPaymentInvoiceHtml(paymentId: string, memberId: string) {
+  const [invoice] = await db.select().from(invoiceRecords).where(and(eq(invoiceRecords.paymentId, paymentId), eq(invoiceRecords.memberId, memberId))).limit(1);
+  if (!invoice) throw errors.notFound('Invoice');
+  return invoice;
 }
 
 export async function requestFreeze(
@@ -2142,11 +2390,13 @@ export async function simulatePayment(input: {
   paymentMethod?: 'cash' | 'card' | 'bank_transfer' | 'online';
   cardPan?: string;
 }) {
-  return purchaseSubscription(input.memberId, {
+  const session = await createPaymentSession(input.memberId, {
     planId: input.planId,
-    paymentMethod: input.paymentMethod ?? 'online',
+    paymentMethod: (input.paymentMethod ?? 'online') as any,
     cardPan: input.cardPan,
+    ttlSec: 180,
   });
+  return approvePaymentSession(session.id);
 }
 
 /** Public hardware simulator: mock card network — any valid-length PAN succeeds. */
@@ -2158,11 +2408,14 @@ export async function publicSimulateCardPayment(input: {
 }) {
   const pan = input.cardPan.replace(/\D/g, '');
   if (pan.length < 13 || pan.length > 19) throw errors.badRequest('Invalid card number (simulator)');
-  return purchaseSubscription(input.memberId, {
+  const session = await createPaymentSession(input.memberId, {
     planId: input.planId,
     paymentMethod: 'card',
     cardPan: pan,
+    cardHolder: input.cardHolder,
+    ttlSec: 180,
   });
+  return approvePaymentSession(session.id);
 }
 
 export async function simulateWorkout(input: { memberId: string; durationMin?: number; caloriesBurned?: number; notes?: string }) {
@@ -2234,11 +2487,12 @@ export async function getSimulationState() {
     }
   }
 
-  const [todayVisits, todayPayments, recentWorkouts, upcomingSessions] = await Promise.all([
+  const [todayVisits, todayPayments, recentWorkouts, upcomingSessions, pendingPaymentRequests] = await Promise.all([
     safeQuery(() => db.select().from(visits).orderBy(desc(visits.createdAt)).limit(20), [] as any[]),
     safeQuery(() => db.select().from(payments).orderBy(desc(payments.createdAt)).limit(20), [] as any[]),
     safeQuery(() => db.select().from(workoutLogs).orderBy(desc(workoutLogs.createdAt)).limit(20), [] as any[]),
     safeQuery(() => db.select().from(ptSessions).orderBy(desc(ptSessions.createdAt)).limit(20), [] as any[]),
+    safeQuery(() => listPendingPaymentSessions(), [] as any[]),
   ]);
 
   return {
@@ -2247,6 +2501,7 @@ export async function getSimulationState() {
     payments: todayPayments,
     workouts: recentWorkouts,
     ptSessions: upcomingSessions,
+    paymentRequests: pendingPaymentRequests,
     activeDoorOtps: Array.from(simulateDoorOtpStore.entries()).map(([token, otp]) => ({
       token,
       code: otp.code,

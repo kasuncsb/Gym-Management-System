@@ -1,35 +1,27 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CreditCard, DoorClosed, DoorOpen, RefreshCw, Router } from 'lucide-react';
-import { Card, Input, LoadingButton, Select } from '@/components/ui/SharedComponents';
+import { CheckCircle2, CreditCard, DoorClosed, DoorOpen, RefreshCw, Router, XCircle } from 'lucide-react';
+import { Card, LoadingButton } from '@/components/ui/SharedComponents';
 import { getErrorMessage, opsAPI } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 
 export default function SimulatePage() {
   const toast = useToast();
-  const [members, setMembers] = useState<any[]>([]);
-  const [plans, setPlans] = useState<any[]>([]);
   const [qrUrl, setQrUrl] = useState<string>('');
   const [doorOpen, setDoorOpen] = useState(false);
   const [meta, setMeta] = useState<{ code?: string; expiresAt?: string }>({});
   const [countdownSec, setCountdownSec] = useState<number>(0);
-  const [pay, setPay] = useState({ memberId: '', planId: '', pan: '', holder: '' });
+  const [processorQueue, setProcessorQueue] = useState<any[]>([]);
+  const [processorStatus, setProcessorStatus] = useState('Awaiting payment request...');
+  const [processorStep, setProcessorStep] = useState<'idle' | 'incoming' | 'validating' | 'risk' | 'approved' | 'declined'>('idle');
+  const [activeRequestId, setActiveRequestId] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const refreshingRef = useRef(false);
   const lastQrRetryAtRef = useRef(0);
   const countdownRef = useRef(0);
   const lastDoorEventRef = useRef<string>('');
   const doorCloseTimerRef = useRef<number | null>(null);
-
-  const memberOptions = useMemo(
-    () => members.map((u) => ({ value: u.id, label: `${u.fullName} (${u.memberCode ?? u.id.slice(0, 6)})` })),
-    [members],
-  );
-  const planOptions = useMemo(
-    () => plans.map((p) => ({ value: p.id, label: `${p.name} — Rs.${Number(p.price ?? 0).toLocaleString()}` })),
-    [plans],
-  );
 
   const refreshQr = useCallback(async () => {
     if (refreshingRef.current) return;
@@ -88,10 +80,7 @@ export default function SimulatePage() {
     opsAPI
       .publicSimulationBootstrap()
       .then((b) => {
-        setMembers(b?.members ?? []);
-        setPlans(b?.plans ?? []);
-        if (b?.members?.[0]) setPay((p) => ({ ...p, memberId: b.members[0].id }));
-        if (b?.plans?.[0]) setPay((p) => ({ ...p, planId: b.plans[0].id }));
+        void b;
       })
       .catch(() => undefined);
     refreshQr().catch(() => undefined);
@@ -100,6 +89,15 @@ export default function SimulatePage() {
         pollDoor().catch(() => undefined);
       }
     }, 6000);
+    const paymentReqTimer = window.setInterval(async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const rows = await opsAPI.publicPendingPaymentRequests();
+        setProcessorQueue(rows);
+      } catch {
+        setProcessorQueue([]);
+      }
+    }, 1800);
     const countdownTimer = window.setInterval(() => {
       setCountdownSec((prev) => {
         if (prev === 1) {
@@ -133,11 +131,57 @@ export default function SimulatePage() {
 
     return () => {
       window.clearInterval(doorTimer);
+      window.clearInterval(paymentReqTimer);
       window.clearInterval(countdownTimer);
       if (doorCloseTimerRef.current) window.clearTimeout(doorCloseTimerRef.current);
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [pollDoor, refreshQr]);
+
+  useEffect(() => {
+    if (processorStep !== 'idle') return;
+    if (!processorQueue.length) {
+      setProcessorStatus('Awaiting payment request...');
+      return;
+    }
+    const req = processorQueue[0];
+    let cancelled = false;
+    const run = async () => {
+      try {
+        setActiveRequestId(req.id);
+        setProcessorStep('incoming');
+        setProcessorStatus(`Incoming payment request detected • ${req.memberName ?? req.memberId}`);
+        await new Promise((r) => setTimeout(r, 900));
+        if (cancelled) return;
+        setProcessorStep('validating');
+        setProcessorStatus('Validating payment credentials...');
+        await new Promise((r) => setTimeout(r, 1100));
+        if (cancelled) return;
+        setProcessorStep('risk');
+        setProcessorStatus('3DS check • AVS match • risk scoring...');
+        await new Promise((r) => setTimeout(r, 1400));
+        if (cancelled) return;
+        await opsAPI.publicApprovePaymentRequest(req.id);
+        setProcessorStep('approved');
+        setProcessorStatus('Payment approved and settlement committed');
+        setTimeout(() => {
+          setProcessorStep('idle');
+          setActiveRequestId('');
+        }, 1200);
+      } catch {
+        setProcessorStep('declined');
+        setProcessorStatus('Payment declined by processor');
+        setTimeout(() => {
+          setProcessorStep('idle');
+          setActiveRequestId('');
+        }, 1200);
+      }
+    };
+    run().catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [processorQueue, processorStep]);
 
   const countdownText = useMemo(() => {
     const s = Math.max(0, countdownSec);
@@ -145,27 +189,6 @@ export default function SimulatePage() {
     const ss = String(s % 60).padStart(2, '0');
     return `${mm}:${ss}`;
   }, [countdownSec]);
-
-  const runCardPay = async () => {
-    if (!pay.memberId || !pay.planId || pay.pan.replace(/\D/g, '').length < 13) {
-      toast.error('Payment', 'Choose member, plan, and a valid test card number.');
-      return;
-    }
-    setLoading(true);
-    try {
-      await opsAPI.publicSimulateCardPayment({
-        memberId: pay.memberId,
-        planId: pay.planId,
-        cardPan: pay.pan,
-        cardHolder: pay.holder || undefined,
-      });
-      toast.success('Approved', 'Simulator card network accepted the transaction.');
-    } catch (e) {
-      toast.error('Declined', getErrorMessage(e));
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="space-y-10">
@@ -250,19 +273,54 @@ export default function SimulatePage() {
         <Card padding="lg" className="space-y-5 bg-zinc-900/40 border-zinc-800">
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
             <Router size={20} className="text-amber-400 shrink-0" />
-            Mock card network
+            Payment processor
           </h2>
           <p className="text-zinc-500 text-sm">
-            Acts as a Mastercard/Visa-style router: any 13–19 digit PAN is validated and the subscription is activated; only a
-            hash is stored server-side.
+            Incoming sessions from member checkout are processed here using a realistic pipeline.
           </p>
-          <Select label="Member" options={memberOptions} value={pay.memberId} onChange={(e) => setPay((p) => ({ ...p, memberId: e.target.value }))} />
-          <Select label="Plan" options={planOptions} value={pay.planId} onChange={(e) => setPay((p) => ({ ...p, planId: e.target.value }))} />
-          <Input label="Card number" placeholder="4242 4242 4242 4242" value={pay.pan} onChange={(e) => setPay((p) => ({ ...p, pan: e.target.value }))} />
-          <Input label="Cardholder" placeholder="NAME ON CARD" value={pay.holder} onChange={(e) => setPay((p) => ({ ...p, holder: e.target.value }))} />
-          <LoadingButton type="button" loading={loading} icon={CreditCard} onClick={() => runCardPay()}>
-            Route &amp; capture payment
-          </LoadingButton>
+          <div className="rounded-xl border border-zinc-700 bg-zinc-950/60 p-4 space-y-3">
+            <p className="text-sm text-zinc-200">{processorStatus}</p>
+            {activeRequestId ? <p className="text-xs text-zinc-500">Request: {activeRequestId.slice(0, 8)}</p> : null}
+            {processorStep === 'approved' ? (
+              <div className="flex items-center gap-2 text-emerald-300"><CheckCircle2 size={18} /> CAPTURED</div>
+            ) : null}
+            {processorStep === 'declined' ? (
+              <div className="flex items-center gap-2 text-red-300"><XCircle size={18} /> DECLINED</div>
+            ) : null}
+            {processorStep !== 'approved' && processorStep !== 'declined' ? (
+              <div className="flex items-center gap-2 text-amber-300"><CreditCard size={18} /> Processor online</div>
+            ) : null}
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs text-zinc-500">Pending queue: {processorQueue.length}</p>
+            {processorQueue.slice(0, 3).map((req) => (
+              <div key={req.id} className="rounded-lg border border-zinc-800 px-3 py-2 text-xs text-zinc-300">
+                {req.memberName ?? req.memberId} • {req.planName ?? req.planId} • Rs. {Number(req.amount ?? 0).toLocaleString()}
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <LoadingButton
+              type="button"
+              variant="secondary"
+              loading={loading}
+              disabled={!processorQueue[0]}
+              onClick={async () => {
+                if (!processorQueue[0]) return;
+                setLoading(true);
+                try {
+                  await opsAPI.publicDeclinePaymentRequest(processorQueue[0].id, 'Manual simulator decline');
+                  toast.success('Declined', 'Top request declined.');
+                } catch (e) {
+                  toast.error('Decline failed', getErrorMessage(e));
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
+              Decline next request
+            </LoadingButton>
+          </div>
         </Card>
       </div>
     </div>

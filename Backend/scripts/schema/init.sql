@@ -490,6 +490,55 @@ CREATE TABLE IF NOT EXISTS `payments` (
   CONSTRAINT `chk_pay_amount` CHECK (`amount` > 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ============================================================================
+-- PAYMENT_SESSIONS
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `payment_sessions` (
+  `id`                       VARCHAR(36)   NOT NULL,
+  `member_id`                VARCHAR(36)   NOT NULL,
+  `plan_id`                  VARCHAR(36)   NOT NULL,
+  `promotion_code`           VARCHAR(50)   DEFAULT NULL,
+  `amount`                   DECIMAL(10,2) NOT NULL,
+  `status`                   ENUM('pending','processing','approved','declined','expired') NOT NULL DEFAULT 'pending',
+  `provider_ref`             VARCHAR(100)  DEFAULT NULL,
+  `request_payload`          TEXT          DEFAULT NULL,
+  `decision_payload`         TEXT          DEFAULT NULL,
+  `expires_at`               TIMESTAMP     NOT NULL,
+  `approved_subscription_id` VARCHAR(36)   DEFAULT NULL,
+  `approved_payment_id`      VARCHAR(36)   DEFAULT NULL,
+  `created_at`               TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`               TIMESTAMP     NULL ON UPDATE CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (`id`),
+  INDEX `idx_ps_member_status` (`member_id`, `status`),
+  INDEX `idx_ps_status_created` (`status`, `created_at`),
+  CONSTRAINT `fk_ps_member` FOREIGN KEY (`member_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_ps_plan`   FOREIGN KEY (`plan_id`) REFERENCES `subscription_plans`(`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_ps_sub`    FOREIGN KEY (`approved_subscription_id`) REFERENCES `subscriptions`(`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_ps_pay`    FOREIGN KEY (`approved_payment_id`) REFERENCES `payments`(`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- INVOICE_RECORDS
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `invoice_records` (
+  `id`             VARCHAR(36)   NOT NULL,
+  `payment_id`     VARCHAR(36)   NOT NULL,
+  `member_id`      VARCHAR(36)   NOT NULL,
+  `invoice_number` VARCHAR(50)   NOT NULL,
+  `status`         ENUM('issued','emailed') NOT NULL DEFAULT 'issued',
+  `email_to`       VARCHAR(255)  DEFAULT NULL,
+  `html_content`   LONGTEXT      NOT NULL,
+  `created_at`     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_invoice_payment` (`payment_id`),
+  UNIQUE KEY `uq_invoice_number` (`invoice_number`),
+  INDEX `idx_invoice_member` (`member_id`, `created_at`),
+  CONSTRAINT `fk_invoice_payment` FOREIGN KEY (`payment_id`) REFERENCES `payments`(`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_invoice_member`  FOREIGN KEY (`member_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 -- ============================================================================
 -- 14. WORKOUT_PLANS + WORKOUT_EXERCISES

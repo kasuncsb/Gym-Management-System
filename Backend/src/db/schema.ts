@@ -197,6 +197,43 @@ export const payments = mysqlTable('payments', {
 });
 
 // ============================================================================
+// PAYMENT_SESSIONS
+// ============================================================================
+export const paymentSessions = mysqlTable('payment_sessions', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  memberId: varchar('member_id', { length: 36 }).notNull(),
+  planId: varchar('plan_id', { length: 36 }).notNull(),
+  promotionCode: varchar('promotion_code', { length: 50 }),
+  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+  status: mysqlEnum('status', ['pending', 'processing', 'approved', 'declined', 'expired']).notNull().default('pending'),
+  providerRef: varchar('provider_ref', { length: 100 }),
+  requestPayload: text('request_payload'),
+  decisionPayload: text('decision_payload'),
+  expiresAt: timestamp('expires_at').notNull(),
+  approvedSubscriptionId: varchar('approved_subscription_id', { length: 36 }),
+  approvedPaymentId: varchar('approved_payment_id', { length: 36 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
+}, (t) => ({
+  memberStatusIdx: index('idx_ps_member_status').on(t.memberId, t.status),
+  statusCreatedIdx: index('idx_ps_status_created').on(t.status, t.createdAt),
+}));
+
+// ============================================================================
+// INVOICE_RECORDS
+// ============================================================================
+export const invoiceRecords = mysqlTable('invoice_records', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  paymentId: varchar('payment_id', { length: 36 }).notNull(),
+  memberId: varchar('member_id', { length: 36 }).notNull(),
+  invoiceNumber: varchar('invoice_number', { length: 50 }).notNull(),
+  status: mysqlEnum('status', ['issued', 'emailed']).notNull().default('issued'),
+  emailTo: varchar('email_to', { length: 255 }),
+  htmlContent: text('html_content').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+// ============================================================================
 // VISITS (check-in / check-out log)
 // ============================================================================
 export const visits = mysqlTable('visits', {
@@ -478,6 +515,8 @@ export type MemberProfile = typeof memberProfiles.$inferSelect;
 export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
+export type PaymentSession = typeof paymentSessions.$inferSelect;
+export type InvoiceRecord = typeof invoiceRecords.$inferSelect;
 export type Visit = typeof visits.$inferSelect;
 export type PtSession = typeof ptSessions.$inferSelect;
 export type WorkoutPlan = typeof workoutPlans.$inferSelect;
