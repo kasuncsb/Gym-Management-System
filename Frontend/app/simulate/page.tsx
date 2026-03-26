@@ -17,6 +17,8 @@ export default function SimulatePage() {
   const [pay, setPay] = useState({ memberId: '', planId: '', pan: '', holder: '' });
   const [loading, setLoading] = useState(false);
   const refreshingRef = useRef(false);
+  const lastQrRetryAtRef = useRef(0);
+  const countdownRef = useRef(0);
   const lastDoorEventRef = useRef<string>('');
   const doorCloseTimerRef = useRef<number | null>(null);
 
@@ -79,6 +81,10 @@ export default function SimulatePage() {
   }, []);
 
   useEffect(() => {
+    countdownRef.current = countdownSec;
+  }, [countdownSec]);
+
+  useEffect(() => {
     opsAPI
       .publicSimulationBootstrap()
       .then((b) => {
@@ -102,14 +108,34 @@ export default function SimulatePage() {
           }
           return 0;
         }
-        if (prev <= 0) return 0;
+        if (prev <= 0) {
+          // Self-heal: if we are stuck at 00:00 due to a failed refresh/network hiccup,
+          // retry refresh every few seconds while visible.
+          if (document.visibilityState === 'visible') {
+            const now = Date.now();
+            if (now - lastQrRetryAtRef.current >= 5000) {
+              lastQrRetryAtRef.current = now;
+              refreshQr().catch(() => undefined);
+            }
+          }
+          return 0;
+        }
         return prev - 1;
       });
     }, 1000);
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && countdownRef.current <= 0) {
+        refreshQr().catch(() => undefined);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
     return () => {
       window.clearInterval(doorTimer);
       window.clearInterval(countdownTimer);
       if (doorCloseTimerRef.current) window.clearTimeout(doorCloseTimerRef.current);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [pollDoor, refreshQr]);
 
