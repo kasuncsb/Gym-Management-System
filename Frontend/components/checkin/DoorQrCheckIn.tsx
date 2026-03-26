@@ -228,7 +228,14 @@ export function DoorQrCheckIn({
             let controls: any | null = null;
             try {
                 controls = await codeReader.decodeFromConstraints(
-                    { video: { facingMode: { ideal: 'environment' } }, audio: false },
+                    {
+                        video: {
+                            facingMode: { ideal: 'environment' },
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 },
+                        },
+                        audio: false,
+                    },
                     videoEl,
                     onZxingFrame,
                 );

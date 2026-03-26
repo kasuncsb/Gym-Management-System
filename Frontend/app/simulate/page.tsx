@@ -35,7 +35,13 @@ export default function SimulatePage() {
         ts: (otp as { serverTime?: string }).serverTime ?? new Date().toISOString(),
       });
       const QR = (await import('qrcode')).default;
-      const url = await QR.toDataURL(payload, { width: 240, margin: 1, color: { dark: '#f8fafc', light: '#18181b' } });
+      // Screen-to-camera scanning needs bigger modules + higher error correction for reliability.
+      const url = await QR.toDataURL(payload, {
+        width: 360,
+        margin: 2,
+        errorCorrectionLevel: 'H',
+        color: { dark: '#f8fafc', light: '#18181b' },
+      });
       setQrUrl(url);
       setMeta({ code: otp.code, expiresAt: otp.expiresAt, serverTime: (otp as { serverTime?: string }).serverTime });
     } catch (e) {
@@ -158,9 +164,9 @@ export default function SimulatePage() {
           <div className="flex flex-col sm:flex-row items-center gap-6 justify-center">
             {qrUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={qrUrl} alt="Door QR" className="rounded-xl border border-zinc-700 w-[220px] h-[220px] bg-zinc-950" />
+              <img src={qrUrl} alt="Door QR" className="rounded-xl border border-zinc-700 w-[280px] h-[280px] bg-zinc-950" />
             ) : (
-              <div className="w-[220px] h-[220px] rounded-xl border border-zinc-700 bg-zinc-950 animate-pulse" />
+              <div className="w-[280px] h-[280px] rounded-xl border border-zinc-700 bg-zinc-950 animate-pulse" />
             )}
             <div className="text-center sm:text-left space-y-1">
               <p className="text-zinc-500 text-xs">OTP token</p>
