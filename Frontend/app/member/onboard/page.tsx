@@ -294,7 +294,7 @@ const stepLabels = ['ID Verification', 'Experience', 'Goals'];
                                     <p className="text-xs text-zinc-500">Uploading… {uploadProgress}%</p>
                                 </div>
                             )}
-                            <p className="text-xs text-zinc-500">Stored securely; reviewed by staff only.</p>
+                            <p className="text-xs text-zinc-500">Stored securely; reviewed by our team only.</p>
                         </div>
                     )}
 

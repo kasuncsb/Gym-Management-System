@@ -42,7 +42,11 @@ export default function AdminAlertsPage() {
     const [actionId, setActionId] = useState<string | null>(null);
 
     const loadAlerts = async () => {
-        const [messages, events] = await Promise.all([opsAPI.messages(), opsAPI.equipmentEvents()]);
+        const [messages, events, audits] = await Promise.all([
+            opsAPI.messages(),
+            opsAPI.equipmentEvents(),
+            opsAPI.auditLogs(150).catch(() => []),
+        ]);
         const msgAlerts: Alert[] = (messages ?? []).map((m: any) => ({
             id: m.id,
             type: m.subject?.toLowerCase().includes('payment') ? 'payment' : 'system' as AlertType,
@@ -66,7 +70,19 @@ export default function AdminAlertsPage() {
                 createdAt: String(e.createdAt ?? new Date().toISOString()),
                 source: 'equipment' as const,
             }));
-        setAlerts([...msgAlerts, ...eqAlerts].sort(
+        const auditAlerts: Alert[] = (audits as any[])
+            .filter((r) => r.category === 'security' || r.category === 'access' || r.category === 'trainer')
+            .map((r) => ({
+                id: `audit-${r.id}`,
+                type: 'system' as AlertType,
+                title: r.action ?? 'Security / access',
+                message: [r.detail, r.actorLabel].filter(Boolean).join(' — ') || 'Audit event',
+                priority: 'high' as const,
+                status: 'pending' as AlertStatus,
+                createdAt: String(r.createdAt ?? new Date().toISOString()),
+                source: 'message' as const,
+            }));
+        setAlerts([...msgAlerts, ...eqAlerts, ...auditAlerts].sort(
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         ));
     };

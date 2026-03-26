@@ -87,7 +87,7 @@ export default function ManagerDashboard() {
     const quickActions = [
         { label: 'Reports',  href: '/manager/reports',  icon: TrendingUp },
         { label: 'Insights', href: '/manager/insights', icon: Lightbulb },
-        { label: 'Staff',    href: '/manager/staff',    icon: UserCheck },
+        { label: 'Team',     href: '/manager/staff',     icon: UserCheck },
         { label: 'Members',  href: '/manager/members',   icon: Users },
     ];
 

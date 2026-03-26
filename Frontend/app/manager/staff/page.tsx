@@ -91,7 +91,7 @@ export default function ManagerStaffPage() {
     };
 
     useEffect(() => {
-        loadData().catch((err) => toast.error('Failed to load staff', getErrorMessage(err)));
+        loadData().catch((err) => toast.error('Failed to load team', getErrorMessage(err)));
     }, []);
 
     const onShift = useMemo(() => staff.filter((s) => s.checkedIn).length, [staff]);
@@ -111,7 +111,7 @@ export default function ManagerStaffPage() {
                 phone: addForm.employeeCode ? `EMP:${addForm.employeeCode}` : undefined,
             });
             await loadData();
-            toast.success('Staff Added', `${addForm.name} has been added. Temp password: TempPass123!`);
+            toast.success('Trainer added', `${addForm.name} has been added. Temp password: TempPass123!`);
             setAddOpen(false);
             setAddForm({ name: '', email: '', employeeCode: '', hireDate: '' });
         } catch (err) {
@@ -244,7 +244,7 @@ export default function ManagerStaffPage() {
                     <Input id="staff-email" label="Email" type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="email@example.com" required />
                     <Input id="staff-emp-code" label="Employee Code (optional)" value={addForm.employeeCode} onChange={e => setAddForm(f => ({ ...f, employeeCode: e.target.value }))} placeholder="EMP001" />
                     <Input id="staff-hire-date" label="Hire Date (optional)" type="date" value={addForm.hireDate} onChange={e => setAddForm(f => ({ ...f, hireDate: e.target.value }))} />
-                    <p className="text-zinc-500 text-xs">Default password: <code className="text-zinc-300">TempPass123!</code> — staff must change on first login.</p>
+                    <p className="text-zinc-500 text-xs">Default password: <code className="text-zinc-300">TempPass123!</code> — they should change it on first login.</p>
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setAddOpen(false)}>Cancel</LoadingButton>
                         <LoadingButton loading={loading} onClick={handleAddStaff}>Add Staff</LoadingButton>

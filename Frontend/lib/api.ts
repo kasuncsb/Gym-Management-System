@@ -70,6 +70,7 @@ apiClient.interceptors.response.use(
         const path = window.location.pathname;
         const publicRoutes = [
           '/', '/login',
+          '/simulate',
           '/member/register', '/member/register/personal-details',
           '/member/register/identity-verification', '/member/register/subscription',
           '/member/register/verify-email', '/member/register/dashboard',
@@ -226,7 +227,7 @@ export interface OpsDashboard {
 
 export const opsAPI = {
   // dashboards/reports
-  dashboard: (role: 'admin' | 'manager' | 'trainer' | 'member' | 'staff') =>
+  dashboard: (role: 'admin' | 'manager' | 'trainer' | 'member') =>
     apiClient.get<{ success: boolean; data: OpsDashboard }>(`/ops/dashboard/${role}`).then(r => r.data.data),
   reportSummary: (params?: { type?: string; fromDate?: string; toDate?: string }) =>
     apiClient.get('/ops/reports/summary', { params }).then(r => r.data.data),
@@ -244,8 +245,12 @@ export const opsAPI = {
     apiClient.patch(`/ops/subscriptions/plans/${id}`, payload).then(r => r.data.data),
   mySubscriptions: () =>
     apiClient.get('/ops/subscriptions/me').then(r => r.data.data as any[]),
-  purchaseSubscription: (payload: { planId: string; paymentMethod: 'cash' | 'card' | 'bank_transfer' | 'online'; promotionCode?: string }) =>
-    apiClient.post('/ops/subscriptions/purchase', payload).then(r => r.data.data),
+  purchaseSubscription: (payload: {
+    planId: string;
+    paymentMethod: 'cash' | 'card' | 'bank_transfer' | 'online';
+    promotionCode?: string;
+    cardPan?: string;
+  }) => apiClient.post('/ops/subscriptions/purchase', payload).then(r => r.data.data),
   requestFreeze: (payload: { subscriptionId?: string; freezeStart: string; freezeEnd: string; reason?: string }) =>
     apiClient.post('/ops/subscriptions/freeze', payload).then(r => r.data.data),
   myPayments: () =>
@@ -256,6 +261,12 @@ export const opsAPI = {
     apiClient.post('/ops/visits/check-in').then(r => r.data.data),
   checkOut: () =>
     apiClient.post('/ops/visits/check-out').then(r => r.data.data),
+  doorScan: (payload: { token: string; code: string }) =>
+    apiClient.post('/ops/visits/door-scan', payload).then(r => r.data.data),
+  branchCapacity: () =>
+    apiClient.get('/ops/branch/capacity').then(r => r.data.data as { capacity: number }),
+  systemStatus: () =>
+    apiClient.get('/ops/system/status').then(r => r.data.data as { maintenanceMode: boolean }),
   myVisits: (limit = 20) =>
     apiClient.get('/ops/visits/me', { params: { limit } }).then(r => r.data.data as any[]),
   visitStats: () =>
@@ -338,11 +349,32 @@ export const opsAPI = {
     apiClient.post('/ops/messages', payload).then(r => r.data.data),
   trainers: () =>
     apiClient.get('/ops/trainers').then(r => r.data.data as Array<{ id: string; fullName: string }>),
-  users: (role?: 'admin' | 'manager' | 'staff' | 'trainer' | 'member') =>
+  users: (role?: 'admin' | 'manager' | 'trainer' | 'member') =>
     apiClient.get('/ops/users', { params: role ? { role } : undefined }).then(r => r.data.data as any[]),
-  createUser: (payload: { fullName: string; email: string; role: 'admin' | 'manager' | 'staff' | 'trainer' | 'member'; password: string; phone?: string }) =>
-    apiClient.post('/ops/users', payload).then(r => r.data.data),
-  updateUser: (id: string, payload: Partial<{ fullName: string; phone: string; isActive: boolean; role: 'admin' | 'manager' | 'staff' | 'trainer' | 'member'; memberStatus: 'active' | 'inactive' | 'suspended' }>) =>
+  createUser: (payload: {
+    fullName: string;
+    email: string;
+    role: 'admin' | 'manager' | 'trainer' | 'member';
+    password: string;
+    phone?: string;
+    dob?: string;
+    gender?: 'male' | 'female' | 'other';
+    nicNumber?: string;
+    emergencyName?: string;
+    emergencyPhone?: string;
+    emergencyRelation?: string;
+    bloodType?: string;
+    medicalConditions?: string;
+    allergies?: string;
+    memberStatus?: 'active' | 'inactive' | 'suspended';
+    hireDate?: string;
+    designation?: string;
+    specialization?: string;
+    ptHourlyRate?: number;
+    yearsExperience?: number;
+    certification?: { name: string; issuingBody?: string; issuedYear?: number; expiryDate?: string };
+  }) => apiClient.post('/ops/users', payload).then(r => r.data.data),
+  updateUser: (id: string, payload: Partial<{ fullName: string; phone: string; isActive: boolean; role: 'admin' | 'manager' | 'trainer' | 'member'; memberStatus: 'active' | 'inactive' | 'suspended' }>) =>
     apiClient.patch(`/ops/users/${id}`, payload).then(r => r.data.data),
   members: () =>
     apiClient.get('/ops/members').then(r => r.data.data as any[]),
@@ -356,6 +388,9 @@ export const opsAPI = {
     apiClient.get('/ops/config').then(r => r.data.data as Array<{ key: string; value: string }>),
   updateConfig: (values: Record<string, string>) =>
     apiClient.patch('/ops/config', values).then(r => r.data.data),
+
+  auditLogs: (limit = 500) =>
+    apiClient.get('/ops/audit-logs', { params: { limit } }).then(r => r.data.data as any[]),
 
   // promotions
   promotions: () =>
@@ -414,6 +449,8 @@ export const opsAPI = {
     apiClient.post('/ops/simulate/public/door/scan', payload).then(r => r.data.data),
   publicSimulatePayment: (payload: { memberId: string; planId: string; paymentMethod?: 'cash' | 'card' | 'bank_transfer' | 'online' }) =>
     apiClient.post('/ops/simulate/public/payment', payload).then(r => r.data.data),
+  publicSimulateCardPayment: (payload: { memberId: string; planId: string; cardPan: string; cardHolder?: string }) =>
+    apiClient.post('/ops/simulate/public/payment/card', payload).then(r => r.data.data),
   publicSimulateWorkout: (payload: { memberId: string; durationMin?: number; caloriesBurned?: number; notes?: string }) =>
     apiClient.post('/ops/simulate/public/workout', payload).then(r => r.data.data),
   publicSimulateTrainerShift: (payload: { trainerId: string; action?: 'in' | 'out' }) =>

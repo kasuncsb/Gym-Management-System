@@ -16,6 +16,7 @@ import { errors } from '../utils/errors.js';
 import { sendEmail, generateVerifyEmailHTML, generateResetPasswordHTML, generateIdVerificationHTML } from '../utils/email.js';
 import { setRefreshToken, getRefreshToken, consumeRefreshToken, deleteRefreshToken, deleteAllUserTokens } from '../utils/redis.js';
 import { uploadFile } from '../utils/oci-storage.js';
+import { getConfigInt } from './config.service.js';
 import type {
   LoginInput,
   RegisterInput,
@@ -91,10 +92,12 @@ export async function login(input: LoginInput): Promise<AuthResult> {
 
   const valid = await verifyPassword(input.password, person.passwordHash);
   if (!valid) {
+    const lockThreshold = await getConfigInt('login_failure_lock_threshold', 5);
+    const lockMinutes = await getConfigInt('login_failure_lock_minutes', 15);
     const attempts = person.failedAttempts + 1;
-    if (attempts >= 5) {
+    if (attempts >= lockThreshold) {
       await db.update(users)
-        .set({ lockedUntil: new Date(Date.now() + 15 * 60_000), failedAttempts: 0 })
+        .set({ lockedUntil: new Date(Date.now() + lockMinutes * 60_000), failedAttempts: 0 })
         .where(eq(users.id, person.id));
     } else {
       await db.update(users)
@@ -172,7 +175,6 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
 
     await tx.insert(memberProfiles).values({
       personId,
-      referralSource: 'website',
       isOnboarded: false,
       emergencyName: input.emergencyName,
       emergencyPhone: input.emergencyPhone,

@@ -96,8 +96,8 @@ export function proxy(request: NextRequest) {
       .some(under);
     // Also check member trying to access /trainer|/manager|/admin vice-versa
     const memberOnStaffPortal = role === 'member' && STAFF_PROTECTED.some(under);
-    const staffOnMemberPortal = role !== 'member' && MEMBER_PROTECTED.some(under);
-    if (wrongPortal || memberOnStaffPortal || staffOnMemberPortal) {
+    const nonMemberOnMemberPortal = role !== 'member' && MEMBER_PROTECTED.some(under);
+    if (wrongPortal || memberOnStaffPortal || nonMemberOnMemberPortal) {
       const url = request.nextUrl.clone();
       url.pathname = homeForRole(role);
       url.search   = '';

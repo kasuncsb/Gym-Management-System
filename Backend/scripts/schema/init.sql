@@ -66,25 +66,32 @@ CREATE TABLE IF NOT EXISTS `config` (
 
 -- Seed the single branch
 INSERT INTO `config` (`key`, `value`) VALUES
-  ('branch_name',    'Power World Gyms Kiribathgoda'),
-  ('branch_code',    'PWG-KBG'),
-  ('address',        'Kiribathgoda, Gampaha, Sri Lanka'),
-  ('phone',          '+94112345678'),
-  ('email',          'kbg@powerworldgyms.lk'),
-  ('open_time',      '05:00:00'),
-  ('close_time',     '22:00:00'),
-  ('capacity',       '120'),
-  ('grace_days',     '3'),
-  ('timezone',       'Asia/Colombo'),
-  ('facility_type',  'non_ac');
+  ('branch_capacity', '120'),
+  ('grace_days',      '3'),
+  ('timezone',        'Asia/Colombo'),
+  ('checkin_qr_ttl_seconds', '120'),
+  ('checkin_scan_max_retries', '5'),
+  ('subscription_freeze_max_days', '90'),
+  ('payment_failure_max_retries', '3'),
+  ('login_failure_lock_threshold', '5'),
+  ('login_failure_lock_minutes', '15'),
+  ('db_backup_retention_days', '14'),
+  ('db_backup_frequency', 'daily'),
+  ('ai_chat_rate_limit_per_minute', '20'),
+  ('pt_booking_advance_days_max', '60'),
+  ('session_idle_timeout_minutes', '30'),
+  ('email_queue_max_attempts', '5'),
+  ('maintenance_mode', 'false'),
+  ('notify_email', 'true'),
+  ('notify_sms', 'false'),
+  ('auto_backup', 'true');
 
 
 -- ============================================================================
 -- 2. USERS
 -- ============================================================================
--- One row for every human: members, staff, trainers, admin, manager.
--- role = 'trainer' is a staff member who also does PT — same person,
--- same row. No separate staff/trainer/user tables needed.
+-- One row for every human: members, trainers, manager, admin.
+-- Trainers and managers are operational roles; there is no separate `staff` login role.
 
 CREATE TABLE IF NOT EXISTS `users` (
   `id`               VARCHAR(36)   NOT NULL,
@@ -98,7 +105,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `nic_number`       VARCHAR(20)   DEFAULT NULL,
 
   -- Role & status
-  `role`             ENUM('admin','manager','staff','trainer','member') NOT NULL DEFAULT 'member',
+  `role`             ENUM('admin','manager','trainer','member') NOT NULL DEFAULT 'member',
   `is_active`        TINYINT(1)    NOT NULL DEFAULT 1,
 
   -- Auth (all roles log in)
@@ -131,7 +138,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `pt_rating`        DECIMAL(3,2)  DEFAULT NULL,  -- trainers only, updated from reviews
   `years_experience` TINYINT       DEFAULT NULL,  -- trainers only
 
-  -- Member columns (NULL for staff)
+  -- Member columns (NULL for non-members)
   `member_code`      VARCHAR(20)   DEFAULT NULL,
   `join_date`        DATE          DEFAULT NULL,
   `member_status`    ENUM('active','inactive','suspended') DEFAULT NULL,
@@ -172,8 +179,6 @@ CREATE TABLE IF NOT EXISTS `member_profiles` (
   `blood_type`          ENUM('A+','A-','B+','B-','AB+','AB-','O+','O-') DEFAULT NULL,
   `medical_conditions`  TEXT         DEFAULT NULL,
   `allergies`           TEXT         DEFAULT NULL,
-  `medications`         TEXT         DEFAULT NULL,
-  `recent_surgeries`    TEXT         DEFAULT NULL,
   `fitness_goals`       VARCHAR(500) DEFAULT NULL,  -- "weight_loss,muscle_gain"
   `experience_level`    ENUM('beginner','intermediate','advanced') DEFAULT NULL,
 
@@ -183,14 +188,11 @@ CREATE TABLE IF NOT EXISTS `member_profiles` (
   `emergency_relation`  VARCHAR(50)  DEFAULT NULL,
 
   -- Onboarding
-  `referral_source`     ENUM('facebook','walk_in','friend','website','other') DEFAULT NULL,
-  `referred_by`         VARCHAR(36)  DEFAULT NULL,
   `is_onboarded`        TINYINT(1)   NOT NULL DEFAULT 0,
   `onboarded_at`        TIMESTAMP    NULL DEFAULT NULL,
 
   PRIMARY KEY (`person_id`),
-  CONSTRAINT `fk_mp_person`   FOREIGN KEY (`person_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_mp_referrer` FOREIGN KEY (`referred_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
+  CONSTRAINT `fk_mp_person`   FOREIGN KEY (`person_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -465,6 +467,7 @@ CREATE TABLE IF NOT EXISTS `payments` (
   `status`              ENUM('completed','partially_refunded','refunded','disputed') NOT NULL DEFAULT 'completed',
   `receipt_number`      VARCHAR(50)   DEFAULT NULL,
   `reference_number`    VARCHAR(100)  DEFAULT NULL,
+  `instrument_hash`     VARCHAR(64)   DEFAULT NULL,
   `card_last_four`      VARCHAR(4)    DEFAULT NULL,
   `promotion_id`        VARCHAR(36)   DEFAULT NULL,
   `discount_amount`     DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -716,7 +719,7 @@ CREATE TABLE IF NOT EXISTS `messages` (
   `type`         ENUM('notification','announcement','email') NOT NULL,
   `channel`      ENUM('in_app','email','sms') NOT NULL DEFAULT 'in_app',
   `to_person_id` VARCHAR(36)  DEFAULT NULL,   -- NULL for announcements
-  `target_role`  ENUM('admin','manager','staff','trainer','member') DEFAULT NULL,
+  `target_role`  ENUM('admin','manager','trainer','member') DEFAULT NULL,
   `subject`      VARCHAR(255) DEFAULT NULL,
   `body`         TEXT         NOT NULL,
   `priority`     ENUM('low','normal','high','critical') NOT NULL DEFAULT 'normal',
@@ -741,12 +744,30 @@ CREATE TABLE IF NOT EXISTS `messages` (
 
 
 -- ============================================================================
--- 21. AI_INTERACTIONS (chat/workout/insight audit)
+-- 21. AUDIT_LOGS (admin activity / security trail)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `audit_logs` (
+  `id`           VARCHAR(36)   NOT NULL,
+  `actor_id`     VARCHAR(36)   DEFAULT NULL,
+  `actor_label`  VARCHAR(200)  DEFAULT NULL,
+  `action`       VARCHAR(120)  NOT NULL,
+  `category`     ENUM('member','payment','system','security','trainer','access','config') NOT NULL DEFAULT 'system',
+  `entity_type`  VARCHAR(60)   DEFAULT NULL,
+  `entity_id`    VARCHAR(36)   DEFAULT NULL,
+  `detail`       VARCHAR(500)  DEFAULT NULL,
+  `created_at`   TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_audit_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================================
+-- 22. AI_INTERACTIONS (chat/workout/insight audit)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS `ai_interactions` (
   `id`               VARCHAR(36)  NOT NULL,
   `user_id`          VARCHAR(36)  NOT NULL,
-  `user_role`        ENUM('admin','manager','staff','trainer','member') NOT NULL,
+  `user_role`        ENUM('admin','manager','trainer','member') NOT NULL,
   `interaction_type` ENUM('chat','workout_plan','insight') NOT NULL,
   `prompt_text`      TEXT         DEFAULT NULL,
   `response_text`    TEXT         DEFAULT NULL,

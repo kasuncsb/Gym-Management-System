@@ -140,7 +140,7 @@ export default function TrainerInventoryPage() {
                             <div key={t.id} className="flex items-center justify-between bg-zinc-800/30 rounded-xl p-3">
                                 <div>
                                     <p className="text-white text-sm font-semibold">{t.itemName ?? t.itemId}</p>
-                                    <p className="text-zinc-500 text-xs">{t.txnType} · by {t.recorderName ?? 'staff'}</p>
+                                    <p className="text-zinc-500 text-xs">{t.txnType} · by {t.recorderName ?? 'user'}</p>
                                 </div>
                                 <div className="text-right">
                                     <p className={`text-sm font-semibold ${t.qtyChange > 0 ? 'text-green-400' : 'text-red-400'}`}>

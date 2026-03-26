@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../config/database.js';
 import {
@@ -23,13 +24,16 @@ import {
   exercises,
   workoutPlanExercises,
   shifts,
+  trainerCertifications,
 } from '../db/schema.js';
 import { ids } from '../utils/id.js';
 import { errors } from '../utils/errors.js';
 import { hashPassword } from '../utils/password.js';
 import { assertMemberCanPurchaseSubscription } from './auth.service.js';
+import * as audit from './audit.service.js';
+import { getConfigValue } from './config.service.js';
 
-type Role = 'admin' | 'manager' | 'staff' | 'trainer' | 'member';
+type Role = 'admin' | 'manager' | 'trainer' | 'member';
 
 function addDays(base: Date, days: number | string): Date {
   const d = new Date(base);
@@ -50,6 +54,13 @@ function safeDate(v: unknown): Date {
   const d = new Date(v as string);
   if (isNaN(d.getTime())) throw errors.badRequest(`Invalid date: ${String(v)}`);
   return d;
+}
+
+export function hashPaymentInstrument(pan: string): { fullHash: string; lastFour: string | null } {
+  const digits = pan.replace(/\D/g, '');
+  const lastFour = digits.length >= 4 ? digits.slice(-4) : null;
+  const fullHash = createHash('sha256').update(digits, 'utf8').digest('hex');
+  return { fullHash, lastFour };
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -329,6 +340,8 @@ export async function purchaseSubscription(
     planId: string;
     paymentMethod: 'cash' | 'card' | 'bank_transfer' | 'online';
     promotionCode?: string;
+    /** Digits only or spaced card number — hashed server-side; never stored raw */
+    cardPan?: string;
   },
 ) {
   await assertMemberCanPurchaseSubscription(userId);
@@ -375,6 +388,11 @@ export async function purchaseSubscription(
     ptSessionsLeft: plan.includedPtSessions ?? 0,
   });
 
+  let instrumentHash: string | null = null;
+  if (input.cardPan?.trim()) {
+    instrumentHash = hashPaymentInstrument(input.cardPan).fullHash;
+  }
+
   await db.insert(payments).values({
     id: ids.uuid(),
     subscriptionId,
@@ -384,6 +402,7 @@ export async function purchaseSubscription(
     status: 'completed',
     receiptNumber: `RCPT-${Date.now()}`,
     referenceNumber: `REF-${Math.floor(Math.random() * 1_000_000)}`,
+    instrumentHash,
     promotionId,
     discountAmount: String(discountAmount),
     recordedBy: userId,
@@ -395,6 +414,16 @@ export async function purchaseSubscription(
   }).where(eq(users.id, userId));
 
   const [created] = await db.select().from(subscriptions).where(eq(subscriptions.id, subscriptionId));
+  const [u] = await db.select({ fullName: users.fullName, email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
+  await audit.appendAudit({
+    actorId: userId,
+    actorLabel: u?.fullName ?? u?.email ?? null,
+    action: 'subscription_purchased',
+    category: 'payment',
+    entityType: 'subscription',
+    entityId: subscriptionId,
+    detail: `plan=${plan.id} method=${input.paymentMethod}`,
+  });
   return created;
 }
 
@@ -484,6 +513,16 @@ export async function checkIn(userId: string) {
         status: 'denied',
         denyReason: 'Subscription is not active',
       });
+      const [u] = await db.select({ fullName: users.fullName }).from(users).where(eq(users.id, userId)).limit(1);
+      await audit.appendAudit({
+        actorId: userId,
+        actorLabel: u?.fullName ?? null,
+        action: 'check_in_denied',
+        category: 'access',
+        entityType: 'visit',
+        entityId: deniedId,
+        detail: 'Subscription is not active',
+      });
       throw errors.forbidden('Active subscription required to enter the facility');
     }
   }
@@ -496,6 +535,16 @@ export async function checkIn(userId: string) {
     status: 'active',
   });
   const [visit] = await db.select().from(visits).where(eq(visits.id, id));
+  const [u] = await db.select({ fullName: users.fullName }).from(users).where(eq(users.id, userId)).limit(1);
+  await audit.appendAudit({
+    actorId: userId,
+    actorLabel: u?.fullName ?? null,
+    action: 'check_in',
+    category: 'access',
+    entityType: 'visit',
+    entityId: id,
+    detail: `role=${person.role}`,
+  });
   return visit;
 }
 
@@ -510,6 +559,16 @@ export async function checkOut(userId: string) {
     status: 'completed',
   }).where(eq(visits.id, current.id));
   const [visit] = await db.select().from(visits).where(eq(visits.id, current.id));
+  const [u] = await db.select({ fullName: users.fullName }).from(users).where(eq(users.id, userId)).limit(1);
+  await audit.appendAudit({
+    actorId: userId,
+    actorLabel: u?.fullName ?? null,
+    action: 'check_out',
+    category: 'access',
+    entityType: 'visit',
+    entityId: current.id,
+    detail: `${durationMinutes} min`,
+  });
   return visit;
 }
 
@@ -534,6 +593,16 @@ export async function listVisits(limit = 100) {
     .leftJoin(users, eq(users.id, visits.personId))
     .orderBy(desc(visits.checkInAt))
     .limit(limit);
+}
+
+export async function getPublicSystemStatus() {
+  const m = await getConfigValue('maintenance_mode', 'false');
+  return { maintenanceMode: m === 'true' };
+}
+
+export async function getBranchCapacity() {
+  const v = await getConfigValue('branch_capacity', '120');
+  return { capacity: Math.max(1, Number(v) || 120) };
 }
 
 export async function getVisitStats() {
@@ -1604,7 +1673,7 @@ export async function broadcastMessage(
   input: {
     subject: string;
     body: string;
-    targetRole?: 'admin' | 'manager' | 'staff' | 'trainer' | 'member' | null;
+    targetRole?: 'admin' | 'manager' | 'trainer' | 'member' | null;
     toPersonId?: string | null;
     priority?: 'low' | 'normal' | 'high' | 'critical';
   },
@@ -1652,6 +1721,14 @@ export async function broadcastMessage(
     })
     .from(messages)
     .where(eq(messages.id, id));
+  await audit.appendAudit({
+    actorId: senderId,
+    action: 'message_broadcast',
+    category: 'system',
+    entityType: 'message',
+    entityId: id,
+    detail: `${input.subject} → ${input.targetRole ?? 'all'}`.slice(0, 500),
+  });
   return row;
 }
 
@@ -1801,10 +1878,19 @@ export async function listConfig() {
   return db.select().from(config);
 }
 
-export async function updateConfigValues(values: Record<string, string>) {
+export async function updateConfigValues(values: Record<string, string>, actor?: { id: string; label?: string }) {
   const entries = Object.entries(values).filter(([k]) => k.trim().length > 0);
   for (const [key, value] of entries) {
     await db.insert(config).values({ key, value }).onDuplicateKeyUpdate({ set: { value } });
+  }
+  if (actor) {
+    await audit.appendAudit({
+      actorId: actor.id,
+      actorLabel: actor.label ?? null,
+      action: 'config_updated',
+      category: 'config',
+      detail: entries.map(([k]) => k).join(',').slice(0, 500),
+    });
   }
   return listConfig();
 }
@@ -1842,32 +1928,105 @@ export async function listTrainers() {
     .orderBy(users.fullName);
 }
 
-export async function createUser(input: {
-  fullName: string;
-  email: string;
-  role: Role;
-  password: string;
-  phone?: string;
-}) {
+export async function createUser(
+  input: {
+    fullName: string;
+    email: string;
+    role: Role;
+    password: string;
+    phone?: string;
+    dob?: string;
+    gender?: 'male' | 'female' | 'other';
+    nicNumber?: string;
+    /** member */
+    emergencyName?: string;
+    emergencyPhone?: string;
+    emergencyRelation?: string;
+    bloodType?: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
+    medicalConditions?: string;
+    allergies?: string;
+    memberStatus?: 'active' | 'inactive' | 'suspended';
+    /** trainer */
+    hireDate?: string;
+    designation?: string;
+    specialization?: string;
+    ptHourlyRate?: number;
+    yearsExperience?: number;
+    certification?: { name: string; issuingBody?: string; issuedYear?: number; expiryDate?: string };
+  },
+  actor?: { id: string; label?: string },
+) {
+  if (input.role !== 'member' && input.role !== 'trainer') {
+    throw errors.badRequest('Only member or trainer accounts can be created from admin');
+  }
+
   const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, input.email)).limit(1);
   if (existing) throw errors.conflict('Email is already in use');
 
   const id = ids.uuid();
+  const memberCode = input.role === 'member' ? ids.memberCode() : null;
+  const employeeCode = input.role === 'trainer' ? `EMP-${Date.now().toString().slice(-6)}` : null;
+
   await db.insert(users).values({
     id,
     fullName: input.fullName,
     email: input.email.toLowerCase().trim(),
     phone: input.phone ?? null,
+    dob: input.dob ? safeDate(input.dob) : null,
+    gender: input.gender ?? null,
+    nicNumber: input.nicNumber ?? null,
     role: input.role,
     passwordHash: await hashPassword(input.password),
     emailVerified: true,
     isActive: true,
-    employeeCode: input.role === 'trainer' || input.role === 'staff' || input.role === 'manager'
-      ? `EMP-${Date.now().toString().slice(-6)}`
-      : null,
+    qrSecret: ids.qrSecret(),
+    memberCode,
+    employeeCode,
+    joinDate: input.role === 'member' ? new Date() : null,
+    memberStatus: input.role === 'member' ? (input.memberStatus ?? 'active') : null,
+    hireDate: input.role === 'trainer' && input.hireDate ? safeDate(input.hireDate) : input.role === 'trainer' ? new Date() : null,
+    designation: input.role === 'trainer' ? (input.designation ?? 'Trainer') : null,
+    specialization: input.role === 'trainer' ? (input.specialization ?? null) : null,
+    ptHourlyRate: input.role === 'trainer' && input.ptHourlyRate != null ? String(input.ptHourlyRate) : null,
+    yearsExperience: input.role === 'trainer' ? (input.yearsExperience ?? null) : null,
   });
 
+  if (input.role === 'member') {
+    await db.insert(memberProfiles).values({
+      personId: id,
+      isOnboarded: false,
+      emergencyName: input.emergencyName ?? null,
+      emergencyPhone: input.emergencyPhone ?? null,
+      emergencyRelation: input.emergencyRelation ?? null,
+      bloodType: input.bloodType ?? null,
+      medicalConditions: input.medicalConditions ?? null,
+      allergies: input.allergies ?? null,
+    });
+  }
+
+  if (input.role === 'trainer' && input.certification?.name?.trim()) {
+    await db.insert(trainerCertifications).values({
+      id: ids.uuid(),
+      trainerId: id,
+      name: input.certification.name.trim(),
+      issuingBody: input.certification.issuingBody ?? null,
+      issuedYear: input.certification.issuedYear ?? null,
+      expiryDate: input.certification.expiryDate ? safeDate(input.certification.expiryDate) : null,
+    });
+  }
+
   const [row] = await db.select().from(users).where(eq(users.id, id));
+  if (actor) {
+    await audit.appendAudit({
+      actorId: actor.id,
+      actorLabel: actor.label ?? null,
+      action: 'user_created',
+      category: input.role === 'trainer' ? 'trainer' : 'member',
+      entityType: 'user',
+      entityId: id,
+      detail: `${input.role} ${input.email}`,
+    });
+  }
   return row;
 }
 
@@ -1922,15 +2081,25 @@ export async function deleteClosure(id: string) {
 type SimOtp = { code: string; expiresAt: number; generatedBy: string };
 const simulateDoorOtpStore = new Map<string, SimOtp>();
 
-export async function simulateGenerateDoorOtp(userId: string, expiresInSec = 120) {
+export async function simulateGenerateDoorOtp(userId: string, expiresInSec?: number) {
+  let ttl = expiresInSec;
+  if (ttl == null || !Number.isFinite(ttl) || ttl <= 0) {
+    const cfg = await getConfigValue('checkin_qr_ttl_seconds', '120');
+    ttl = Math.max(15, Math.min(600, Number(cfg) || 120));
+  }
   const code = `${Math.floor(100000 + Math.random() * 900000)}`;
   const token = ids.uuid();
   simulateDoorOtpStore.set(token, {
     code,
-    expiresAt: Date.now() + Math.max(30, expiresInSec) * 1000,
+    expiresAt: Date.now() + Math.max(30, ttl) * 1000,
     generatedBy: userId,
   });
-  return { token, code, expiresAt: new Date(simulateDoorOtpStore.get(token)!.expiresAt).toISOString() };
+  return {
+    token,
+    code,
+    expiresAt: new Date(simulateDoorOtpStore.get(token)!.expiresAt).toISOString(),
+    serverTime: new Date().toISOString(),
+  };
 }
 
 export async function simulateDoorScan(input: { token: string; code: string; personId: string }) {
@@ -1948,10 +2117,51 @@ export async function simulateDoorScan(input: { token: string; code: string; per
   return { action: 'check_in', visit: incoming };
 }
 
-export async function simulatePayment(input: { memberId: string; planId: string; paymentMethod?: 'cash' | 'card' | 'bank_transfer' | 'online' }) {
+/** Authenticated user scans door QR from simulator/hardware — identity from JWT, challenge from payload. */
+export async function doorScanAccess(userId: string, token: string, code: string) {
+  const t = token.trim();
+  const c = code.trim();
+  if (!t || !c) throw errors.badRequest('token and code are required');
+  const otp = simulateDoorOtpStore.get(t);
+  if (!otp) throw errors.badRequest('Invalid door code');
+  if (Date.now() > otp.expiresAt) throw errors.badRequest('Door code expired');
+  if (otp.code !== c) throw errors.badRequest('Invalid door code');
+
+  const [activeVisit] = await db.select().from(visits).where(and(eq(visits.personId, userId), eq(visits.status, 'active'))).limit(1);
+  if (activeVisit) {
+    const out = await checkOut(userId);
+    return { action: 'check_out' as const, visit: out };
+  }
+  const incoming = await checkIn(userId);
+  return { action: 'check_in' as const, visit: incoming };
+}
+
+export async function simulatePayment(input: {
+  memberId: string;
+  planId: string;
+  paymentMethod?: 'cash' | 'card' | 'bank_transfer' | 'online';
+  cardPan?: string;
+}) {
   return purchaseSubscription(input.memberId, {
     planId: input.planId,
     paymentMethod: input.paymentMethod ?? 'online',
+    cardPan: input.cardPan,
+  });
+}
+
+/** Public hardware simulator: mock card network — any valid-length PAN succeeds. */
+export async function publicSimulateCardPayment(input: {
+  memberId: string;
+  planId: string;
+  cardPan: string;
+  cardHolder?: string;
+}) {
+  const pan = input.cardPan.replace(/\D/g, '');
+  if (pan.length < 13 || pan.length > 19) throw errors.badRequest('Invalid card number (simulator)');
+  return purchaseSubscription(input.memberId, {
+    planId: input.planId,
+    paymentMethod: 'card',
+    cardPan: pan,
   });
 }
 

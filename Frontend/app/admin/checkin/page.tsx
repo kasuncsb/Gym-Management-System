@@ -2,16 +2,17 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ShieldCheck, CheckCircle2, LogOut, Users, AlertTriangle } from 'lucide-react';
+import { DoorQrCheckIn } from '@/components/checkin/DoorQrCheckIn';
 import { PageHeader, Card, SearchInput } from '@/components/ui/SharedComponents';
 import { getErrorMessage, opsAPI } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import { useRealtimePolling } from '@/hooks/useRealtimePolling';
 
-type AccessLevel = 'member' | 'staff' | 'admin' | 'visitor';
+type AccessLevel = 'member' | 'team' | 'admin' | 'visitor';
 
 const accessStyle: Record<AccessLevel, string> = {
     member:  'text-blue-400 bg-blue-500/20',
-    staff:   'text-green-400 bg-green-500/20',
+    team:    'text-green-400 bg-green-500/20',
     admin:   'text-purple-400 bg-purple-500/20',
     visitor: 'text-yellow-400 bg-yellow-500/20',
 };
@@ -34,7 +35,7 @@ export default function AdminCheckinPage() {
     const refresh = async () => {
         const visits = await opsAPI.visits(300);
         const mapped: LogEntry[] = (visits ?? []).map((v: any) => {
-            const role = v.role === 'admin' ? 'admin' : v.role === 'trainer' || v.role === 'staff' || v.role === 'manager' ? 'staff' : 'member';
+            const role = v.role === 'admin' ? 'admin' : v.role === 'trainer' || v.role === 'manager' ? 'team' : 'member';
             return {
                 id: v.personId,
                 name: v.fullName ?? 'Unknown',
@@ -58,11 +59,10 @@ export default function AdminCheckinPage() {
     const denied = useMemo(() => log.filter((l) => !l.granted).length, [log]);
 
     return (
-        <div className="space-y-8">
-            <PageHeader
-                title="Access Control"
-                subtitle="Full access log for PowerWorld Kiribathgoda"
-            />
+        <div className="space-y-10">
+            <DoorQrCheckIn title="Check-in" subtitle="Scan the simulator door QR as admin (no subscription gate)." showCapacity={false} />
+
+            <PageHeader title="Access control" subtitle="Full access log for the branch" />
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Card padding="md" className="text-center hover:border-zinc-700/50 transition-colors">

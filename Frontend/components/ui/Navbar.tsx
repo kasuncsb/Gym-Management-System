@@ -13,6 +13,7 @@ import { authAPI } from "@/lib/api";
 /** Routes where the shared navbar is hidden (standalone / intermediate auth pages). */
 const NAVBAR_EXCLUDED_PATHS = [
   '/login',
+  '/simulate',
   '/member/register',
   '/member/forgot-password',
   '/member/verify-email',

@@ -3,9 +3,10 @@ import { asyncHandler } from '../middleware/error.js';
 import * as response from '../utils/response.js';
 import type { AuthRequest } from '../middleware/auth.js';
 import * as opsService from '../services/ops.service.js';
+import * as auditService from '../services/audit.service.js';
 import { errors } from '../utils/errors.js';
 
-type Role = 'admin' | 'manager' | 'staff' | 'trainer' | 'member';
+type Role = 'admin' | 'manager' | 'trainer' | 'member';
 
 function requireUser(req: AuthRequest) {
   if (!req.user) throw errors.unauthorized();
@@ -94,6 +95,14 @@ export const listVisits = asyncHandler(async (req: AuthRequest, res: Response) =
 });
 export const getVisitStats = asyncHandler(async (_req: AuthRequest, res: Response) => {
   res.json(response.success(await opsService.getVisitStats()));
+});
+
+export const getBranchCapacity = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.getBranchCapacity()));
+});
+
+export const getPublicSystemStatus = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.getPublicSystemStatus()));
 });
 
 export const listMyPtSessions = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -241,7 +250,11 @@ export const listConfig = asyncHandler(async (_req: AuthRequest, res: Response) 
   res.json(response.success(await opsService.listConfig()));
 });
 export const updateConfig = asyncHandler(async (req: AuthRequest, res: Response) => {
-  res.json(response.success(await opsService.updateConfigValues(req.body), 'Config updated'));
+  const user = requireUser(req);
+  res.json(response.success(
+    await opsService.updateConfigValues(req.body, { id: user.id, label: user.fullName }),
+    'Config updated',
+  ));
 });
 
 export const listUsers = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -252,7 +265,24 @@ export const listTrainers = asyncHandler(async (_req: AuthRequest, res: Response
   res.json(response.success(await opsService.listTrainers()));
 });
 export const createUser = asyncHandler(async (req: AuthRequest, res: Response) => {
-  res.json(response.success(await opsService.createUser(req.body), 'User created'));
+  const admin = requireUser(req);
+  res.json(response.success(
+    await opsService.createUser(req.body, { id: admin.id, label: admin.fullName }),
+    'User created',
+  ));
+});
+
+export const listAuditLogs = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const raw = Number(req.query.limit);
+  const limit = Number.isFinite(raw) && raw > 0 ? Math.min(Math.round(raw), 2000) : 500;
+  res.json(response.success(await auditService.listAuditLogs(limit)));
+});
+
+export const doorScanAccess = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  const token = String(req.body?.token ?? '').trim();
+  const code = String(req.body?.code ?? '').trim();
+  res.json(response.success(await opsService.doorScanAccess(user.id, token, code), 'Door access processed'));
 });
 export const updateUser = asyncHandler(async (req: AuthRequest, res: Response) => {
   res.json(response.success(await opsService.updateUser(req.params.id, req.body), 'User updated'));
@@ -310,6 +340,10 @@ export const publicSimulateDoorScan = asyncHandler(async (req: AuthRequest, res:
 
 export const publicSimulatePayment = asyncHandler(async (req: AuthRequest, res: Response) => {
   res.json(response.success(await opsService.simulatePayment(req.body), 'Payment simulation processed'));
+});
+
+export const publicSimulateCardPayment = asyncHandler(async (req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.publicSimulateCardPayment(req.body), 'Card payment approved (simulator)'));
 });
 
 export const publicSimulateWorkout = asyncHandler(async (req: AuthRequest, res: Response) => {

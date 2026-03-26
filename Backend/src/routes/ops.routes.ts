@@ -9,11 +9,14 @@ router.get('/simulate/public/bootstrap', ops.publicSimulationBootstrap);
 router.post('/simulate/public/door/otp', ops.publicSimulateGenerateDoorOtp);
 router.post('/simulate/public/door/scan', ops.publicSimulateDoorScan);
 router.post('/simulate/public/payment', ops.publicSimulatePayment);
+router.post('/simulate/public/payment/card', ops.publicSimulateCardPayment);
 router.post('/simulate/public/workout', ops.publicSimulateWorkout);
 router.post('/simulate/public/trainer-shift', ops.publicSimulateTrainerShift);
 router.post('/simulate/public/appointment', ops.publicSimulateAppointment);
 router.post('/simulate/public/vitals', ops.publicSimulateVitals);
 router.get('/simulate/public/state', ops.publicGetSimulationState);
+router.get('/branch/capacity', ops.getBranchCapacity);
+router.get('/system/status', ops.getPublicSystemStatus);
 
 router.use(authenticate);
 
@@ -38,6 +41,7 @@ router.get('/payments', authorize('admin', 'manager'), ops.listAllPayments);
 // Visits / check-in
 router.post('/visits/check-in', ops.checkIn);
 router.post('/visits/check-out', ops.checkOut);
+router.post('/visits/door-scan', ops.doorScanAccess);
 router.get('/visits/me', ops.listMyVisits);
 router.get('/visits/stats', ops.getVisitStats);
 router.get('/visits', authorize('admin', 'manager', 'trainer'), ops.listVisits);
@@ -108,6 +112,8 @@ router.get('/reports/recent', authorize('manager', 'admin'), ops.getRecentReport
 
 router.get('/config', authorize('admin', 'manager'), ops.listConfig);
 router.patch('/config', authorize('admin'), ops.updateConfig);
+
+router.get('/audit-logs', authorize('admin'), ops.listAuditLogs);
 
 router.get('/users', authorize('admin', 'manager'), ops.listUsers);
 router.post('/users', authorize('admin'), ops.createUser);

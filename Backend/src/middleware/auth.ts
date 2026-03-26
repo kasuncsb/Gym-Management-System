@@ -6,7 +6,7 @@ import { errors } from '../utils/errors.js';
 export interface AuthUser {
   id: string;
   email: string;
-  role: 'admin' | 'manager' | 'staff' | 'trainer' | 'member';
+  role: 'admin' | 'manager' | 'trainer' | 'member';
   fullName: string;
   emailVerified: boolean;
 }

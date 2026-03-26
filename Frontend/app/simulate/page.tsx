@@ -1,186 +1,196 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import { QrCode, DoorOpen, CreditCard, Dumbbell, UserRoundCog, CalendarClock, RefreshCw, Activity } from 'lucide-react';
-import { Card, Input, LoadingButton, PageHeader, Select } from '@/components/ui/SharedComponents';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CreditCard, DoorClosed, DoorOpen, RefreshCw, Router } from 'lucide-react';
+import { Card, Input, LoadingButton, Select } from '@/components/ui/SharedComponents';
 import { getErrorMessage, opsAPI } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
-import { useRealtimePolling } from '@/hooks/useRealtimePolling';
 
 export default function SimulatePage() {
   const toast = useToast();
-  const [loading, setLoading] = useState(false);
   const [members, setMembers] = useState<any[]>([]);
-  const [trainers, setTrainers] = useState<any[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
-  const [state, setState] = useState<any>({ visits: [], payments: [], workouts: [], ptSessions: [], activeDoorOtps: [] });
-  const [door, setDoor] = useState({ token: '', code: '', personId: '' });
-  const [payment, setPayment] = useState({ memberId: '', planId: '', method: 'online' });
-  const [workout, setWorkout] = useState({ memberId: '', durationMin: '45', caloriesBurned: '300' });
-  const [shift, setShift] = useState({ trainerId: '', action: 'in' as 'in' | 'out' });
-  const [session, setSession] = useState({ memberId: '', trainerId: '', sessionDate: '', startTime: '', endTime: '' });
-  const [vitals, setVitals] = useState({ memberId: '', weightKg: '', heightCm: '', bmi: '', restingHr: '' });
+  const [qrUrl, setQrUrl] = useState<string>('');
+  const [doorOpen, setDoorOpen] = useState(false);
+  const [meta, setMeta] = useState<{ code?: string; expiresAt?: string; serverTime?: string }>({});
+  const [pay, setPay] = useState({ memberId: '', planId: '', pan: '', holder: '' });
+  const [loading, setLoading] = useState(false);
 
-  const refresh = useCallback(async () => {
-    const bootstrap = await opsAPI.publicSimulationBootstrap();
-    setMembers(bootstrap?.members ?? []);
-    setTrainers(bootstrap?.trainers ?? []);
-    setPlans(bootstrap?.plans ?? []);
-    setState(bootstrap?.state ?? { visits: [], payments: [], workouts: [], ptSessions: [], activeDoorOtps: [] });
+  const memberOptions = useMemo(
+    () => members.map((u) => ({ value: u.id, label: `${u.fullName} (${u.memberCode ?? u.id.slice(0, 6)})` })),
+    [members],
+  );
+  const planOptions = useMemo(
+    () => plans.map((p) => ({ value: p.id, label: `${p.name} — Rs.${Number(p.price ?? 0).toLocaleString()}` })),
+    [plans],
+  );
+
+  const refreshQr = useCallback(async () => {
+    try {
+      const otp = await opsAPI.publicSimulateGenerateDoorOtp(120);
+      const payload = JSON.stringify({
+        token: otp.token,
+        code: otp.code,
+        exp: otp.expiresAt,
+        ts: (otp as { serverTime?: string }).serverTime ?? new Date().toISOString(),
+      });
+      const QR = (await import('qrcode')).default;
+      const url = await QR.toDataURL(payload, { width: 240, margin: 1, color: { dark: '#f8fafc', light: '#18181b' } });
+      setQrUrl(url);
+      setMeta({ code: otp.code, expiresAt: otp.expiresAt, serverTime: (otp as { serverTime?: string }).serverTime });
+    } catch (e) {
+      toast.error('QR refresh failed', getErrorMessage(e));
+    }
+  }, [toast]);
+
+  const pollDoor = useCallback(async () => {
+    try {
+      const s = await opsAPI.publicSimulationState();
+      const v = s?.visits?.[0];
+      const lastAt = v?.checkOutAt ?? v?.checkInAt ?? v?.createdAt;
+      if (!lastAt) return;
+      const age = Date.now() - new Date(lastAt).getTime();
+      if (age < 7000) {
+        setDoorOpen(true);
+        window.setTimeout(() => setDoorOpen(false), 3200);
+      }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
-  useRealtimePolling(() => refresh().catch(() => undefined), 10000);
+  useEffect(() => {
+    opsAPI
+      .publicSimulationBootstrap()
+      .then((b) => {
+        setMembers(b?.members ?? []);
+        setPlans(b?.plans ?? []);
+        if (b?.members?.[0]) setPay((p) => ({ ...p, memberId: b.members[0].id }));
+        if (b?.plans?.[0]) setPay((p) => ({ ...p, planId: b.plans[0].id }));
+      })
+      .catch(() => undefined);
+    refreshQr().catch(() => undefined);
+    const qrTimer = window.setInterval(() => {
+      refreshQr().catch(() => undefined);
+    }, 45_000);
+    const doorTimer = window.setInterval(() => {
+      pollDoor().catch(() => undefined);
+    }, 2000);
+    return () => {
+      window.clearInterval(qrTimer);
+      window.clearInterval(doorTimer);
+    };
+  }, [pollDoor, refreshQr]);
 
-  const run = async (fn: () => Promise<any>, success: string) => {
+  const runCardPay = async () => {
+    if (!pay.memberId || !pay.planId || pay.pan.replace(/\D/g, '').length < 13) {
+      toast.error('Payment', 'Choose member, plan, and a valid test card number.');
+      return;
+    }
     setLoading(true);
     try {
-      await fn();
-      toast.success('Simulation Success', success);
-      await refresh();
-    } catch (err) {
-      toast.error('Simulation Failed', getErrorMessage(err));
+      await opsAPI.publicSimulateCardPayment({
+        memberId: pay.memberId,
+        planId: pay.planId,
+        cardPan: pay.pan,
+        cardHolder: pay.holder || undefined,
+      });
+      toast.success('Approved', 'Simulator card network accepted the transaction.');
+    } catch (e) {
+      toast.error('Declined', getErrorMessage(e));
     } finally {
       setLoading(false);
     }
   };
 
-  const memberOptions = members.map((u) => ({ value: u.id, label: `${u.fullName} (${u.memberCode ?? u.id.slice(0, 6)})` }));
-  const trainerOptions = trainers.map((u) => ({ value: u.id, label: `${u.fullName} (${u.employeeCode ?? u.id.slice(0, 6)})` }));
-  const planOptions = plans.map((p) => ({ value: p.id, label: `${p.name} - Rs.${Number(p.price ?? 0).toLocaleString()}` }));
-
   return (
-    <div className="space-y-8">
-      <PageHeader
-        title="Simulation Control Plane"
-        subtitle="Simulate door access, payments, workouts, trainer shifts, and appointments in realtime."
-        action={<LoadingButton icon={RefreshCw} onClick={() => refresh().catch(() => undefined)} variant="secondary">Refresh</LoadingButton>}
-      />
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <Card padding="lg">
-          <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><QrCode size={16} className="text-red-400" /> Door QR/OTP</h3>
-          <div className="space-y-3">
-            <LoadingButton
-              loading={loading}
-              icon={DoorOpen}
-              onClick={() => run(async () => {
-                const otp = await opsAPI.publicSimulateGenerateDoorOtp(120);
-                setDoor((d) => ({ ...d, token: otp.token, code: otp.code }));
-              }, 'Door OTP generated')}
-            >
-              Generate OTP
-            </LoadingButton>
-            <Input label="Token" value={door.token} onChange={(e) => setDoor((d) => ({ ...d, token: e.target.value }))} />
-            <Input label="OTP Code" value={door.code} onChange={(e) => setDoor((d) => ({ ...d, code: e.target.value }))} />
-            <Select label="Person" options={[...memberOptions, ...trainerOptions]} value={door.personId} onChange={(e) => setDoor((d) => ({ ...d, personId: e.target.value }))} />
-            <LoadingButton loading={loading} onClick={() => run(() => opsAPI.publicSimulateDoorScan({ token: door.token, code: door.code, personId: door.personId }), 'Door scan simulated')}>
-              Simulate Door Scan
-            </LoadingButton>
-          </div>
-        </Card>
-
-        <Card padding="lg">
-          <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><CreditCard size={16} className="text-red-400" /> Payment/Subscription</h3>
-          <div className="space-y-3">
-            <Select label="Member" options={memberOptions} value={payment.memberId} onChange={(e) => setPayment((f) => ({ ...f, memberId: e.target.value }))} />
-            <Select label="Plan" options={planOptions} value={payment.planId} onChange={(e) => setPayment((f) => ({ ...f, planId: e.target.value }))} />
-            <Select
-              label="Method"
-              options={[
-                { value: 'online', label: 'Online' },
-                { value: 'card', label: 'Card' },
-                { value: 'bank_transfer', label: 'Bank Transfer' },
-                { value: 'cash', label: 'Cash' },
-              ]}
-              value={payment.method}
-              onChange={(e) => setPayment((f) => ({ ...f, method: e.target.value }))}
-            />
-            <LoadingButton loading={loading} onClick={() => run(() => opsAPI.publicSimulatePayment({ memberId: payment.memberId, planId: payment.planId, paymentMethod: payment.method as any }), 'Payment simulated')}>
-              Simulate Payment
-            </LoadingButton>
-          </div>
-        </Card>
-
-        <Card padding="lg">
-          <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Dumbbell size={16} className="text-red-400" /> Workout Log</h3>
-          <div className="space-y-3">
-            <Select label="Member" options={memberOptions} value={workout.memberId} onChange={(e) => setWorkout((f) => ({ ...f, memberId: e.target.value }))} />
-            <Input label="Duration (min)" type="number" value={workout.durationMin} onChange={(e) => setWorkout((f) => ({ ...f, durationMin: e.target.value }))} />
-            <Input label="Calories" type="number" value={workout.caloriesBurned} onChange={(e) => setWorkout((f) => ({ ...f, caloriesBurned: e.target.value }))} />
-            <LoadingButton loading={loading} onClick={() => run(() => opsAPI.publicSimulateWorkout({ memberId: workout.memberId, durationMin: Number(workout.durationMin), caloriesBurned: Number(workout.caloriesBurned) }), 'Workout simulated')}>
-              Simulate Workout
-            </LoadingButton>
-          </div>
-        </Card>
-
-        <Card padding="lg">
-          <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><UserRoundCog size={16} className="text-red-400" /> Trainer Shift</h3>
-          <div className="space-y-3">
-            <Select label="Trainer" options={trainerOptions} value={shift.trainerId} onChange={(e) => setShift((f) => ({ ...f, trainerId: e.target.value }))} />
-            <Select label="Action" options={[{ value: 'in', label: 'Check In' }, { value: 'out', label: 'Check Out' }]} value={shift.action} onChange={(e) => setShift((f) => ({ ...f, action: e.target.value as 'in' | 'out' }))} />
-            <LoadingButton loading={loading} onClick={() => run(() => opsAPI.publicSimulateTrainerShift({ trainerId: shift.trainerId, action: shift.action }), 'Trainer shift simulated')}>
-              Simulate Shift
-            </LoadingButton>
-          </div>
-        </Card>
-
-        <Card padding="lg">
-          <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Activity size={16} className="text-red-400" /> Device Vitals</h3>
-          <div className="space-y-3">
-            <Select label="Member" options={memberOptions} value={vitals.memberId} onChange={(e) => setVitals((f) => ({ ...f, memberId: e.target.value }))} />
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="Weight (kg)" type="number" value={vitals.weightKg} onChange={(e) => setVitals((f) => ({ ...f, weightKg: e.target.value }))} placeholder="70.5" />
-              <Input label="Height (cm)" type="number" value={vitals.heightCm} onChange={(e) => setVitals((f) => ({ ...f, heightCm: e.target.value }))} placeholder="175" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="BMI" type="number" value={vitals.bmi} onChange={(e) => setVitals((f) => ({ ...f, bmi: e.target.value }))} placeholder="22.4" />
-              <Input label="Resting HR (bpm)" type="number" value={vitals.restingHr} onChange={(e) => setVitals((f) => ({ ...f, restingHr: e.target.value }))} placeholder="65" />
-            </div>
-            <LoadingButton
-              loading={loading}
-              onClick={() => run(() => opsAPI.publicSimulateVitals({
-                memberId: vitals.memberId,
-                weightKg: vitals.weightKg ? Number(vitals.weightKg) : undefined,
-                heightCm: vitals.heightCm ? Number(vitals.heightCm) : undefined,
-                bmi: vitals.bmi ? Number(vitals.bmi) : undefined,
-                restingHr: vitals.restingHr ? Number(vitals.restingHr) : undefined,
-              }), 'Device vitals simulated')}
-            >
-              Simulate Vitals Capture
-            </LoadingButton>
-          </div>
-        </Card>
-
-        <Card padding="lg" className="xl:col-span-2">
-          <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><CalendarClock size={16} className="text-red-400" /> Appointment</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Select label="Member" options={memberOptions} value={session.memberId} onChange={(e) => setSession((f) => ({ ...f, memberId: e.target.value }))} />
-            <Select label="Trainer" options={trainerOptions} value={session.trainerId} onChange={(e) => setSession((f) => ({ ...f, trainerId: e.target.value }))} />
-            <Input label="Date" type="date" value={session.sessionDate} onChange={(e) => setSession((f) => ({ ...f, sessionDate: e.target.value }))} />
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="Start" type="time" value={session.startTime} onChange={(e) => setSession((f) => ({ ...f, startTime: e.target.value }))} />
-              <Input label="End" type="time" value={session.endTime} onChange={(e) => setSession((f) => ({ ...f, endTime: e.target.value }))} />
-            </div>
-          </div>
-          <div className="pt-3">
-            <LoadingButton loading={loading} onClick={() => run(() => opsAPI.publicSimulateAppointment({ ...session, startTime: `${session.startTime}:00`, endTime: `${session.endTime}:00` }), 'Appointment simulated')}>
-              Simulate Appointment
-            </LoadingButton>
-          </div>
-        </Card>
+    <div className="space-y-10">
+      <div>
+        <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Simulator environment</h1>
+        <p className="text-zinc-400 mt-2 max-w-2xl text-sm md:text-base leading-relaxed">
+          This page mimics real hardware: a time-limited door QR, animated entry, and a mock card network that auto-approves
+          valid-length PANs. Open{' '}
+          <span className="text-red-400 font-medium">Check-in</span> on your phone while logged in, allow the camera, and scan
+          the code below.
+        </p>
       </div>
 
-      <Card padding="lg">
-        <h3 className="text-white font-semibold mb-4">Realtime State Snapshot</h3>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
-          <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3"><p className="text-zinc-400 text-xs">Visits</p><p className="text-white text-lg font-bold">{state.visits?.length ?? 0}</p></div>
-          <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3"><p className="text-zinc-400 text-xs">Payments</p><p className="text-white text-lg font-bold">{state.payments?.length ?? 0}</p></div>
-          <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3"><p className="text-zinc-400 text-xs">Workouts</p><p className="text-white text-lg font-bold">{state.workouts?.length ?? 0}</p></div>
-          <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3"><p className="text-zinc-400 text-xs">PT Sessions</p><p className="text-white text-lg font-bold">{state.ptSessions?.length ?? 0}</p></div>
-          <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3"><p className="text-zinc-400 text-xs">Active OTPs</p><p className="text-white text-lg font-bold">{state.activeDoorOtps?.filter((o: any) => !o.expired).length ?? 0}</p></div>
-        </div>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <Card padding="lg" className="space-y-6 bg-zinc-900/40 border-zinc-800">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+              <DoorClosed size={20} className="text-red-400 shrink-0" />
+              Access door
+            </h2>
+            <LoadingButton type="button" variant="secondary" icon={RefreshCw} onClick={() => refreshQr().catch(() => undefined)}>
+              Refresh QR
+            </LoadingButton>
+          </div>
+
+          <div
+            className={`relative mx-auto w-full max-w-sm aspect-[4/5] rounded-2xl border-2 transition-all duration-500 flex flex-col items-center justify-center gap-4 overflow-hidden ${
+              doorOpen ? 'border-emerald-500/70 shadow-[0_0_40px_rgba(16,185,129,0.25)]' : 'border-zinc-700'
+            }`}
+            style={{ perspective: '900px' }}
+          >
+            <div
+              className={`absolute inset-4 rounded-xl transition-transform duration-700 ease-out origin-left bg-gradient-to-br from-zinc-800 to-zinc-950 border border-zinc-700/80 ${
+                doorOpen ? '[transform:rotateY(-78deg)]' : '[transform:rotateY(0deg)]'
+              }`}
+              style={{ transformStyle: 'preserve-3d' }}
+            >
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+                <div className="w-12 h-12 rounded-full bg-zinc-700/80 mb-6 ring-2 ring-zinc-600" />
+                <div className="h-1 w-24 bg-zinc-600 rounded-full" />
+              </div>
+            </div>
+            <div className="relative z-10 flex flex-col items-center gap-2 mt-auto pb-4">
+              {doorOpen ? (
+                <span className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
+                  <DoorOpen size={22} /> Unlocked
+                </span>
+              ) : (
+                <span className="text-zinc-500 text-xs uppercase tracking-wider">Locked</span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center gap-6 justify-center">
+            {qrUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={qrUrl} alt="Door QR" className="rounded-xl border border-zinc-700 w-[220px] h-[220px] bg-zinc-950" />
+            ) : (
+              <div className="w-[220px] h-[220px] rounded-xl border border-zinc-700 bg-zinc-950 animate-pulse" />
+            )}
+            <div className="text-center sm:text-left space-y-1">
+              <p className="text-zinc-500 text-xs">OTP token</p>
+              <p className="text-white font-mono text-lg tracking-widest">{meta.code ?? '— — — — — —'}</p>
+              <p className="text-zinc-500 text-xs mt-2">Expires</p>
+              <p className="text-zinc-300 text-sm font-mono">{meta.expiresAt ? new Date(meta.expiresAt).toLocaleTimeString() : '—'}</p>
+              <p className="text-zinc-500 text-xs mt-2">Server time</p>
+              <p className="text-zinc-400 text-xs font-mono">{meta.serverTime ? new Date(meta.serverTime).toLocaleTimeString() : '—'}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card padding="lg" className="space-y-5 bg-zinc-900/40 border-zinc-800">
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+            <Router size={20} className="text-amber-400 shrink-0" />
+            Mock card network
+          </h2>
+          <p className="text-zinc-500 text-sm">
+            Acts as a Mastercard/Visa-style router: any 13–19 digit PAN is validated and the subscription is activated; only a
+            hash is stored server-side.
+          </p>
+          <Select label="Member" options={memberOptions} value={pay.memberId} onChange={(e) => setPay((p) => ({ ...p, memberId: e.target.value }))} />
+          <Select label="Plan" options={planOptions} value={pay.planId} onChange={(e) => setPay((p) => ({ ...p, planId: e.target.value }))} />
+          <Input label="Card number" placeholder="4242 4242 4242 4242" value={pay.pan} onChange={(e) => setPay((p) => ({ ...p, pan: e.target.value }))} />
+          <Input label="Cardholder" placeholder="NAME ON CARD" value={pay.holder} onChange={(e) => setPay((p) => ({ ...p, holder: e.target.value }))} />
+          <LoadingButton type="button" loading={loading} icon={CreditCard} onClick={() => runCardPay()}>
+            Route &amp; capture payment
+          </LoadingButton>
+        </Card>
+      </div>
     </div>
   );
 }
-

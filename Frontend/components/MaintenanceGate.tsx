@@ -15,9 +15,8 @@ export default function MaintenanceGate({ children }: MaintenanceGateProps) {
     const [checked, setChecked] = useState(false);
 
     useEffect(() => {
-        opsAPI.config().then((cfg: any[]) => {
-            const m = cfg?.find((c: any) => c.key === 'maintenance_mode');
-            setMaintenance(m?.value === 'true');
+        opsAPI.systemStatus().then((s) => {
+            setMaintenance(!!s?.maintenanceMode);
         }).catch(() => {
             // If config fetch fails, allow access
         }).finally(() => setChecked(true));

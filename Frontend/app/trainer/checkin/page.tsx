@@ -1,183 +1,74 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { QrCode, CheckCircle2, XCircle, LogOut, Users } from 'lucide-react';
-import { PageHeader, Card, SearchInput, LoadingButton } from '@/components/ui/SharedComponents';
+import { useCallback, useEffect, useState } from 'react';
+import { DoorQrCheckIn } from '@/components/checkin/DoorQrCheckIn';
+import { Card, PageHeader, SearchInput } from '@/components/ui/SharedComponents';
 import { getErrorMessage, opsAPI } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import { useRealtimePolling } from '@/hooks/useRealtimePolling';
 
-interface MemberEntry {
-    id: string;
-    name: string;
-    subscription: 'active' | 'expired';
-    lastSeen: string;
-    type: 'in' | 'out';
-    time: string;
-}
-
 export default function TrainerCheckinPage() {
     const toast = useToast();
     const [search, setSearch] = useState('');
-    const [scanning, setScanning] = useState(false);
-    const [lastScan, setLastScan] = useState<MemberEntry | null>(null);
-    const [recentLog, setRecentLog] = useState<MemberEntry[]>([]);
-    const [members, setMembers] = useState<Array<{ id: string; fullName: string }>>([]);
-    const [selectedMemberId, setSelectedMemberId] = useState('');
-    const [branchCapacity, setBranchCapacity] = useState(80);
+    const [rows, setRows] = useState<any[]>([]);
 
-    useEffect(() => {
-        opsAPI.config().then((cfg: any[]) => {
-            const cap = cfg?.find((c: any) => c.key === 'branch_capacity');
-            if (cap) setBranchCapacity(Number(cap.value) || 80);
-        }).catch(() => undefined);
+    const refresh = useCallback(async () => {
+        const visits = await opsAPI.visits(120);
+        setRows(visits ?? []);
     }, []);
 
-    const refresh = async () => {
-        const [visits, memberRows] = await Promise.all([opsAPI.visits(200), opsAPI.members()]);
-        setMembers((memberRows ?? []).map((m: any) => ({ id: m.id, fullName: m.fullName })));
-        setRecentLog((visits ?? []).map((v: any) => ({
-            id: v.personId,
-            name: v.fullName ?? 'Member',
-            subscription: v.status === 'denied' ? 'expired' : 'active',
-            lastSeen: 'Recent',
-            type: v.status === 'active' || !v.checkOutAt ? 'in' : 'out',
-            time: new Date(v.checkInAt ?? v.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-        })));
-    };
-
     useEffect(() => {
-        refresh().catch((err) => toast.error('Failed to load check-in data', getErrorMessage(err)));
-    }, []);
-    useRealtimePolling(() => { refresh().catch(() => undefined); }, 10000);
+        refresh().catch((e) => toast.error('Failed to load visits', getErrorMessage(e)));
+    }, [refresh, toast]);
 
-    useEffect(() => {
-        if (!selectedMemberId && members.length) setSelectedMemberId(members[0].id);
-    }, [members, selectedMemberId]);
+    useRealtimePolling(() => {
+        refresh().catch(() => undefined);
+    }, 10000);
 
-    const simulate = async () => {
-        if (!members.length) {
-            toast.error('No members', 'No members available for simulation.');
-            return;
-        }
-        setScanning(true);
-        try {
-            const picked = members.find((m) => m.id === selectedMemberId) ?? members[0];
-            const otp = await opsAPI.simulateGenerateDoorOtp(90);
-            const action = await opsAPI.simulateDoorScan({ token: otp.token, code: otp.code, personId: picked.id });
-            await refresh();
-            setLastScan({
-                id: picked.id,
-                name: picked.fullName,
-                subscription: 'active',
-                lastSeen: 'Recent',
-                type: action.action === 'check_out' ? 'out' : 'in',
-                time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-            });
-        } catch (err) {
-            toast.error('Simulation failed', getErrorMessage(err));
-        } finally {
-            setScanning(false);
-        }
-    };
-
-    const filtered = recentLog.filter((m) => m.name.toLowerCase().includes(search.toLowerCase()) || m.id.includes(search));
-    const inNow = useMemo(() => recentLog.filter((m) => m.type === 'in' && m.subscription === 'active').length, [recentLog]);
-    const deniedToday = useMemo(() => recentLog.filter((m) => m.subscription === 'expired').length, [recentLog]);
+    const filtered = rows.filter(
+        (v) =>
+            String(v.fullName ?? '')
+                .toLowerCase()
+                .includes(search.toLowerCase()) || String(v.personId ?? '').includes(search),
+    );
 
     return (
-        <div className="space-y-8">
-            <PageHeader
-                title="Member Check-in"
-                subtitle="Process member entries and exits for PowerWorld Kiribathgoda"
+        <div className="space-y-10">
+            <DoorQrCheckIn
+                title="Check-in"
+                subtitle="Scan the simulator door QR to record your own entry or exit. Subscription rules apply to members only."
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card padding="lg" className="flex flex-col items-center gap-5">
-                    <div className={`w-40 h-40 border-2 rounded-2xl flex items-center justify-center transition-all ${scanning ? 'border-blue-500 animate-pulse' : lastScan ? (lastScan.subscription === 'active' ? 'border-green-500' : 'border-red-500') : 'border-zinc-700'}`}>
-                        {scanning ? (
-                            <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                        ) : lastScan ? (
-                            lastScan.subscription === 'active' ? <CheckCircle2 size={56} className="text-green-500" /> : <div className="text-red-500 font-bold text-center text-sm">Subscription<br/>Expired</div>
-                        ) : (
-                            <QrCode size={64} className="text-zinc-600" />
-                        )}
-                    </div>
-                    {lastScan && !scanning && (
-                        <div className="text-center">
-                            <p className={`font-bold flex items-center justify-center gap-2 ${lastScan.subscription === 'active' ? 'text-green-400' : 'text-red-400'}`}>
-                                {lastScan.subscription === 'active' ? <><CheckCircle2 size={18} className="shrink-0" /> Access Granted</> : <><XCircle size={18} className="shrink-0" /> Access Denied</>}
-                            </p>
-                            <p className="text-white text-sm">{lastScan.name}</p>
-                            <p className="text-zinc-500 text-xs">{lastScan.id}</p>
-                        </div>
-                    )}
-                    <LoadingButton onClick={simulate} disabled={scanning} loading={scanning} className="w-full">
-                        {scanning ? 'Scanning...' : 'Simulate QR Scan'}
-                    </LoadingButton>
-                </Card>
-
-                <div className="space-y-4">
-                    <Card padding="md">
-                        <label htmlFor="trainer-manual-member" className="text-xs text-zinc-500">Manual member check-in/out</label>
-                        <select
-                            id="trainer-manual-member"
-                            value={selectedMemberId}
-                            onChange={(e) => setSelectedMemberId(e.target.value)}
-                            className="mt-2 w-full bg-zinc-800 text-white border border-zinc-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-500"
+            <div className="space-y-4">
+                <PageHeader title="Branch activity" subtitle="Live visit stream (trainer desk view)" />
+                <SearchInput id="trainer-checkin-search" value={search} onChange={setSearch} placeholder="Search by name or ID…" />
+                <Card padding="md" className="max-h-[28rem] overflow-y-auto space-y-2">
+                    {filtered.map((v: any) => (
+                        <div
+                            key={v.id}
+                            className="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-zinc-800/80 last:border-0 text-sm"
                         >
-                            {members.map((m) => (
-                                <option key={m.id} value={m.id}>{m.fullName}</option>
-                            ))}
-                        </select>
-                    </Card>
-                    <Card padding="md">
-                        <div className="flex items-center gap-3 mb-4">
-                            <Users size={18} className="text-blue-400" />
-                            <h2 className="text-white font-semibold">Current Capacity</h2>
-                        </div>
-                        <p className="text-4xl font-bold text-white">{inNow} <span className="text-zinc-600 text-xl">/ {branchCapacity}</span></p>
-                        <div className="w-full bg-zinc-800 rounded-full h-2 mt-3">
-                            <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${Math.min(100, (inNow / branchCapacity) * 100)}%` }} />
-                        </div>
-                        <p className="text-zinc-500 text-xs mt-1">{Math.round(Math.min(100, (inNow / branchCapacity) * 100))}% capacity</p>
-                    </Card>
-                    <div className="grid grid-cols-2 gap-3">
-                        <Card padding="md" className="text-center">
-                            <p className="text-2xl font-bold text-green-400">{recentLog.filter((m) => m.subscription === 'active').length}</p>
-                            <p className="text-zinc-500 text-xs">Check-ins today</p>
-                        </Card>
-                        <Card padding="md" className="text-center">
-                            <p className="text-2xl font-bold text-red-400">{deniedToday}</p>
-                            <p className="text-zinc-500 text-xs">Denied (expired)</p>
-                        </Card>
-                    </div>
-                </div>
-            </div>
-
-            <Card padding="lg">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                    <h2 className="text-lg font-semibold text-white">Check-in Log</h2>
-                    <SearchInput id="trainer-checkin-search" value={search} onChange={setSearch} placeholder="Search member..." className="w-full sm:w-56" aria-label="Search member" />
-                </div>
-                <div className="space-y-2">
-                    {filtered.map((m, i) => (
-                        <div key={i} className="flex items-center justify-between bg-zinc-800/30 rounded-xl p-3">
-                            <div className="flex items-center gap-3">
-                                {m.type === 'in' ? <CheckCircle2 size={16} className="text-green-400" /> : <LogOut size={16} className="text-red-400" />}
-                                <div>
-                                    <p className="text-white text-sm font-semibold">{m.name}</p>
-                                    <p className="text-zinc-500 text-xs">{m.id}</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <span className={`text-xs px-2 py-0.5 rounded-full ${m.subscription === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{m.subscription}</span>
-                                <span className="text-zinc-500 text-xs">{m.time}</span>
-                            </div>
+                            <span className="text-white font-medium">{v.fullName ?? v.personId}</span>
+                            <span className="text-zinc-500 text-xs">{v.role}</span>
+                            <span
+                                className={
+                                    v.status === 'denied'
+                                        ? 'text-red-400'
+                                        : v.status === 'active'
+                                          ? 'text-emerald-400'
+                                          : 'text-zinc-400'
+                                }
+                            >
+                                {v.status}
+                            </span>
+                            <span className="text-zinc-500 text-xs">
+                                {new Date(v.checkInAt ?? v.createdAt).toLocaleString()}
+                            </span>
                         </div>
                     ))}
-                </div>
-            </Card>
+                    {filtered.length === 0 && <p className="text-zinc-600 text-sm py-6 text-center">No matching visits.</p>}
+                </Card>
+            </div>
         </div>
     );
 }

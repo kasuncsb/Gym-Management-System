@@ -16,7 +16,7 @@ Never provide diagnosis. For medical concerns, advise consulting a professional.
 type TrainingDoc = {
   id: string;
   tags?: string[];
-  role?: 'member' | 'manager' | 'trainer' | 'admin' | 'staff' | 'generic';
+  role?: 'member' | 'manager' | 'trainer' | 'admin' | 'generic';
   topic?: 'onboarding' | 'workouts' | 'subscriptions' | 'operations' | 'insights' | 'policies' | 'equipment' | 'other';
   content: string;
   faqPairs?: Array<{ q: string; a: string }>;
@@ -39,7 +39,7 @@ let embeddingCache: { docId: string; vector: number[] }[] | null = null;
 
 const GEMINI_MODEL_DEFAULT = 'gemini-2.0-flash';
 const GEMINI_EMBEDDING_MODEL = 'text-embedding-004';
-type UserRole = 'admin' | 'manager' | 'staff' | 'trainer' | 'member';
+type UserRole = 'admin' | 'manager' | 'trainer' | 'member';
 
 async function loadTrainingDocs(): Promise<TrainingDoc[]> {
   if (trainingCache) return trainingCache;
@@ -285,10 +285,11 @@ export async function memberChat(user: AuthUser, message: string): Promise<{ ans
   }
 
   let contextBlocks: string[] = [];
+  let retrieved: ScoredDoc[] = [];
   try {
-    const scored = await retrieveRagContext(message, { role: user.role, topicHint: 'workouts,subscriptions,usage', maxItems: 4 });
-    if (scored.length) {
-      contextBlocks = scored.map((r) => `- (${r.score.toFixed(2)}) ${r.doc.content}`);
+    retrieved = await retrieveRagContext(message, { role: user.role, topicHint: 'workouts,subscriptions,usage', maxItems: 4 });
+    if (retrieved.length) {
+      contextBlocks = retrieved.map((r) => `- (${r.score.toFixed(2)}) ${r.doc.content}`);
     }
   } catch {
     const local = await localRag(message);
@@ -319,11 +320,27 @@ Using the branch context and RAG snippets above, answer in 1–3 short paragraph
 
   try {
     const answer = await callGemini(prompt);
-    await logInteraction(user, { interactionType: 'chat', promptText: message, responseText: answer, source: 'gemini', metadata: { route: 'member_chat' } });
+    await logInteraction(user, {
+      interactionType: 'chat',
+      promptText: message,
+      responseText: answer,
+      source: 'gemini',
+      metadata: {
+        route: 'member_chat',
+        ragPipeline: 'retrieveRagContext→gemini',
+        ragDocIds: retrieved.map((r) => r.doc.id),
+      },
+    });
     return { answer, source: 'gemini' };
   } catch {
     const fallbackText = 'I can help with workouts, subscription guidance, appointments, and gym usage. For now, AI service is in fallback mode. Please ask a practical gym question and I will provide a structured recommendation.';
-    await logInteraction(user, { interactionType: 'chat', promptText: message, responseText: fallbackText, source: 'fallback', metadata: { route: 'member_chat' } });
+    await logInteraction(user, {
+      interactionType: 'chat',
+      promptText: message,
+      responseText: fallbackText,
+      source: 'fallback',
+      metadata: { route: 'member_chat', ragDocIds: retrieved.map((r) => r.doc.id) },
+    });
     return {
       source: 'fallback',
       answer: fallbackText,

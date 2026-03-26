@@ -70,17 +70,26 @@ async function seed() {
 
   // Seed config (upsert)
   const configData = [
-    { key: 'branch_name', value: 'Power World Gyms Kiribathgoda' },
-    { key: 'branch_code', value: 'PWG-KBG' },
-    { key: 'address', value: 'Kiribathgoda, Gampaha, Sri Lanka' },
-    { key: 'phone', value: '+94112345678' },
-    { key: 'email', value: 'kbg@powerworldgyms.lk' },
-    { key: 'open_time', value: '05:00:00' },
-    { key: 'close_time', value: '22:00:00' },
-    { key: 'capacity', value: '120' },
+    { key: 'branch_capacity', value: '120' },
     { key: 'grace_days', value: '3' },
     { key: 'timezone', value: 'Asia/Colombo' },
-    { key: 'facility_type', value: 'non_ac' },
+    { key: 'checkin_qr_ttl_seconds', value: '120' },
+    { key: 'checkin_scan_max_retries', value: '5' },
+    { key: 'subscription_freeze_max_days', value: '90' },
+    { key: 'payment_failure_max_retries', value: '3' },
+    { key: 'login_failure_lock_threshold', value: '5' },
+    { key: 'login_failure_lock_minutes', value: '15' },
+    { key: 'db_backup_retention_days', value: '14' },
+    { key: 'db_backup_frequency', value: 'daily' },
+    { key: 'ai_chat_rate_limit_per_minute', value: '20' },
+    { key: 'pt_booking_advance_days_max', value: '60' },
+    { key: 'session_idle_timeout_minutes', value: '30' },
+    { key: 'email_queue_max_attempts', value: '5' },
+    { key: 'maintenance_mode', value: 'false' },
+    { key: 'notify_email', value: 'true' },
+    { key: 'notify_sms', value: 'false' },
+    { key: 'auto_backup', value: 'true' },
+    { key: 'db_backup_frequency', value: 'daily' },
   ];
   for (const c of configData) {
     await db.insert(config).values(c).onDuplicateKeyUpdate({ set: { value: c.value } });
@@ -119,7 +128,6 @@ async function seed() {
     if (isMember) {
       await db.insert(memberProfiles).values({
         personId: id,
-        referralSource: 'website',
         isOnboarded: true,
         onboardedAt: new Date(),
       });

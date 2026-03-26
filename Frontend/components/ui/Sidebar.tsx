@@ -10,8 +10,6 @@ import {
     QrCode,
     Users,
     Wrench,
-    ClipboardList,
-    HelpCircle,
     BarChart3,
     UserCheck,
     Settings,
@@ -38,49 +36,44 @@ function navForRole(role: string): NavItem[] {
     switch (role) {
         case 'member':
             return [
-                { label: 'Dashboard',       href: '/member/dashboard',     icon: LayoutDashboard },
+                { label: 'Dashboard',        href: '/member/dashboard',     icon: LayoutDashboard },
+                { label: 'Check-in',         href: '/member/checkin',       icon: QrCode },
                 { label: 'My Subscription', href: '/member/subscription',  icon: CreditCard },
-                { label: 'Workouts',        href: '/member/workouts',      icon: Dumbbell },
-                { label: 'Appointments',    href: '/member/appointments',  icon: Calendar },
+                { label: 'Workouts',         href: '/member/workouts',      icon: Dumbbell },
+                { label: 'Appointments',     href: '/member/appointments',  icon: Calendar },
                 { label: 'Progress & Stats', href: '/member/progress',      icon: TrendingUp },
-                { label: 'Check-in',        href: '/member/checkin',       icon: QrCode },
             ];
         case 'trainer':
             return [
-                { label: 'Dashboard',   href: '/trainer/dashboard',   icon: LayoutDashboard },
-                { label: 'Check-in',    href: '/trainer/checkin',    icon: QrCode },
-                { label: 'My Schedule', href: '/trainer/schedule',    icon: Calendar },
-                { label: 'Members',     href: '/trainer/members',    icon: Users },
-                { label: 'Equipment',   href: '/trainer/equipment',   icon: Wrench },
-                { label: 'Inventory',   href: '/trainer/inventory',   icon: Package },
-                { label: 'Assistance',  href: '/trainer/assistance', icon: HelpCircle },
-                { label: 'Tasks',       href: '/trainer/tasks',      icon: ClipboardList },
+                { label: 'Dashboard',    href: '/trainer/dashboard',   icon: LayoutDashboard },
+                { label: 'Check-in',     href: '/trainer/checkin',     icon: QrCode },
+                { label: 'My Schedule',  href: '/trainer/schedule',    icon: Calendar },
+                { label: 'Members',      href: '/trainer/members',     icon: Users },
+                { label: 'Equipment',    href: '/trainer/equipment',   icon: Wrench },
+                { label: 'Inventory',    href: '/trainer/inventory',   icon: Package },
             ];
         case 'manager':
             return [
-                { label: 'Dashboard',     href: '/manager/dashboard',     icon: LayoutDashboard },
-                { label: 'Insights',     href: '/manager/insights',      icon: BarChart3 },
-                { label: 'Members',       href: '/manager/members',       icon: Users },
-                { label: 'Staff',         href: '/manager/staff',         icon: UserCheck },
-                { label: 'Subscriptions', href: '/manager/subscriptions', icon: CreditCard },
-                { label: 'Equipment',     href: '/manager/equipment',     icon: Wrench },
-                { label: 'Inventory',     href: '/manager/inventory',     icon: Package },
-                { label: 'Reports',       href: '/manager/reports',       icon: TrendingUp },
-                { label: 'Check-in',      href: '/manager/checkin',       icon: QrCode },
-                { label: 'Closures',      href: '/manager/closures',      icon: CalendarOff },
+                { label: 'Dashboard',      href: '/manager/dashboard',      icon: LayoutDashboard },
+                { label: 'Check-in',       href: '/manager/checkin',        icon: QrCode },
+                { label: 'Insights',       href: '/manager/insights',       icon: BarChart3 },
+                { label: 'Members',        href: '/manager/members',        icon: Users },
+                { label: 'Team',           href: '/manager/staff',          icon: UserCheck },
+                { label: 'Subscriptions',  href: '/manager/subscriptions',  icon: CreditCard },
+                { label: 'Promotions',     href: '/manager/promotions',     icon: Tag },
+                { label: 'Equipment',      href: '/manager/equipment',      icon: Wrench },
+                { label: 'Inventory',      href: '/manager/inventory',      icon: Package },
+                { label: 'Closures',       href: '/manager/closures',       icon: CalendarOff },
             ];
         case 'admin':
             return [
                 { label: 'Dashboard',       href: '/admin/dashboard',       icon: LayoutDashboard },
-                { label: 'Users',           href: '/admin/users',          icon: Users },
+                { label: 'Check-in',        href: '/admin/checkin',         icon: QrCode },
+                { label: 'Users',           href: '/admin/users',           icon: Users },
                 { label: 'ID Verification', href: '/admin/id-verification', icon: ShieldCheck },
-                { label: 'Plans',            href: '/admin/plans',          icon: CreditCard },
-                { label: 'Promotions',      href: '/admin/promotions',     icon: Tag },
-                { label: 'Activities',      href: '/admin/activities',     icon: Activity },
-                { label: 'Reports',         href: '/admin/reports',       icon: BarChart3 },
-                { label: 'Settings',        href: '/admin/settings',       icon: Settings },
-                { label: 'Check-in',        href: '/admin/checkin',        icon: QrCode },
-                { label: 'System Alerts',   href: '/admin/alerts',         icon: AlertTriangle },
+                { label: 'Activities',      href: '/admin/activities',      icon: Activity },
+                { label: 'System Alerts',   href: '/admin/alerts',          icon: AlertTriangle },
+                { label: 'Settings',        href: '/admin/settings',      icon: Settings },
             ];
         default:
             return [{ label: 'Dashboard', href: '/member/dashboard', icon: LayoutDashboard }];

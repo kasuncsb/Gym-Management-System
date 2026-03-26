@@ -40,11 +40,16 @@ const statusVariant: Record<UserStatus, 'success' | 'error' | 'warning' | 'defau
     suspended: 'error',
 };
 
-const ROLE_OPTIONS = [
+const ROLE_OPTIONS_EDIT = [
     { value: 'admin', label: 'Admin' },
     { value: 'manager', label: 'Manager' },
     { value: 'trainer', label: 'Trainer' },
     { value: 'member', label: 'Member' },
+];
+
+const ROLE_OPTIONS_CREATE = [
+    { value: 'member', label: 'Member' },
+    { value: 'trainer', label: 'Trainer' },
 ];
 
 const STATUS_OPTIONS = [
@@ -60,7 +65,21 @@ export default function AdminUsersPage() {
     const [roleFilter, setRoleFilter] = useState<Role | 'all'>('all');
     const [modalOpen, setModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
-    const [formData, setFormData] = useState({ name: '', email: '', role: 'member' as Role, status: 'active' as UserStatus, password: '' });
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        role: 'member' as Role,
+        status: 'active' as UserStatus,
+        password: '',
+        phone: '',
+        emergencyName: '',
+        emergencyPhone: '',
+        emergencyRelation: '',
+        specialization: '',
+        designation: '',
+        certName: '',
+        certBody: '',
+    });
     const [submitLoading, setSubmitLoading] = useState(false);
     const [pageLoading, setPageLoading] = useState(true);
     const [deactivateTarget, setDeactivateTarget] = useState<User | null>(null);
@@ -95,13 +114,41 @@ export default function AdminUsersPage() {
 
     const openAdd = () => {
         setEditingUser(null);
-        setFormData({ name: '', email: '', role: 'member', status: 'active', password: '' });
+        setFormData({
+            name: '',
+            email: '',
+            role: 'member',
+            status: 'active',
+            password: '',
+            phone: '',
+            emergencyName: '',
+            emergencyPhone: '',
+            emergencyRelation: '',
+            specialization: '',
+            designation: '',
+            certName: '',
+            certBody: '',
+        });
         setModalOpen(true);
     };
 
     const openEdit = (u: User) => {
         setEditingUser(u);
-        setFormData({ name: u.name, email: u.email, role: u.role, status: u.status, password: '' });
+        setFormData({
+            name: u.name,
+            email: u.email,
+            role: u.role,
+            status: u.status,
+            password: '',
+            phone: '',
+            emergencyName: '',
+            emergencyPhone: '',
+            emergencyRelation: '',
+            specialization: '',
+            designation: '',
+            certName: '',
+            certBody: '',
+        });
         setModalOpen(true);
     };
 
@@ -125,12 +172,32 @@ export default function AdminUsersPage() {
                     toast.error('Validation Error', 'Password must be at least 8 characters');
                     return;
                 }
-                await opsAPI.createUser({
+                const base = {
                     fullName: formData.name.trim(),
                     email: formData.email.trim(),
                     role: formData.role,
                     password: formData.password.trim(),
-                });
+                    phone: formData.phone.trim() || undefined,
+                };
+                if (formData.role === 'member') {
+                    await opsAPI.createUser({
+                        ...base,
+                        role: 'member',
+                        emergencyName: formData.emergencyName.trim() || undefined,
+                        emergencyPhone: formData.emergencyPhone.trim() || undefined,
+                        emergencyRelation: formData.emergencyRelation.trim() || undefined,
+                    });
+                } else {
+                    await opsAPI.createUser({
+                        ...base,
+                        role: 'trainer',
+                        designation: formData.designation.trim() || undefined,
+                        specialization: formData.specialization.trim() || undefined,
+                        certification: formData.certName.trim()
+                            ? { name: formData.certName.trim(), issuingBody: formData.certBody.trim() || undefined }
+                            : undefined,
+                    });
+                }
                 toast.success('User Added', `${formData.name} has been added successfully`);
             }
             await loadUsers();
@@ -276,8 +343,12 @@ export default function AdminUsersPage() {
                 isOpen={modalOpen}
                 onClose={() => setModalOpen(false)}
                 title={editingUser ? 'Edit User' : 'Add User'}
-                description={editingUser ? `Editing ${editingUser.name}` : 'Create a new system user'}
-                size="md"
+                description={
+                    editingUser
+                        ? `Editing ${editingUser.name}`
+                        : 'Admins may only create members or trainers. Collect emergency contact for members and certification for trainers.'
+                }
+                size="lg"
             >
                 <div className="space-y-4">
                     <Input
@@ -298,10 +369,67 @@ export default function AdminUsersPage() {
                     />
                     <Select
                         label="Role"
-                        options={ROLE_OPTIONS}
+                        options={editingUser ? ROLE_OPTIONS_EDIT : ROLE_OPTIONS_CREATE}
                         value={formData.role}
                         onChange={e => setFormData(prev => ({ ...prev, role: e.target.value as Role }))}
                     />
+                    {!editingUser && (
+                        <Input
+                            label="Phone"
+                            placeholder="+94…"
+                            value={formData.phone}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
+                        />
+                    )}
+                    {!editingUser && formData.role === 'member' && (
+                        <>
+                            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide">Emergency contact</p>
+                            <Input
+                                label="Emergency name"
+                                value={formData.emergencyName}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, emergencyName: e.target.value }))}
+                            />
+                            <Input
+                                label="Emergency phone"
+                                value={formData.emergencyPhone}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, emergencyPhone: e.target.value }))}
+                            />
+                            <Input
+                                label="Relation"
+                                value={formData.emergencyRelation}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, emergencyRelation: e.target.value }))}
+                            />
+                        </>
+                    )}
+                    {!editingUser && formData.role === 'trainer' && (
+                        <>
+                            <Input
+                                label="Designation"
+                                placeholder="e.g. Personal Trainer"
+                                value={formData.designation}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, designation: e.target.value }))}
+                            />
+                            <Input
+                                label="Specialization"
+                                placeholder="e.g. Strength & Conditioning"
+                                value={formData.specialization}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, specialization: e.target.value }))}
+                            />
+                            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide">Primary certification</p>
+                            <Input
+                                label="Certification name"
+                                placeholder="e.g. NASM CPT"
+                                value={formData.certName}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, certName: e.target.value }))}
+                            />
+                            <Input
+                                label="Issuing body"
+                                placeholder="Optional"
+                                value={formData.certBody}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, certBody: e.target.value }))}
+                            />
+                        </>
+                    )}
                     <Select
                         label="Status"
                         options={STATUS_OPTIONS}

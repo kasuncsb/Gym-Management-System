@@ -28,7 +28,7 @@ export const config = mysqlTable('config', {
 });
 
 // ============================================================================
-// USERS (unified table for all humans: admin, manager, staff, trainer, member)
+// USERS (unified table for all humans: admin, manager, trainer, member)
 // ============================================================================
 export const users = mysqlTable('users', {
   id: varchar('id', { length: 36 }).primaryKey(),
@@ -42,7 +42,7 @@ export const users = mysqlTable('users', {
   nicNumber: varchar('nic_number', { length: 20 }),
 
   // Role & status
-  role: mysqlEnum('role', ['admin', 'manager', 'staff', 'trainer', 'member']).notNull().default('member'),
+  role: mysqlEnum('role', ['admin', 'manager', 'trainer', 'member']).notNull().default('member'),
   isActive: boolean('is_active').notNull().default(true),
 
   // Auth
@@ -67,7 +67,7 @@ export const users = mysqlTable('users', {
   ptRating: decimal('pt_rating', { precision: 3, scale: 2 }),
   yearsExperience: tinyint('years_experience'),
 
-  // Member columns (NULL for staff)
+  // Member columns (NULL for non-members)
   memberCode: varchar('member_code', { length: 20 }).unique(),
   joinDate: date('join_date'),
   memberStatus: mysqlEnum('member_status', ['active', 'inactive', 'suspended']),
@@ -107,7 +107,6 @@ export const memberProfiles = mysqlTable('member_profiles', {
   emergencyName: varchar('emergency_name', { length: 100 }),
   emergencyPhone: varchar('emergency_phone', { length: 20 }),
   emergencyRelation: varchar('emergency_relation', { length: 50 }),
-  referralSource: mysqlEnum('referral_source', ['facebook', 'walk_in', 'friend', 'website', 'other']),
   isOnboarded: boolean('is_onboarded').notNull().default(false),
   onboardedAt: timestamp('onboarded_at'),
 });
@@ -189,6 +188,8 @@ export const payments = mysqlTable('payments', {
   status: mysqlEnum('status', ['completed', 'partially_refunded', 'refunded', 'disputed']).notNull(),
   receiptNumber: varchar('receipt_number', { length: 50 }),
   referenceNumber: varchar('reference_number', { length: 100 }),
+  /** SHA-256 of normalized card PAN (simulator / PCI-style token reference) */
+  instrumentHash: varchar('instrument_hash', { length: 64 }),
   promotionId: varchar('promotion_id', { length: 36 }),
   discountAmount: decimal('discount_amount', { precision: 10, scale: 2 }).notNull(),
   recordedBy: varchar('recorded_by', { length: 36 }),
@@ -336,7 +337,7 @@ export const messages = mysqlTable('messages', {
   type: mysqlEnum('type', ['notification', 'announcement', 'email']).notNull(),
   channel: mysqlEnum('channel', ['in_app', 'email', 'sms']).notNull(),
   toPersonId: varchar('to_person_id', { length: 36 }),
-  targetRole: mysqlEnum('target_role', ['admin', 'manager', 'staff', 'trainer', 'member']),
+  targetRole: mysqlEnum('target_role', ['admin', 'manager', 'trainer', 'member']),
   subject: varchar('subject', { length: 255 }),
   body: text('body').notNull(),
   priority: mysqlEnum('priority', ['low', 'normal', 'high', 'critical']).notNull(),
@@ -351,7 +352,7 @@ export const messages = mysqlTable('messages', {
 export const aiInteractions = mysqlTable('ai_interactions', {
   id: varchar('id', { length: 36 }).primaryKey(),
   userId: varchar('user_id', { length: 36 }).notNull(),
-  userRole: mysqlEnum('user_role', ['admin', 'manager', 'staff', 'trainer', 'member']).notNull(),
+  userRole: mysqlEnum('user_role', ['admin', 'manager', 'trainer', 'member']).notNull(),
   interactionType: mysqlEnum('interaction_type', ['chat', 'workout_plan', 'insight']).notNull(),
   promptText: text('prompt_text'),
   responseText: text('response_text'),
@@ -419,6 +420,35 @@ export const shifts = mysqlTable('shifts', {
 });
 
 // ============================================================================
+// TRAINER_CERTIFICATIONS (1:many for trainers)
+// ============================================================================
+export const trainerCertifications = mysqlTable('trainer_certifications', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  trainerId: varchar('trainer_id', { length: 36 }).notNull(),
+  name: varchar('name', { length: 150 }).notNull(),
+  issuingBody: varchar('issuing_body', { length: 150 }),
+  issuedYear: smallint('issued_year'),
+  expiryDate: date('expiry_date'),
+});
+
+// ============================================================================
+// AUDIT_LOGS (append-only operational trail)
+// ============================================================================
+export const auditLogs = mysqlTable('audit_logs', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  actorId: varchar('actor_id', { length: 36 }),
+  actorLabel: varchar('actor_label', { length: 200 }),
+  action: varchar('action', { length: 120 }).notNull(),
+  category: mysqlEnum('category', ['member', 'payment', 'system', 'security', 'trainer', 'access', 'config']),
+  entityType: varchar('entity_type', { length: 60 }),
+  entityId: varchar('entity_id', { length: 36 }),
+  detail: varchar('detail', { length: 500 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (t) => ({
+  createdIdx: index('idx_audit_created').on(t.createdAt),
+}));
+
+// ============================================================================
 // RELATIONS
 // ============================================================================
 export const usersRelations = relations(users, ({ one }) => ({
@@ -461,3 +491,5 @@ export type AiInteraction = typeof aiInteractions.$inferSelect;
 export type Exercise = typeof exercises.$inferSelect;
 export type WorkoutPlanExercise = typeof workoutPlanExercises.$inferSelect;
 export type Shift = typeof shifts.$inferSelect;
+export type TrainerCertification = typeof trainerCertifications.$inferSelect;
+export type AuditLog = typeof auditLogs.$inferSelect;
