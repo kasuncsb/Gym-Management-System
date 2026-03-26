@@ -58,7 +58,6 @@ export function DoorQrCheckIn({
     const scanKey = useId().replace(/:/g, '');
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const controlsRef = useRef<any>(null);
-    const readerRef = useRef<any>(null);
     const busyRef = useRef(false);
     const mountedRef = useRef(false);
     // Backend rate limit backoff to prevent request storms (429 floods).
@@ -139,7 +138,6 @@ export function DoorQrCheckIn({
             controlsRef.current = null;
         }
 
-        readerRef.current = null;
         if (mountedRef.current) setCameraOn(false);
         if (mountedRef.current) setScanHint(null);
         scanStartedAtRef.current = null;
@@ -208,7 +206,6 @@ export function DoorQrCheckIn({
             // Lazy import: keeps camera libs out of the server bundle.
             const zx = await import('@zxing/browser');
             const codeReader = new zx.BrowserQRCodeReader();
-            readerRef.current = codeReader;
 
             const onZxingFrame = (result: any, err: any, controlsInCb: any) => {
                 controlsRef.current = controlsInCb;

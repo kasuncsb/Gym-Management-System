@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CreditCard, DoorClosed, DoorOpen, RefreshCw, Router } from 'lucide-react';
 import { Card, Input, LoadingButton, Select } from '@/components/ui/SharedComponents';
 import { getErrorMessage, opsAPI } from '@/lib/api';
@@ -12,9 +12,13 @@ export default function SimulatePage() {
   const [plans, setPlans] = useState<any[]>([]);
   const [qrUrl, setQrUrl] = useState<string>('');
   const [doorOpen, setDoorOpen] = useState(false);
-  const [meta, setMeta] = useState<{ code?: string; expiresAt?: string; serverTime?: string }>({});
+  const [meta, setMeta] = useState<{ code?: string; expiresAt?: string }>({});
+  const [countdownSec, setCountdownSec] = useState<number>(0);
   const [pay, setPay] = useState({ memberId: '', planId: '', pan: '', holder: '' });
   const [loading, setLoading] = useState(false);
+  const refreshingRef = useRef(false);
+  const lastDoorEventRef = useRef<string>('');
+  const doorCloseTimerRef = useRef<number | null>(null);
 
   const memberOptions = useMemo(
     () => members.map((u) => ({ value: u.id, label: `${u.fullName} (${u.memberCode ?? u.id.slice(0, 6)})` })),
@@ -26,8 +30,11 @@ export default function SimulatePage() {
   );
 
   const refreshQr = useCallback(async () => {
+    if (refreshingRef.current) return;
+    refreshingRef.current = true;
     try {
-      const otp = await opsAPI.publicSimulateGenerateDoorOtp(120);
+      // Requested: QR challenge timeout is 30 seconds.
+      const otp = await opsAPI.publicSimulateGenerateDoorOtp(30);
       // Keep QR payload compact for maximum scan reliability (screen → camera).
       // The check-in scanner accepts both JSON and `token|code`.
       const payload = `${otp.token}|${otp.code}`;
@@ -35,15 +42,19 @@ export default function SimulatePage() {
       // Screen-to-camera scanning needs standard dark-on-light, big quiet zone,
       // and high error correction for real devices.
       const url = await QR.toDataURL(payload, {
-        width: 420,
+        width: 380,
         margin: 4,
         errorCorrectionLevel: 'H',
         color: { dark: '#000000', light: '#ffffff' },
       });
       setQrUrl(url);
-      setMeta({ code: otp.code, expiresAt: otp.expiresAt, serverTime: (otp as { serverTime?: string }).serverTime });
+      setMeta({ code: otp.code, expiresAt: otp.expiresAt });
+      const initialLeft = Math.max(0, Math.ceil((new Date(otp.expiresAt).getTime() - Date.now()) / 1000));
+      setCountdownSec(initialLeft);
     } catch (e) {
       toast.error('QR refresh failed', getErrorMessage(e));
+    } finally {
+      refreshingRef.current = false;
     }
   }, [toast]);
 
@@ -54,9 +65,13 @@ export default function SimulatePage() {
       const lastAt = v?.checkOutAt ?? v?.checkInAt ?? v?.createdAt;
       if (!lastAt) return;
       const age = Date.now() - new Date(lastAt).getTime();
-      if (age < 7000) {
+      if (age < 10000) {
+        const eventKey = `${v?.id ?? 'unknown'}:${v?.status ?? 'unknown'}:${lastAt}`;
+        if (lastDoorEventRef.current === eventKey) return;
+        lastDoorEventRef.current = eventKey;
         setDoorOpen(true);
-        window.setTimeout(() => setDoorOpen(false), 3200);
+        if (doorCloseTimerRef.current) window.clearTimeout(doorCloseTimerRef.current);
+        doorCloseTimerRef.current = window.setTimeout(() => setDoorOpen(false), 3200);
       }
     } catch {
       /* ignore */
@@ -74,20 +89,36 @@ export default function SimulatePage() {
       })
       .catch(() => undefined);
     refreshQr().catch(() => undefined);
-    const qrTimer = window.setInterval(() => {
-      refreshQr().catch(() => undefined);
-    }, 45_000);
     const doorTimer = window.setInterval(() => {
-      // 2s polling quickly triggers rate limiting in production; keep it light.
       if (document.visibilityState === 'visible') {
         pollDoor().catch(() => undefined);
       }
     }, 6000);
+    const countdownTimer = window.setInterval(() => {
+      setCountdownSec((prev) => {
+        if (prev === 1) {
+          if (document.visibilityState === 'visible') {
+            refreshQr().catch(() => undefined);
+          }
+          return 0;
+        }
+        if (prev <= 0) return 0;
+        return prev - 1;
+      });
+    }, 1000);
     return () => {
-      window.clearInterval(qrTimer);
       window.clearInterval(doorTimer);
+      window.clearInterval(countdownTimer);
+      if (doorCloseTimerRef.current) window.clearTimeout(doorCloseTimerRef.current);
     };
   }, [pollDoor, refreshQr]);
+
+  const countdownText = useMemo(() => {
+    const s = Math.max(0, countdownSec);
+    const mm = String(Math.floor(s / 60)).padStart(2, '0');
+    const ss = String(s % 60).padStart(2, '0');
+    return `${mm}:${ss}`;
+  }, [countdownSec]);
 
   const runCardPay = async () => {
     if (!pay.memberId || !pay.planId || pay.pan.replace(/\D/g, '').length < 13) {
@@ -122,7 +153,7 @@ export default function SimulatePage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+      <div className="space-y-8">
         <Card padding="lg" className="space-y-6 bg-zinc-900/40 border-zinc-800">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -134,53 +165,58 @@ export default function SimulatePage() {
             </LoadingButton>
           </div>
 
-          <div
-            className={`relative mx-auto w-full max-w-sm aspect-[4/5] rounded-2xl border-2 transition-all duration-500 flex flex-col items-center justify-center gap-4 overflow-hidden ${
-              doorOpen ? 'border-emerald-500/70 shadow-[0_0_40px_rgba(16,185,129,0.25)]' : 'border-zinc-700'
-            }`}
-            style={{ perspective: '900px' }}
-          >
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
             <div
-              className={`absolute inset-4 rounded-xl transition-transform duration-700 ease-out origin-left bg-gradient-to-br from-zinc-800 to-zinc-950 border border-zinc-700/80 ${
-                doorOpen ? '[transform:rotateY(-78deg)]' : '[transform:rotateY(0deg)]'
+              className={`relative mx-auto w-full max-w-md aspect-[4/5] rounded-2xl border-2 transition-all duration-500 overflow-hidden ${
+                doorOpen ? 'border-emerald-500/70 shadow-[0_0_46px_rgba(16,185,129,0.32)]' : 'border-zinc-700'
               }`}
-              style={{ transformStyle: 'preserve-3d' }}
+              style={{ perspective: '1000px' }}
             >
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                <div className="w-12 h-12 rounded-full bg-zinc-700/80 mb-6 ring-2 ring-zinc-600" />
-                <div className="h-1 w-24 bg-zinc-600 rounded-full" />
+              <div className="absolute inset-0 bg-gradient-to-b from-zinc-950 to-zinc-900" />
+              <div className="absolute left-2 top-2 bottom-2 w-3 bg-zinc-700/90 rounded-sm" />
+              <div className="absolute right-2 top-2 bottom-2 w-3 bg-zinc-700/90 rounded-sm" />
+              <div className="absolute left-2 right-2 top-2 h-3 bg-zinc-700/90 rounded-sm" />
+              <div className="absolute left-2 right-2 bottom-2 h-3 bg-zinc-700/90 rounded-sm" />
+
+              <div
+                className={`absolute inset-5 rounded-xl transition-transform duration-700 ease-out origin-left border border-zinc-700/80 bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-950 ${
+                  doorOpen ? '[transform:rotateY(-76deg)]' : '[transform:rotateY(0deg)]'
+                }`}
+                style={{ transformStyle: 'preserve-3d' }}
+              >
+                <div className="absolute inset-0 p-5">
+                  <div className="h-full w-full rounded-lg border border-zinc-600/60" />
+                  <div className="absolute right-8 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-zinc-300 shadow-[0_0_8px_rgba(255,255,255,0.35)]" />
+                </div>
+              </div>
+
+              <div className="absolute inset-x-0 bottom-4 z-10 flex justify-center">
+                {doorOpen ? (
+                  <span className="flex items-center gap-2 text-emerald-300 font-semibold text-sm bg-emerald-950/40 border border-emerald-500/30 rounded-full px-3 py-1">
+                    <DoorOpen size={18} /> Unlocked
+                  </span>
+                ) : (
+                  <span className="text-zinc-300 text-xs uppercase tracking-wider bg-zinc-900/50 border border-zinc-700 rounded-full px-3 py-1">Locked</span>
+                )}
               </div>
             </div>
-            <div className="relative z-10 flex flex-col items-center gap-2 mt-auto pb-4">
-              {doorOpen ? (
-                <span className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
-                  <DoorOpen size={22} /> Unlocked
-                </span>
-              ) : (
-                <span className="text-zinc-500 text-xs uppercase tracking-wider">Locked</span>
-              )}
-            </div>
-          </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-6 justify-center">
-            {qrUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={qrUrl}
-                alt="Door QR"
-                className="rounded-xl border border-zinc-700 w-[360px] h-[360px] bg-white"
-                style={{ imageRendering: 'pixelated' }}
-              />
-            ) : (
-              <div className="w-[360px] h-[360px] rounded-xl border border-zinc-700 bg-white/10 animate-pulse" />
-            )}
-            <div className="text-center sm:text-left space-y-1">
-              <p className="text-zinc-500 text-xs">OTP token</p>
+            <div className="w-full flex flex-col items-center xl:items-start gap-3">
+              {qrUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={qrUrl}
+                  alt="Door QR"
+                  className="rounded-xl border border-zinc-700 w-[320px] h-[320px] bg-white"
+                  style={{ imageRendering: 'pixelated' }}
+                />
+              ) : (
+                <div className="w-[320px] h-[320px] rounded-xl border border-zinc-700 bg-white/10 animate-pulse" />
+              )}
+              <p className="text-zinc-500 text-xs">Door code</p>
               <p className="text-white font-mono text-lg tracking-widest">{meta.code ?? '— — — — — —'}</p>
-              <p className="text-zinc-500 text-xs mt-2">Expires</p>
-              <p className="text-zinc-300 text-sm font-mono">{meta.expiresAt ? new Date(meta.expiresAt).toLocaleTimeString() : '—'}</p>
-              <p className="text-zinc-500 text-xs mt-2">Server time</p>
-              <p className="text-zinc-400 text-xs font-mono">{meta.serverTime ? new Date(meta.serverTime).toLocaleTimeString() : '—'}</p>
+              <p className="text-zinc-500 text-xs">QR refresh in</p>
+              <p className={`font-mono text-xl ${countdownSec <= 8 ? 'text-amber-300' : 'text-zinc-200'}`}>{countdownText}</p>
             </div>
           </div>
         </Card>
