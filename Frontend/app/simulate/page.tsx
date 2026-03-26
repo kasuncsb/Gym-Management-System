@@ -139,49 +139,48 @@ export default function SimulatePage() {
   }, [pollDoor, refreshQr]);
 
   useEffect(() => {
-    if (processorStep !== 'idle') return;
-    if (!processorQueue.length) {
+    if (!processorQueue.length && processorStep === 'idle') {
       setProcessorStatus('Awaiting payment request...');
-      return;
     }
+  }, [processorQueue.length, processorStep]);
+
+  const approveNextRequest = useCallback(async () => {
     const req = processorQueue[0];
-    let cancelled = false;
-    const run = async () => {
-      try {
-        setActiveRequestId(req.id);
-        setProcessorStep('incoming');
-        setProcessorStatus(`Incoming payment request detected • ${req.memberName ?? req.memberId}`);
-        await new Promise((r) => setTimeout(r, 900));
-        if (cancelled) return;
-        setProcessorStep('validating');
-        setProcessorStatus('Validating payment credentials...');
-        await new Promise((r) => setTimeout(r, 1100));
-        if (cancelled) return;
-        setProcessorStep('risk');
-        setProcessorStatus('3DS check • AVS match • risk scoring...');
-        await new Promise((r) => setTimeout(r, 1400));
-        if (cancelled) return;
-        await opsAPI.publicApprovePaymentRequest(req.id);
-        setProcessorStep('approved');
-        setProcessorStatus('Payment approved and settlement committed');
-        setTimeout(() => {
-          setProcessorStep('idle');
-          setActiveRequestId('');
-        }, 1200);
-      } catch {
-        setProcessorStep('declined');
-        setProcessorStatus('Payment declined by processor');
-        setTimeout(() => {
-          setProcessorStep('idle');
-          setActiveRequestId('');
-        }, 1200);
-      }
-    };
-    run().catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [processorQueue, processorStep]);
+    if (!req) return;
+    setLoading(true);
+    try {
+      setActiveRequestId(req.id);
+      setProcessorStep('incoming');
+      setProcessorStatus(`Incoming payment request detected • ${req.memberName ?? req.memberId}`);
+      await new Promise((r) => setTimeout(r, 800));
+      setProcessorStep('validating');
+      setProcessorStatus('Validating payment credentials...');
+      await new Promise((r) => setTimeout(r, 1000));
+      setProcessorStep('risk');
+      setProcessorStatus('3DS check • AVS match • risk scoring...');
+      await new Promise((r) => setTimeout(r, 1300));
+      await opsAPI.publicApprovePaymentRequest(req.id);
+      setProcessorStep('approved');
+      setProcessorStatus('Payment approved and settlement committed');
+      toast.success('Approved', 'Top request approved.');
+    } catch (e) {
+      setProcessorStep('declined');
+      setProcessorStatus('Payment declined by processor');
+      toast.error('Approve failed', getErrorMessage(e));
+    } finally {
+      setLoading(false);
+      window.setTimeout(() => {
+        setProcessorStep('idle');
+        setActiveRequestId('');
+      }, 1200);
+    }
+  }, [processorQueue, toast]);
+
+  useEffect(() => {
+    if (processorStep !== 'idle') return;
+    if (!processorQueue.length) return;
+    approveNextRequest().catch(() => undefined);
+  }, [approveNextRequest, processorQueue, processorStep]);
 
   const countdownText = useMemo(() => {
     const s = Math.max(0, countdownSec);
@@ -302,9 +301,17 @@ export default function SimulatePage() {
           <div className="flex gap-2">
             <LoadingButton
               type="button"
+              loading={loading}
+              disabled={!processorQueue[0] || processorStep !== 'idle'}
+              onClick={() => approveNextRequest().catch(() => undefined)}
+            >
+              Approve next request
+            </LoadingButton>
+            <LoadingButton
+              type="button"
               variant="secondary"
               loading={loading}
-              disabled={!processorQueue[0]}
+              disabled={!processorQueue[0] || processorStep !== 'idle'}
               onClick={async () => {
                 if (!processorQueue[0]) return;
                 setLoading(true);

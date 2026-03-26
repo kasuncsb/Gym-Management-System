@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { CreditCard, RefreshCw, ArrowUpCircle, Snowflake, ShieldAlert } from 'lucide-react';
 import { PageHeader, Card, Modal, Input, Select, Textarea, LoadingButton, Tabs } from '@/components/ui/SharedComponents';
@@ -57,10 +57,15 @@ export default function MemberSubscriptionPage() {
         promotionCode: '',
         paymentMethod: 'card',
         cardPan: '',
+        cardExpiry: '',
+        cardCvv: '',
         cardHolder: '',
     });
     const [checkoutSessionId, setCheckoutSessionId] = useState('');
     const [checkoutState, setCheckoutState] = useState<CheckoutState>('idle');
+    const cardPanRef = useRef<HTMLInputElement | null>(null);
+    const cardExpRef = useRef<HTMLInputElement | null>(null);
+    const cardCvvRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
         authAPI.getProfile()
@@ -94,12 +99,20 @@ export default function MemberSubscriptionPage() {
             promotionCode: payload.promotionCode ?? '',
             paymentMethod: payload.paymentMethod ?? 'card',
             cardPan: '',
+            cardExpiry: '',
+            cardCvv: '',
             cardHolder: '',
         });
         setCheckoutState('idle');
         setCheckoutSessionId('');
         setCheckoutOpen(true);
     };
+
+    useEffect(() => {
+        if (!checkoutOpen) return;
+        const t = window.setTimeout(() => cardPanRef.current?.focus(), 50);
+        return () => window.clearTimeout(t);
+    }, [checkoutOpen]);
 
     const pollSessionUntilFinal = async (sessionId: string) => {
         const started = Date.now();
@@ -119,6 +132,14 @@ export default function MemberSubscriptionPage() {
         }
         if (checkout.paymentMethod === 'card' && checkout.cardPan.replace(/\D/g, '').length < 13) {
             toast.error('Validation Error', 'Enter a valid card number');
+            return;
+        }
+        if (checkout.paymentMethod === 'card' && !/^\d{2}\/\d{2}$/.test(checkout.cardExpiry)) {
+            toast.error('Validation Error', 'Enter expiry as MM/YY');
+            return;
+        }
+        if (checkout.paymentMethod === 'card' && checkout.cardCvv.replace(/\D/g, '').length < 3) {
+            toast.error('Validation Error', 'Enter a valid CVV');
             return;
         }
         setLoading(true);
@@ -422,8 +443,35 @@ export default function MemberSubscriptionPage() {
                         label="Card Number"
                         placeholder="4242 4242 4242 4242"
                         value={checkout.cardPan}
-                        onChange={e => setCheckout((f) => ({ ...f, cardPan: e.target.value }))}
+                        ref={cardPanRef as any}
+                        onChange={e => {
+                            const digits = e.target.value.replace(/\D/g, '').slice(0, 19);
+                            const grouped = digits.replace(/(.{4})/g, '$1 ').trim();
+                            setCheckout((f) => ({ ...f, cardPan: grouped }));
+                            if (digits.length >= 16) cardExpRef.current?.focus();
+                        }}
                     />
+                    <div className="grid grid-cols-2 gap-3">
+                        <Input
+                            label="Expiry Date"
+                            placeholder="MM/YY"
+                            value={checkout.cardExpiry}
+                            ref={cardExpRef as any}
+                            onChange={e => {
+                                const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
+                                const formatted = digits.length >= 3 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits;
+                                setCheckout((f) => ({ ...f, cardExpiry: formatted }));
+                                if (formatted.length === 5) cardCvvRef.current?.focus();
+                            }}
+                        />
+                        <Input
+                            label="CVV"
+                            placeholder="123"
+                            value={checkout.cardCvv}
+                            ref={cardCvvRef as any}
+                            onChange={e => setCheckout((f) => ({ ...f, cardCvv: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                        />
+                    </div>
                     <Input
                         label="Cardholder Name"
                         placeholder="NAME ON CARD"
