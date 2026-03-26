@@ -332,6 +332,16 @@ export function DoorQrCheckIn({
                             </p>
                         </div>
                     )}
+                    {cameraOn && (
+                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                            <div className="relative w-[72%] max-w-[320px] aspect-square border border-white/30 rounded-2xl">
+                                <div className="absolute -top-0.5 -left-0.5 w-7 h-7 border-l-2 border-t-2 border-emerald-300/90 rounded-tl-md" />
+                                <div className="absolute -top-0.5 -right-0.5 w-7 h-7 border-r-2 border-t-2 border-emerald-300/90 rounded-tr-md" />
+                                <div className="absolute -bottom-0.5 -left-0.5 w-7 h-7 border-l-2 border-b-2 border-emerald-300/90 rounded-bl-md" />
+                                <div className="absolute -bottom-0.5 -right-0.5 w-7 h-7 border-r-2 border-b-2 border-emerald-300/90 rounded-br-md" />
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {scanHint && (
