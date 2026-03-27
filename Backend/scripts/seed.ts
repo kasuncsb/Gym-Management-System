@@ -25,30 +25,30 @@ import { inArray } from 'drizzle-orm';
 const SEED_PASSWORD = 'PWlogin!26';
 
 const SEED_EMAILS = [
-  'admin@powerworldgyms.lk',
-  'manager@powerworldgyms.lk',
-  'trainer@powerworldgyms.lk',
-  'member@powerworldgyms.lk',
+  'kasuncsb+admin@gmail.com',
+  'kasuncsb+manager@gmail.com',
+  'kasuncsb+trainer@gmail.com',
+  'kasuncsb+member@gmail.com',
 ];
 
 const SEED_USERS = [
   {
     role: 'admin' as const,
-    email: 'admin@powerworldgyms.lk',
+    email: 'kasuncsb+admin@gmail.com',
     fullName: 'Asiri Wickramasinghe',
     employeeCode: 'PWG-ADM-001',
     designation: 'System Administrator',
   },
   {
     role: 'manager' as const,
-    email: 'manager@powerworldgyms.lk',
+    email: 'kasuncsb+manager@gmail.com',
     fullName: 'Dilini Perera',
     employeeCode: 'PWG-MGR-001',
     designation: 'Branch Manager',
   },
   {
     role: 'trainer' as const,
-    email: 'trainer@powerworldgyms.lk',
+    email: 'kasuncsb+trainer@gmail.com',
     fullName: 'Chathurika Silva',
     employeeCode: 'PWG-TRN-001',
     designation: 'Head Trainer',
@@ -58,7 +58,7 @@ const SEED_USERS = [
   },
   {
     role: 'member' as const,
-    email: 'member@powerworldgyms.lk',
+    email: 'kasuncsb+member@gmail.com',
     fullName: 'Nimal Perera',
     memberCode: 'PWG-KBG-2025001',
     memberStatus: 'active' as const,
