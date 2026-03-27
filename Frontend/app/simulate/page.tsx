@@ -298,36 +298,6 @@ export default function SimulatePage() {
               </div>
             ))}
           </div>
-          <div className="flex gap-2">
-            <LoadingButton
-              type="button"
-              loading={loading}
-              disabled={!processorQueue[0] || processorStep !== 'idle'}
-              onClick={() => approveNextRequest().catch(() => undefined)}
-            >
-              Approve next request
-            </LoadingButton>
-            <LoadingButton
-              type="button"
-              variant="secondary"
-              loading={loading}
-              disabled={!processorQueue[0] || processorStep !== 'idle'}
-              onClick={async () => {
-                if (!processorQueue[0]) return;
-                setLoading(true);
-                try {
-                  await opsAPI.publicDeclinePaymentRequest(processorQueue[0].id, 'Manual simulator decline');
-                  toast.success('Declined', 'Top request declined.');
-                } catch (e) {
-                  toast.error('Decline failed', getErrorMessage(e));
-                } finally {
-                  setLoading(false);
-                }
-              }}
-            >
-              Decline next request
-            </LoadingButton>
-          </div>
         </Card>
       </div>
     </div>
