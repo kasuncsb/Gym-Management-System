@@ -1,7 +1,7 @@
 'use client';
 
 import axios from 'axios';
-import { useCallback, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Camera, CheckCircle2, LogOut, Users } from 'lucide-react';
 import { PageHeader, Card, LoadingButton } from '@/components/ui/SharedComponents';
 import { useAuth } from '@/context/AuthContext';
