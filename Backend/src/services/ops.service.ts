@@ -34,7 +34,7 @@ import { hashPassword } from '../utils/password.js';
 import { assertMemberCanPurchaseSubscription } from './auth.service.js';
 import * as audit from './audit.service.js';
 import { getConfigValue } from './config.service.js';
-import { sendEmail } from '../utils/email.js';
+import { generateInvoiceEmailHTML, sendEmail } from '../utils/email.js';
 
 type Role = 'admin' | 'manager' | 'trainer' | 'member';
 
@@ -66,34 +66,6 @@ export function hashPaymentInstrument(pan: string): { fullHash: string; lastFour
   return { fullHash, lastFour };
 }
 
-function generateInvoiceHtml(input: {
-  invoiceNumber: string;
-  memberName: string;
-  planName: string;
-  amount: number;
-  paymentDate: Date;
-  receiptNumber: string;
-  referenceNumber: string;
-}) {
-  return `<!doctype html>
-<html>
-  <head><meta charset="utf-8" /><title>${input.invoiceNumber}</title></head>
-  <body style="font-family:Arial,sans-serif;line-height:1.45;color:#222">
-    <h2>PowerWorld Gyms Invoice</h2>
-    <p><strong>Invoice:</strong> ${input.invoiceNumber}</p>
-    <p><strong>Date:</strong> ${dateOnlyIso(input.paymentDate)}</p>
-    <hr />
-    <p><strong>Member:</strong> ${input.memberName}</p>
-    <p><strong>Plan:</strong> ${input.planName}</p>
-    <p><strong>Amount:</strong> Rs. ${input.amount.toLocaleString()}</p>
-    <p><strong>Receipt:</strong> ${input.receiptNumber}</p>
-    <p><strong>Reference:</strong> ${input.referenceNumber}</p>
-    <hr />
-    <p>Payment received successfully. Thank you.</p>
-  </body>
-</html>`;
-}
-
 async function issueInvoiceRecord(input: {
   paymentId: string;
   memberId: string;
@@ -109,12 +81,12 @@ async function issueInvoiceRecord(input: {
   if (existing) return existing;
   const invoiceId = ids.uuid();
   const invoiceNumber = `INV-${Date.now()}-${Math.floor(Math.random() * 900 + 100)}`;
-  const html = generateInvoiceHtml({
+  const html = generateInvoiceEmailHTML({
     invoiceNumber,
     memberName: input.memberName,
     planName: input.planName,
     amount: input.amount,
-    paymentDate: input.paymentDate,
+    paymentDate: dateOnlyIso(input.paymentDate),
     receiptNumber: input.receiptNumber,
     referenceNumber: input.referenceNumber,
   });

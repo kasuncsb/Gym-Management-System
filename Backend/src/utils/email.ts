@@ -179,3 +179,61 @@ ${isApproved ? '' : `<p style="margin:0;font-size:14px;color:#a1a1aa;">Log in to
 `;
   return emailLayout('Identity Verification', content);
 }
+
+export function generateInvoiceEmailHTML(input: {
+  invoiceNumber: string;
+  memberName: string;
+  planName: string;
+  amount: number;
+  paymentDate: string; // YYYY-MM-DD
+  receiptNumber: string;
+  referenceNumber: string;
+}): string {
+  const content = `
+<h2 style="margin:0 0 16px 0;font-size:20px;font-weight:bold;color:#ffffff;">Payment Receipt & Invoice</h2>
+<p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#d4d4d8;">
+  Hi ${escapeHtml(input.memberName)},
+</p>
+<p style="margin:0 0 18px 0;font-size:15px;line-height:1.6;color:#d4d4d8;">
+  Your payment was processed successfully. Here are your invoice details:
+</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border:1px solid #3c3c3c;border-radius:12px;overflow:hidden;">
+  <tr>
+    <td style="padding:14px 16px;background-color:#1f1f20;border-bottom:1px solid #3c3c3c;">
+      <p style="margin:0;font-size:13px;color:#a1a1aa;">Invoice</p>
+      <p style="margin:4px 0 0 0;font-size:16px;font-weight:bold;color:#ffffff;">${escapeHtml(input.invoiceNumber)}</p>
+    </td>
+    <td style="padding:14px 16px;background-color:#1f1f20;border-bottom:1px solid #3c3c3c;text-align:right;">
+      <p style="margin:0;font-size:13px;color:#a1a1aa;">Amount</p>
+      <p style="margin:4px 0 0 0;font-size:16px;font-weight:bold;color:#ffffff;">Rs. ${Number(input.amount || 0).toLocaleString()}</p>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:14px 16px;">
+      <p style="margin:0;font-size:13px;color:#a1a1aa;">Plan</p>
+      <p style="margin:4px 0 0 0;font-size:14px;color:#ffffff;">${escapeHtml(input.planName)}</p>
+    </td>
+    <td style="padding:14px 16px;text-align:right;">
+      <p style="margin:0;font-size:13px;color:#a1a1aa;">Date</p>
+      <p style="margin:4px 0 0 0;font-size:14px;color:#ffffff;">${escapeHtml(input.paymentDate)}</p>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:14px 16px;border-top:1px solid #3c3c3c;">
+      <p style="margin:0;font-size:13px;color:#a1a1aa;">Receipt</p>
+      <p style="margin:4px 0 0 0;font-size:14px;color:#ffffff;">${escapeHtml(input.receiptNumber)}</p>
+    </td>
+    <td style="padding:14px 16px;border-top:1px solid #3c3c3c;text-align:right;">
+      <p style="margin:0;font-size:13px;color:#a1a1aa;">Reference</p>
+      <p style="margin:4px 0 0 0;font-size:14px;color:#ffffff;">${escapeHtml(input.referenceNumber)}</p>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:18px 0 0 0;font-size:13px;color:#71717a;">
+  You can also download the invoice from your payment history in the app.
+</p>
+`;
+  return emailLayout(`Invoice ${input.invoiceNumber}`, content);
+}
