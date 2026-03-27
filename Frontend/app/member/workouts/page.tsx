@@ -46,6 +46,7 @@ export default function WorkoutsPage() {
     const [exercises, setExercises] = useState<any[]>([]);
     const [loadingExercises, setLoadingExercises] = useState(false);
     const [expandedDay, setExpandedDay] = useState<number | null>(null);
+    const [activeSession, setActiveSession] = useState<any | null>(null);
 
     const loadPlans = () => {
         opsAPI.myWorkoutPlans()
@@ -58,6 +59,9 @@ export default function WorkoutsPage() {
     };
 
     useEffect(() => { loadPlans(); }, []);
+    useEffect(() => {
+        opsAPI.activeWorkoutSession().then(setActiveSession).catch(() => setActiveSession(null));
+    }, []);
 
     useEffect(() => {
         if (!selected) { setExercises([]); return; }
@@ -171,13 +175,15 @@ export default function WorkoutsPage() {
                                 onClick={async () => {
                                     setStarting(true);
                                     try {
-                                        await opsAPI.addWorkoutLog({
-                                            planId: active.id,
-                                            workoutDate: new Date().toISOString().slice(0, 10),
-                                            durationMin: 45,
-                                            mood: 'good',
-                                        });
-                                        toast.success('Workout started', 'Workout log created successfully.');
+                                        if (activeSession?.id) {
+                                            await opsAPI.stopWorkoutSession(activeSession.id, { complete: true, mood: 'good' });
+                                            toast.success('Workout completed', 'Session stopped and logged.');
+                                            setActiveSession(null);
+                                        } else {
+                                            const s = await opsAPI.startWorkoutSession({ planId: active.id, notes: `Started from plan: ${active.name}` });
+                                            toast.success('Workout started', 'Session is now active.');
+                                            setActiveSession(s);
+                                        }
                                     } catch (err) {
                                         toast.error('Error', getErrorMessage(err));
                                     } finally {
@@ -185,7 +191,7 @@ export default function WorkoutsPage() {
                                     }
                                 }}
                             >
-                                Start Workout
+                                {activeSession?.id ? 'Stop Workout' : 'Start Workout'}
                             </LoadingButton>
                         </div>
                         <div className="mb-6">

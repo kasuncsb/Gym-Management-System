@@ -66,6 +66,10 @@ router.post('/workouts/plans/assign', authorize('trainer', 'manager', 'admin'), 
 router.post('/workouts/plans/generate', authorize('member', 'trainer', 'manager', 'admin'), ops.generateAiWorkoutPlan);
 router.get('/workouts/logs/me', authorize('member'), ops.listMyWorkoutLogs);
 router.post('/workouts/logs', authorize('member', 'trainer'), ops.addWorkoutLog);
+router.get('/workouts/sessions/active', authorize('member'), ops.getActiveWorkoutSession);
+router.post('/workouts/sessions/start', authorize('member'), ops.startWorkoutSession);
+router.post('/workouts/sessions/:sessionId/events', authorize('member', 'trainer', 'manager', 'admin'), ops.addWorkoutSessionEvent);
+router.post('/workouts/sessions/:sessionId/stop', authorize('member', 'trainer', 'manager', 'admin'), ops.stopWorkoutSession);
 
 // Exercises
 router.get('/workouts/exercises', ops.listExercises);

@@ -162,6 +162,26 @@ export const addWorkoutLog = asyncHandler(async (req: AuthRequest, res: Response
   const user = requireUser(req);
   res.json(response.success(await opsService.addWorkoutLog(user.id, req.body), 'Workout logged'));
 });
+export const getActiveWorkoutSession = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  res.json(response.success(await opsService.getActiveWorkoutSession(user.id)));
+});
+export const startWorkoutSession = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  res.json(response.success(await opsService.startWorkoutSession(user.id, req.body), 'Workout session started'));
+});
+export const addWorkoutSessionEvent = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  const sessionId = String(req.params.sessionId ?? '').trim();
+  if (!sessionId) throw errors.badRequest('sessionId is required');
+  res.json(response.success(await opsService.addWorkoutSessionEvent(user.id, sessionId, req.body), 'Workout event recorded'));
+});
+export const stopWorkoutSession = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  const sessionId = String(req.params.sessionId ?? '').trim();
+  if (!sessionId) throw errors.badRequest('sessionId is required');
+  res.json(response.success(await opsService.stopWorkoutSession(user.id, sessionId, req.body), 'Workout session finalized'));
+});
 export const generateAiWorkoutPlan = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   const memberId = user.role === 'member' ? user.id : String(req.body?.memberId ?? '').trim();

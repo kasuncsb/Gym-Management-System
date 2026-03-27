@@ -12,6 +12,7 @@ function requireUser(req: AuthRequest) {
 
 export const health = asyncHandler(async (_req: AuthRequest, res: Response) => {
   const test = await aiService.selfTestGemini();
+  const diagnostics = await aiService.getAiDiagnostics();
   res.json(response.success({
     status: 'ok',
     ai: true,
@@ -20,6 +21,7 @@ export const health = asyncHandler(async (_req: AuthRequest, res: Response) => {
     geminiEmbeddingModel: process.env.GEMINI_EMBEDDING_MODEL ?? 'gemini-embedding-001',
     ragServiceConfigured: Boolean(process.env.RAG_SERVICE_URL),
     geminiSelfTest: test,
+    diagnostics,
   }));
 });
 
@@ -27,7 +29,8 @@ export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   const message = String(req.body?.message ?? '').trim();
   if (!message) throw errors.badRequest('message is required');
-  const data = await aiService.chatForUser(user, message);
+  const sessionId = req.body?.sessionId ? String(req.body.sessionId) : undefined;
+  const data = await aiService.chatForUser(user, message, sessionId);
   res.json(response.success(data));
 });
 

@@ -830,6 +830,75 @@ CREATE TABLE IF NOT EXISTS `ai_interactions` (
   CONSTRAINT `fk_ai_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ============================================================================
+-- AI_CHAT_SESSIONS / AI_CHAT_MESSAGES
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `ai_chat_sessions` (
+  `id`              VARCHAR(36)   NOT NULL,
+  `user_id`         VARCHAR(36)   NOT NULL,
+  `role`            ENUM('member','manager') NOT NULL,
+  `title`           VARCHAR(140)  DEFAULT NULL,
+  `last_message_at` TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created_at`      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`      TIMESTAMP     NULL ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_ai_chat_sessions_user_role` (`user_id`, `role`),
+  INDEX `idx_ai_chat_sessions_last_message` (`last_message_at`),
+  CONSTRAINT `fk_ai_chat_sessions_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `ai_chat_messages` (
+  `id`          VARCHAR(36)   NOT NULL,
+  `session_id`  VARCHAR(36)   NOT NULL,
+  `user_id`     VARCHAR(36)   NOT NULL,
+  `role`        ENUM('user','assistant') NOT NULL,
+  `source`      ENUM('rag','gemini','fallback','system') NOT NULL DEFAULT 'system',
+  `content`     TEXT          NOT NULL,
+  `created_at`  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_ai_chat_messages_session_created` (`session_id`, `created_at`),
+  INDEX `idx_ai_chat_messages_user_created` (`user_id`, `created_at`),
+  CONSTRAINT `fk_ai_chat_messages_session` FOREIGN KEY (`session_id`) REFERENCES `ai_chat_sessions`(`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_ai_chat_messages_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- WORKOUT_SESSIONS / WORKOUT_SESSION_EVENTS
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `workout_sessions` (
+  `id`             VARCHAR(36)  NOT NULL,
+  `person_id`      VARCHAR(36)  NOT NULL,
+  `plan_id`        VARCHAR(36)  DEFAULT NULL,
+  `status`         ENUM('active','paused','completed','stopped') NOT NULL DEFAULT 'active',
+  `started_at`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `ended_at`       TIMESTAMP    NULL DEFAULT NULL,
+  `duration_min`   SMALLINT     DEFAULT NULL,
+  `calories_burned` SMALLINT    DEFAULT NULL,
+  `mood`           ENUM('great','good','okay','tired','poor') DEFAULT NULL,
+  `notes`          TEXT         DEFAULT NULL,
+  `created_at`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`     TIMESTAMP    NULL ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_workout_sessions_person_status` (`person_id`, `status`),
+  INDEX `idx_workout_sessions_started` (`started_at`),
+  CONSTRAINT `fk_workout_sessions_person` FOREIGN KEY (`person_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_workout_sessions_plan` FOREIGN KEY (`plan_id`) REFERENCES `workout_plans`(`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `workout_session_events` (
+  `id`           VARCHAR(36)  NOT NULL,
+  `session_id`   VARCHAR(36)  NOT NULL,
+  `person_id`    VARCHAR(36)  NOT NULL,
+  `event_type`   ENUM('started','paused','resumed','exercise_started','set_completed','exercise_completed','stopped','completed','simulated') NOT NULL,
+  `payload_json` TEXT         DEFAULT NULL,
+  `created_at`   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_workout_session_events_session` (`session_id`, `created_at`),
+  INDEX `idx_workout_session_events_person` (`person_id`, `created_at`),
+  CONSTRAINT `fk_workout_session_events_session` FOREIGN KEY (`session_id`) REFERENCES `workout_sessions`(`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_workout_session_events_person` FOREIGN KEY (`person_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 -- ============================================================================
 -- 22. BRANCH_CLOSURES  (public holidays / emergency closure dates)

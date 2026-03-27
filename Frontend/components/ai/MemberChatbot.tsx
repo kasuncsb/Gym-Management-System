@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, MessageCircle, Send, X } from 'lucide-react';
 import { aiAPI, getErrorMessage } from '@/lib/api';
 
@@ -22,6 +22,8 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   const greeting = useMemo(
     () => role === 'manager'
@@ -56,15 +58,16 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
     setMessages((m) => [...m, { role: 'user', text }]);
     setLoading(true);
     try {
-      const res = await aiAPI.chat(text);
+      const res = await aiAPI.chat(text, sessionId ?? undefined);
       const answer = (res?.answer ?? '').trim() || 'I could not generate a response. Please try rephrasing your question.';
+      if (res?.sessionId && res.sessionId !== sessionId) setSessionId(res.sessionId);
       setMessages((m) => [...m, { role: 'assistant', text: answer }]);
     } catch (err) {
       setMessages((m) => [...m, { role: 'assistant', text: `I could not answer right now: ${getErrorMessage(err)}` }]);
     } finally {
       setLoading(false);
     }
-  }, [input, loading]);
+  }, [input, loading, sessionId]);
 
   useEffect(() => {
     const onPrefill = (evt: Event) => {
@@ -81,10 +84,16 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
     return () => window.removeEventListener('pw:ai-chat-prefill', onPrefill as EventListener);
   }, [role, send]);
 
+  useEffect(() => {
+    if (!open) return;
+    const t = window.setTimeout(() => inputRef.current?.focus(), 60);
+    return () => window.clearTimeout(t);
+  }, [open]);
+
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-6 right-6 z-[120] pointer-events-none">
       {open && (
-        <div className="absolute bottom-20 right-0 w-[380px] h-[520px] rounded-3xl border border-zinc-700/80 bg-zinc-900/95 backdrop-blur-2xl shadow-[0_18px_45px_rgba(0,0,0,0.75)] flex flex-col overflow-hidden">
+        <div className="pointer-events-auto absolute bottom-20 right-0 w-[380px] h-[520px] rounded-3xl border border-zinc-700/80 bg-zinc-900/95 backdrop-blur-2xl shadow-[0_18px_45px_rgba(0,0,0,0.75)] flex flex-col overflow-hidden">
           <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-red-600">
@@ -127,6 +136,7 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
           </div>
           <div className="px-4 py-3 border-t border-zinc-800 bg-zinc-950/40">
             <input
+              ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
@@ -147,7 +157,7 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
       )}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-14 h-14 rounded-full bg-zinc-800/95 hover:bg-zinc-700 text-white shadow-[0_12px_30px_rgba(0,0,0,0.7)] flex items-center justify-center transition-colors duration-150 border border-zinc-700/70"
+        className="pointer-events-auto w-14 h-14 rounded-full bg-zinc-800/95 hover:bg-zinc-700 text-white shadow-[0_12px_30px_rgba(0,0,0,0.7)] flex items-center justify-center transition-colors duration-150 border border-zinc-700/70"
         aria-label={open ? 'Close member assistant' : 'Open member assistant'}
       >
         {open ? <X size={20} /> : <MessageCircle size={20} />}

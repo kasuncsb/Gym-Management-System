@@ -15,6 +15,8 @@ import {
   ptSessions,
   workoutPlans,
   workoutLogs,
+  workoutSessions,
+  workoutSessionEvents,
   memberMetrics,
   equipment,
   equipmentEvents,
@@ -1091,6 +1093,104 @@ export async function addWorkoutLog(
   });
   const [row] = await db.select().from(workoutLogs).where(eq(workoutLogs.id, id));
   return row;
+}
+
+export async function getActiveWorkoutSession(userId: string) {
+  const [session] = await db
+    .select()
+    .from(workoutSessions)
+    .where(and(eq(workoutSessions.personId, userId), eq(workoutSessions.status, 'active')))
+    .orderBy(desc(workoutSessions.startedAt))
+    .limit(1);
+  return session ?? null;
+}
+
+export async function startWorkoutSession(userId: string, input: { planId?: string; notes?: string }) {
+  const active = await getActiveWorkoutSession(userId);
+  if (active) return active;
+  const id = ids.uuid();
+  await db.insert(workoutSessions).values({
+    id,
+    personId: userId,
+    planId: input.planId ?? null,
+    status: 'active',
+    startedAt: new Date(),
+    notes: input.notes ?? null,
+  });
+  await db.insert(workoutSessionEvents).values({
+    id: ids.uuid(),
+    sessionId: id,
+    personId: userId,
+    eventType: 'started',
+    payloadJson: input.planId ? JSON.stringify({ planId: input.planId }) : null,
+  });
+  const [row] = await db.select().from(workoutSessions).where(eq(workoutSessions.id, id)).limit(1);
+  return row!;
+}
+
+export async function addWorkoutSessionEvent(userId: string, sessionId: string, input: {
+  eventType: 'paused' | 'resumed' | 'exercise_started' | 'set_completed' | 'exercise_completed' | 'simulated';
+  payload?: Record<string, unknown>;
+}) {
+  const [session] = await db.select().from(workoutSessions).where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.personId, userId))).limit(1);
+  if (!session) throw errors.notFound('Workout session');
+  await db.insert(workoutSessionEvents).values({
+    id: ids.uuid(),
+    sessionId,
+    personId: userId,
+    eventType: input.eventType,
+    payloadJson: input.payload ? JSON.stringify(input.payload) : null,
+  });
+  if (input.eventType === 'paused') {
+    await db.update(workoutSessions).set({ status: 'paused' }).where(eq(workoutSessions.id, sessionId));
+  } else if (input.eventType === 'resumed') {
+    await db.update(workoutSessions).set({ status: 'active' }).where(eq(workoutSessions.id, sessionId));
+  }
+  const [updated] = await db.select().from(workoutSessions).where(eq(workoutSessions.id, sessionId)).limit(1);
+  return updated!;
+}
+
+export async function stopWorkoutSession(
+  userId: string,
+  sessionId: string,
+  input: { complete?: boolean; durationMin?: number; caloriesBurned?: number; mood?: 'great' | 'good' | 'okay' | 'tired' | 'poor'; notes?: string },
+) {
+  const [session] = await db.select().from(workoutSessions).where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.personId, userId))).limit(1);
+  if (!session) throw errors.notFound('Workout session');
+  if (session.status === 'completed' || session.status === 'stopped') return session;
+  const endedAt = new Date();
+  const durationMin = input.durationMin != null
+    ? Math.max(1, Math.round(input.durationMin))
+    : Math.max(1, Math.round((endedAt.getTime() - new Date(session.startedAt).getTime()) / 60_000));
+  const status = input.complete ? 'completed' : 'stopped';
+  await db.update(workoutSessions).set({
+    status,
+    endedAt,
+    durationMin,
+    caloriesBurned: input.caloriesBurned ?? null,
+    mood: input.mood ?? null,
+    notes: input.notes ?? session.notes ?? null,
+  }).where(eq(workoutSessions.id, sessionId));
+  await db.insert(workoutSessionEvents).values({
+    id: ids.uuid(),
+    sessionId,
+    personId: userId,
+    eventType: input.complete ? 'completed' : 'stopped',
+    payloadJson: JSON.stringify({ durationMin }),
+  });
+  const logId = ids.uuid();
+  await db.insert(workoutLogs).values({
+    id: logId,
+    personId: userId,
+    planId: session.planId ?? null,
+    workoutDate: endedAt,
+    durationMin,
+    mood: input.mood ?? null,
+    caloriesBurned: input.caloriesBurned ?? null,
+    notes: input.notes ?? 'Recorded from workout session',
+  });
+  const [updated] = await db.select().from(workoutSessions).where(eq(workoutSessions.id, sessionId)).limit(1);
+  return updated!;
 }
 
 export async function assignWorkoutPlanToMember(
@@ -2390,10 +2490,31 @@ export async function publicSimulateCardPayment(input: {
   return approvePaymentSession(session.id);
 }
 
-export async function simulateWorkout(input: { memberId: string; durationMin?: number; caloriesBurned?: number; notes?: string }) {
-  return addWorkoutLog(input.memberId, {
-    workoutDate: dateOnlyIso(new Date()),
-    durationMin: input.durationMin ?? 45,
+export async function simulateWorkout(input: { memberId: string; durationMin?: number; caloriesBurned?: number; notes?: string; action?: 'simulate' | 'start' | 'stop' }) {
+  const action = input.action ?? 'simulate';
+  if (action === 'start') {
+    return startWorkoutSession(input.memberId, { notes: input.notes ?? 'Simulator workout start' });
+  }
+  if (action === 'stop') {
+    const active = await getActiveWorkoutSession(input.memberId);
+    if (!active) throw errors.notFound('Active workout session');
+    return stopWorkoutSession(input.memberId, active.id, {
+      complete: true,
+      durationMin: input.durationMin,
+      caloriesBurned: input.caloriesBurned ?? 300,
+      mood: 'good',
+      notes: input.notes ?? 'Simulated workout stop',
+    });
+  }
+  const existing = await getActiveWorkoutSession(input.memberId);
+  const session = existing ?? await startWorkoutSession(input.memberId, { notes: 'Simulated workout session' });
+  await addWorkoutSessionEvent(input.memberId, session.id, {
+    eventType: 'simulated',
+    payload: { source: 'simulate', durationMin: input.durationMin ?? 45, caloriesBurned: input.caloriesBurned ?? 300 },
+  });
+  return stopWorkoutSession(input.memberId, session.id, {
+    complete: true,
+    durationMin: input.durationMin,
     caloriesBurned: input.caloriesBurned ?? 300,
     mood: 'good',
     notes: input.notes ?? 'Simulated workout log',
@@ -2459,10 +2580,11 @@ export async function getSimulationState() {
     }
   }
 
-  const [todayVisits, todayPayments, recentWorkouts, upcomingSessions, pendingPaymentRequests] = await Promise.all([
+  const [todayVisits, todayPayments, recentWorkouts, activeWorkoutSessions, upcomingSessions, pendingPaymentRequests] = await Promise.all([
     safeQuery(() => db.select().from(visits).orderBy(desc(visits.createdAt)).limit(20), [] as any[]),
     safeQuery(() => db.select().from(payments).orderBy(desc(payments.createdAt)).limit(20), [] as any[]),
     safeQuery(() => db.select().from(workoutLogs).orderBy(desc(workoutLogs.createdAt)).limit(20), [] as any[]),
+    safeQuery(() => db.select().from(workoutSessions).where(eq(workoutSessions.status, 'active')).orderBy(desc(workoutSessions.startedAt)).limit(20), [] as any[]),
     safeQuery(() => db.select().from(ptSessions).orderBy(desc(ptSessions.createdAt)).limit(20), [] as any[]),
     safeQuery(() => listPendingPaymentSessions(), [] as any[]),
   ]);
@@ -2472,6 +2594,7 @@ export async function getSimulationState() {
     visits: todayVisits,
     payments: todayPayments,
     workouts: recentWorkouts,
+    workoutSessions: activeWorkoutSessions,
     ptSessions: upcomingSessions,
     paymentRequests: pendingPaymentRequests,
     activeDoorOtps: Array.from(simulateDoorOtpStore.entries()).map(([token, otp]) => ({

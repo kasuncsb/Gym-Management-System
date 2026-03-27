@@ -1,11 +1,19 @@
 import type { AuthUser } from '../middleware/auth.js';
-import { getDashboard, getReportSummary, generateAiWorkoutPlan } from './ops.service.js';
+import {
+  getDashboard,
+  getMySubscriptions,
+  getReportSummary,
+  listMyVisits,
+  listMyWorkoutLogs,
+  generateAiWorkoutPlan,
+} from './ops.service.js';
 import { db } from '../config/database.js';
-import { aiInteractions } from '../db/schema.js';
+import { aiChatMessages, aiChatSessions, aiInteractions } from '../db/schema.js';
 import { ids } from '../utils/id.js';
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { and, desc, eq, sql } from 'drizzle-orm';
 
 const BRANCH_CONTEXT = `
 PowerWorld Gyms - Kiribathgoda branch.
@@ -44,6 +52,8 @@ const GEMINI_MODEL_DEFAULT = 'gemini-2.5-flash';
 // Note (2026): text-embedding-004 is being deprecated; prefer gemini-embedding-001.
 const GEMINI_EMBEDDING_MODEL_DEFAULT = 'gemini-embedding-001';
 type UserRole = 'admin' | 'manager' | 'trainer' | 'member';
+
+type ChatSource = 'rag' | 'gemini' | 'fallback' | 'system';
 
 function parseGeminiHttpError(err: unknown): { status?: number; message: string; rateLimited: boolean } {
   const message = err instanceof Error ? err.message : String(err);
@@ -94,6 +104,56 @@ async function loadTrainingDocs(): Promise<TrainingDoc[]> {
     trainingCache = [];
   }
   return trainingCache;
+}
+
+async function ensureChatSession(user: AuthUser, role: 'member' | 'manager', sessionId?: string): Promise<string> {
+  if (sessionId) {
+    const [existing] = await db
+      .select({ id: aiChatSessions.id })
+      .from(aiChatSessions)
+      .where(and(eq(aiChatSessions.id, sessionId), eq(aiChatSessions.userId, user.id)))
+      .limit(1);
+    if (existing) return existing.id;
+  }
+  const id = ids.uuid();
+  await db.insert(aiChatSessions).values({
+    id,
+    userId: user.id,
+    role,
+    title: role === 'manager' ? 'Manager assistant' : 'Member assistant',
+    lastMessageAt: new Date(),
+  });
+  return id;
+}
+
+async function appendChatMessage(sessionId: string, userId: string, role: 'user' | 'assistant', content: string, source: ChatSource) {
+  await db.insert(aiChatMessages).values({
+    id: ids.uuid(),
+    sessionId,
+    userId,
+    role,
+    content,
+    source,
+    createdAt: new Date(),
+  });
+  await db.update(aiChatSessions).set({ lastMessageAt: new Date() }).where(eq(aiChatSessions.id, sessionId));
+}
+
+async function getRecentSessionMessages(sessionId: string, limit = 12): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
+  const rows = await db
+    .select({ role: aiChatMessages.role, content: aiChatMessages.content })
+    .from(aiChatMessages)
+    .where(eq(aiChatMessages.sessionId, sessionId))
+    .orderBy(desc(aiChatMessages.createdAt))
+    .limit(limit);
+  return rows.reverse();
+}
+
+function renderHistoryForPrompt(history: Array<{ role: 'user' | 'assistant'; content: string }>): string {
+  if (!history.length) return '';
+  return history
+    .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content.slice(0, 600)}`)
+    .join('\n');
 }
 
 function scoreDoc(message: string, doc: TrainingDoc): number {
@@ -236,6 +296,28 @@ export async function selfTestGemini(): Promise<{
   return {
     generate: normalize(gen),
     embed: normalize(emb),
+  };
+}
+
+export async function getAiDiagnostics(): Promise<{
+  embeddingCooldownSec: number;
+  chatSessions: number;
+  chatMessages: number;
+}> {
+  let chatSessions = 0;
+  let chatMessages = 0;
+  try {
+    const [s] = await db.select({ c: sql<number>`count(*)` }).from(aiChatSessions);
+    const [m] = await db.select({ c: sql<number>`count(*)` }).from(aiChatMessages);
+    chatSessions = Number(s?.c ?? 0);
+    chatMessages = Number(m?.c ?? 0);
+  } catch {
+    // keep diagnostics best effort
+  }
+  return {
+    embeddingCooldownSec: Math.max(0, Math.ceil((embeddingCooldownUntil - Date.now()) / 1000)),
+    chatSessions,
+    chatMessages,
   };
 }
 
@@ -389,11 +471,67 @@ async function callExternalRag(user: AuthUser, message: string): Promise<string 
   }
 }
 
-export async function memberChat(user: AuthUser, message: string): Promise<{ answer: string; source: 'rag' | 'gemini' | 'fallback' }> {
+async function buildMemberRealtimeContext(userId: string): Promise<string> {
+  const [subs, visits, logs] = await Promise.all([
+    getMySubscriptions(userId).catch(() => []),
+    listMyVisits(userId, 10).catch(() => []),
+    listMyWorkoutLogs(userId).catch(() => []),
+  ]);
+  const latestSub = subs[0] as any;
+  const visits7 = visits.filter((v: any) => {
+    const at = new Date(v?.checkInAt ?? 0).getTime();
+    return Number.isFinite(at) && Date.now() - at <= 7 * 24 * 60 * 60 * 1000;
+  }).length;
+  const workouts14 = logs.filter((w: any) => {
+    const at = new Date(w?.workoutDate ?? 0).getTime();
+    return Number.isFinite(at) && Date.now() - at <= 14 * 24 * 60 * 60 * 1000;
+  }).length;
+  const avgDuration = logs.length
+    ? Math.round(logs.reduce((s: number, l: any) => s + Number(l.durationMin ?? 0), 0) / logs.length)
+    : 0;
+  return [
+    `Subscription: ${latestSub ? `${latestSub.planName} (${latestSub.status})` : 'none'}`,
+    `Visits last 7 days: ${visits7}`,
+    `Workouts last 14 days: ${workouts14}`,
+    `Average workout duration: ${avgDuration} min`,
+  ].join('\n');
+}
+
+async function buildManagerTrendContext(userId: string): Promise<string> {
+  const [dashboard, attendanceReport, revenueReport, equipmentReport] = await Promise.all([
+    getDashboard('manager', userId),
+    getReportSummary({ type: 'attendance' }).catch(() => ({} as any)),
+    getReportSummary({ type: 'revenue' }).catch(() => ({} as any)),
+    getReportSummary({ type: 'equipment' }).catch(() => ({} as any)),
+  ]);
+  const daily = Array.isArray((attendanceReport as any).daily) ? (attendanceReport as any).daily : [];
+  const recent = daily.slice(-7);
+  const previous = daily.slice(-14, -7);
+  const recentAvg = recent.length ? recent.reduce((s: number, d: any) => s + Number(d.count ?? 0), 0) / recent.length : 0;
+  const previousAvg = previous.length ? previous.reduce((s: number, d: any) => s + Number(d.count ?? 0), 0) / previous.length : 0;
+  const attendanceDelta = previousAvg > 0 ? ((recentAvg - previousAvg) / previousAvg) * 100 : 0;
+  const trend = attendanceDelta > 5 ? 'improving' : attendanceDelta < -5 ? 'declining' : 'flat';
+  const methodTotals = Array.isArray((revenueReport as any).byMethod) ? (revenueReport as any).byMethod : [];
+  const openCriticalIncidents = Array.isArray((equipmentReport as any).bySeverity)
+    ? (equipmentReport as any).bySeverity.filter((x: any) => x.status === 'open' && (x.severity === 'high' || x.severity === 'critical')).reduce((s: number, x: any) => s + Number(x.count ?? 0), 0)
+    : 0;
+  return [
+    `KPI: activeMembers=${dashboard.activeMembers}, todayVisits=${dashboard.todayVisits}, monthlyRevenue=${dashboard.monthlyRevenue}, openIssues=${dashboard.openIssues}`,
+    `Attendance 7-day avg: ${recentAvg.toFixed(1)} vs prior week ${previousAvg.toFixed(1)} (${attendanceDelta.toFixed(1)}%) => trend=${trend}`,
+    `Payment mix rows: ${methodTotals.length}`,
+    `Open high/critical incidents: ${openCriticalIncidents}`,
+  ].join('\n');
+}
+
+export async function memberChat(user: AuthUser, message: string, sessionId?: string): Promise<{ answer: string; source: 'rag' | 'gemini' | 'fallback'; sessionId: string }> {
+  const resolvedSessionId = await ensureChatSession(user, 'member', sessionId);
+  await appendChatMessage(resolvedSessionId, user.id, 'user', message, 'system');
+  const history = await getRecentSessionMessages(resolvedSessionId, 12);
   const ragAnswer = await callExternalRag(user, message);
   if (ragAnswer) {
+    await appendChatMessage(resolvedSessionId, user.id, 'assistant', ragAnswer, 'rag');
     await logInteraction(user, { interactionType: 'chat', promptText: message, responseText: ragAnswer, source: 'rag', metadata: { route: 'external_rag' } });
-    return { answer: ragAnswer, source: 'rag' };
+    return { answer: ragAnswer, source: 'rag', sessionId: resolvedSessionId };
   }
 
   let contextBlocks: string[] = [];
@@ -405,7 +543,10 @@ export async function memberChat(user: AuthUser, message: string): Promise<{ ans
     }
   } catch {
     const local = await localRag(message);
-    if (local) return { answer: local, source: 'rag' };
+    if (local) {
+      await appendChatMessage(resolvedSessionId, user.id, 'assistant', local, 'rag');
+      return { answer: local, source: 'rag', sessionId: resolvedSessionId };
+    }
   }
 
   const systemPrompt = `
@@ -421,9 +562,15 @@ You are the Member AI assistant for PowerWorld Kiribathgoda.
     ? `RAG knowledge snippets:\n${contextBlocks.join('\n')}\n`
     : '';
 
+  const realtime = await buildMemberRealtimeContext(user.id);
+  const historyText = renderHistoryForPrompt(history.slice(0, -1));
   const userPrompt = `
 Member: ${user.fullName}
 Role: ${user.role}
+Realtime member context:
+${realtime}
+Recent conversation:
+${historyText || '- none'}
 Question: ${message}
 
 Using the branch context and RAG snippets above, answer in 1–3 short paragraphs or bullet points. Be concrete and practical.`;
@@ -432,6 +579,7 @@ Using the branch context and RAG snippets above, answer in 1–3 short paragraph
 
   try {
     const answer = await callGemini(prompt);
+    await appendChatMessage(resolvedSessionId, user.id, 'assistant', answer, 'gemini');
     await logInteraction(user, {
       interactionType: 'chat',
       promptText: message,
@@ -443,7 +591,7 @@ Using the branch context and RAG snippets above, answer in 1–3 short paragraph
         ragDocIds: retrieved.map((r) => r.doc.id),
       },
     });
-    return { answer, source: 'gemini' };
+    return { answer, source: 'gemini', sessionId: resolvedSessionId };
   } catch (err) {
     const parsed = parseGeminiHttpError(err);
     console.error('[ai] gemini memberChat failed', {
@@ -470,14 +618,19 @@ Using the branch context and RAG snippets above, answer in 1–3 short paragraph
         geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
       },
     });
+    await appendChatMessage(resolvedSessionId, user.id, 'assistant', fallbackText, 'fallback');
     return {
       source: 'fallback',
       answer: fallbackText,
+      sessionId: resolvedSessionId,
     };
   }
 }
 
-export async function managerChat(user: AuthUser, message: string): Promise<{ answer: string; source: 'rag' | 'gemini' | 'fallback' }> {
+export async function managerChat(user: AuthUser, message: string, sessionId?: string): Promise<{ answer: string; source: 'rag' | 'gemini' | 'fallback'; sessionId: string }> {
+  const resolvedSessionId = await ensureChatSession(user, 'manager', sessionId);
+  await appendChatMessage(resolvedSessionId, user.id, 'user', message, 'system');
+  const history = await getRecentSessionMessages(resolvedSessionId, 12);
   const [dashboard, report] = await Promise.all([
     getDashboard('manager', user.id),
     getReportSummary(),
@@ -515,6 +668,10 @@ ${kpis}
 
 RAG snippets:
 ${ragContext || '- None available'}
+Realtime trend context:
+${await buildManagerTrendContext(user.id)}
+Recent conversation:
+${renderHistoryForPrompt(history.slice(0, -1)) || '- none'}
 
 Manager question:
 ${message}
@@ -527,8 +684,9 @@ Return concise guidance with:
 
   try {
     const answer = await callGemini(prompt);
+    await appendChatMessage(resolvedSessionId, user.id, 'assistant', answer, 'gemini');
     await logInteraction(user, { interactionType: 'chat', promptText: message, responseText: answer, source: 'gemini', metadata: { route: 'manager_chat' } });
-    return { answer, source: 'gemini' };
+    return { answer, source: 'gemini', sessionId: resolvedSessionId };
   } catch (err) {
     const parsed = parseGeminiHttpError(err);
     console.error('[ai] gemini managerChat failed', {
@@ -541,15 +699,16 @@ Return concise guidance with:
       ? 'AI is temporarily rate-limited due to quota usage. Please retry in about a minute.'
       : `Current snapshot: ${dashboard.todayVisits} visits today, ${dashboard.openIssues} open issues, and Rs. ${dashboard.monthlyRevenue} monthly revenue. Prioritize unresolved incidents, monitor low-visit members nearing expiry, and balance trainer coverage during peak hours.`;
     await logInteraction(user, { interactionType: 'chat', promptText: message, responseText: fallbackText, source: 'fallback', metadata: { route: 'manager_chat' } });
-    return { answer: fallbackText, source: 'fallback' };
+    await appendChatMessage(resolvedSessionId, user.id, 'assistant', fallbackText, 'fallback');
+    return { answer: fallbackText, source: 'fallback', sessionId: resolvedSessionId };
   }
 }
 
-export async function chatForUser(user: AuthUser, message: string): Promise<{ answer: string; source: 'rag' | 'gemini' | 'fallback' }> {
+export async function chatForUser(user: AuthUser, message: string, sessionId?: string): Promise<{ answer: string; source: 'rag' | 'gemini' | 'fallback'; sessionId: string }> {
   if (user.role === 'manager' || user.role === 'admin') {
-    return managerChat(user, message);
+    return managerChat(user, message, sessionId);
   }
-  return memberChat(user, message);
+  return memberChat(user, message, sessionId);
 }
 
 export async function managerInsights(user: AuthUser, question?: string): Promise<{ summary: string; insights: string[]; generatedBy: 'gemini' | 'fallback' }> {
@@ -566,6 +725,7 @@ Monthly revenue: ${dashboard.monthlyRevenue}
 Visits last 30 days: ${(report as any).visitsInRange ?? (report as any).visitsLast30Days ?? 0}
 Open incidents: ${report.openEquipmentIncidents}
 `;
+  const trendFacts = await buildManagerTrendContext(user.id);
 
   let ragSnippet = '';
   try {
@@ -590,12 +750,15 @@ Use the numeric data snapshot and, where available, the RAG knowledge base as gr
 
 Data snapshot:
 ${baseFacts}
+Trend snapshot:
+${trendFacts}
 ${ragSnippet}
 Manager question: ${question ?? 'Provide the top operational insights and next actions.'}
 
 Return:
 1) One short summary sentence
 2) 3 bullet insights with actionable recommendations tailored to this single branch.
+3) Mention trend direction (improving/flat/declining) and any anomaly signal only if data supports it.
 `;
 
   try {

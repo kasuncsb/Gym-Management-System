@@ -313,6 +313,23 @@ export const opsAPI = {
     apiClient.get('/ops/workouts/logs/me').then(r => r.data.data as any[]),
   addWorkoutLog: (payload: { planId?: string; workoutDate: string; durationMin?: number; mood?: 'great' | 'good' | 'okay' | 'tired' | 'poor'; caloriesBurned?: number; notes?: string }) =>
     apiClient.post('/ops/workouts/logs', payload).then(r => r.data.data),
+  activeWorkoutSession: () =>
+    apiClient.get('/ops/workouts/sessions/active').then(r => r.data.data as any | null),
+  startWorkoutSession: (payload: { planId?: string; notes?: string }) =>
+    apiClient.post('/ops/workouts/sessions/start', payload).then(r => r.data.data),
+  addWorkoutSessionEvent: (sessionId: string, payload: {
+    eventType: 'paused' | 'resumed' | 'exercise_started' | 'set_completed' | 'exercise_completed' | 'simulated';
+    payload?: Record<string, unknown>;
+  }) =>
+    apiClient.post(`/ops/workouts/sessions/${sessionId}/events`, payload).then(r => r.data.data),
+  stopWorkoutSession: (sessionId: string, payload?: {
+    complete?: boolean;
+    durationMin?: number;
+    caloriesBurned?: number;
+    mood?: 'great' | 'good' | 'okay' | 'tired' | 'poor';
+    notes?: string;
+  }) =>
+    apiClient.post(`/ops/workouts/sessions/${sessionId}/stop`, payload ?? {}).then(r => r.data.data),
   myMetrics: () =>
     apiClient.get('/ops/metrics/me').then(r => r.data.data as any[]),
   memberMetrics: (memberId: string) =>
@@ -443,7 +460,7 @@ export const opsAPI = {
     apiClient.post('/ops/simulate/door/scan', payload).then(r => r.data.data),
   simulatePayment: (payload: { memberId: string; planId: string; paymentMethod?: 'cash' | 'card' | 'bank_transfer' | 'online' }) =>
     apiClient.post('/ops/simulate/payment', payload).then(r => r.data.data),
-  simulateWorkout: (payload: { memberId: string; durationMin?: number; caloriesBurned?: number; notes?: string }) =>
+  simulateWorkout: (payload: { memberId: string; durationMin?: number; caloriesBurned?: number; notes?: string; action?: 'simulate' | 'start' | 'stop' }) =>
     apiClient.post('/ops/simulate/workout', payload).then(r => r.data.data),
   simulateTrainerShift: (payload: { trainerId: string; action?: 'in' | 'out' }) =>
     apiClient.post('/ops/simulate/trainer-shift', payload).then(r => r.data.data),
@@ -471,7 +488,7 @@ export const opsAPI = {
     apiClient.post(`/ops/simulate/public/payment-requests/${id}/approve`).then(r => r.data.data),
   publicDeclinePaymentRequest: (id: string, reason?: string) =>
     apiClient.post(`/ops/simulate/public/payment-requests/${id}/decline`, { reason }).then(r => r.data.data),
-  publicSimulateWorkout: (payload: { memberId: string; durationMin?: number; caloriesBurned?: number; notes?: string }) =>
+  publicSimulateWorkout: (payload: { memberId: string; durationMin?: number; caloriesBurned?: number; notes?: string; action?: 'simulate' | 'start' | 'stop' }) =>
     apiClient.post('/ops/simulate/public/workout', payload).then(r => r.data.data),
   publicSimulateTrainerShift: (payload: { trainerId: string; action?: 'in' | 'out' }) =>
     apiClient.post('/ops/simulate/public/trainer-shift', payload).then(r => r.data.data),
@@ -486,7 +503,7 @@ export const opsAPI = {
 // ── AI API ────────────────────────────────────────────────────────────────────
 export const aiAPI = {
   health: () => apiClient.get('/ai/health').then(r => r.data.data),
-  chat: (message: string) => apiClient.post('/ai/chat', { message }).then(r => r.data.data as { answer: string; source: 'rag' | 'gemini' | 'fallback' }),
+  chat: (message: string, sessionId?: string) => apiClient.post('/ai/chat', { message, sessionId }).then(r => r.data.data as { answer: string; source: 'rag' | 'gemini' | 'fallback'; sessionId: string }),
   insights: (question?: string) => apiClient.post('/ai/insights', { question }).then(r => r.data.data as { summary: string; insights: string[]; generatedBy: 'gemini' | 'fallback' }),
   workoutPlan: (memberId?: string) => apiClient.post('/ai/workout-plan', memberId ? { memberId } : {}).then(r => r.data.data as { id?: string | null; name?: string | null; source?: string | null }),
 };

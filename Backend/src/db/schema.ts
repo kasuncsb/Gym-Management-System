@@ -399,6 +399,68 @@ export const aiInteractions = mysqlTable('ai_interactions', {
 });
 
 // ============================================================================
+// AI_CHAT_SESSIONS / AI_CHAT_MESSAGES (persistent multi-turn memory)
+// ============================================================================
+export const aiChatSessions = mysqlTable('ai_chat_sessions', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  role: mysqlEnum('role', ['member', 'manager']).notNull(),
+  title: varchar('title', { length: 140 }),
+  lastMessageAt: timestamp('last_message_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
+}, (t) => ({
+  userRoleIdx: index('idx_ai_chat_sessions_user_role').on(t.userId, t.role),
+  lastMessageIdx: index('idx_ai_chat_sessions_last_message').on(t.lastMessageAt),
+}));
+
+export const aiChatMessages = mysqlTable('ai_chat_messages', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  sessionId: varchar('session_id', { length: 36 }).notNull(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  role: mysqlEnum('role', ['user', 'assistant']).notNull(),
+  source: mysqlEnum('source', ['rag', 'gemini', 'fallback', 'system']).notNull().default('system'),
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (t) => ({
+  sessionCreatedIdx: index('idx_ai_chat_messages_session_created').on(t.sessionId, t.createdAt),
+  userCreatedIdx: index('idx_ai_chat_messages_user_created').on(t.userId, t.createdAt),
+}));
+
+// ============================================================================
+// WORKOUT_SESSIONS / WORKOUT_SESSION_EVENTS (execution lifecycle)
+// ============================================================================
+export const workoutSessions = mysqlTable('workout_sessions', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  personId: varchar('person_id', { length: 36 }).notNull(),
+  planId: varchar('plan_id', { length: 36 }),
+  status: mysqlEnum('status', ['active', 'paused', 'completed', 'stopped']).notNull().default('active'),
+  startedAt: timestamp('started_at').notNull().defaultNow(),
+  endedAt: timestamp('ended_at'),
+  durationMin: smallint('duration_min'),
+  caloriesBurned: smallint('calories_burned'),
+  mood: mysqlEnum('mood', ['great', 'good', 'okay', 'tired', 'poor']),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
+}, (t) => ({
+  personStatusIdx: index('idx_workout_sessions_person_status').on(t.personId, t.status),
+  startedIdx: index('idx_workout_sessions_started').on(t.startedAt),
+}));
+
+export const workoutSessionEvents = mysqlTable('workout_session_events', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  sessionId: varchar('session_id', { length: 36 }).notNull(),
+  personId: varchar('person_id', { length: 36 }).notNull(),
+  eventType: mysqlEnum('event_type', ['started', 'paused', 'resumed', 'exercise_started', 'set_completed', 'exercise_completed', 'stopped', 'completed', 'simulated']).notNull(),
+  payloadJson: text('payload_json'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (t) => ({
+  sessionIdx: index('idx_workout_session_events_session').on(t.sessionId, t.createdAt),
+  personIdx: index('idx_workout_session_events_person').on(t.personId, t.createdAt),
+}));
+
+// ============================================================================
 // BRANCH_CLOSURES
 // ============================================================================
 export const branchClosures = mysqlTable('branch_closures', {
@@ -527,8 +589,12 @@ export type EquipmentEvent = typeof equipmentEvents.$inferSelect;
 export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type AiInteraction = typeof aiInteractions.$inferSelect;
+export type AiChatSession = typeof aiChatSessions.$inferSelect;
+export type AiChatMessage = typeof aiChatMessages.$inferSelect;
 export type Exercise = typeof exercises.$inferSelect;
 export type WorkoutPlanExercise = typeof workoutPlanExercises.$inferSelect;
+export type WorkoutSession = typeof workoutSessions.$inferSelect;
+export type WorkoutSessionEvent = typeof workoutSessionEvents.$inferSelect;
 export type Shift = typeof shifts.$inferSelect;
 export type TrainerCertification = typeof trainerCertifications.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
