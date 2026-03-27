@@ -37,6 +37,7 @@ services:
       OCI_REGION:           ${OCI_REGION}
       GEMINI_API_KEY:       ${GEMINI_API_KEY}
       GEMINI_MODEL:         ${GEMINI_MODEL}
+      GEMINI_EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL}
       RAG_SERVICE_URL:      ${RAG_SERVICE_URL:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"

@@ -11,7 +11,14 @@ function requireUser(req: AuthRequest) {
 }
 
 export const health = asyncHandler(async (_req: AuthRequest, res: Response) => {
-  res.json(response.success({ status: 'ok', ai: true }));
+  res.json(response.success({
+    status: 'ok',
+    ai: true,
+    geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+    geminiModel: process.env.GEMINI_MODEL ?? 'gemini-2.5-flash',
+    geminiEmbeddingModel: process.env.GEMINI_EMBEDDING_MODEL ?? 'gemini-embedding-001',
+    ragServiceConfigured: Boolean(process.env.RAG_SERVICE_URL),
+  }));
 });
 
 export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {

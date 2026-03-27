@@ -37,8 +37,10 @@ type ScoredDoc = { doc: TrainingDoc; score: number };
 let trainingCache: TrainingDoc[] | null = null;
 let embeddingCache: { docId: string; vector: number[] }[] | null = null;
 
-const GEMINI_MODEL_DEFAULT = 'gemini-2.0-flash';
-const GEMINI_EMBEDDING_MODEL = 'text-embedding-004';
+// Note (2026): gemini-2.0-flash is being deprecated; prefer 2.5 flash as default.
+const GEMINI_MODEL_DEFAULT = 'gemini-2.5-flash';
+// Note (2026): text-embedding-004 is being deprecated; prefer gemini-embedding-001.
+const GEMINI_EMBEDDING_MODEL_DEFAULT = 'gemini-embedding-001';
 type UserRole = 'admin' | 'manager' | 'trainer' | 'member';
 
 async function loadTrainingDocs(): Promise<TrainingDoc[]> {
@@ -124,12 +126,15 @@ async function callGemini(prompt: string): Promise<string> {
 async function embedText(text: string): Promise<number[]> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured for embeddings');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_EMBEDDING_MODEL}:embedContent?key=${encodeURIComponent(apiKey)}`;
+  const embeddingModel = process.env.GEMINI_EMBEDDING_MODEL ?? GEMINI_EMBEDDING_MODEL_DEFAULT;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${embeddingModel}:embedContent?key=${encodeURIComponent(apiKey)}`;
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       content: { parts: [{ text }] },
+      // Retrieval-focused vectors behave better for RAG ranking.
+      taskType: 'RETRIEVAL_DOCUMENT',
     }),
   });
   if (!resp.ok) {
@@ -161,11 +166,17 @@ function cosineSimilarity(a: number[], b: number[]): number {
 async function ensureEmbeddings(): Promise<{ docs: TrainingDoc[]; vectors: { docId: string; vector: number[] }[] }> {
   const docs = await loadTrainingDocs();
   if (!docs.length) return { docs, vectors: [] };
-  if (embeddingCache && embeddingCache.length >= docs.length) {
-    return { docs, vectors: embeddingCache };
-  }
+  const existing = new Map<string, number[]>();
+  for (const e of embeddingCache ?? []) existing.set(e.docId, e.vector);
+
+  // Only compute missing embeddings; don't require a "perfect" cache to reuse.
   const vectors: { docId: string; vector: number[] }[] = [];
   for (const doc of docs) {
+    const cached = existing.get(doc.id);
+    if (cached && cached.length) {
+      vectors.push({ docId: doc.id, vector: cached });
+      continue;
+    }
     try {
       const basis = [
         doc.content,
@@ -332,14 +343,21 @@ Using the branch context and RAG snippets above, answer in 1–3 short paragraph
       },
     });
     return { answer, source: 'gemini' };
-  } catch {
+  } catch (err) {
+    console.error('[ai] gemini memberChat failed:', err);
     const fallbackText = 'I can help with workouts, subscription guidance, appointments, and gym usage. For now, AI service is in fallback mode. Please ask a practical gym question and I will provide a structured recommendation.';
     await logInteraction(user, {
       interactionType: 'chat',
       promptText: message,
       responseText: fallbackText,
       source: 'fallback',
-      metadata: { route: 'member_chat', ragDocIds: retrieved.map((r) => r.doc.id) },
+      metadata: {
+        route: 'member_chat',
+        ragDocIds: retrieved.map((r) => r.doc.id),
+        geminiError: err instanceof Error ? err.message : String(err),
+        geminiModel: process.env.GEMINI_MODEL ?? GEMINI_MODEL_DEFAULT,
+        geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+      },
     });
     return {
       source: 'fallback',
@@ -400,7 +418,8 @@ Return concise guidance with:
     const answer = await callGemini(prompt);
     await logInteraction(user, { interactionType: 'chat', promptText: message, responseText: answer, source: 'gemini', metadata: { route: 'manager_chat' } });
     return { answer, source: 'gemini' };
-  } catch {
+  } catch (err) {
+    console.error('[ai] gemini managerChat failed:', err);
     const fallbackText = `Current snapshot: ${dashboard.todayVisits} visits today, ${dashboard.openIssues} open issues, and Rs. ${dashboard.monthlyRevenue} monthly revenue. Prioritize unresolved incidents, monitor low-visit members nearing expiry, and balance trainer coverage during peak hours.`;
     await logInteraction(user, { interactionType: 'chat', promptText: message, responseText: fallbackText, source: 'fallback', metadata: { route: 'manager_chat' } });
     return { answer: fallbackText, source: 'fallback' };
@@ -475,7 +494,8 @@ Return:
       summary: lines[0] ?? 'Insights generated.',
       insights: lines.slice(1, 4),
     };
-  } catch {
+  } catch (err) {
+    console.error('[ai] gemini insights failed:', err);
     const fallbackSummary = `Today there are ${dashboard.todayVisits} visits with ${dashboard.openIssues} open operational issues.`;
     await logInteraction(user, {
       interactionType: 'insight',
