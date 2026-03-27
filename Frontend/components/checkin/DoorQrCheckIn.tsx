@@ -1,7 +1,7 @@
 'use client';
 
 import axios from 'axios';
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useId, useMemo, useRef, useState } from 'react';
 import { Camera, CheckCircle2, LogOut, Users } from 'lucide-react';
 import { PageHeader, Card, LoadingButton } from '@/components/ui/SharedComponents';
 import { useAuth } from '@/context/AuthContext';
@@ -72,6 +72,9 @@ export function DoorQrCheckIn({
     const [scanHint, setScanHint] = useState<string | null>(null);
     const scanStartedAtRef = useRef<number | null>(null);
     const scanHintShownRef = useRef(false);
+    const guideStyle = useMemo(() => {
+        return { width: '72%', maxWidth: 360, aspectRatio: '1 / 1' as any };
+    }, []);
 
     const reload = useCallback(async () => {
         if (!mountedRef.current) return;
@@ -313,9 +316,9 @@ export function DoorQrCheckIn({
                 </div>
 
                 <div
-                    className={`relative min-h-[280px] rounded-2xl border-2 border-dashed overflow-hidden bg-black/40 ${
-                        cameraOn ? 'border-red-500/50' : 'border-zinc-700'
-                    }`}
+                    className={`relative rounded-2xl border overflow-hidden bg-zinc-950/60 ${
+                        cameraOn ? 'border-red-500/40' : 'border-zinc-800'
+                    } aspect-square`}
                 >
                     <video
                         key={scanKey}
@@ -334,11 +337,19 @@ export function DoorQrCheckIn({
                     )}
                     {cameraOn && (
                         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                            <div className="relative w-[72%] max-w-[320px] aspect-square border border-white/30 rounded-2xl">
-                                <div className="absolute -top-0.5 -left-0.5 w-7 h-7 border-l-2 border-t-2 border-emerald-300/90 rounded-tl-md" />
-                                <div className="absolute -top-0.5 -right-0.5 w-7 h-7 border-r-2 border-t-2 border-emerald-300/90 rounded-tr-md" />
-                                <div className="absolute -bottom-0.5 -left-0.5 w-7 h-7 border-l-2 border-b-2 border-emerald-300/90 rounded-bl-md" />
-                                <div className="absolute -bottom-0.5 -right-0.5 w-7 h-7 border-r-2 border-b-2 border-emerald-300/90 rounded-br-md" />
+                            <div
+                                className="relative rounded-2xl border border-zinc-200/20 shadow-[0_0_0_9999px_rgba(0,0,0,0.25)]"
+                                style={guideStyle}
+                            >
+                                <div className="absolute -top-0.5 -left-0.5 w-7 h-7 border-l-2 border-t-2 border-red-300/90 rounded-tl-md" />
+                                <div className="absolute -top-0.5 -right-0.5 w-7 h-7 border-r-2 border-t-2 border-red-300/90 rounded-tr-md" />
+                                <div className="absolute -bottom-0.5 -left-0.5 w-7 h-7 border-l-2 border-b-2 border-red-300/90 rounded-bl-md" />
+                                <div className="absolute -bottom-0.5 -right-0.5 w-7 h-7 border-r-2 border-b-2 border-red-300/90 rounded-br-md" />
+                                <div className="absolute inset-x-0 -bottom-8 flex justify-center">
+                                    <span className="text-[11px] text-zinc-300 bg-zinc-900/70 border border-zinc-700 rounded-full px-2 py-1">
+                                        Keep QR inside the frame
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     )}
