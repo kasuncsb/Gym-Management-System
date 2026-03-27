@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { and, desc, eq, isNull, lt, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../config/database.js';
 import {
   config,
@@ -10,11 +10,9 @@ import {
   subscriptions,
   subscriptionFreezes,
   payments,
-  paymentSessions,
   visits,
   ptSessions,
   workoutPlans,
-  workoutLogs,
   workoutSessions,
   workoutSessionEvents,
   memberMetrics,
@@ -27,7 +25,6 @@ import {
   exercises,
   workoutPlanExercises,
   shifts,
-  trainerCertifications,
   invoiceRecords,
 } from '../db/schema.js';
 import { ids } from '../utils/id.js';
@@ -132,6 +129,12 @@ async function settleSubscriptionPurchase(
   },
 ) {
   await assertMemberCanPurchaseSubscription(userId);
+  if (input.paymentMethod === 'card') {
+    const digits = String(input.cardPan ?? '').replace(/\D/g, '');
+    if (digits.length < 13 || digits.length > 19) {
+      throw errors.badRequest('Valid card number is required');
+    }
+  }
   const [plan] = await db
     .select()
     .from(subscriptionPlans)
@@ -141,8 +144,16 @@ async function settleSubscriptionPurchase(
   let discountAmount = 0;
   let promotionId: string | null = null;
   if (input.promotionCode?.trim()) {
-    const [promo] = await db.select().from(promotions).where(and(eq(promotions.code, input.promotionCode.trim()), eq(promotions.isActive, true)));
+    const promoCode = input.promotionCode.trim().toUpperCase();
+    const [promo] = await db.select().from(promotions).where(and(eq(promotions.code, promoCode), eq(promotions.isActive, true)));
     if (promo) {
+      const today = dateOnlyIso(new Date());
+      if (dateOnlyIso(new Date(promo.validFrom)) > today) {
+        throw errors.badRequest('Promotion is not active yet');
+      }
+      if (promo.validUntil && dateOnlyIso(new Date(promo.validUntil)) < today) {
+        throw errors.badRequest('Promotion has expired');
+      }
       promotionId = promo.id;
       const planPrice = Number(plan.price);
       discountAmount = promo.discountType === 'percentage'
@@ -195,15 +206,6 @@ async function settleSubscriptionPurchase(
     joinDate: sql`coalesce(${users.joinDate}, curdate())`,
   }).where(eq(users.id, userId));
 
-  if (input.sessionId) {
-    await db.update(paymentSessions).set({
-      status: 'approved',
-      approvedSubscriptionId: subscriptionId,
-      approvedPaymentId: paymentId,
-      decisionPayload: JSON.stringify({ approvedAt: new Date().toISOString() }),
-    }).where(eq(paymentSessions.id, input.sessionId));
-  }
-
   const [u] = await db.select({ fullName: users.fullName, email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
   await audit.appendAudit({
     actorId: userId,
@@ -246,7 +248,13 @@ export async function getDashboard(role: Role, userId: string) {
 
   if (role === 'member') {
     const [myVisitCount] = await db.select({ count: sql<number>`count(*)` }).from(visits).where(eq(visits.personId, userId));
-    const [myWorkouts] = await db.select({ count: sql<number>`count(*)` }).from(workoutLogs).where(eq(workoutLogs.personId, userId));
+    const [myWorkouts] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(workoutSessions)
+      .where(and(
+        eq(workoutSessions.personId, userId),
+        sql`${workoutSessions.status} in ('completed','stopped')`,
+      ));
     return { ...base, myVisits: Number(myVisitCount?.count ?? 0), myWorkouts: Number(myWorkouts?.count ?? 0) };
   }
 
@@ -517,130 +525,28 @@ export async function purchaseSubscription(
   return result.subscription;
 }
 
-export async function expireStaleSessions() {
-  await db.update(paymentSessions).set({ status: 'expired' }).where(
-    and(eq(paymentSessions.status, 'pending'), lt(paymentSessions.expiresAt, new Date())),
-  );
-}
-
-export async function createPaymentSession(
-  memberId: string,
-  input: { planId: string; promotionCode?: string; paymentMethod?: 'card' | 'online' | 'bank_transfer' | 'cash'; cardPan?: string; cardHolder?: string; ttlSec?: number },
-) {
-  await expireStaleSessions();
-  const [existing] = await db.select().from(paymentSessions).where(and(eq(paymentSessions.memberId, memberId), eq(paymentSessions.planId, input.planId), eq(paymentSessions.status, 'pending'))).orderBy(desc(paymentSessions.createdAt)).limit(1);
-  if (existing) return existing;
-  const [plan] = await db.select().from(subscriptionPlans).where(and(eq(subscriptionPlans.id, input.planId), eq(subscriptionPlans.isActive, true), isNull(subscriptionPlans.deletedAt))).limit(1);
-  if (!plan) throw errors.notFound('Subscription plan');
-  const amount = Number(plan.price);
-  const ttlSec = Math.max(30, Math.min(600, Number(input.ttlSec ?? 180)));
-  const id = ids.uuid();
-  const expiresAt = new Date(Date.now() + ttlSec * 1000);
-  const requestPayload = JSON.stringify({
-    paymentMethod: input.paymentMethod ?? 'card',
-    cardHolder: input.cardHolder ?? null,
-    cardPanMasked: input.cardPan ? `**** **** **** ${input.cardPan.replace(/\D/g, '').slice(-4)}` : null,
-  });
-  await db.insert(paymentSessions).values({
-    id,
-    memberId,
-    planId: input.planId,
-    promotionCode: input.promotionCode ?? null,
-    amount: String(amount),
-    status: 'pending',
-    providerRef: `SIM-PROC-${Date.now()}`,
-    requestPayload,
-    expiresAt,
-  });
-  await audit.appendAudit({
-    actorId: memberId,
-    action: 'session_created',
-    category: 'payment',
-    entityType: 'payment_session',
-    entityId: id,
-    detail: `plan=${input.planId}`,
-  });
-  const [session] = await db.select().from(paymentSessions).where(eq(paymentSessions.id, id)).limit(1);
-  return session!;
-}
-
-export async function listPendingPaymentSessions() {
-  await expireStaleSessions();
-  return db.select({
-    id: paymentSessions.id,
-    memberId: paymentSessions.memberId,
-    memberName: users.fullName,
-    planId: paymentSessions.planId,
-    planName: subscriptionPlans.name,
-    amount: paymentSessions.amount,
-    status: paymentSessions.status,
-    providerRef: paymentSessions.providerRef,
-    expiresAt: paymentSessions.expiresAt,
-    createdAt: paymentSessions.createdAt,
-  })
-    .from(paymentSessions)
-    .leftJoin(users, eq(users.id, paymentSessions.memberId))
-    .leftJoin(subscriptionPlans, eq(subscriptionPlans.id, paymentSessions.planId))
-    .where(eq(paymentSessions.status, 'pending'))
-    .orderBy(paymentSessions.createdAt);
-}
-
-export async function getPaymentSessionById(sessionId: string, memberId?: string) {
-  await expireStaleSessions();
-  const conditions = memberId ? and(eq(paymentSessions.id, sessionId), eq(paymentSessions.memberId, memberId)) : eq(paymentSessions.id, sessionId);
-  const [session] = await db.select().from(paymentSessions).where(conditions).limit(1);
-  if (!session) throw errors.notFound('Payment session');
-  return session;
-}
-
-export async function setPaymentSessionProcessing(sessionId: string) {
-  const [session] = await db.select().from(paymentSessions).where(eq(paymentSessions.id, sessionId)).limit(1);
-  if (!session) throw errors.notFound('Payment session');
-  if (session.status !== 'pending') return session;
-  await db.update(paymentSessions).set({ status: 'processing' }).where(eq(paymentSessions.id, sessionId));
-  await audit.appendAudit({ actorId: session.memberId, action: 'session_processing', category: 'payment', entityType: 'payment_session', entityId: session.id });
-  const [updated] = await db.select().from(paymentSessions).where(eq(paymentSessions.id, sessionId)).limit(1);
-  return updated!;
-}
-
-export async function approvePaymentSession(sessionId: string) {
-  const [session] = await db.select().from(paymentSessions).where(eq(paymentSessions.id, sessionId)).limit(1);
-  if (!session) throw errors.notFound('Payment session');
-  if (session.status === 'approved' && session.approvedSubscriptionId) {
-    const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.id, session.approvedSubscriptionId)).limit(1);
-    return { subscription: sub ?? null, reused: true };
-  }
-  if (session.status === 'declined' || session.status === 'expired') throw errors.conflict(`Session is ${session.status}`);
-  await setPaymentSessionProcessing(sessionId);
-  const payload = session.requestPayload ? (JSON.parse(session.requestPayload) as any) : {};
-  const result = await settleSubscriptionPurchase(session.memberId, {
-    planId: session.planId,
-    promotionCode: session.promotionCode ?? undefined,
-    paymentMethod: (payload.paymentMethod ?? 'card') as any,
-    cardPan: undefined,
-    sessionId: session.id,
-  });
-  return { subscription: result.subscription, invoice: result.invoice, reused: false };
-}
-
-export async function declinePaymentSession(sessionId: string, reason?: string) {
-  const [session] = await db.select().from(paymentSessions).where(eq(paymentSessions.id, sessionId)).limit(1);
-  if (!session) throw errors.notFound('Payment session');
-  if (session.status === 'approved') throw errors.conflict('Approved session cannot be declined');
-  await db.update(paymentSessions).set({
-    status: 'declined',
-    decisionPayload: JSON.stringify({ reason: reason ?? 'declined by processor', declinedAt: new Date().toISOString() }),
-  }).where(eq(paymentSessions.id, sessionId));
-  await audit.appendAudit({
-    actorId: session.memberId,
-    action: 'session_declined',
-    category: 'payment',
-    entityType: 'payment_session',
-    entityId: session.id,
-    detail: reason ?? 'declined',
-  });
-  const [updated] = await db.select().from(paymentSessions).where(eq(paymentSessions.id, sessionId)).limit(1);
-  return updated!;
+export async function listRecentSettledPayments(limit = 20) {
+  const capped = Math.max(1, Math.min(200, Math.round(limit)));
+  return db
+    .select({
+      id: payments.id,
+      amount: payments.amount,
+      status: payments.status,
+      paymentMethod: payments.paymentMethod,
+      paymentDate: payments.paymentDate,
+      receiptNumber: payments.receiptNumber,
+      createdAt: payments.createdAt,
+      memberId: subscriptions.memberId,
+      memberName: users.fullName,
+      planId: subscriptions.planId,
+      planName: subscriptionPlans.name,
+    })
+    .from(payments)
+    .leftJoin(subscriptions, eq(subscriptions.id, payments.subscriptionId))
+    .leftJoin(users, eq(users.id, subscriptions.memberId))
+    .leftJoin(subscriptionPlans, eq(subscriptionPlans.id, subscriptions.planId))
+    .orderBy(desc(payments.createdAt))
+    .limit(capped);
 }
 
 export async function getPaymentInvoiceHtml(paymentId: string, memberId: string) {
@@ -653,6 +559,11 @@ export async function requestFreeze(
   userId: string,
   input: { subscriptionId?: string; freezeStart: string; freezeEnd: string; reason?: string },
 ) {
+  const freezeStartDate = safeDate(input.freezeStart);
+  const freezeEndDate = safeDate(input.freezeEnd);
+  if (freezeEndDate < freezeStartDate) {
+    throw errors.badRequest('freezeEnd must be on or after freezeStart');
+  }
   const [activeSub] = input.subscriptionId
     ? await db.select().from(subscriptions).where(and(eq(subscriptions.id, input.subscriptionId), eq(subscriptions.memberId, userId)))
     : await db.select().from(subscriptions).where(and(eq(subscriptions.memberId, userId), eq(subscriptions.status, 'active'))).orderBy(desc(subscriptions.createdAt)).limit(1);
@@ -663,8 +574,8 @@ export async function requestFreeze(
   await db.insert(subscriptionFreezes).values({
     id: freezeId,
     subscriptionId: activeSub.id,
-    freezeStart: safeDate(input.freezeStart),
-    freezeEnd: safeDate(input.freezeEnd),
+    freezeStart: freezeStartDate,
+    freezeEnd: freezeEndDate,
     reason: input.reason ?? null,
     requestedBy: userId,
   });
@@ -1070,29 +981,56 @@ export async function getMemberWorkoutPlans(memberId: string) {
 
 export async function listMyWorkoutLogs(userId: string) {
   return db
-    .select()
-    .from(workoutLogs)
-    .where(eq(workoutLogs.personId, userId))
-    .orderBy(desc(workoutLogs.workoutDate), desc(workoutLogs.createdAt));
+    .select({
+      id: workoutSessions.id,
+      personId: workoutSessions.personId,
+      planId: workoutSessions.planId,
+      workoutDate: workoutSessions.endedAt,
+      durationMin: workoutSessions.durationMin,
+      mood: workoutSessions.mood,
+      caloriesBurned: workoutSessions.caloriesBurned,
+      notes: workoutSessions.notes,
+      createdAt: workoutSessions.createdAt,
+      status: workoutSessions.status,
+    })
+    .from(workoutSessions)
+    .where(and(
+      eq(workoutSessions.personId, userId),
+      sql`${workoutSessions.status} in ('completed','stopped')`,
+      sql`${workoutSessions.endedAt} is not null`,
+    ))
+    .orderBy(desc(workoutSessions.endedAt), desc(workoutSessions.createdAt));
 }
 
 export async function addWorkoutLog(
   userId: string,
   input: { planId?: string; workoutDate: string; durationMin?: number; mood?: 'great' | 'good' | 'okay' | 'tired' | 'poor'; caloriesBurned?: number; notes?: string },
 ) {
-  const id = ids.uuid();
-  await db.insert(workoutLogs).values({
-    id,
-    personId: userId,
-    planId: input.planId ?? null,
-    workoutDate: safeDate(input.workoutDate),
-    durationMin: input.durationMin ?? null,
-    mood: input.mood ?? null,
-    caloriesBurned: input.caloriesBurned ?? null,
-    notes: input.notes ?? null,
+  const active = await getActiveWorkoutSession(userId);
+  const session = active ?? await startWorkoutSession(userId, {
+    planId: input.planId,
+    notes: input.notes ?? 'Manual workout entry',
   });
-  const [row] = await db.select().from(workoutLogs).where(eq(workoutLogs.id, id));
-  return row;
+
+  if (input.workoutDate) {
+    await addWorkoutSessionEvent(userId, session.id, {
+      eventType: 'simulated',
+      payload: { source: 'manual_log', workoutDate: input.workoutDate },
+    });
+  }
+
+  await stopWorkoutSession(userId, session.id, {
+    complete: true,
+    durationMin: input.durationMin,
+    caloriesBurned: input.caloriesBurned,
+    mood: input.mood,
+    notes: input.notes ?? 'Manual workout entry',
+  });
+
+  const [latest] = await db.select().from(workoutSessions)
+    .where(and(eq(workoutSessions.id, session.id), eq(workoutSessions.personId, userId)))
+    .limit(1);
+  return latest ?? null;
 }
 
 export async function getActiveWorkoutSession(userId: string) {
@@ -1131,13 +1069,16 @@ export async function startWorkoutSession(userId: string, input: { planId?: stri
 export async function addWorkoutSessionEvent(userId: string, sessionId: string, input: {
   eventType: 'paused' | 'resumed' | 'exercise_started' | 'set_completed' | 'exercise_completed' | 'simulated';
   payload?: Record<string, unknown>;
-}) {
-  const [session] = await db.select().from(workoutSessions).where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.personId, userId))).limit(1);
+}, actorRole: Role = 'member') {
+  const [session] = actorRole === 'member'
+    ? await db.select().from(workoutSessions).where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.personId, userId))).limit(1)
+    : await db.select().from(workoutSessions).where(eq(workoutSessions.id, sessionId)).limit(1);
   if (!session) throw errors.notFound('Workout session');
+  const eventActorId = actorRole === 'member' ? userId : session.personId;
   await db.insert(workoutSessionEvents).values({
     id: ids.uuid(),
     sessionId,
-    personId: userId,
+    personId: eventActorId,
     eventType: input.eventType,
     payloadJson: input.payload ? JSON.stringify(input.payload) : null,
   });
@@ -1154,8 +1095,11 @@ export async function stopWorkoutSession(
   userId: string,
   sessionId: string,
   input: { complete?: boolean; durationMin?: number; caloriesBurned?: number; mood?: 'great' | 'good' | 'okay' | 'tired' | 'poor'; notes?: string },
+  actorRole: Role = 'member',
 ) {
-  const [session] = await db.select().from(workoutSessions).where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.personId, userId))).limit(1);
+  const [session] = actorRole === 'member'
+    ? await db.select().from(workoutSessions).where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.personId, userId))).limit(1)
+    : await db.select().from(workoutSessions).where(eq(workoutSessions.id, sessionId)).limit(1);
   if (!session) throw errors.notFound('Workout session');
   if (session.status === 'completed' || session.status === 'stopped') return session;
   const endedAt = new Date();
@@ -1174,20 +1118,9 @@ export async function stopWorkoutSession(
   await db.insert(workoutSessionEvents).values({
     id: ids.uuid(),
     sessionId,
-    personId: userId,
+    personId: session.personId,
     eventType: input.complete ? 'completed' : 'stopped',
     payloadJson: JSON.stringify({ durationMin }),
-  });
-  const logId = ids.uuid();
-  await db.insert(workoutLogs).values({
-    id: logId,
-    personId: userId,
-    planId: session.planId ?? null,
-    workoutDate: endedAt,
-    durationMin,
-    mood: input.mood ?? null,
-    caloriesBurned: input.caloriesBurned ?? null,
-    notes: input.notes ?? 'Recorded from workout session',
   });
   const [updated] = await db.select().from(workoutSessions).where(eq(workoutSessions.id, sessionId)).limit(1);
   return updated!;
@@ -2244,6 +2177,11 @@ export async function createUser(
   const memberCode = input.role === 'member' ? ids.memberCode() : null;
   const employeeCode = input.role === 'trainer' ? `EMP-${Date.now().toString().slice(-6)}` : null;
 
+  const primaryCertName = input.role === 'trainer' ? (input.certification?.name?.trim() || null) : null;
+  const primaryCertIssuingBody = input.role === 'trainer' ? (input.certification?.issuingBody?.trim() || null) : null;
+  const primaryCertIssuedYear = input.role === 'trainer' ? input.certification?.issuedYear ?? null : null;
+  const primaryCertExpiryDate = input.role === 'trainer' && input.certification?.expiryDate ? safeDate(input.certification.expiryDate) : null;
+
   await db.insert(users).values({
     id,
     fullName: input.fullName,
@@ -2266,6 +2204,11 @@ export async function createUser(
     specialization: input.role === 'trainer' ? (input.specialization ?? null) : null,
     ptHourlyRate: input.role === 'trainer' && input.ptHourlyRate != null ? String(input.ptHourlyRate) : null,
     yearsExperience: input.role === 'trainer' ? (input.yearsExperience ?? null) : null,
+
+    primaryCertName,
+    primaryCertIssuingBody,
+    primaryCertIssuedYear: primaryCertIssuedYear == null ? null : primaryCertIssuedYear,
+    primaryCertExpiryDate,
   });
 
   if (input.role === 'member') {
@@ -2281,16 +2224,7 @@ export async function createUser(
     });
   }
 
-  if (input.role === 'trainer' && input.certification?.name?.trim()) {
-    await db.insert(trainerCertifications).values({
-      id: ids.uuid(),
-      trainerId: id,
-      name: input.certification.name.trim(),
-      issuingBody: input.certification.issuingBody ?? null,
-      issuedYear: input.certification.issuedYear ?? null,
-      expiryDate: input.certification.expiryDate ? safeDate(input.certification.expiryDate) : null,
-    });
-  }
+  // Note: trainer certification is persisted as 1:1 primary-cert columns on `users`.
 
   const [row] = await db.select().from(users).where(eq(users.id, id));
   if (actor) {
@@ -2384,6 +2318,7 @@ export async function simulateDoorScan(input: { token: string; code: string; per
   if (!otp) throw errors.badRequest('Invalid simulation token');
   if (Date.now() > otp.expiresAt) throw errors.badRequest('OTP expired');
   if (otp.code !== input.code) throw errors.badRequest('Invalid OTP code');
+  simulateDoorOtpStore.delete(input.token);
 
   const [activeVisit] = await db.select().from(visits).where(and(eq(visits.personId, input.personId), eq(visits.status, 'active'))).limit(1);
   if (activeVisit) {
@@ -2403,6 +2338,7 @@ export async function doorScanAccess(userId: string, token: string, code: string
   if (!otp) throw errors.badRequest('Invalid door code');
   if (Date.now() > otp.expiresAt) throw errors.badRequest('Door code expired');
   if (otp.code !== c) throw errors.badRequest('Invalid door code');
+  simulateDoorOtpStore.delete(t);
 
   const [activeVisit] = await db.select().from(visits).where(and(eq(visits.personId, userId), eq(visits.status, 'active'))).limit(1);
   if (activeVisit) {
@@ -2419,13 +2355,12 @@ export async function simulatePayment(input: {
   paymentMethod?: 'cash' | 'card' | 'bank_transfer' | 'online';
   cardPan?: string;
 }) {
-  const session = await createPaymentSession(input.memberId, {
+  const result = await settleSubscriptionPurchase(input.memberId, {
     planId: input.planId,
-    paymentMethod: (input.paymentMethod ?? 'online') as any,
+    paymentMethod: (input.paymentMethod ?? 'online'),
     cardPan: input.cardPan,
-    ttlSec: 180,
   });
-  return approvePaymentSession(session.id);
+  return { subscription: result.subscription, invoice: result.invoice };
 }
 
 /** Public hardware simulator: mock card network — any valid-length PAN succeeds. */
@@ -2437,14 +2372,12 @@ export async function publicSimulateCardPayment(input: {
 }) {
   const pan = input.cardPan.replace(/\D/g, '');
   if (pan.length < 13 || pan.length > 19) throw errors.badRequest('Invalid card number (simulator)');
-  const session = await createPaymentSession(input.memberId, {
+  const result = await settleSubscriptionPurchase(input.memberId, {
     planId: input.planId,
     paymentMethod: 'card',
     cardPan: pan,
-    cardHolder: input.cardHolder,
-    ttlSec: 180,
   });
-  return approvePaymentSession(session.id);
+  return { subscription: result.subscription, invoice: result.invoice };
 }
 
 export async function simulateWorkout(input: { memberId: string; durationMin?: number; caloriesBurned?: number; notes?: string; action?: 'simulate' | 'start' | 'stop' }) {
@@ -2537,13 +2470,12 @@ export async function getSimulationState() {
     }
   }
 
-  const [todayVisits, todayPayments, recentWorkouts, activeWorkoutSessions, upcomingSessions, pendingPaymentRequests] = await Promise.all([
+  const [todayVisits, todayPayments, recentWorkouts, activeWorkoutSessions, upcomingSessions] = await Promise.all([
     safeQuery(() => db.select().from(visits).orderBy(desc(visits.createdAt)).limit(20), [] as any[]),
     safeQuery(() => db.select().from(payments).orderBy(desc(payments.createdAt)).limit(20), [] as any[]),
-    safeQuery(() => db.select().from(workoutLogs).orderBy(desc(workoutLogs.createdAt)).limit(20), [] as any[]),
+    safeQuery(() => db.select().from(workoutSessions).where(sql`${workoutSessions.status} in ('completed','stopped')`).orderBy(desc(workoutSessions.endedAt), desc(workoutSessions.createdAt)).limit(20), [] as any[]),
     safeQuery(() => db.select().from(workoutSessions).where(eq(workoutSessions.status, 'active')).orderBy(desc(workoutSessions.startedAt)).limit(20), [] as any[]),
     safeQuery(() => db.select().from(ptSessions).orderBy(desc(ptSessions.createdAt)).limit(20), [] as any[]),
-    safeQuery(() => listPendingPaymentSessions(), [] as any[]),
   ]);
 
   return {
@@ -2553,7 +2485,6 @@ export async function getSimulationState() {
     workouts: recentWorkouts,
     workoutSessions: activeWorkoutSessions,
     ptSessions: upcomingSessions,
-    paymentRequests: pendingPaymentRequests,
     activeDoorOtps: Array.from(simulateDoorOtpStore.entries()).map(([token, otp]) => ({
       token,
       code: otp.code,

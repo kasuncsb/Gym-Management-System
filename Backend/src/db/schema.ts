@@ -67,6 +67,12 @@ export const users = mysqlTable('users', {
   ptRating: decimal('pt_rating', { precision: 3, scale: 2 }),
   yearsExperience: tinyint('years_experience'),
 
+  // Primary certification (trainer 1:1). We keep only the primary cert here.
+  primaryCertName: varchar('primary_cert_name', { length: 150 }),
+  primaryCertIssuingBody: varchar('primary_cert_issuing_body', { length: 150 }),
+  primaryCertIssuedYear: smallint('primary_cert_issued_year'),
+  primaryCertExpiryDate: date('primary_cert_expiry_date'),
+
   // Member columns (NULL for non-members)
   memberCode: varchar('member_code', { length: 20 }).unique(),
   joinDate: date('join_date'),
@@ -179,13 +185,15 @@ export const subscriptionFreezes = mysqlTable('subscription_freezes', {
 // ============================================================================
 // PAYMENTS
 // ============================================================================
+// Minimal immutable ledger: settlement facts only.
+// Checkout and simulator settle directly into this ledger.
 export const payments = mysqlTable('payments', {
   id: varchar('id', { length: 36 }).primaryKey(),
   subscriptionId: varchar('subscription_id', { length: 36 }).notNull(),
   amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
   paymentMethod: mysqlEnum('payment_method', ['cash', 'card', 'bank_transfer', 'online']).notNull(),
   paymentDate: date('payment_date').notNull(),
-  status: mysqlEnum('status', ['completed', 'partially_refunded', 'refunded', 'disputed']).notNull(),
+  status: mysqlEnum('status', ['completed', 'disputed']).notNull(),
   receiptNumber: varchar('receipt_number', { length: 50 }),
   referenceNumber: varchar('reference_number', { length: 100 }),
   /** SHA-256 of normalized card PAN (simulator / PCI-style token reference) */
@@ -195,29 +203,6 @@ export const payments = mysqlTable('payments', {
   recordedBy: varchar('recorded_by', { length: 36 }),
   createdAt: timestamp('created_at'),
 });
-
-// ============================================================================
-// PAYMENT_SESSIONS
-// ============================================================================
-export const paymentSessions = mysqlTable('payment_sessions', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  memberId: varchar('member_id', { length: 36 }).notNull(),
-  planId: varchar('plan_id', { length: 36 }).notNull(),
-  promotionCode: varchar('promotion_code', { length: 50 }),
-  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
-  status: mysqlEnum('status', ['pending', 'processing', 'approved', 'declined', 'expired']).notNull().default('pending'),
-  providerRef: varchar('provider_ref', { length: 100 }),
-  requestPayload: text('request_payload'),
-  decisionPayload: text('decision_payload'),
-  expiresAt: timestamp('expires_at').notNull(),
-  approvedSubscriptionId: varchar('approved_subscription_id', { length: 36 }),
-  approvedPaymentId: varchar('approved_payment_id', { length: 36 }),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').onUpdateNow(),
-}, (t) => ({
-  memberStatusIdx: index('idx_ps_member_status').on(t.memberId, t.status),
-  statusCreatedIdx: index('idx_ps_status_created').on(t.status, t.createdAt),
-}));
 
 // ============================================================================
 // INVOICE_RECORDS
@@ -278,21 +263,6 @@ export const workoutPlans = mysqlTable('workout_plans', {
   durationWeeks: tinyint('duration_weeks').notNull(),
   daysPerWeek: tinyint('days_per_week').notNull(),
   isActive: boolean('is_active').notNull(),
-  createdAt: timestamp('created_at'),
-});
-
-// ============================================================================
-// WORKOUT_LOGS
-// ============================================================================
-export const workoutLogs = mysqlTable('workout_logs', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  personId: varchar('person_id', { length: 36 }).notNull(),
-  planId: varchar('plan_id', { length: 36 }),
-  workoutDate: date('workout_date').notNull(),
-  durationMin: smallint('duration_min'),
-  mood: mysqlEnum('mood', ['great', 'good', 'okay', 'tired', 'poor']),
-  caloriesBurned: smallint('calories_burned'),
-  notes: text('notes'),
   createdAt: timestamp('created_at'),
 });
 
@@ -519,18 +489,6 @@ export const shifts = mysqlTable('shifts', {
 });
 
 // ============================================================================
-// TRAINER_CERTIFICATIONS (1:many for trainers)
-// ============================================================================
-export const trainerCertifications = mysqlTable('trainer_certifications', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  trainerId: varchar('trainer_id', { length: 36 }).notNull(),
-  name: varchar('name', { length: 150 }).notNull(),
-  issuingBody: varchar('issuing_body', { length: 150 }),
-  issuedYear: smallint('issued_year'),
-  expiryDate: date('expiry_date'),
-});
-
-// ============================================================================
 // AUDIT_LOGS (append-only operational trail)
 // ============================================================================
 export const auditLogs = mysqlTable('audit_logs', {
@@ -577,12 +535,10 @@ export type MemberProfile = typeof memberProfiles.$inferSelect;
 export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
-export type PaymentSession = typeof paymentSessions.$inferSelect;
 export type InvoiceRecord = typeof invoiceRecords.$inferSelect;
 export type Visit = typeof visits.$inferSelect;
 export type PtSession = typeof ptSessions.$inferSelect;
 export type WorkoutPlan = typeof workoutPlans.$inferSelect;
-export type WorkoutLog = typeof workoutLogs.$inferSelect;
 export type MemberMetric = typeof memberMetrics.$inferSelect;
 export type Equipment = typeof equipment.$inferSelect;
 export type EquipmentEvent = typeof equipmentEvents.$inferSelect;
@@ -596,5 +552,4 @@ export type WorkoutPlanExercise = typeof workoutPlanExercises.$inferSelect;
 export type WorkoutSession = typeof workoutSessions.$inferSelect;
 export type WorkoutSessionEvent = typeof workoutSessionEvents.$inferSelect;
 export type Shift = typeof shifts.$inferSelect;
-export type TrainerCertification = typeof trainerCertifications.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;

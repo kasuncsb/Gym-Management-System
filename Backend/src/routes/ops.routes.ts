@@ -10,9 +10,6 @@ router.post('/simulate/public/door/otp', ops.publicSimulateGenerateDoorOtp);
 router.post('/simulate/public/door/scan', ops.publicSimulateDoorScan);
 router.post('/simulate/public/payment', ops.publicSimulatePayment);
 router.post('/simulate/public/payment/card', ops.publicSimulateCardPayment);
-router.get('/simulate/public/payment-requests', ops.publicListPaymentRequests);
-router.post('/simulate/public/payment-requests/:id/approve', ops.publicApprovePaymentRequest);
-router.post('/simulate/public/payment-requests/:id/decline', ops.publicDeclinePaymentRequest);
 router.post('/simulate/public/workout', ops.publicSimulateWorkout);
 router.post('/simulate/public/trainer-shift', ops.publicSimulateTrainerShift);
 router.post('/simulate/public/appointment', ops.publicSimulateAppointment);
@@ -34,8 +31,6 @@ router.patch('/subscriptions/plans/:id', authorize('admin', 'manager'), ops.upda
 router.get('/subscriptions/me', authorize('member'), ops.getMySubscriptions);
 router.get('/subscriptions', authorize('admin', 'manager'), ops.listAllSubscriptions);
 router.post('/subscriptions/purchase', authorize('member'), ops.purchaseSubscription);
-router.post('/payments/sessions', authorize('member'), ops.createPaymentSession);
-router.get('/payments/sessions/:id', authorize('member'), ops.getMyPaymentSession);
 router.post('/subscriptions/freeze', authorize('member'), ops.requestFreeze);
 router.post('/subscriptions/:id/unfreeze', authorize('admin', 'manager'), ops.unfreezeSubscription);
 

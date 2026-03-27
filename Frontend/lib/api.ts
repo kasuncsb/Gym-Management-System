@@ -255,16 +255,6 @@ export const opsAPI = {
     apiClient.post('/ops/subscriptions/freeze', payload).then(r => r.data.data),
   myPayments: () =>
     apiClient.get('/ops/payments/me').then(r => r.data.data as any[]),
-  createPaymentSession: (payload: {
-    planId: string;
-    promotionCode?: string;
-    paymentMethod?: 'card' | 'cash' | 'bank_transfer' | 'online';
-    cardPan?: string;
-    cardHolder?: string;
-    ttlSec?: number;
-  }) => apiClient.post('/ops/payments/sessions', payload).then(r => r.data.data),
-  getPaymentSession: (id: string) =>
-    apiClient.get(`/ops/payments/sessions/${id}`).then(r => r.data.data),
   downloadInvoiceHtml: async (paymentId: string) => {
     const res = await apiClient.get<string>(`/ops/payments/${paymentId}/invoice`, { responseType: 'text' as any });
     return res.data;
@@ -482,12 +472,6 @@ export const opsAPI = {
     apiClient.post('/ops/simulate/public/payment', payload).then(r => r.data.data),
   publicSimulateCardPayment: (payload: { memberId: string; planId: string; cardPan: string; cardHolder?: string }) =>
     apiClient.post('/ops/simulate/public/payment/card', payload).then(r => r.data.data),
-  publicPendingPaymentRequests: () =>
-    apiClient.get('/ops/simulate/public/payment-requests').then(r => r.data.data as any[]),
-  publicApprovePaymentRequest: (id: string) =>
-    apiClient.post(`/ops/simulate/public/payment-requests/${id}/approve`).then(r => r.data.data),
-  publicDeclinePaymentRequest: (id: string, reason?: string) =>
-    apiClient.post(`/ops/simulate/public/payment-requests/${id}/decline`, { reason }).then(r => r.data.data),
   publicSimulateWorkout: (payload: { memberId: string; durationMin?: number; caloriesBurned?: number; notes?: string; action?: 'simulate' | 'start' | 'stop' }) =>
     apiClient.post('/ops/simulate/public/workout', payload).then(r => r.data.data),
   publicSimulateTrainerShift: (payload: { trainerId: string; action?: 'in' | 'out' }) =>

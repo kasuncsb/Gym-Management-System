@@ -66,14 +66,6 @@ export const purchaseSubscription = asyncHandler(async (req: AuthRequest, res: R
   const user = requireUser(req);
   res.json(response.success(await opsService.purchaseSubscription(user.id, req.body), 'Subscription purchased'));
 });
-export const createPaymentSession = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = requireUser(req);
-  res.json(response.success(await opsService.createPaymentSession(user.id, req.body), 'Payment session created'));
-});
-export const getMyPaymentSession = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = requireUser(req);
-  res.json(response.success(await opsService.getPaymentSessionById(req.params.id, user.id)));
-});
 export const getMyPaymentInvoice = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   const invoice = await opsService.getPaymentInvoiceHtml(req.params.paymentId, user.id);
@@ -174,13 +166,13 @@ export const addWorkoutSessionEvent = asyncHandler(async (req: AuthRequest, res:
   const user = requireUser(req);
   const sessionId = String(req.params.sessionId ?? '').trim();
   if (!sessionId) throw errors.badRequest('sessionId is required');
-  res.json(response.success(await opsService.addWorkoutSessionEvent(user.id, sessionId, req.body), 'Workout event recorded'));
+  res.json(response.success(await opsService.addWorkoutSessionEvent(user.id, sessionId, req.body, user.role as Role), 'Workout event recorded'));
 });
 export const stopWorkoutSession = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   const sessionId = String(req.params.sessionId ?? '').trim();
   if (!sessionId) throw errors.badRequest('sessionId is required');
-  res.json(response.success(await opsService.stopWorkoutSession(user.id, sessionId, req.body), 'Workout session finalized'));
+  res.json(response.success(await opsService.stopWorkoutSession(user.id, sessionId, req.body, user.role as Role), 'Workout session finalized'));
 });
 export const generateAiWorkoutPlan = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
@@ -385,17 +377,6 @@ export const publicSimulatePayment = asyncHandler(async (req: AuthRequest, res: 
 
 export const publicSimulateCardPayment = asyncHandler(async (req: AuthRequest, res: Response) => {
   res.json(response.success(await opsService.publicSimulateCardPayment(req.body), 'Card payment approved (simulator)'));
-});
-export const publicListPaymentRequests = asyncHandler(async (_req: AuthRequest, res: Response) => {
-  const rows = await opsService.listPendingPaymentSessions();
-  res.json(response.success(rows));
-});
-export const publicApprovePaymentRequest = asyncHandler(async (req: AuthRequest, res: Response) => {
-  res.json(response.success(await opsService.approvePaymentSession(req.params.id), 'Payment request approved'));
-});
-export const publicDeclinePaymentRequest = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const reason = String(req.body?.reason ?? '').trim() || undefined;
-  res.json(response.success(await opsService.declinePaymentSession(req.params.id, reason), 'Payment request declined'));
 });
 
 export const publicSimulateWorkout = asyncHandler(async (req: AuthRequest, res: Response) => {

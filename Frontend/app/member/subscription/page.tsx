@@ -61,7 +61,6 @@ export default function MemberSubscriptionPage() {
         cardCvv: '',
         cardHolder: '',
     });
-    const [checkoutSessionId, setCheckoutSessionId] = useState('');
     const [checkoutState, setCheckoutState] = useState<CheckoutState>('idle');
     const cardPanRef = useRef<HTMLInputElement | null>(null);
     const cardExpRef = useRef<HTMLInputElement | null>(null);
@@ -104,7 +103,6 @@ export default function MemberSubscriptionPage() {
             cardHolder: '',
         });
         setCheckoutState('idle');
-        setCheckoutSessionId('');
         setCheckoutOpen(true);
     };
 
@@ -113,17 +111,6 @@ export default function MemberSubscriptionPage() {
         const t = window.setTimeout(() => cardPanRef.current?.focus(), 50);
         return () => window.clearTimeout(t);
     }, [checkoutOpen]);
-
-    const pollSessionUntilFinal = async (sessionId: string) => {
-        const started = Date.now();
-        while (Date.now() - started < 90_000) {
-            const s = await opsAPI.getPaymentSession(sessionId) as { status: CheckoutState };
-            if (s.status === 'approved' || s.status === 'declined' || s.status === 'expired') return s.status;
-            setCheckoutState(s.status === 'processing' ? 'processing' : 'awaiting_processor');
-            await new Promise((r) => setTimeout(r, 1800));
-        }
-        return 'expired' as CheckoutState;
-    };
 
     const submitCheckout = async () => {
         if (!checkout.planId) {
@@ -144,22 +131,14 @@ export default function MemberSubscriptionPage() {
         }
         setLoading(true);
         try {
-            const session = await opsAPI.createPaymentSession({
+            setCheckoutState('processing');
+            await opsAPI.purchaseSubscription({
                 planId: checkout.planId,
-                promotionCode: checkout.promotionCode || undefined,
                 paymentMethod: checkout.paymentMethod as any,
+                promotionCode: checkout.promotionCode || undefined,
                 cardPan: checkout.cardPan || undefined,
-                cardHolder: checkout.cardHolder || undefined,
-                ttlSec: 180,
             });
-            setCheckoutSessionId(session.id);
-            setCheckoutState('awaiting_processor');
-            const finalState = await pollSessionUntilFinal(session.id);
-            setCheckoutState(finalState);
-            if (finalState !== 'approved') {
-                toast.error('Payment Not Approved', `Processor state: ${finalState}`);
-                return;
-            }
+            setCheckoutState('approved');
             setSubscriptions(await opsAPI.mySubscriptions() as MySubscription[]);
             setPayments(await opsAPI.myPayments() as MyPayment[]);
             toast.success('Payment Successful', 'Subscription activated and invoice issued.');
@@ -480,7 +459,6 @@ export default function MemberSubscriptionPage() {
                     />
                     <div className="rounded-lg border border-zinc-700 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-300">
                         Status: <span className="font-semibold text-white">{checkoutState.replace('_', ' ')}</span>
-                        {checkoutSessionId ? ` · Session ${checkoutSessionId.slice(0, 8)}` : ''}
                     </div>
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setCheckoutOpen(false)}>Cancel</LoadingButton>

@@ -12,11 +12,8 @@ export default function SimulatePage() {
   const [doorOpen, setDoorOpen] = useState(false);
   const [meta, setMeta] = useState<{ code?: string; expiresAt?: string }>({});
   const [countdownSec, setCountdownSec] = useState<number>(0);
-  const [processorQueue, setProcessorQueue] = useState<any[]>([]);
+  const [recentPayments, setRecentPayments] = useState<any[]>([]);
   const [processorStatus, setProcessorStatus] = useState('Awaiting payment request...');
-  const [processorStep, setProcessorStep] = useState<'idle' | 'incoming' | 'validating' | 'risk' | 'approved' | 'declined'>('idle');
-  const [activeRequestId, setActiveRequestId] = useState<string>('');
-  const [loading, setLoading] = useState(false);
   const [members, setMembers] = useState<Array<{ id: string; fullName: string }>>([]);
   const [workoutMemberId, setWorkoutMemberId] = useState('');
   const refreshingRef = useRef(false);
@@ -96,10 +93,12 @@ export default function SimulatePage() {
     const paymentReqTimer = window.setInterval(async () => {
       if (document.visibilityState !== 'visible') return;
       try {
-        const rows = await opsAPI.publicPendingPaymentRequests();
-        setProcessorQueue(rows);
+        const state = await opsAPI.publicSimulationState();
+        const rows = Array.isArray(state?.payments) ? state.payments : [];
+        setRecentPayments(rows.slice(0, 3));
+        setProcessorStatus(rows.length ? 'Settlement stream active (direct ledger mode)' : 'Awaiting payment request...');
       } catch {
-        setProcessorQueue([]);
+        setRecentPayments([]);
       }
     }, 1800);
     const countdownTimer = window.setInterval(() => {
@@ -141,50 +140,6 @@ export default function SimulatePage() {
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [pollDoor, refreshQr]);
-
-  useEffect(() => {
-    if (!processorQueue.length && processorStep === 'idle') {
-      setProcessorStatus('Awaiting payment request...');
-    }
-  }, [processorQueue.length, processorStep]);
-
-  const approveNextRequest = useCallback(async () => {
-    const req = processorQueue[0];
-    if (!req) return;
-    setLoading(true);
-    try {
-      setActiveRequestId(req.id);
-      setProcessorStep('incoming');
-      setProcessorStatus(`Incoming payment request detected • ${req.memberName ?? req.memberId}`);
-      await new Promise((r) => setTimeout(r, 800));
-      setProcessorStep('validating');
-      setProcessorStatus('Validating payment credentials...');
-      await new Promise((r) => setTimeout(r, 1000));
-      setProcessorStep('risk');
-      setProcessorStatus('3DS check • AVS match • risk scoring...');
-      await new Promise((r) => setTimeout(r, 1300));
-      await opsAPI.publicApprovePaymentRequest(req.id);
-      setProcessorStep('approved');
-      setProcessorStatus('Payment approved and settlement committed');
-      toast.success('Approved', 'Top request approved.');
-    } catch (e) {
-      setProcessorStep('declined');
-      setProcessorStatus('Payment declined by processor');
-      toast.error('Approve failed', getErrorMessage(e));
-    } finally {
-      setLoading(false);
-      window.setTimeout(() => {
-        setProcessorStep('idle');
-        setActiveRequestId('');
-      }, 1200);
-    }
-  }, [processorQueue, toast]);
-
-  useEffect(() => {
-    if (processorStep !== 'idle') return;
-    if (!processorQueue.length) return;
-    approveNextRequest().catch(() => undefined);
-  }, [approveNextRequest, processorQueue, processorStep]);
 
   const countdownText = useMemo(() => {
     const s = Math.max(0, countdownSec);
@@ -279,26 +234,17 @@ export default function SimulatePage() {
             Payment processor
           </h2>
           <p className="text-zinc-500 text-sm">
-            Incoming sessions from member checkout are processed here using a realistic pipeline.
+            Incoming checkouts are settled directly into the canonical `payments` ledger.
           </p>
           <div className="rounded-xl border border-zinc-700 bg-zinc-950/60 p-4 space-y-3">
             <p className="text-sm text-zinc-200">{processorStatus}</p>
-            {activeRequestId ? <p className="text-xs text-zinc-500">Request: {activeRequestId.slice(0, 8)}</p> : null}
-            {processorStep === 'approved' ? (
-              <div className="flex items-center gap-2 text-emerald-300"><CheckCircle2 size={18} /> CAPTURED</div>
-            ) : null}
-            {processorStep === 'declined' ? (
-              <div className="flex items-center gap-2 text-red-300"><XCircle size={18} /> DECLINED</div>
-            ) : null}
-            {processorStep !== 'approved' && processorStep !== 'declined' ? (
-              <div className="flex items-center gap-2 text-amber-300"><CreditCard size={18} /> Processor online</div>
-            ) : null}
+            <div className="flex items-center gap-2 text-emerald-300"><CheckCircle2 size={18} /> Processor online</div>
           </div>
           <div className="space-y-2">
-            <p className="text-xs text-zinc-500">Pending queue: {processorQueue.length}</p>
-            {processorQueue.slice(0, 3).map((req) => (
-              <div key={req.id} className="rounded-lg border border-zinc-800 px-3 py-2 text-xs text-zinc-300">
-                {req.memberName ?? req.memberId} • {req.planName ?? req.planId} • Rs. {Number(req.amount ?? 0).toLocaleString()}
+            <p className="text-xs text-zinc-500">Recent settlements: {recentPayments.length}</p>
+            {recentPayments.slice(0, 3).map((row) => (
+              <div key={row.id} className="rounded-lg border border-zinc-800 px-3 py-2 text-xs text-zinc-300">
+                {row.paymentMethod ?? 'online'} • {row.status ?? 'completed'} • Rs. {Number(row.amount ?? 0).toLocaleString()}
               </div>
             ))}
           </div>

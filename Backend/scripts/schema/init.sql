@@ -33,10 +33,10 @@
 --   • member_profiles — static 1:1 health/onboarding data per member
 --   • member_metrics  — time-series (1:many on people) — must be separate
 --   • member_documents— multiple docs per member (1:many) — separate
---   • trainer_certifications — multiple certs per trainer — separate
---   • workout_plans / workout_exercises — plan catalogue; exercises are
+--   • users.primary_cert_* — primary trainer certification (1:1) inline
+--   • workout_plans / workout_plan_exercises — plan catalogue; exercises are
 --     a child of plans (1:many), not mergeable without repeating plan cols
---   • workout_logs    — what was *actually done*, not what was planned
+--   • workout_sessions + workout_session_events — what was actually done
 --   • inventory_items / inventory_transactions — catalogue vs. movements
 --   • subscriptions / subscription_freezes — freeze periods are 1:many
 --   • payments / promotions — payments are 1:many per subscription;
@@ -138,6 +138,12 @@ CREATE TABLE IF NOT EXISTS `users` (
   `pt_rating`        DECIMAL(3,2)  DEFAULT NULL,  -- trainers only, updated from reviews
   `years_experience` TINYINT       DEFAULT NULL,  -- trainers only
 
+  -- Primary certification (trainer 1:1)
+  `primary_cert_name`          VARCHAR(150) DEFAULT NULL,
+  `primary_cert_issuing_body` VARCHAR(150) DEFAULT NULL,
+  `primary_cert_issued_year`  SMALLINT    DEFAULT NULL,
+  `primary_cert_expiry_date`  DATE        DEFAULT NULL,
+
   -- Member columns (NULL for non-members)
   `member_code`      VARCHAR(20)   DEFAULT NULL,
   `join_date`        DATE          DEFAULT NULL,
@@ -218,24 +224,6 @@ CREATE TABLE IF NOT EXISTS `member_metrics` (
   CONSTRAINT `chk_weight`    CHECK (`weight_kg`   IS NULL OR `weight_kg`   BETWEEN 1   AND 500),
   CONSTRAINT `chk_height`    CHECK (`height_cm`   IS NULL OR `height_cm`   BETWEEN 50  AND 250),
   CONSTRAINT `chk_bmi`       CHECK (`bmi`          IS NULL OR `bmi`          BETWEEN 5  AND 80)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- ============================================================================
--- 6. TRAINER_CERTIFICATIONS  (1:many on people where role='trainer')
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS `trainer_certifications` (
-  `id`           VARCHAR(36)  NOT NULL,
-  `trainer_id`   VARCHAR(36)  NOT NULL,
-  `name`         VARCHAR(150) NOT NULL,
-  `issuing_body` VARCHAR(150) DEFAULT NULL,
-  `issued_year`  YEAR         DEFAULT NULL,
-  `expiry_date`  DATE         DEFAULT NULL,
-
-  PRIMARY KEY (`id`),
-  INDEX `idx_cert_trainer` (`trainer_id`),
-  CONSTRAINT `fk_cert_trainer` FOREIGN KEY (`trainer_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -373,7 +361,7 @@ CREATE TABLE IF NOT EXISTS `payments` (
   `amount`              DECIMAL(10,2) NOT NULL,
   `payment_method`      ENUM('cash','card','bank_transfer','online') NOT NULL,
   `payment_date`        DATE          NOT NULL,
-  `status`              ENUM('completed','partially_refunded','refunded','disputed') NOT NULL DEFAULT 'completed',
+  `status`              ENUM('completed','disputed') NOT NULL DEFAULT 'completed',
   `receipt_number`      VARCHAR(50)   DEFAULT NULL,
   `reference_number`    VARCHAR(100)  DEFAULT NULL,
   `instrument_hash`     VARCHAR(64)   DEFAULT NULL,
@@ -390,34 +378,6 @@ CREATE TABLE IF NOT EXISTS `payments` (
   CONSTRAINT `fk_pay_promo`   FOREIGN KEY (`promotion_id`)        REFERENCES `promotions`(`id`)    ON DELETE SET NULL,
   CONSTRAINT `fk_pay_by`      FOREIGN KEY (`recorded_by`)         REFERENCES `users`(`id`)        ON DELETE SET NULL,
   CONSTRAINT `chk_pay_amount` CHECK (`amount` > 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- PAYMENT_SESSIONS
--- ============================================================================
-CREATE TABLE IF NOT EXISTS `payment_sessions` (
-  `id`                       VARCHAR(36)   NOT NULL,
-  `member_id`                VARCHAR(36)   NOT NULL,
-  `plan_id`                  VARCHAR(36)   NOT NULL,
-  `promotion_code`           VARCHAR(50)   DEFAULT NULL,
-  `amount`                   DECIMAL(10,2) NOT NULL,
-  `status`                   ENUM('pending','processing','approved','declined','expired') NOT NULL DEFAULT 'pending',
-  `provider_ref`             VARCHAR(100)  DEFAULT NULL,
-  `request_payload`          TEXT          DEFAULT NULL,
-  `decision_payload`         TEXT          DEFAULT NULL,
-  `expires_at`               TIMESTAMP     NOT NULL,
-  `approved_subscription_id` VARCHAR(36)   DEFAULT NULL,
-  `approved_payment_id`      VARCHAR(36)   DEFAULT NULL,
-  `created_at`               TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at`               TIMESTAMP     NULL ON UPDATE CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (`id`),
-  INDEX `idx_ps_member_status` (`member_id`, `status`),
-  INDEX `idx_ps_status_created` (`status`, `created_at`),
-  CONSTRAINT `fk_ps_member` FOREIGN KEY (`member_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT,
-  CONSTRAINT `fk_ps_plan`   FOREIGN KEY (`plan_id`) REFERENCES `subscription_plans`(`id`) ON DELETE RESTRICT,
-  CONSTRAINT `fk_ps_sub`    FOREIGN KEY (`approved_subscription_id`) REFERENCES `subscriptions`(`id`) ON DELETE SET NULL,
-  CONSTRAINT `fk_ps_pay`    FOREIGN KEY (`approved_payment_id`) REFERENCES `payments`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
@@ -467,29 +427,6 @@ CREATE TABLE IF NOT EXISTS `workout_plans` (
   CONSTRAINT `fk_wp_trainer` FOREIGN KEY (`trainer_id`) REFERENCES `users`(`id`) ON DELETE SET NULL,
   CONSTRAINT `chk_wp_weeks` CHECK (`duration_weeks` BETWEEN 1 AND 52),
   CONSTRAINT `chk_wp_days`  CHECK (`days_per_week`  BETWEEN 1 AND 7)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- ============================================================================
--- 15. WORKOUT_LOGS  (what the member actually did in a session)
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS `workout_logs` (
-  `id`             VARCHAR(36)  NOT NULL,
-  `person_id`      VARCHAR(36)  NOT NULL,
-  `plan_id`        VARCHAR(36)  DEFAULT NULL,
-  `workout_date`   DATE         NOT NULL,
-  `duration_min`   SMALLINT     DEFAULT NULL,
-  `mood`           ENUM('great','good','okay','tired','poor') DEFAULT NULL,
-  `calories_burned` SMALLINT    DEFAULT NULL,
-  `notes`          TEXT         DEFAULT NULL,
-  `created_at`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (`id`),
-  INDEX `idx_wl_person` (`person_id`),
-  INDEX `idx_wl_date`   (`workout_date`),
-  CONSTRAINT `fk_wl_person` FOREIGN KEY (`person_id`) REFERENCES `users`(`id`)        ON DELETE RESTRICT,
-  CONSTRAINT `fk_wl_plan`   FOREIGN KEY (`plan_id`)   REFERENCES `workout_plans`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -831,12 +768,12 @@ CREATE TABLE IF NOT EXISTS `shifts` (
 -- System config       config  (single branch — replaces branches table)
 -- Identity & auth     users
 -- Member extras       member_profiles, member_metrics, member_documents
--- Trainer extras      trainer_certifications
+-- Trainer extras      users.primary_cert_*
 -- Staff scheduling    schedules  (recurring + overrides in one table)
 -- Access              visits  (no gate table — one door)
 -- Subscriptions       subscription_plans, subscriptions,
 --                     subscription_freezes, promotions, payments
--- Fitness             workout_plans, workout_exercises, workout_logs
+-- Fitness             workout_plans, workout_plan_exercises, workout_sessions, workout_session_events
 -- Personal training   pt_sessions  (notes + review as columns — 1:1)
 -- Equipment           equipment, equipment_events
 -- Inventory           inventory_items, inventory_transactions
