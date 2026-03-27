@@ -102,6 +102,18 @@ async function localRag(message: string): Promise<string | null> {
   return `Here is guidance based on PowerWorld Kiribathgoda knowledge base:\n${ctx}`;
 }
 
+async function fetchTextWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const resp = await fetch(url, { ...init, signal: controller.signal });
+    const text = await resp.text();
+    return { ok: resp.ok, status: resp.status, text };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 async function callGemini(prompt: string): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
@@ -145,6 +157,59 @@ async function embedText(text: string): Promise<number[]> {
   const vector: number[] | undefined = json?.embedding?.values;
   if (!Array.isArray(vector)) throw new Error('Invalid embedding response');
   return vector;
+}
+
+export async function selfTestGemini(): Promise<{
+  generate: { ok: boolean; status?: number; error?: string };
+  embed: { ok: boolean; status?: number; error?: string };
+}> {
+  const model = process.env.GEMINI_MODEL ?? GEMINI_MODEL_DEFAULT;
+  const embeddingModel = process.env.GEMINI_EMBEDDING_MODEL ?? GEMINI_EMBEDDING_MODEL_DEFAULT;
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return {
+      generate: { ok: false, error: 'GEMINI_API_KEY not configured' },
+      embed: { ok: false, error: 'GEMINI_API_KEY not configured' },
+    };
+  }
+
+  const genUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const embUrl = `https://generativelanguage.googleapis.com/v1beta/models/${embeddingModel}:embedContent?key=${encodeURIComponent(apiKey)}`;
+
+  const [gen, emb] = await Promise.allSettled([
+    fetchTextWithTimeout(genUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: 'Respond with exactly: ok' }] }],
+        generationConfig: { temperature: 0, maxOutputTokens: 10 },
+      }),
+    }, 10_000),
+    fetchTextWithTimeout(embUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: { parts: [{ text: 'ok' }] },
+        taskType: 'RETRIEVAL_DOCUMENT',
+      }),
+    }, 10_000),
+  ]);
+
+  const normalize = (r: PromiseSettledResult<{ ok: boolean; status: number; text: string }>) => {
+    if (r.status === 'rejected') {
+      const msg = r.reason instanceof Error ? r.reason.message : String(r.reason);
+      return { ok: false, error: msg };
+    }
+    const { ok, status, text } = r.value;
+    if (ok) return { ok: true, status };
+    const clipped = String(text ?? '').slice(0, 900);
+    return { ok: false, status, error: clipped || 'Request failed' };
+  };
+
+  return {
+    generate: normalize(gen),
+    embed: normalize(emb),
+  };
 }
 
 function cosineSimilarity(a: number[], b: number[]): number {

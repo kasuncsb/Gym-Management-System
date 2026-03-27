@@ -11,6 +11,7 @@ function requireUser(req: AuthRequest) {
 }
 
 export const health = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  const test = await aiService.selfTestGemini();
   res.json(response.success({
     status: 'ok',
     ai: true,
@@ -18,6 +19,7 @@ export const health = asyncHandler(async (_req: AuthRequest, res: Response) => {
     geminiModel: process.env.GEMINI_MODEL ?? 'gemini-2.5-flash',
     geminiEmbeddingModel: process.env.GEMINI_EMBEDDING_MODEL ?? 'gemini-embedding-001',
     ragServiceConfigured: Boolean(process.env.RAG_SERVICE_URL),
+    geminiSelfTest: test,
   }));
 });
 
