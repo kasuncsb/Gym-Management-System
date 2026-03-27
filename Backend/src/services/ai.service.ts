@@ -36,12 +36,32 @@ type ScoredDoc = { doc: TrainingDoc; score: number };
 
 let trainingCache: TrainingDoc[] | null = null;
 let embeddingCache: { docId: string; vector: number[] }[] | null = null;
+let embeddingCooldownUntil = 0;
+let embeddingCooldownReason = '';
 
 // Note (2026): gemini-2.0-flash is being deprecated; prefer 2.5 flash as default.
 const GEMINI_MODEL_DEFAULT = 'gemini-2.5-flash';
 // Note (2026): text-embedding-004 is being deprecated; prefer gemini-embedding-001.
 const GEMINI_EMBEDDING_MODEL_DEFAULT = 'gemini-embedding-001';
 type UserRole = 'admin' | 'manager' | 'trainer' | 'member';
+
+function parseGeminiHttpError(err: unknown): { status?: number; message: string; rateLimited: boolean } {
+  const message = err instanceof Error ? err.message : String(err);
+  const m = message.match(/(\d{3})\s+(\{[\s\S]*\}|.*)$/);
+  if (!m) {
+    return {
+      message,
+      rateLimited: /RESOURCE_EXHAUSTED|quota|rate limit|429/i.test(message),
+    };
+  }
+  const status = Number(m[1]);
+  const body = m[2] ?? '';
+  return {
+    status,
+    message: body,
+    rateLimited: status === 429 || /RESOURCE_EXHAUSTED|quota|rate limit/i.test(body),
+  };
+}
 
 async function loadTrainingDocs(): Promise<TrainingDoc[]> {
   if (trainingCache) return trainingCache;
@@ -136,6 +156,9 @@ async function callGemini(prompt: string): Promise<string> {
 }
 
 async function embedText(text: string): Promise<number[]> {
+  if (Date.now() < embeddingCooldownUntil) {
+    throw new Error(`Gemini embed cooldown active: ${embeddingCooldownReason || 'recent rate limit'}`);
+  }
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured for embeddings');
   const embeddingModel = process.env.GEMINI_EMBEDDING_MODEL ?? GEMINI_EMBEDDING_MODEL_DEFAULT;
@@ -151,6 +174,10 @@ async function embedText(text: string): Promise<number[]> {
   });
   if (!resp.ok) {
     const textBody = await resp.text();
+    if (resp.status === 429) {
+      embeddingCooldownUntil = Date.now() + 60_000;
+      embeddingCooldownReason = 'Gemini embeddings quota/rate limit (429)';
+    }
     throw new Error(`Gemini embed failed: ${resp.status} ${textBody}`);
   }
   const json = await resp.json() as any;
@@ -231,6 +258,10 @@ function cosineSimilarity(a: number[], b: number[]): number {
 async function ensureEmbeddings(): Promise<{ docs: TrainingDoc[]; vectors: { docId: string; vector: number[] }[] }> {
   const docs = await loadTrainingDocs();
   if (!docs.length) return { docs, vectors: [] };
+  if (Date.now() < embeddingCooldownUntil) {
+    // Reuse best available cache during cooldown; avoid repeated 429 hammering.
+    return { docs, vectors: embeddingCache ?? [] };
+  }
   const existing = new Map<string, number[]>();
   for (const e of embeddingCache ?? []) existing.set(e.docId, e.vector);
 
@@ -252,7 +283,12 @@ async function ensureEmbeddings(): Promise<{ docs: TrainingDoc[]; vectors: { doc
       ].filter(Boolean).join('\n');
       const vec = await embedText(basis);
       vectors.push({ docId: doc.id, vector: vec });
-    } catch {
+    } catch (err) {
+      const parsed = parseGeminiHttpError(err);
+      if (parsed.rateLimited) {
+        embeddingCooldownUntil = Date.now() + 60_000;
+        embeddingCooldownReason = 'Gemini embeddings quota/rate limit (429)';
+      }
       // skip embedding failure for individual doc
     }
   }
@@ -409,8 +445,16 @@ Using the branch context and RAG snippets above, answer in 1–3 short paragraph
     });
     return { answer, source: 'gemini' };
   } catch (err) {
-    console.error('[ai] gemini memberChat failed:', err);
-    const fallbackText = 'I can help with workouts, subscription guidance, appointments, and gym usage. For now, AI service is in fallback mode. Please ask a practical gym question and I will provide a structured recommendation.';
+    const parsed = parseGeminiHttpError(err);
+    console.error('[ai] gemini memberChat failed', {
+      status: parsed.status ?? null,
+      rateLimited: parsed.rateLimited,
+      reason: parsed.message.slice(0, 400),
+      model: process.env.GEMINI_MODEL ?? GEMINI_MODEL_DEFAULT,
+    });
+    const fallbackText = parsed.rateLimited
+      ? 'AI is temporarily rate-limited due to quota usage. Please try again in about a minute.'
+      : 'I can help with workouts, subscription guidance, appointments, and gym usage. For now, AI service is in fallback mode. Please ask a practical gym question and I will provide a structured recommendation.';
     await logInteraction(user, {
       interactionType: 'chat',
       promptText: message,
@@ -419,7 +463,9 @@ Using the branch context and RAG snippets above, answer in 1–3 short paragraph
       metadata: {
         route: 'member_chat',
         ragDocIds: retrieved.map((r) => r.doc.id),
-        geminiError: err instanceof Error ? err.message : String(err),
+        geminiError: parsed.message,
+        geminiStatus: parsed.status ?? null,
+        rateLimited: parsed.rateLimited,
         geminiModel: process.env.GEMINI_MODEL ?? GEMINI_MODEL_DEFAULT,
         geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
       },
@@ -484,8 +530,16 @@ Return concise guidance with:
     await logInteraction(user, { interactionType: 'chat', promptText: message, responseText: answer, source: 'gemini', metadata: { route: 'manager_chat' } });
     return { answer, source: 'gemini' };
   } catch (err) {
-    console.error('[ai] gemini managerChat failed:', err);
-    const fallbackText = `Current snapshot: ${dashboard.todayVisits} visits today, ${dashboard.openIssues} open issues, and Rs. ${dashboard.monthlyRevenue} monthly revenue. Prioritize unresolved incidents, monitor low-visit members nearing expiry, and balance trainer coverage during peak hours.`;
+    const parsed = parseGeminiHttpError(err);
+    console.error('[ai] gemini managerChat failed', {
+      status: parsed.status ?? null,
+      rateLimited: parsed.rateLimited,
+      reason: parsed.message.slice(0, 400),
+      model: process.env.GEMINI_MODEL ?? GEMINI_MODEL_DEFAULT,
+    });
+    const fallbackText = parsed.rateLimited
+      ? 'AI is temporarily rate-limited due to quota usage. Please retry in about a minute.'
+      : `Current snapshot: ${dashboard.todayVisits} visits today, ${dashboard.openIssues} open issues, and Rs. ${dashboard.monthlyRevenue} monthly revenue. Prioritize unresolved incidents, monitor low-visit members nearing expiry, and balance trainer coverage during peak hours.`;
     await logInteraction(user, { interactionType: 'chat', promptText: message, responseText: fallbackText, source: 'fallback', metadata: { route: 'manager_chat' } });
     return { answer: fallbackText, source: 'fallback' };
   }
@@ -560,8 +614,16 @@ Return:
       insights: lines.slice(1, 4),
     };
   } catch (err) {
-    console.error('[ai] gemini insights failed:', err);
-    const fallbackSummary = `Today there are ${dashboard.todayVisits} visits with ${dashboard.openIssues} open operational issues.`;
+    const parsed = parseGeminiHttpError(err);
+    console.error('[ai] gemini insights failed', {
+      status: parsed.status ?? null,
+      rateLimited: parsed.rateLimited,
+      reason: parsed.message.slice(0, 400),
+      model: process.env.GEMINI_MODEL ?? GEMINI_MODEL_DEFAULT,
+    });
+    const fallbackSummary = parsed.rateLimited
+      ? 'AI insights are temporarily rate-limited due to quota usage. Please retry shortly.'
+      : `Today there are ${dashboard.todayVisits} visits with ${dashboard.openIssues} open operational issues.`;
     await logInteraction(user, {
       interactionType: 'insight',
       promptText: question ?? 'Provide the top operational insights and next actions.',
