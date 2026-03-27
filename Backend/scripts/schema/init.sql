@@ -204,51 +204,20 @@ CREATE TABLE IF NOT EXISTS `member_metrics` (
   `id`            VARCHAR(36)   NOT NULL,
   `person_id`     VARCHAR(36)   NOT NULL,
   `recorded_at`   TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `recorded_by`   VARCHAR(36)   DEFAULT NULL,
   `source`        ENUM('manual','trainer','device') NOT NULL DEFAULT 'manual',
   `weight_kg`     DECIMAL(5,2)  DEFAULT NULL,
   `height_cm`     DECIMAL(5,2)  DEFAULT NULL,
-  `body_fat_pct`  DECIMAL(4,1)  DEFAULT NULL,
-  `muscle_mass_kg` DECIMAL(5,2) DEFAULT NULL,
   `bmi`           DECIMAL(4,1)  DEFAULT NULL,
   `resting_hr`    TINYINT       DEFAULT NULL,
-  `waist_cm`      DECIMAL(5,1)  DEFAULT NULL,
   `notes`         TEXT          DEFAULT NULL,
 
   PRIMARY KEY (`id`),
   INDEX `idx_metrics_person` (`person_id`),
   INDEX `idx_metrics_date`   (`recorded_at`),
   CONSTRAINT `fk_metrics_person`   FOREIGN KEY (`person_id`)  REFERENCES `users`(`id`) ON DELETE RESTRICT,
-  CONSTRAINT `fk_metrics_recorder` FOREIGN KEY (`recorded_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
   CONSTRAINT `chk_weight`    CHECK (`weight_kg`   IS NULL OR `weight_kg`   BETWEEN 1   AND 500),
   CONSTRAINT `chk_height`    CHECK (`height_cm`   IS NULL OR `height_cm`   BETWEEN 50  AND 250),
-  CONSTRAINT `chk_body_fat`  CHECK (`body_fat_pct` IS NULL OR `body_fat_pct` BETWEEN 1 AND 70),
   CONSTRAINT `chk_bmi`       CHECK (`bmi`          IS NULL OR `bmi`          BETWEEN 5  AND 80)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- ============================================================================
--- 5. MEMBER_DOCUMENTS  (NIC / student ID uploads — 1:many)
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS `member_documents` (
-  `id`             VARCHAR(36)  NOT NULL,
-  `person_id`      VARCHAR(36)  NOT NULL,
-  `doc_type`       ENUM('nic_front','nic_back','selfie_with_nic','student_id','other') NOT NULL,
-  `storage_key`    VARCHAR(500) NOT NULL,
-  `mime_type`      VARCHAR(50)  DEFAULT NULL,
-  `file_size_bytes` INT         DEFAULT NULL,
-  `verify_status`  ENUM('pending','verified','rejected') NOT NULL DEFAULT 'pending',
-  `rejection_reason` VARCHAR(255) DEFAULT NULL,
-  `reviewed_by`    VARCHAR(36)  DEFAULT NULL,
-  `reviewed_at`    TIMESTAMP    NULL DEFAULT NULL,
-  `uploaded_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (`id`),
-  INDEX `idx_doc_person`  (`person_id`),
-  INDEX `idx_doc_status`  (`verify_status`),
-  CONSTRAINT `fk_doc_person`   FOREIGN KEY (`person_id`)  REFERENCES `users`(`id`) ON DELETE RESTRICT,
-  CONSTRAINT `fk_doc_reviewer` FOREIGN KEY (`reviewed_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -267,48 +236,6 @@ CREATE TABLE IF NOT EXISTS `trainer_certifications` (
   PRIMARY KEY (`id`),
   INDEX `idx_cert_trainer` (`trainer_id`),
   CONSTRAINT `fk_cert_trainer` FOREIGN KEY (`trainer_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- ============================================================================
--- 7. SCHEDULES  (replaces staff_shifts + shift_overrides)
--- ============================================================================
--- kind = 'recurring' : a normal weekly shift (repeats every week on day_of_week)
--- kind = 'override'  : a one-off change for a specific date
---   override_type only populated when kind = 'override'
---   day_of_week only populated when kind = 'recurring'
---   override_date only populated when kind = 'override'
--- Both shapes share shift_start / shift_end / is_active — no duplication.
-
-CREATE TABLE IF NOT EXISTS `schedules` (
-  `id`            VARCHAR(36)  NOT NULL,
-  `person_id`     VARCHAR(36)  NOT NULL,
-  `kind`          ENUM('recurring','override') NOT NULL,
-
-  -- recurring shift fields
-  `day_of_week`   ENUM('mon','tue','wed','thu','fri','sat','sun') DEFAULT NULL,
-  `shift_type`    ENUM('morning','evening','split','cover') DEFAULT NULL,
-  `effective_from` DATE        DEFAULT NULL,
-  `effective_until` DATE       DEFAULT NULL,
-
-  -- override-only fields
-  `override_date` DATE         DEFAULT NULL,
-  `override_type` ENUM('day_off','extra_shift','modified_hours') DEFAULT NULL,
-  `approved_by`   VARCHAR(36)  DEFAULT NULL,
-
-  -- shared
-  `shift_start`   TIME         DEFAULT NULL,
-  `shift_end`     TIME         DEFAULT NULL,
-  `is_active`     TINYINT(1)   NOT NULL DEFAULT 1,
-  `notes`         VARCHAR(255) DEFAULT NULL,
-  `created_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (`id`),
-  -- Prevent two overrides for the same person on the same date
-  UNIQUE KEY `uq_override` (`person_id`, `override_date`),
-  INDEX `idx_sched_person` (`person_id`),
-  CONSTRAINT `fk_sched_person`   FOREIGN KEY (`person_id`)  REFERENCES `users`(`id`) ON DELETE RESTRICT,
-  CONSTRAINT `fk_sched_approver` FOREIGN KEY (`approved_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -349,14 +276,9 @@ CREATE TABLE IF NOT EXISTS `subscription_plans` (
   `price`                 DECIMAL(10,2) NOT NULL,
   `duration_days`         SMALLINT      NOT NULL,
   `included_pt_sessions`  TINYINT       NOT NULL DEFAULT 0,
-  `max_members`           TINYINT       NOT NULL DEFAULT 1,
-  `requires_document`     VARCHAR(50)   DEFAULT NULL,
-  `min_age`               TINYINT       DEFAULT NULL,
-  `max_age`               TINYINT       DEFAULT NULL,
   `is_active`             TINYINT(1)    NOT NULL DEFAULT 1,
   `sort_order`            TINYINT       NOT NULL DEFAULT 0,
   `created_at`            TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at`            TIMESTAMP     NULL ON UPDATE CURRENT_TIMESTAMP,
   `deleted_at`            TIMESTAMP     NULL DEFAULT NULL,
 
   PRIMARY KEY (`id`),
@@ -375,7 +297,6 @@ CREATE TABLE IF NOT EXISTS `subscription_plans` (
 CREATE TABLE IF NOT EXISTS `subscriptions` (
   `id`               VARCHAR(36)   NOT NULL,
   `member_id`        VARCHAR(36)   NOT NULL,
-  `partner_id`       VARCHAR(36)   DEFAULT NULL,
   `plan_id`          VARCHAR(36)   NOT NULL,
   `start_date`       DATE          NOT NULL,
   `end_date`         DATE          NOT NULL,
@@ -383,14 +304,9 @@ CREATE TABLE IF NOT EXISTS `subscriptions` (
   `price_paid`       DECIMAL(10,2) DEFAULT NULL,
   `discount_amount`  DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   `promotion_id`     VARCHAR(36)   DEFAULT NULL,
-  `renewed_from_id`  VARCHAR(36)   DEFAULT NULL,
-  `grace_expires_at` DATE          DEFAULT NULL,
   `pt_sessions_left` TINYINT       NOT NULL DEFAULT 0,
-  `auto_renew`       TINYINT(1)    NOT NULL DEFAULT 0,
   `notes`            TEXT          DEFAULT NULL,
   `created_at`       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at`       TIMESTAMP     NULL ON UPDATE CURRENT_TIMESTAMP,
-  `deleted_at`       TIMESTAMP     NULL DEFAULT NULL,
 
   PRIMARY KEY (`id`),
   INDEX `idx_sub_member`        (`member_id`),
@@ -398,10 +314,8 @@ CREATE TABLE IF NOT EXISTS `subscriptions` (
   INDEX `idx_sub_end`           (`end_date`),
   INDEX `idx_sub_member_status` (`member_id`, `status`),
   CONSTRAINT `fk_sub_member`   FOREIGN KEY (`member_id`)       REFERENCES `users`(`id`)             ON DELETE RESTRICT,
-  CONSTRAINT `fk_sub_partner`  FOREIGN KEY (`partner_id`)      REFERENCES `users`(`id`)             ON DELETE SET NULL,
   CONSTRAINT `fk_sub_plan`     FOREIGN KEY (`plan_id`)         REFERENCES `subscription_plans`(`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_sub_promo`    FOREIGN KEY (`promotion_id`)    REFERENCES `promotions`(`id`)          ON DELETE SET NULL,
-  CONSTRAINT `fk_sub_renewed`  FOREIGN KEY (`renewed_from_id`) REFERENCES `subscriptions`(`id`)      ON DELETE SET NULL,
   CONSTRAINT `chk_sub_dates`   CHECK (`end_date` >= `start_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -415,7 +329,6 @@ CREATE TABLE IF NOT EXISTS `subscription_freezes` (
   `subscription_id` VARCHAR(36)  NOT NULL,
   `freeze_start`    DATE         NOT NULL,
   `freeze_end`      DATE         NOT NULL,
-  `actual_end`      DATE         DEFAULT NULL,
   `reason`          VARCHAR(255) DEFAULT NULL,
   `requested_by`    VARCHAR(36)  DEFAULT NULL,
   `created_at`      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -438,18 +351,14 @@ CREATE TABLE IF NOT EXISTS `promotions` (
   `name`           VARCHAR(100)  NOT NULL,
   `discount_type`  ENUM('percentage','fixed') NOT NULL,
   `discount_value` DECIMAL(10,2) NOT NULL,
-  `card_type`      VARCHAR(50)   DEFAULT NULL,
-  `usage_limit`    SMALLINT      DEFAULT NULL,
   `used_count`     SMALLINT      NOT NULL DEFAULT 0,
   `valid_from`     DATE          NOT NULL,
   `valid_until`    DATE          DEFAULT NULL,
   `is_active`      TINYINT(1)    NOT NULL DEFAULT 1,
-  `created_by`     VARCHAR(36)   DEFAULT NULL,
   `created_at`     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_promo_code` (`code`),
-  CONSTRAINT `fk_promo_creator` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
   CONSTRAINT `chk_promo_value`  CHECK (`discount_value` > 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -468,15 +377,9 @@ CREATE TABLE IF NOT EXISTS `payments` (
   `receipt_number`      VARCHAR(50)   DEFAULT NULL,
   `reference_number`    VARCHAR(100)  DEFAULT NULL,
   `instrument_hash`     VARCHAR(64)   DEFAULT NULL,
-  `card_last_four`      VARCHAR(4)    DEFAULT NULL,
   `promotion_id`        VARCHAR(36)   DEFAULT NULL,
   `discount_amount`     DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-  `refund_amount`       DECIMAL(10,2) DEFAULT NULL,
-  `refunded_at`         TIMESTAMP     NULL DEFAULT NULL,
-  `refund_reason`       VARCHAR(255)  DEFAULT NULL,
-  `original_payment_id` VARCHAR(36)   DEFAULT NULL,
   `recorded_by`         VARCHAR(36)   DEFAULT NULL,
-  `notes`               TEXT          DEFAULT NULL,
   `created_at`          TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (`id`),
@@ -485,7 +388,6 @@ CREATE TABLE IF NOT EXISTS `payments` (
   INDEX `idx_pay_date` (`payment_date`),
   CONSTRAINT `fk_pay_sub`     FOREIGN KEY (`subscription_id`)    REFERENCES `subscriptions`(`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_pay_promo`   FOREIGN KEY (`promotion_id`)        REFERENCES `promotions`(`id`)    ON DELETE SET NULL,
-  CONSTRAINT `fk_pay_refund`  FOREIGN KEY (`original_payment_id`) REFERENCES `payments`(`id`)     ON DELETE SET NULL,
   CONSTRAINT `fk_pay_by`      FOREIGN KEY (`recorded_by`)         REFERENCES `users`(`id`)        ON DELETE SET NULL,
   CONSTRAINT `chk_pay_amount` CHECK (`amount` > 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -556,8 +458,6 @@ CREATE TABLE IF NOT EXISTS `workout_plans` (
   `duration_weeks` TINYINT   NOT NULL,
   `days_per_week`  TINYINT   NOT NULL,
   `is_active`    TINYINT(1)   NOT NULL DEFAULT 1,
-  `started_at`   DATE         DEFAULT NULL,
-  `completed_at` DATE         DEFAULT NULL,
   `created_at`   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (`id`),
@@ -567,24 +467,6 @@ CREATE TABLE IF NOT EXISTS `workout_plans` (
   CONSTRAINT `fk_wp_trainer` FOREIGN KEY (`trainer_id`) REFERENCES `users`(`id`) ON DELETE SET NULL,
   CONSTRAINT `chk_wp_weeks` CHECK (`duration_weeks` BETWEEN 1 AND 52),
   CONSTRAINT `chk_wp_days`  CHECK (`days_per_week`  BETWEEN 1 AND 7)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `workout_exercises` (
-  `id`            VARCHAR(36)  NOT NULL,
-  `plan_id`       VARCHAR(36)  NOT NULL,
-  `day_number`    TINYINT      NOT NULL,
-  `order_in_day`  TINYINT      NOT NULL,
-  `exercise_name` VARCHAR(100) NOT NULL,
-  `sets`          TINYINT      DEFAULT NULL,
-  `reps`          VARCHAR(50)  DEFAULT NULL,
-  `rest_seconds`  SMALLINT     DEFAULT NULL,
-  `equipment`     VARCHAR(100) DEFAULT NULL,
-  `muscle_groups` VARCHAR(200) DEFAULT NULL,
-  `notes`         TEXT         DEFAULT NULL,
-
-  PRIMARY KEY (`id`),
-  INDEX `idx_we_plan` (`plan_id`),
-  CONSTRAINT `fk_we_plan` FOREIGN KEY (`plan_id`) REFERENCES `workout_plans`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -626,24 +508,10 @@ CREATE TABLE IF NOT EXISTS `pt_sessions` (
   `start_time`     TIME         NOT NULL,
   `end_time`       TIME         NOT NULL,
   `status`         ENUM('booked','confirmed','completed','cancelled','no_show') NOT NULL DEFAULT 'booked',
-  `cancelled_at`   TIMESTAMP    NULL DEFAULT NULL,
   `cancel_reason`  VARCHAR(255) DEFAULT NULL,
-
-  -- Trainer notes (was pt_session_notes — 1:1 so inline)
-  `perf_score`     TINYINT      DEFAULT NULL,  -- 1-5
-  `exercises_done` TEXT         DEFAULT NULL,
-  `weight_progress` TEXT        DEFAULT NULL,
-  `concerns`       TEXT         DEFAULT NULL,
-  `next_plan`      TEXT         DEFAULT NULL,
-
-  -- Member review (was trainer_reviews — 1:1 so inline)
   `review_rating`  TINYINT      DEFAULT NULL,  -- 1-5, NULL until reviewed
   `review_comment` TEXT         DEFAULT NULL,
-  `review_anonymous` TINYINT(1) NOT NULL DEFAULT 1,
-  `reviewed_at`    TIMESTAMP    NULL DEFAULT NULL,
-
   `created_at`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at`     TIMESTAMP    NULL ON UPDATE CURRENT_TIMESTAMP,
 
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_trainer_slot` (`trainer_id`, `session_date`, `start_time`),
@@ -652,7 +520,6 @@ CREATE TABLE IF NOT EXISTS `pt_sessions` (
   INDEX `idx_pts_date`    (`session_date`),
   CONSTRAINT `fk_pts_member`   FOREIGN KEY (`member_id`)  REFERENCES `users`(`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_pts_trainer`  FOREIGN KEY (`trainer_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT,
-  CONSTRAINT `chk_perf_score`  CHECK (`perf_score`    IS NULL OR `perf_score`    BETWEEN 1 AND 5),
   CONSTRAINT `chk_review_rate` CHECK (`review_rating` IS NULL OR `review_rating` BETWEEN 1 AND 5)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -665,23 +532,12 @@ CREATE TABLE IF NOT EXISTS `equipment` (
   `id`               VARCHAR(36)  NOT NULL,
   `name`             VARCHAR(100) NOT NULL,
   `category`         ENUM('cardio','strength_machine','free_weight','bench','accessory','other') NOT NULL,
-  `manufacturer`     VARCHAR(100) DEFAULT NULL,
-  `model`            VARCHAR(100) DEFAULT NULL,
-  `serial_number`    VARCHAR(100) DEFAULT NULL,
-  `asset_tag`        VARCHAR(50)  DEFAULT NULL,
-  `purchase_date`    DATE         DEFAULT NULL,
-  `warranty_expiry`  DATE         DEFAULT NULL,
   `quantity`         TINYINT      NOT NULL DEFAULT 1,
   `status`           ENUM('operational','needs_maintenance','under_maintenance','retired') NOT NULL DEFAULT 'operational',
   `zone_label`       VARCHAR(50)  DEFAULT NULL,
-  `last_service_date` DATE        DEFAULT NULL,
-  `next_service_due`  DATE        DEFAULT NULL,
-  `notes`            TEXT         DEFAULT NULL,
   `created_at`       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at`       TIMESTAMP    NULL ON UPDATE CURRENT_TIMESTAMP,
 
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_asset_tag` (`asset_tag`),
   INDEX `idx_equip_status` (`status`),
   CONSTRAINT `chk_equip_qty` CHECK (`quantity` > 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -697,10 +553,6 @@ CREATE TABLE IF NOT EXISTS `equipment_events` (
   `event_type`   ENUM('issue_reported','maintenance_done') NOT NULL,
   `severity`     ENUM('low','medium','high','critical') DEFAULT NULL,
   `description`  TEXT         NOT NULL,
-  -- legacy fields (kept for compatibility, not used by current app logic)
-  `cost`         DECIMAL(10,2) DEFAULT NULL,
-  `performed_by` VARCHAR(100) DEFAULT NULL,
-  -- current app fields
   `status`       ENUM('open','in_progress','resolved') DEFAULT NULL,
   `logged_by`    VARCHAR(36)  DEFAULT NULL,
   `resolved_by`  VARCHAR(36)  DEFAULT NULL,
@@ -726,18 +578,12 @@ CREATE TABLE IF NOT EXISTS `inventory_items` (
   `id`               VARCHAR(36)   NOT NULL,
   `name`             VARCHAR(100)  NOT NULL,
   `category`         VARCHAR(50)   NOT NULL,
-  `sku`              VARCHAR(50)   DEFAULT NULL,
   `qty_in_stock`     SMALLINT      NOT NULL DEFAULT 0,
   `reorder_threshold` SMALLINT     NOT NULL DEFAULT 5,
-  `unit_cost`        DECIMAL(10,2) DEFAULT NULL,
-  `selling_price`    DECIMAL(10,2) DEFAULT NULL,
-  `supplier`         VARCHAR(100)  DEFAULT NULL,
   `is_active`        TINYINT(1)    NOT NULL DEFAULT 1,
   `created_at`       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at`       TIMESTAMP     NULL ON UPDATE CURRENT_TIMESTAMP,
 
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_sku` (`sku`),
   CONSTRAINT `chk_inv_stock` CHECK (`qty_in_stock`     >= 0),
   CONSTRAINT `chk_reorder`   CHECK (`reorder_threshold` >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -747,7 +593,6 @@ CREATE TABLE IF NOT EXISTS `inventory_transactions` (
   `item_id`     VARCHAR(36)   NOT NULL,
   `txn_type`    ENUM('restock','sale','adjustment','waste') NOT NULL,
   `qty_change`  SMALLINT      NOT NULL,
-  `unit_cost`   DECIMAL(10,2) DEFAULT NULL,
   `reference`   VARCHAR(100)  DEFAULT NULL,
   `recorded_by` VARCHAR(36)   DEFAULT NULL,
   `created_at`  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -773,20 +618,12 @@ CREATE TABLE IF NOT EXISTS `messages` (
   `body`         TEXT         NOT NULL,
   `priority`     ENUM('low','normal','high','critical') NOT NULL DEFAULT 'normal',
   `status`       ENUM('pending','sent','read','failed') NOT NULL DEFAULT 'pending',
-  -- legacy scheduling fields (not used by current app logic)
-  `scheduled_at` TIMESTAMP    NULL DEFAULT NULL,
-  `sent_at`      TIMESTAMP    NULL DEFAULT NULL,
-  `read_at`      TIMESTAMP    NULL DEFAULT NULL,
-  `attempts`     TINYINT      NOT NULL DEFAULT 0,
-  `error_msg`    VARCHAR(500) DEFAULT NULL,
-  -- current app fields
   `sent_by`      VARCHAR(36)  DEFAULT NULL,
   `created_at`   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (`id`),
   INDEX `idx_msg_person`    (`to_person_id`),
   INDEX `idx_msg_status`    (`status`),
-  INDEX `idx_msg_scheduled` (`scheduled_at`),
   CONSTRAINT `fk_msg_person`  FOREIGN KEY (`to_person_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_msg_sender`  FOREIGN KEY (`sent_by`)      REFERENCES `users`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

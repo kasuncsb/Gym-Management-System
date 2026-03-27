@@ -1558,33 +1558,28 @@ export async function createExercise(input: {
 export async function getPlanExercises(planId: string) {
   const [plan] = await db.select({ id: workoutPlans.id }).from(workoutPlans).where(eq(workoutPlans.id, planId)).limit(1);
   if (!plan) throw errors.notFound('Workout plan');
-  try {
-    return await db
-      .select({
-        id: workoutPlanExercises.id,
-        planId: workoutPlanExercises.planId,
-        exerciseId: workoutPlanExercises.exerciseId,
-        dayNumber: workoutPlanExercises.dayNumber,
-        sets: workoutPlanExercises.sets,
-        reps: workoutPlanExercises.reps,
-        durationSec: workoutPlanExercises.durationSec,
-        restSec: workoutPlanExercises.restSec,
-        notes: workoutPlanExercises.notes,
-        sortOrder: workoutPlanExercises.sortOrder,
-        exerciseName: exercises.name,
-        muscleGroup: exercises.muscleGroup,
-        equipmentNeeded: exercises.equipmentNeeded,
-        instructions: exercises.instructions,
-        difficulty: exercises.difficulty,
-      })
-      .from(workoutPlanExercises)
-      .leftJoin(exercises, eq(workoutPlanExercises.exerciseId, exercises.id))
-      .where(eq(workoutPlanExercises.planId, planId))
-      .orderBy(workoutPlanExercises.dayNumber, workoutPlanExercises.sortOrder);
-  } catch {
-    // Compatibility fallback for stale DBs without workout_plan_exercises.
-    return [];
-  }
+  return db
+    .select({
+      id: workoutPlanExercises.id,
+      planId: workoutPlanExercises.planId,
+      exerciseId: workoutPlanExercises.exerciseId,
+      dayNumber: workoutPlanExercises.dayNumber,
+      sets: workoutPlanExercises.sets,
+      reps: workoutPlanExercises.reps,
+      durationSec: workoutPlanExercises.durationSec,
+      restSec: workoutPlanExercises.restSec,
+      notes: workoutPlanExercises.notes,
+      sortOrder: workoutPlanExercises.sortOrder,
+      exerciseName: exercises.name,
+      muscleGroup: exercises.muscleGroup,
+      equipmentNeeded: exercises.equipmentNeeded,
+      instructions: exercises.instructions,
+      difficulty: exercises.difficulty,
+    })
+    .from(workoutPlanExercises)
+    .leftJoin(exercises, eq(workoutPlanExercises.exerciseId, exercises.id))
+    .where(eq(workoutPlanExercises.planId, planId))
+    .orderBy(workoutPlanExercises.dayNumber, workoutPlanExercises.sortOrder);
 }
 
 export async function addExerciseToPlan(planId: string, input: {
@@ -1753,42 +1748,23 @@ export async function updateEquipmentStatus(
 }
 
 export async function listEquipmentEvents() {
-  try {
-    return await db
-      .select({
-        id: equipmentEvents.id,
-        equipmentId: equipmentEvents.equipmentId,
-        equipmentName: equipment.name,
-        eventType: equipmentEvents.eventType,
-        severity: equipmentEvents.severity,
-        description: equipmentEvents.description,
-        status: equipmentEvents.status,
-        loggedBy: equipmentEvents.loggedBy,
-        resolvedBy: equipmentEvents.resolvedBy,
-        resolvedAt: equipmentEvents.resolvedAt,
-        createdAt: equipmentEvents.createdAt,
-      })
-      .from(equipmentEvents)
-      .leftJoin(equipment, eq(equipment.id, equipmentEvents.equipmentId))
-      .orderBy(desc(equipmentEvents.createdAt));
-  } catch {
-    // Compatibility fallback for DBs that don't yet have resolver columns.
-    return db
-      .select({
-        id: equipmentEvents.id,
-        equipmentId: equipmentEvents.equipmentId,
-        equipmentName: equipment.name,
-        eventType: equipmentEvents.eventType,
-        severity: equipmentEvents.severity,
-        description: equipmentEvents.description,
-        status: equipmentEvents.status,
-        loggedBy: equipmentEvents.loggedBy,
-        createdAt: equipmentEvents.createdAt,
-      })
-      .from(equipmentEvents)
-      .leftJoin(equipment, eq(equipment.id, equipmentEvents.equipmentId))
-      .orderBy(desc(equipmentEvents.createdAt));
-  }
+  return db
+    .select({
+      id: equipmentEvents.id,
+      equipmentId: equipmentEvents.equipmentId,
+      equipmentName: equipment.name,
+      eventType: equipmentEvents.eventType,
+      severity: equipmentEvents.severity,
+      description: equipmentEvents.description,
+      status: equipmentEvents.status,
+      loggedBy: equipmentEvents.loggedBy,
+      resolvedBy: equipmentEvents.resolvedBy,
+      resolvedAt: equipmentEvents.resolvedAt,
+      createdAt: equipmentEvents.createdAt,
+    })
+    .from(equipmentEvents)
+    .leftJoin(equipment, eq(equipment.id, equipmentEvents.equipmentId))
+    .orderBy(desc(equipmentEvents.createdAt));
 }
 
 export async function addEquipmentEvent(
@@ -1813,15 +1789,11 @@ export async function resolveEquipmentEvent(eventId: string, resolvedByUserId: s
   const [event] = await db.select().from(equipmentEvents).where(eq(equipmentEvents.id, eventId)).limit(1);
   if (!event) throw errors.notFound('Equipment event');
 
-  try {
-    await db.update(equipmentEvents).set({
-      status: 'resolved',
-      resolvedBy: resolvedByUserId,
-      resolvedAt: new Date(),
-    }).where(eq(equipmentEvents.id, eventId));
-  } catch {
-    await db.update(equipmentEvents).set({ status: 'resolved' }).where(eq(equipmentEvents.id, eventId));
-  }
+  await db.update(equipmentEvents).set({
+    status: 'resolved',
+    resolvedBy: resolvedByUserId,
+    resolvedAt: new Date(),
+  }).where(eq(equipmentEvents.id, eventId));
 
   // Check remaining open events for this equipment; if none, reset to operational
   const [openCount] = await db
@@ -1999,33 +1971,18 @@ export async function broadcastMessage(
   },
 ) {
   const id = ids.uuid();
-  try {
-    await db.insert(messages).values({
-      id,
-      type: 'announcement',
-      channel: 'in_app',
-      toPersonId: input.toPersonId ?? null,
-      targetRole: input.targetRole ?? null,
-      subject: input.subject,
-      body: input.body,
-      priority: input.priority ?? 'normal',
-      status: 'sent',
-      sentBy: senderId,
-    });
-  } catch {
-    // Compatibility for DBs without sent_by.
-    await db.insert(messages).values({
-      id,
-      type: 'announcement',
-      channel: 'in_app',
-      toPersonId: input.toPersonId ?? null,
-      targetRole: input.targetRole ?? null,
-      subject: input.subject,
-      body: input.body,
-      priority: input.priority ?? 'normal',
-      status: 'sent',
-    });
-  }
+  await db.insert(messages).values({
+    id,
+    type: 'announcement',
+    channel: 'in_app',
+    toPersonId: input.toPersonId ?? null,
+    targetRole: input.targetRole ?? null,
+    subject: input.subject,
+    body: input.body,
+    priority: input.priority ?? 'normal',
+    status: 'sent',
+    sentBy: senderId,
+  });
   const [row] = await db
     .select({
       id: messages.id,
