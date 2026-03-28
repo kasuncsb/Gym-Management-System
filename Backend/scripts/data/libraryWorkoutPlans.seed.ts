@@ -78,7 +78,7 @@ function twoDay(
 export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   {
     name: 'Beginner Full Body',
-    description: 'Learn fundamental movement patterns with manageable volume. Perfect for your first month in the gym.',
+    description: 'Beginner Full Body: learn squat, push, pull, and core in three short gym sessions per week—built for your first weeks at PowerWorld.',
     difficulty: 'beginner',
     durationWeeks: 4,
     daysPerWeek: 3,
@@ -86,8 +86,8 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       4,
       3,
       'General fitness',
-      px(1552242),
-      'Train three non-consecutive days (e.g. Mon/Wed/Fri). Leave at least one rest day between sessions. Prioritise smooth reps over weight: add load only when every rep looks identical to the first.',
+      px(1547218),
+      'Beginner Full Body is for new PowerWorld members: three non-consecutive days (e.g. Mon/Wed/Fri) with simple patterns (squat, push, pull, core). Prioritise smooth reps over weight—add load only when every rep matches the first.',
       {
         title: 'Day A — legs & core',
         notes: 'Warm up 5–8 min easy bike or brisk walk, then 2 light rounds of bodyweight squats and leg swings.',
@@ -110,7 +110,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   },
   {
     name: 'Fat Loss Circuit',
-    description: 'Mix steady cardio with simple strength to burn calories while preserving muscle. Keep rest honest—quality matters.',
+    description: 'Fat Loss Circuit: walk, bike, and light strength circuits to burn calories while keeping muscle—structured for real club cardio kit and busy schedules.',
     difficulty: 'beginner',
     durationWeeks: 6,
     daysPerWeek: 4,
@@ -118,8 +118,8 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       6,
       4,
       'Fat loss',
-      px(2294363),
-      'Aim for a conversational-but-working effort on cardio blocks (RPE ~6/10). If joint pain appears, substitute cycling or incline walk. Pair this plan with consistent protein and sleep for best results.',
+      px(1571453),
+      'Fat Loss Circuit pairs steady cardio with simple strength circuits. Keep cardio at a conversational-but-working effort (RPE ~6/10); swap in the bike or incline walk if knees complain. Match it with protein and sleep.',
       {
         title: 'Circuit 1 — cardio + legs + core',
         notes: 'Complete the list in order; repeat circuit twice through as you adapt.',
@@ -141,7 +141,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   },
   {
     name: 'Push Pull Legs',
-    description: 'Classic split: push, pull, legs on rotating days. Ideal once you are comfortable with compound lifts.',
+    description: 'Push Pull Legs: the classic gym split—chest/shoulders/triceps, back/biceps, then legs—for members ready to train compounds several days a week.',
     difficulty: 'intermediate',
     durationWeeks: 8,
     daysPerWeek: 3,
@@ -149,8 +149,8 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       8,
       3,
       'PPL',
-      px(416475),
-      'Run Push → Pull → Legs (or rotate as your schedule allows). Add 2.5–5 lb to main lifts weekly only when all target reps are clean. Stop 1–2 reps short of failure on compounds until week 5+.',
+      px(1540494),
+      'Push Pull Legs rotates pressing, back work, and legs. Add 2.5–5 lb only when all target reps stay crisp; on compounds stay 1–2 reps shy of failure until week 5+.',
       {
         title: 'Push — chest, shoulders, triceps',
         notes: '5 min general warm-up plus 2 light sets of your first press before working sets.',
@@ -173,7 +173,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   },
   {
     name: 'Upper Lower Split',
-    description: 'Four weekly sessions balancing upper and lower body. Strong choice for intermediate trainees who like structure.',
+    description: 'Upper Lower Split: four sessions a week balancing upper-body pushing/pulling with knee- and hip-dominant leg work on the gym floor.',
     difficulty: 'intermediate',
     durationWeeks: 8,
     daysPerWeek: 4,
@@ -181,8 +181,8 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       8,
       4,
       'Upper/Lower',
-      px(3775166),
-      'Alternate Upper A / Lower A / Upper B / Lower B across the week. Match paired muscle fatigues: if lower back feels fried, reduce hinge volume next session. Deload on week 9 if you extend—cut sets by ~30%.',
+      px(8411308),
+      'Upper Lower Split alternates upper and lower days (four sessions per week). If your lower back is fried, cut hinge volume next time; after a long run, deload by trimming sets ~30%.',
       {
         title: 'Upper — horizontal push & pull',
         notes: 'Track total pressing volume; cap if shoulders feel cranky.',
@@ -205,7 +205,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   },
   {
     name: 'Cardio & Core',
-    description: 'Sustainable conditioning with anti-extension and rotation core work. Friendly on most joints.',
+    description: 'Cardio & Core: club bike or elliptical plus planks and rotation work—steady effort that is kind to most joints.',
     difficulty: 'beginner',
     durationWeeks: 4,
     daysPerWeek: 3,
@@ -214,7 +214,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       3,
       'Cardio',
       px(260352),
-      'Use “talk test” for steady cardio: you should speak in short sentences. Progress by +5% time or small resistance bumps weekly, not both at once.',
+      'Cardio & Core uses bike/elliptical for sustainable conditioning, then anti-extension and rotation core work. Use the talk test: you should speak in short sentences; add time or resistance weekly—not both at once.',
       {
         title: 'Session A — bike & anti-extension',
         notes: 'Hydrate; core work comes after the longer cardio bout when you’re warm.',
@@ -236,7 +236,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   },
   {
     name: 'Strength Basics',
-    description: 'Heavy compounds with moderate reps. Built for learning barbell technique under sensible load.',
+    description: 'Strength Basics: barbell squat, RDL, bench, and row with moderate reps—learn solid technique under sensible loads on the rack and platform.',
     difficulty: 'intermediate',
     durationWeeks: 8,
     daysPerWeek: 3,
@@ -244,8 +244,8 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       8,
       3,
       'Strength',
-      px(1547248),
-      'Use RPE 7–8 on working sets: you could do 2 more reps with perfect form if forced. Video your squats occasionally to check depth and bar path. If lower back rounds on deadlifts, lower weight until hinge pattern is crisp.',
+      px(1548773),
+      'Strength Basics centres on heavy squat, hinge, bench, and row patterns. Work around RPE 7–8 on mains; film squats now and then for depth. If the low back rounds on hinges, reduce load until the pattern is clean.',
       {
         title: 'Heavy A — squat & hinge',
         notes: 'Mobility: hip airplanes, bodyweight squat holds, empty bar patterns.',
@@ -266,7 +266,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   },
   {
     name: 'Glutes & Legs',
-    description: 'Bias toward quads one day, hamstrings and glutes the next. Great for lower-body shape and performance.',
+    description: 'Glutes & Legs: quad-biased and posterior-chain sessions using leg press, lunges, hip thrusts, and curls—shaped for lower-body strength and shape.',
     difficulty: 'intermediate',
     durationWeeks: 6,
     daysPerWeek: 3,
@@ -275,7 +275,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       3,
       'Lower body',
       px(1552241),
-      'Place a “walking” day between sessions or upper-body work. Foam-roll quads/IT band lightly if you’re new to high leg volume. Eat sufficient carbs around these workouts.',
+      'Glutes & Legs biases quads on one day and hamstrings/glutes on the other using presses, lunges, hip thrusts, and curls. Sandwich hard leg days with walking or upper work; fuel with carbs around these sessions.',
       {
         title: 'Quad focus',
         notes: 'Heel wedges optional for squat-pattern comfort.',
@@ -296,7 +296,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   },
   {
     name: 'Chest & Back',
-    description: 'Balanced horizontal push and pull to keep shoulders happy and posture strong.',
+    description: 'Chest & Back: presses and rows in the same programme so shoulders stay balanced and posture stays strong.',
     difficulty: 'beginner',
     durationWeeks: 6,
     daysPerWeek: 3,
@@ -304,8 +304,8 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       6,
       3,
       'Upper',
-      px(1552105),
-      'If bench causes sharp shoulder pain, substitute neutral-grip machine press. Pull slightly more volume than push over the week when possible.',
+      px(8639896),
+      'Chest & Back balances horizontal pressing with rows and pulldowns. If flat bench bites the shoulders, use a neutral machine press; aim for a bit more pull volume than push across the week.',
       {
         title: 'Chest emphasis',
         notes: 'Retract and depress shoulder blades before first press set.',
@@ -326,7 +326,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   },
   {
     name: 'Shoulders & Arms',
-    description: 'Controlled isolation for delts and arms—ideal as an accessory day or lighter block.',
+    description: 'Shoulders & Arms: lighter isolation work for delts, biceps, and triceps—good as an extra day or when you want less heavy compound stress.',
     difficulty: 'beginner',
     durationWeeks: 4,
     daysPerWeek: 3,
@@ -335,7 +335,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       3,
       'Arms',
       px(703016),
-      'Keep rests strict to create metabolic stress without heavy joint load. Stop any exercise that causes sharp elbow or wrist pain—swap cable for dumbbell angles.',
+      'Shoulders & Arms keeps rests honest for shoulder presses, raises, curls, and pushdowns without maxing joints. Stop on sharp elbow or wrist pain—swap cable angles or dumbbells as needed.',
       {
         title: 'Shoulders',
         notes: 'Light rear-delt work beforehand reduces impingement risk on presses.',
@@ -356,7 +356,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   },
   {
     name: 'HIIT Conditioning',
-    description: 'Short maximal efforts with full recovery. Requires solid warm-up and baseline cardio clearance.',
+    description: 'HIIT Conditioning: machine sprints and low-impact power work—only if you are cleared for hard cardio and you warm up properly.',
     difficulty: 'advanced',
     durationWeeks: 6,
     daysPerWeek: 3,
@@ -365,7 +365,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       3,
       'HIIT',
       px(3757376),
-      'If you feel dizzy or heart rate won’t come down between rounds, end the session. Beginners should halve work intervals for two weeks. HIIT is supplement, not replacement for easy movement on other days.',
+      'HIIT Conditioning uses rowing sprints, swings, fan bike, and jumps—short hard work with full recovery. Stop if dizzy or HR won’t settle; beginners should halve work intervals for two weeks. Keep easy movement on other days too.',
       {
         title: 'Round 1 — rowing & ballistic hinge',
         notes: '10 min gradual rowing + dynamic drills before first sprint.',
@@ -386,7 +386,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   },
   {
     name: 'Mobility & Stretch',
-    description: 'Recovery-focused movement: open hips, thoracic spine, and shoulders after hard weeks.',
+    description: 'Mobility & Stretch: gentle flows for hips, upper back, and shoulders between heavier training weeks.',
     difficulty: 'beginner',
     durationWeeks: 4,
     daysPerWeek: 3,
@@ -394,8 +394,8 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       4,
       3,
       'Mobility',
-      px(3757949),
-      'Treat this as active recovery: never push into sharp pain—only comfortable stretch + breath. Pair with easy walks on off days.',
+      px(4056723),
+      'Mobility & Stretch is active recovery on the floor: cat-cow, thoracic openers, hips, and band pull-aparts—no sharp pain, only comfortable range and steady breathing. Add easy walks on rest days.',
       {
         title: 'Flow A — spine and hips',
         notes: 'Slow nasal breathing helps down-shift the nervous system.',
@@ -417,7 +417,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   },
   {
     name: 'Minimal Equipment',
-    description: 'Dumbbells and bodyweight only—train effectively anywhere in the club.',
+    description: 'Minimal Equipment: dumbbells and bodyweight only—full workouts when racks are busy or you train in a small corner.',
     difficulty: 'beginner',
     durationWeeks: 6,
     daysPerWeek: 3,
@@ -425,8 +425,8 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       6,
       3,
       'Minimal',
-      px(3838950),
-      'If dumbbells are limited, use tempo (3 sec lowering) and higher reps before chasing heavier pairs. Log workouts—progress beats random variety.',
+      px(414029),
+      'Minimal Equipment needs only dumbbells and body weight: goblet squats, push-ups, rows, hinges, and presses. With light weights, slow the lowering phase and add reps before chasing heavier pairs.',
       {
         title: 'Day 1 — squat, push, pull',
         notes: 'Clear floor space; have water nearby—tri-set style optional.',
@@ -448,7 +448,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   },
   {
     name: 'Muscle Gain',
-    description: 'Hypertrophy bias: moderate reps, controlled negatives, and enough weekly volume to grow.',
+    description: 'Muscle Gain: higher-volume upper and lower sessions for size—machines and cables included for pump-friendly work.',
     difficulty: 'intermediate',
     durationWeeks: 10,
     daysPerWeek: 4,
@@ -457,7 +457,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       4,
       'Hypertrophy',
       px(3838961),
-      'Eat at a slight surplus with ~1.6–2.2 g protein/kg bodyweight if gaining. Sleep 7+ hours—muscle is built away from the gym. Track loads and beat logbook small amounts weekly.',
+      'Muscle Gain stacks moderate-rep upper and lower volume for hypertrophy. Eat a small surplus with ~1.6–2.2 g protein/kg if you are gaining; sleep 7+ h and add load or reps in small weekly steps.',
       {
         title: 'Volume upper',
         notes: '2–3 min rest on compounds; 60–90s on isolations.',
@@ -478,7 +478,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   },
   {
     name: 'Athletic Conditioning',
-    description: 'Power, elastic legs, and loaded carries. For members who want a sportier edge.',
+    description: 'Athletic Conditioning: jumps, throws, carries, and sled work for members who want a more field-ready feel.',
     difficulty: 'advanced',
     durationWeeks: 8,
     daysPerWeek: 3,
@@ -487,7 +487,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       3,
       'Athletic',
       px(3838970),
-      'Jump volumes are small but intense—land quietly. Full recovery between explosive sets. If sore Achilles or knees, replace jumps with low box step-ups.',
+      'Athletic Conditioning pairs low-volume jumps and broad jumps with carries and sled pushes. Land softly and rest fully between explosive sets; swap jumps for step-ups if ankles or knees grumble.',
       {
         title: 'Power',
         notes: 'Dynamic warm-up: skips, pogo hops, build-up sprints.',
@@ -508,7 +508,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   },
   {
     name: 'Low Impact',
-    description: 'Machines and smooth ranges—easier on joints while you still progress.',
+    description: 'Low Impact: machines and controlled ranges for members who need less pounding on hips, knees, and shoulders but still want clear progression.',
     difficulty: 'beginner',
     durationWeeks: 6,
     daysPerWeek: 3,
@@ -517,7 +517,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       3,
       'Low impact',
       px(3839010),
-      'Effort should feel sustainable (6–7/10). Increase resistance only when you can complete all reps without compensating—heel lifting, neck straining, or grip dying.',
+      'Low Impact uses bikes, leg press, and selectorized push/pull machines—smooth ranges only. Effort ~6–7/10; add resistance only when reps stay clean with no heel lift, neck strain, or white-knuckle grip.',
       {
         title: 'Session 1 — bike & legs',
         notes: 'Recumbent or upright per comfort; either is fine.',
@@ -538,7 +538,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   },
   {
     name: 'Abs & Core',
-    description: 'Anti-extension, rotation, and bracing—use as add-on or standalone short sessions.',
+    description: 'Abs & Core: bracing, anti-rotation, and light rotation drills—stack after lifting or use as short standalone sessions.',
     difficulty: 'beginner',
     durationWeeks: 4,
     daysPerWeek: 3,
@@ -546,8 +546,8 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       4,
       3,
       'Core',
-      px(3839020),
-      'Breathe: exhale on hardest moment of each rep to maintain pressure. Low back pain with flexion? Limit crunch-style volume and favour planks and Pallof.',
+      px(1886480),
+      'Abs & Core mixes planks, dead bugs, anti-rotation presses, and controlled rotation. Exhale on the hardest moment; if flexion bothers your back, favour planks and Pallof work over heavy crunching.',
       {
         title: 'Anti-extension',
         notes: 'Keep ribs “down” relative to pelvis during planks.',
@@ -569,7 +569,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   },
   {
     name: 'Active Recovery',
-    description: 'Very light movement between hard days—support blood flow, not fatigue.',
+    description: 'Active Recovery: very easy cardio and mobility between hard days—blood flow without new fatigue.',
     difficulty: 'beginner',
     durationWeeks: 4,
     daysPerWeek: 2,
@@ -580,7 +580,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
         focus: 'Recovery',
         locale: 'LK',
         coverImageUrl: px(3839040),
-        programIntro: 'Effort stays easy—you should finish feeling better than you started. Use this instead of sitting still on rest days when you wake up stiff.',
+        programIntro: 'Active Recovery is two easy days: light bike, walking, foam rolling, and band pull-aparts. You should feel better leaving than arriving—use it when you are stiff, not when you need another hard session.',
       },
       days: [
         {
@@ -607,7 +607,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   },
   {
     name: 'Cricket & Field Sports',
-    description: 'Rotational power, single-leg stability, and repeat sprint ability for pitch or field work.',
+    description: 'Cricket & Field Sports: med-ball work, hinges, bounds, and short sprints for bowlers, batters, and outfield athletes.',
     difficulty: 'intermediate',
     durationWeeks: 6,
     daysPerWeek: 3,
@@ -615,8 +615,8 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       6,
       3,
       'Rotation',
-      px(3839090),
-      'Match skill work to pre-season timing: heavy gym days not the day before a match. Prioritise sleep and fuel—repeat sprints demand glycogen.',
+      px(3768919),
+      'Cricket & Field Sports builds rotational power, single-leg stability, and repeat sprints. Keep heavy gym days away from match day; sleep and carbs matter for quality sprints.',
       {
         title: 'Rotation & hinge',
         notes: 'Med ball throws—choose weight you can move FAST.',

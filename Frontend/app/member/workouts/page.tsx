@@ -310,7 +310,7 @@ export default function WorkoutsPage() {
     };
 
     return (
-        <div className="space-y-8">
+        <div className="flex flex-col flex-1 min-h-0 gap-8">
             <PageHeader
                 title="Workout Plans"
                 subtitle="Day-by-day programmes, exercises, and progress at PowerWorld Kiribathgoda"
@@ -369,8 +369,8 @@ export default function WorkoutsPage() {
                     </p>
                 </Card>
             ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-start lg:min-h-0">
-                <div className="space-y-4 lg:max-h-[min(100vh-10.5rem,56rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-1 lg:overscroll-contain [scrollbar-gutter:stable]">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0 lg:overflow-hidden">
+                <div className="space-y-4 min-h-0 lg:h-full max-h-[min(52vh,28rem)] lg:max-h-none overflow-y-auto overflow-x-hidden lg:overscroll-contain lg:pr-1 [scrollbar-gutter:stable] touch-pan-y">
                     {filtered.map(plan => (
                         <PlanCardWithHero
                             key={plan.id}
@@ -382,7 +382,7 @@ export default function WorkoutsPage() {
                     ))}
                 </div>
 
-                <div className="lg:col-span-2 lg:min-h-0 lg:max-h-[min(100vh-10.5rem,56rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-1 lg:overscroll-contain [scrollbar-gutter:stable]">
+                <div className="lg:col-span-2 min-h-0 lg:h-full overflow-y-auto overflow-x-hidden lg:overscroll-contain lg:pr-1 [scrollbar-gutter:stable] touch-pan-y">
                 {loadingDetail && selected ? (
                     <Card className="flex items-center justify-center min-h-[320px] text-zinc-500 text-sm">
                         Loading programme…
