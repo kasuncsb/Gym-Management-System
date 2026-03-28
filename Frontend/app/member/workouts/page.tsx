@@ -310,7 +310,8 @@ export default function WorkoutsPage() {
     };
 
     return (
-        <div className="flex flex-col flex-1 min-h-0 gap-8">
+        <div className="flex min-h-0 flex-1 flex-col gap-8">
+            <div className="flex shrink-0 flex-col gap-8">
             <PageHeader
                 title="Workout Plans"
                 subtitle="Day-by-day programmes, exercises, and progress at PowerWorld Kiribathgoda"
@@ -350,6 +351,7 @@ export default function WorkoutsPage() {
                     Generate plan
                 </LoadingButton>
             </div>
+            </div>
 
             {listEmpty ? (
                 <Card className="p-8 text-center max-w-xl mx-auto">
@@ -369,8 +371,9 @@ export default function WorkoutsPage() {
                     </p>
                 </Card>
             ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0 lg:overflow-hidden">
-                <div className="space-y-4 min-h-0 lg:h-full max-h-[min(52vh,28rem)] lg:max-h-none overflow-y-auto overflow-x-hidden lg:overscroll-contain lg:pr-1 [scrollbar-gutter:stable] touch-pan-y">
+            <div className="min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
+                <div className="grid min-h-0 grid-cols-1 gap-6 lg:h-full lg:grid-cols-3">
+                <div className="min-h-0 space-y-4 lg:overflow-y-auto lg:pr-1">
                     {filtered.map(plan => (
                         <PlanCardWithHero
                             key={plan.id}
@@ -382,7 +385,7 @@ export default function WorkoutsPage() {
                     ))}
                 </div>
 
-                <div className="lg:col-span-2 min-h-0 lg:h-full overflow-y-auto overflow-x-hidden lg:overscroll-contain lg:pr-1 [scrollbar-gutter:stable] touch-pan-y">
+                <div className="min-h-0 lg:col-span-2 lg:overflow-y-auto lg:pr-1">
                 {loadingDetail && selected ? (
                     <Card className="flex items-center justify-center min-h-[320px] text-zinc-500 text-sm">
                         Loading programme…
@@ -659,6 +662,7 @@ export default function WorkoutsPage() {
                         <p className="text-zinc-400">Choose a programme from the list to see exercises and actions.</p>
                     </Card>
                 )}
+                </div>
                 </div>
             </div>
             )}

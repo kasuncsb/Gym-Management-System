@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { cn } from '@/lib/utils';
 import { Sidebar } from "@/components/ui/Sidebar";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import MemberGuard from "@/components/auth/MemberGuard";
@@ -22,14 +23,23 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
 
     if (bypass) return <>{children}</>;
 
+    /** Workout plans use a fixed viewport column and scroll inside the grid; other pages scroll this content pane only. */
+    const workoutsScrollInside =
+        pathname === '/member/workouts' || pathname.startsWith('/member/workouts/');
+
     return (
         <ProtectedRoute allowedRoles={['member']}>
             <MemberGuard>
-            <div className="flex min-h-screen bg-app text-white">
+            <div className="flex h-svh min-h-0 w-full overflow-hidden bg-app text-white">
                 <Sidebar />
-                <main className="flex-1 min-w-0 min-h-0 relative overflow-auto pt-24 flex flex-col">
-                    <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,#3c3c3c35_1px,transparent_1px),linear-gradient(to_bottom,#3c3c3c35_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_at_80%_20%,black_20%,transparent_70%)] pointer-events-none" />
-                    <div className="relative z-10 w-full min-w-0 min-h-0 flex-1 flex flex-col max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 lg:py-10">
+                <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden pt-24">
+                    <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(to_right,#3c3c3c35_1px,transparent_1px),linear-gradient(to_bottom,#3c3c3c35_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_at_80%_20%,black_20%,transparent_70%)]" />
+                    <div
+                        className={cn(
+                            'relative z-10 mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-4 sm:px-6 lg:px-8 py-6 md:py-8 lg:py-10',
+                            workoutsScrollInside ? 'overflow-hidden' : 'overflow-y-auto',
+                        )}
+                    >
                         {children}
                     </div>
                     <MemberChatbot />
