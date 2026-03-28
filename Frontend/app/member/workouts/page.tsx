@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Play, Clock, Flame, Target, Sparkles, ChevronDown, ChevronUp, Dumbbell } from 'lucide-react';
+import { Play, Clock, Flame, Sparkles, ChevronDown, ChevronUp, Dumbbell, Library } from 'lucide-react';
 import { PageHeader, Card, LoadingButton } from '@/components/ui/SharedComponents';
 import { aiAPI, getErrorMessage, opsAPI } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
@@ -16,6 +16,29 @@ interface Plan {
     durationWeeks: number;
     daysPerWeek: number;
     description?: string | null;
+}
+
+interface ProgramExercise {
+    name: string;
+    sets?: number | null;
+    reps?: number | null;
+    durationSec?: number | null;
+    restSec?: number | null;
+    instructions?: string | null;
+    muscleGroup?: string | null;
+    imageUrl?: string | null;
+    videoUrl?: string | null;
+    equipment?: string | null;
+}
+
+interface ProgramDay {
+    dayNumber: number;
+    title?: string | null;
+    exercises: ProgramExercise[];
+}
+
+interface PlanDetail extends Plan {
+    program?: { meta?: { focus?: string | null; locale?: string | null }; days?: ProgramDay[] };
 }
 
 const difficultyColor: Record<string, string> = {
@@ -33,18 +56,20 @@ const sourceLabel: Record<string, string> = {
 const sourceBadge: Record<string, string> = {
     trainer_created: 'bg-blue-500/20 text-blue-400',
     ai_generated:    'bg-purple-500/20 text-purple-400',
-    library:         'bg-zinc-500/20 text-zinc-400',
+    library:         'bg-amber-500/20 text-amber-300',
 };
 
 export default function WorkoutsPage() {
     const toast = useToast();
     const [plans, setPlans] = useState<Plan[]>([]);
+    const [libraryPlans, setLibraryPlans] = useState<Plan[]>([]);
+    const [listTab, setListTab] = useState<'mine' | 'library'>('mine');
     const [selected, setSelected] = useState<string | null>(null);
+    const [planDetail, setPlanDetail] = useState<PlanDetail | null>(null);
+    const [loadingDetail, setLoadingDetail] = useState(false);
     const [filter, setFilter] = useState<DifficultyFilter | 'all'>('all');
     const [starting, setStarting] = useState(false);
     const [generating, setGenerating] = useState(false);
-    const [exercises, setExercises] = useState<any[]>([]);
-    const [loadingExercises, setLoadingExercises] = useState(false);
     const [expandedDay, setExpandedDay] = useState<number | null>(null);
     const [activeSession, setActiveSession] = useState<any | null>(null);
 
@@ -53,32 +78,45 @@ export default function WorkoutsPage() {
             .then((d) => {
                 const items = (d ?? []) as Plan[];
                 setPlans(items);
-                if (items[0] && !selected) setSelected(items[0].id);
+                if (items[0] && listTab === 'mine' && !selected) setSelected(items[0].id);
             })
             .catch(() => toast.error('Error', 'Failed to load workout plans'));
     };
 
-    useEffect(() => { loadPlans(); }, []);
+    useEffect(() => {
+        loadPlans();
+        opsAPI.workoutLibrary()
+            .then((d) => setLibraryPlans((d ?? []) as Plan[]))
+            .catch(() => setLibraryPlans([]));
+    }, []);
+
     useEffect(() => {
         opsAPI.activeWorkoutSession().then(setActiveSession).catch(() => setActiveSession(null));
     }, []);
 
     useEffect(() => {
-        if (!selected) { setExercises([]); return; }
-        setLoadingExercises(true);
+        if (!selected) {
+            setPlanDetail(null);
+            return;
+        }
+        setLoadingDetail(true);
         setExpandedDay(null);
-        opsAPI.planExercises(selected)
-            .then(data => setExercises(data ?? []))
-            .catch(() => setExercises([]))
-            .finally(() => setLoadingExercises(false));
+        opsAPI.getWorkoutPlan(selected)
+            .then((d) => setPlanDetail(d as PlanDetail))
+            .catch(() => {
+                setPlanDetail(null);
+                toast.error('Error', 'Could not load programme details');
+            })
+            .finally(() => setLoadingDetail(false));
     }, [selected]);
 
-    // Fixed filter: actually filter by difficulty
+    const listSource = listTab === 'mine' ? plans : libraryPlans;
     const filtered = filter === 'all'
-        ? plans
-        : plans.filter(p => (p.difficulty ?? 'beginner') === filter);
+        ? listSource
+        : listSource.filter(p => (p.difficulty ?? 'beginner') === filter);
 
-    const active = plans.find((p) => p.id === selected);
+    const active = planDetail;
+    const isAssignedPlan = plans.some(p => p.id === selected);
 
     const handleGenerateAiPlan = async () => {
         setGenerating(true);
@@ -93,19 +131,35 @@ export default function WorkoutsPage() {
         }
     };
 
+    const days = active?.program?.days ?? [];
+
     return (
         <div className="space-y-8">
             <PageHeader
                 title="Workout Plans"
-                subtitle="Your curated workout programmes for PowerWorld Kiribathgoda"
+                subtitle="Your programmes and the PowerWorld Kiribathgoda library — day-by-day sessions with media"
             />
 
-            {/* Filter bar + AI generate */}
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex gap-2 flex-wrap items-center">
+                    <button
+                        type="button"
+                        onClick={() => { setListTab('mine'); const p = plans[0]; if (p) setSelected(p.id); }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${listTab === 'mine' ? 'bg-red-600 text-white border border-red-500' : 'bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:bg-zinc-800/50'}`}
+                    >
+                        My programmes
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => { setListTab('library'); const p = libraryPlans[0]; if (p) setSelected(p.id); }}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${listTab === 'library' ? 'bg-red-600 text-white border border-red-500' : 'bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:bg-zinc-800/50'}`}
+                    >
+                        <Library size={14} /> Library
+                    </button>
+                    <span className="text-zinc-600 hidden sm:inline">|</span>
                     {(['all', 'beginner', 'intermediate', 'advanced'] as const).map(g => (
                         <button key={g} onClick={() => setFilter(g)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all ${filter === g ? 'bg-red-600 text-white border border-red-500' : 'bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:bg-zinc-800/50'}`}>
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all ${filter === g ? 'bg-zinc-700 text-white border border-zinc-600' : 'bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:bg-zinc-800/50'}`}>
                             {g === 'all' ? 'All Levels' : g.charAt(0).toUpperCase() + g.slice(1)}
                         </button>
                     ))}
@@ -122,12 +176,16 @@ export default function WorkoutsPage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Plan list */}
                 <div className="space-y-4">
+                    {listTab === 'library' && (
+                        <p className="text-zinc-500 text-xs leading-relaxed px-1">
+                            Preview club programmes. Ask your trainer to assign one to your account for tracking and sessions.
+                        </p>
+                    )}
                     {filtered.length === 0 && (
                         <div className="text-center py-10 text-zinc-500 text-sm">
-                            <p>No plans yet.</p>
-                            <p className="mt-1">Click &quot;Generate AI Plan&quot; to get started.</p>
+                            <p>{listTab === 'mine' ? 'No plans yet.' : 'No library programmes loaded.'}</p>
+                            {listTab === 'mine' && <p className="mt-1">Try &quot;Generate AI Plan&quot; or ask your trainer.</p>}
                         </div>
                     )}
                     {filtered.map(plan => (
@@ -148,53 +206,67 @@ export default function WorkoutsPage() {
                                 <div className="flex gap-4 text-xs text-zinc-500">
                                     <span className="flex items-center gap-1"><Clock size={11} /> {plan.durationWeeks} weeks</span>
                                     <span className="flex items-center gap-1"><Flame size={11} /> {plan.daysPerWeek} days/week</span>
-                                    <span className="flex items-center gap-1"><Target size={11} /> Active</span>
                                 </div>
                             </Card>
                         </div>
                     ))}
                 </div>
 
-                {/* Plan detail panel */}
-                {active ? (
+                {loadingDetail && selected ? (
+                    <Card className="lg:col-span-2 flex items-center justify-center min-h-[320px] text-zinc-500 text-sm">
+                        Loading programme…
+                    </Card>
+                ) : active ? (
                     <Card className="lg:col-span-2">
                         <div className="flex items-start justify-between mb-6 gap-4">
                             <div className="min-w-0">
                                 <h2 className="text-xl font-bold text-white">{active.name}</h2>
                                 <p className="text-zinc-500 text-sm mt-0.5">
                                     {active.durationWeeks} weeks · {active.daysPerWeek} days/week · <span className="capitalize">{active.difficulty ?? 'beginner'}</span>
+                                    {active.program?.meta?.focus && (
+                                        <span> · {active.program.meta.focus}</span>
+                                    )}
                                 </p>
                                 <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full font-semibold mt-1 ${sourceBadge[active.source] ?? ''}`}>
                                     {sourceLabel[active.source] ?? active.source}
                                 </span>
                             </div>
-                            <LoadingButton
-                                icon={Play}
-                                size="sm"
-                                loading={starting}
-                                onClick={async () => {
-                                    setStarting(true);
-                                    try {
-                                        if (activeSession?.id) {
-                                            await opsAPI.stopWorkoutSession(activeSession.id, { complete: true, mood: 'good' });
-                                            toast.success('Workout completed', 'Session stopped and logged.');
-                                            setActiveSession(null);
-                                        } else {
-                                            const s = await opsAPI.startWorkoutSession({ planId: active.id, notes: `Started from plan: ${active.name}` });
-                                            toast.success('Workout started', 'Session is now active.');
-                                            setActiveSession(s);
+                            {isAssignedPlan && (
+                                <LoadingButton
+                                    icon={Play}
+                                    size="sm"
+                                    loading={starting}
+                                    onClick={async () => {
+                                        setStarting(true);
+                                        try {
+                                            if (activeSession?.id) {
+                                                await opsAPI.stopWorkoutSession(activeSession.id, { complete: true, mood: 'good' });
+                                                toast.success('Workout completed', 'Session stopped and logged.');
+                                                setActiveSession(null);
+                                            } else {
+                                                const s = await opsAPI.startWorkoutSession({ planId: active.id, notes: `Started from plan: ${active.name}` });
+                                                toast.success('Workout started', 'Session is now active.');
+                                                setActiveSession(s);
+                                            }
+                                        } catch (err) {
+                                            toast.error('Error', getErrorMessage(err));
+                                        } finally {
+                                            setStarting(false);
                                         }
-                                    } catch (err) {
-                                        toast.error('Error', getErrorMessage(err));
-                                    } finally {
-                                        setStarting(false);
-                                    }
-                                }}
-                            >
-                                {activeSession?.id ? 'Stop Workout' : 'Start Workout'}
-                            </LoadingButton>
+                                    }}
+                                >
+                                    {activeSession?.id ? 'Stop Workout' : 'Start Workout'}
+                                </LoadingButton>
+                            )}
                         </div>
-                        <div className="mb-6">
+
+                        {listTab === 'library' && (
+                            <p className="text-amber-200/80 text-xs mb-4 border border-amber-500/20 bg-amber-500/5 rounded-lg px-3 py-2">
+                                Library preview — start sessions from <strong className="text-white">My programmes</strong> after your trainer assigns a plan.
+                            </p>
+                        )}
+
+                        <div className="mb-6 flex flex-wrap gap-2">
                             <button
                                 type="button"
                                 onClick={() => {
@@ -206,11 +278,12 @@ export default function WorkoutsPage() {
                                 Ask AI About This Plan
                             </button>
                         </div>
+
                         <div className="space-y-3">
                             <div className="bg-zinc-800/30 rounded-xl p-4">
                                 <p className="text-white text-sm font-semibold mb-2">Plan Description</p>
                                 <p className="text-zinc-400 text-sm">
-                                    {active.description ?? 'No detailed description yet. Your trainer can add plan details, or generate a new AI plan for personalised guidance.'}
+                                    {active.description ?? 'No detailed description.'}
                                 </p>
                             </div>
                             <div className="bg-zinc-800/30 rounded-xl p-4">
@@ -218,62 +291,73 @@ export default function WorkoutsPage() {
                                 <div className="grid grid-cols-3 gap-4">
                                     <div className="text-center">
                                         <p className="text-2xl font-bold text-red-400">{active.durationWeeks}</p>
-                                        <p className="text-xs text-zinc-500 mt-0.5">Weeks Total</p>
+                                        <p className="text-xs text-zinc-500 mt-0.5">Weeks</p>
                                     </div>
                                     <div className="text-center">
                                         <p className="text-2xl font-bold text-red-400">{active.daysPerWeek}</p>
                                         <p className="text-xs text-zinc-500 mt-0.5">Days / Week</p>
                                     </div>
                                     <div className="text-center">
-                                        <p className="text-2xl font-bold text-red-400">{active.durationWeeks * active.daysPerWeek}</p>
-                                        <p className="text-xs text-zinc-500 mt-0.5">Total Sessions</p>
+                                        <p className="text-2xl font-bold text-red-400">{days.length}</p>
+                                        <p className="text-xs text-zinc-500 mt-0.5">Training days</p>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Exercise list grouped by day */}
                             <div className="bg-zinc-800/30 rounded-xl p-4">
                                 <p className="text-white text-sm font-semibold mb-3 flex items-center gap-2">
                                     <Dumbbell size={14} className="text-red-400" /> Exercise Programme
                                 </p>
-                                {loadingExercises ? (
-                                    <p className="text-zinc-500 text-xs">Loading exercises…</p>
-                                ) : exercises.length === 0 ? (
-                                    <p className="text-zinc-500 text-xs">No exercises linked yet. Generate an AI plan to get a full exercise list.</p>
+                                {days.length === 0 ? (
+                                    <p className="text-zinc-500 text-xs">No structured days in this programme yet.</p>
                                 ) : (
                                     <div className="space-y-2">
-                                        {Array.from(new Set(exercises.map(e => e.dayNumber))).sort((a, b) => a - b).map(day => {
-                                            const dayExercises = exercises.filter(e => e.dayNumber === day).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-                                            const isOpen = expandedDay === day;
+                                        {days.map(day => {
+                                            const isOpen = expandedDay === day.dayNumber;
+                                            const exs = day.exercises ?? [];
                                             return (
-                                                <div key={day} className="border border-zinc-700/50 rounded-lg overflow-hidden">
+                                                <div key={day.dayNumber} className="border border-zinc-700/50 rounded-lg overflow-hidden">
                                                     <button
-                                                        onClick={() => setExpandedDay(isOpen ? null : day)}
+                                                        type="button"
+                                                        onClick={() => setExpandedDay(isOpen ? null : day.dayNumber)}
                                                         className="w-full flex items-center justify-between px-4 py-2.5 bg-zinc-800/50 hover:bg-zinc-700/50 transition-colors"
                                                     >
-                                                        <span className="text-white text-sm font-medium">Day {day}</span>
+                                                        <span className="text-white text-sm font-medium">{day.title ?? `Day ${day.dayNumber}`}</span>
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-zinc-400 text-xs">{dayExercises.length} exercises</span>
+                                                            <span className="text-zinc-400 text-xs">{exs.length} exercises</span>
                                                             {isOpen ? <ChevronUp size={14} className="text-zinc-400" /> : <ChevronDown size={14} className="text-zinc-400" />}
                                                         </div>
                                                     </button>
                                                     {isOpen && (
                                                         <div className="divide-y divide-zinc-800/50">
-                                                            {dayExercises.map((ex, i) => (
+                                                            {exs.map((ex, i) => (
                                                                 <div key={i} className="px-4 py-3">
-                                                                    <div className="flex items-start justify-between gap-3">
-                                                                        <div className="min-w-0">
-                                                                            <p className="text-white text-sm font-medium">{ex.exerciseName ?? 'Exercise'}</p>
-                                                                            {ex.muscleGroup && <p className="text-zinc-500 text-xs capitalize">{ex.muscleGroup}</p>}
-                                                                        </div>
-                                                                        <div className="flex gap-2 shrink-0 text-xs">
-                                                                            {ex.sets != null && <span className="bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded">{ex.sets} sets</span>}
-                                                                            {ex.reps != null && <span className="bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded">{ex.reps} reps</span>}
-                                                                            {ex.durationSec != null && <span className="bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded">{ex.durationSec}s</span>}
-                                                                            {ex.restSec != null && <span className="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded">rest {ex.restSec}s</span>}
+                                                                    <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                                                                        {ex.imageUrl && (
+                                                                            <img src={ex.imageUrl} alt="" className="w-full sm:w-28 h-20 object-cover rounded-lg border border-zinc-700/50 shrink-0" />
+                                                                        )}
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="flex items-start justify-between gap-3">
+                                                                                <div>
+                                                                                    <p className="text-white text-sm font-medium">{ex.name}</p>
+                                                                                    {ex.muscleGroup && <p className="text-zinc-500 text-xs capitalize">{ex.muscleGroup}</p>}
+                                                                                    {ex.equipment && <p className="text-zinc-600 text-[10px] mt-0.5">Equipment: {ex.equipment}</p>}
+                                                                                </div>
+                                                                                <div className="flex flex-wrap gap-2 shrink-0 text-xs justify-end">
+                                                                                    {ex.sets != null && <span className="bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded">{ex.sets} sets</span>}
+                                                                                    {ex.reps != null && <span className="bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded">{ex.reps} reps</span>}
+                                                                                    {ex.durationSec != null && <span className="bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded">{ex.durationSec}s</span>}
+                                                                                    {ex.restSec != null && <span className="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded">rest {ex.restSec}s</span>}
+                                                                                </div>
+                                                                            </div>
+                                                                            {ex.instructions && <p className="text-zinc-500 text-xs mt-1.5 leading-relaxed">{ex.instructions}</p>}
+                                                                            {ex.videoUrl && (
+                                                                                <a href={ex.videoUrl} target="_blank" rel="noopener noreferrer" className="text-red-400 text-xs mt-2 inline-block hover:underline">
+                                                                                    Watch demo →
+                                                                                </a>
+                                                                            )}
                                                                         </div>
                                                                     </div>
-                                                                    {ex.instructions && <p className="text-zinc-500 text-xs mt-1.5 leading-relaxed">{ex.instructions}</p>}
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -287,8 +371,8 @@ export default function WorkoutsPage() {
                         </div>
                     </Card>
                 ) : (
-                    <div className="lg:col-span-2 flex items-center justify-center py-20 text-zinc-600 text-sm">
-                        Select a plan to view details
+                    <div className="lg:col-span-2 flex flex-col items-center justify-center py-20 text-zinc-600 text-sm gap-2">
+                        <p>Select a programme to view day-by-day exercises</p>
                     </div>
                 )}
             </div>

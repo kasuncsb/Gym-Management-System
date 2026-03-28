@@ -47,6 +47,31 @@ export function authenticate(req: AuthRequest, _res: Response, next: NextFunctio
   }
 }
 
+/**
+ * Sets `req.user` when a valid access cookie is present; otherwise continues without user.
+ * Use for routes that must be reachable without auth (e.g. public library) while still
+ * honoring sessions when the client is logged in.
+ */
+export function optionalAuthenticate(req: AuthRequest, _res: Response, next: NextFunction): void {
+  try {
+    const token = req.cookies?.access_token;
+    if (!token || typeof token !== 'string' || token.trim() === '') {
+      return next();
+    }
+    const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as any;
+    req.user = {
+      id: decoded.sub,
+      email: decoded.email,
+      role: decoded.role,
+      fullName: decoded.fullName,
+      emailVerified: decoded.emailVerified ?? false,
+    };
+    next();
+  } catch {
+    next();
+  }
+}
+
 /** Role-based access control middleware */
 export function authorize(...roles: AuthUser['role'][]) {
   return (req: AuthRequest, _res: Response, next: NextFunction) => {

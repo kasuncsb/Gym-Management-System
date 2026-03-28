@@ -303,9 +303,11 @@ CREATE TABLE IF NOT EXISTS `payments` (
   `promotion_id`        VARCHAR(36)   DEFAULT NULL,
   `discount_amount`     DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   `recorded_by`         VARCHAR(36)   DEFAULT NULL,
+  `invoice_number`      VARCHAR(50)   DEFAULT NULL,
 
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_pay_lifecycle` (`lifecycle_id`),
+  UNIQUE KEY `uq_pay_invoice` (`invoice_number`),
   UNIQUE KEY `uq_receipt` (`receipt_number`),
   INDEX `idx_pay_sub`  (`subscription_id`),
   INDEX `idx_pay_date` (`payment_date`),
@@ -317,31 +319,7 @@ CREATE TABLE IF NOT EXISTS `payments` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
--- 12. INVOICE_RECORDS
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS `invoice_records` (
-  `id`             VARCHAR(36)   NOT NULL,
-  `lifecycle_id`   VARCHAR(36)   NOT NULL,
-  `payment_id`     VARCHAR(36)   NOT NULL,
-  `member_id`      VARCHAR(36)   NOT NULL,
-  `invoice_number` VARCHAR(50)   NOT NULL,
-  `status`         ENUM('issued','emailed') NOT NULL DEFAULT 'issued',
-  `email_to`       VARCHAR(255)  DEFAULT NULL,
-  `html_content`   LONGTEXT      NOT NULL,
-
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_invoice_lifecycle` (`lifecycle_id`),
-  UNIQUE KEY `uq_invoice_payment` (`payment_id`),
-  UNIQUE KEY `uq_invoice_number` (`invoice_number`),
-  INDEX `idx_invoice_member` (`member_id`),
-  CONSTRAINT `fk_invoice_lifecycle` FOREIGN KEY (`lifecycle_id`) REFERENCES `entity_lifecycle`(`id`) ON DELETE RESTRICT,
-  CONSTRAINT `fk_invoice_payment` FOREIGN KEY (`payment_id`) REFERENCES `payments`(`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_invoice_member`  FOREIGN KEY (`member_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- 13. WORKOUT_PLANS
+-- 12. WORKOUT_PLANS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS `workout_plans` (
@@ -356,11 +334,13 @@ CREATE TABLE IF NOT EXISTS `workout_plans` (
   `duration_weeks` TINYINT   NOT NULL,
   `days_per_week`  TINYINT   NOT NULL,
   `is_active`      TINYINT(1)   NOT NULL DEFAULT 1,
+  `program_json`   LONGTEXT     NOT NULL,
 
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_wp_lifecycle` (`lifecycle_id`),
   INDEX `idx_wp_member`  (`member_id`),
   INDEX `idx_wp_trainer` (`trainer_id`),
+  INDEX `idx_wp_source`  (`source`),
   CONSTRAINT `fk_wp_lifecycle` FOREIGN KEY (`lifecycle_id`) REFERENCES `entity_lifecycle`(`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_wp_member`  FOREIGN KEY (`member_id`)  REFERENCES `users`(`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_wp_trainer` FOREIGN KEY (`trainer_id`) REFERENCES `users`(`id`) ON DELETE SET NULL,
@@ -369,7 +349,7 @@ CREATE TABLE IF NOT EXISTS `workout_plans` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
--- 14. PT_SESSIONS
+-- 13. PT_SESSIONS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS `pt_sessions` (
@@ -649,51 +629,7 @@ CREATE TABLE IF NOT EXISTS `branch_closures` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
--- 24. EXERCISES
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS `exercises` (
-  `id`                VARCHAR(36)   NOT NULL,
-  `lifecycle_id`      VARCHAR(36)   NOT NULL,
-  `name`              VARCHAR(120)  NOT NULL,
-  `muscle_group`      VARCHAR(60)   DEFAULT NULL,
-  `equipment_needed`  VARCHAR(100)  DEFAULT NULL,
-  `instructions`      TEXT          DEFAULT NULL,
-  `difficulty`        ENUM('beginner','intermediate','advanced') DEFAULT NULL,
-  `video_url`         VARCHAR(255)  DEFAULT NULL,
-
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_ex_lifecycle` (`lifecycle_id`),
-  INDEX `idx_ex_difficulty` (`difficulty`),
-  INDEX `idx_ex_muscle`     (`muscle_group`),
-  CONSTRAINT `fk_ex_lifecycle` FOREIGN KEY (`lifecycle_id`) REFERENCES `entity_lifecycle`(`id`) ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- 25. WORKOUT_PLAN_EXERCISES
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS `workout_plan_exercises` (
-  `id`           VARCHAR(36) NOT NULL,
-  `plan_id`      VARCHAR(36) NOT NULL,
-  `exercise_id`  VARCHAR(36) NOT NULL,
-  `day_number`   TINYINT     NOT NULL,
-  `sets`         TINYINT     DEFAULT NULL,
-  `reps`         TINYINT     DEFAULT NULL,
-  `duration_sec` SMALLINT    DEFAULT NULL,
-  `rest_sec`     SMALLINT    DEFAULT NULL,
-  `notes`        TEXT        DEFAULT NULL,
-  `sort_order`   TINYINT     NOT NULL DEFAULT 0,
-
-  PRIMARY KEY (`id`),
-  INDEX `idx_wpe_plan`     (`plan_id`),
-  INDEX `idx_wpe_exercise` (`exercise_id`),
-  CONSTRAINT `fk_wpe_plan`     FOREIGN KEY (`plan_id`)     REFERENCES `workout_plans`(`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_wpe_exercise` FOREIGN KEY (`exercise_id`) REFERENCES `exercises`(`id`)     ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- 26. SHIFTS
+-- 24. SHIFTS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS `shifts` (

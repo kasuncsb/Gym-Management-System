@@ -28,7 +28,9 @@ export default function TrainerMembersPage() {
     const toast = useToast();
     const [search, setSearch] = useState('');
     const [members, setMembers] = useState<MemberRow[]>([]);
-    const [planExercises, setPlanExercises] = useState<Record<string, any[]>>({});
+    /** Full plan payload from GET /workouts/plans/:id */
+    const [planDetails, setPlanDetails] = useState<Record<string, any>>({});
+    const [workoutLibrary, setWorkoutLibrary] = useState<any[]>([]);
     const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
     const [expandedExDay, setExpandedExDay] = useState<number | null>(null);
     const [vitalsOpen, setVitalsOpen] = useState(false);
@@ -40,7 +42,14 @@ export default function TrainerMembersPage() {
     const [loading, setLoading] = useState(false);
 
     const [vitalsForm, setVitalsForm] = useState({ weight: '', height: '', bodyFat: '', notes: '' });
-    const [assignForm, setAssignForm] = useState({ plan: '', startDate: '', durationWeeks: '6', daysPerWeek: '3', difficulty: 'beginner' as 'beginner' | 'intermediate' | 'advanced' });
+    const [assignForm, setAssignForm] = useState({
+        plan: '',
+        startDate: '',
+        durationWeeks: '6',
+        daysPerWeek: '3',
+        difficulty: 'beginner' as 'beginner' | 'intermediate' | 'advanced',
+        libraryPlanId: '',
+    });
 
     const loadMembers = async () => {
         const [rows, visits] = await Promise.all([opsAPI.members(), opsAPI.visits(500)]);
@@ -61,6 +70,7 @@ export default function TrainerMembersPage() {
 
     useEffect(() => {
         loadMembers().catch(err => toast.error('Failed to load members', getErrorMessage(err)));
+        opsAPI.workoutLibrary().then(setWorkoutLibrary).catch(() => setWorkoutLibrary([]));
     }, []);
 
     const filtered = members.filter(m =>
@@ -93,7 +103,7 @@ export default function TrainerMembersPage() {
 
     const openAssign = (m: MemberRow) => {
         setSelectedMember(m);
-        setAssignForm({ plan: '', startDate: '', durationWeeks: '6', daysPerWeek: '3', difficulty: 'beginner' });
+        setAssignForm({ plan: '', startDate: '', durationWeeks: '6', daysPerWeek: '3', difficulty: 'beginner', libraryPlanId: '' });
         setAssignOpen(true);
     };
 
@@ -138,6 +148,7 @@ export default function TrainerMembersPage() {
                 difficulty: assignForm.difficulty,
                 durationWeeks: Math.max(1, Number(assignForm.durationWeeks) || 6),
                 daysPerWeek: Math.max(1, Number(assignForm.daysPerWeek) || 3),
+                ...(assignForm.libraryPlanId ? { libraryPlanId: assignForm.libraryPlanId } : {}),
             });
             toast.success('Workout Assigned', `Assigned to ${selectedMember.name}`);
             setAssignOpen(false);
@@ -260,7 +271,8 @@ export default function TrainerMembersPage() {
                                 {detail.plans.length === 0 && <p className="text-zinc-500 text-sm">No workout plans assigned yet.</p>}
                                 {detail.plans.map((p: any, i: number) => {
                                     const isExpanded = expandedPlanId === p.id;
-                                    const exs = planExercises[p.id];
+                                    const detailRow = planDetails[p.id];
+                                    const days: any[] = detailRow?.program?.days ?? [];
                                     return (
                                         <div key={i} className="bg-zinc-800/30 rounded-xl overflow-hidden">
                                             <div className="p-3 flex justify-between items-center">
@@ -269,17 +281,21 @@ export default function TrainerMembersPage() {
                                                     <p className="text-zinc-500 text-xs">{p.daysPerWeek} days/week · {p.durationWeeks} weeks · <span className="capitalize">{p.difficulty}</span></p>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${p.source === 'ai_generated' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                                                        {p.source === 'ai_generated' ? 'AI' : 'Trainer'}
+                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                                                        p.source === 'ai_generated' ? 'bg-purple-500/20 text-purple-400'
+                                                            : p.source === 'library' ? 'bg-amber-500/20 text-amber-300'
+                                                                : 'bg-blue-500/20 text-blue-400'}`}>
+                                                        {p.source === 'ai_generated' ? 'AI' : p.source === 'library' ? 'Library' : 'Trainer'}
                                                     </span>
                                                     <button
+                                                        type="button"
                                                         onClick={async () => {
                                                             if (isExpanded) { setExpandedPlanId(null); return; }
                                                             setExpandedPlanId(p.id);
                                                             setExpandedExDay(null);
-                                                            if (!planExercises[p.id]) {
-                                                                const data = await opsAPI.planExercises(p.id).catch(() => []);
-                                                                setPlanExercises(prev => ({ ...prev, [p.id]: data }));
+                                                            if (!planDetails[p.id]) {
+                                                                const data = await opsAPI.getWorkoutPlan(p.id).catch(() => null);
+                                                                if (data) setPlanDetails(prev => ({ ...prev, [p.id]: data }));
                                                             }
                                                         }}
                                                         className="text-zinc-400 hover:text-white transition-colors"
@@ -290,21 +306,23 @@ export default function TrainerMembersPage() {
                                             </div>
                                             {isExpanded && (
                                                 <div className="border-t border-zinc-700/50 p-3 space-y-2">
-                                                    {!exs ? (
+                                                    {!detailRow ? (
                                                         <p className="text-zinc-500 text-xs">Loading…</p>
-                                                    ) : exs.length === 0 ? (
-                                                        <p className="text-zinc-500 text-xs">No exercises linked to this plan yet.</p>
+                                                    ) : days.length === 0 ? (
+                                                        <p className="text-zinc-500 text-xs">No programme days in this plan yet.</p>
                                                     ) : (
-                                                        Array.from(new Set(exs.map(e => e.dayNumber))).sort((a, b) => a - b).map(day => {
-                                                            const dayExs = exs.filter(e => e.dayNumber === day).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-                                                            const isDayOpen = expandedExDay === day;
+                                                        days.map((day: any) => {
+                                                            const dayNum = day.dayNumber;
+                                                            const dayExs = day.exercises ?? [];
+                                                            const isDayOpen = expandedExDay === dayNum;
                                                             return (
-                                                                <div key={day} className="border border-zinc-700/50 rounded-lg overflow-hidden">
+                                                                <div key={dayNum} className="border border-zinc-700/50 rounded-lg overflow-hidden">
                                                                     <button
-                                                                        onClick={() => setExpandedExDay(isDayOpen ? null : day)}
+                                                                        type="button"
+                                                                        onClick={() => setExpandedExDay(isDayOpen ? null : dayNum)}
                                                                         className="w-full flex items-center justify-between px-3 py-2 bg-zinc-800/40 hover:bg-zinc-700/40 transition-colors"
                                                                     >
-                                                                        <span className="text-white text-xs font-medium">Day {day}</span>
+                                                                        <span className="text-white text-xs font-medium">{day.title ?? `Day ${dayNum}`}</span>
                                                                         <div className="flex items-center gap-2">
                                                                             <span className="text-zinc-500 text-xs">{dayExs.length} exercises</span>
                                                                             {isDayOpen ? <ChevronUp size={12} className="text-zinc-500" /> : <ChevronDown size={12} className="text-zinc-500" />}
@@ -312,17 +330,17 @@ export default function TrainerMembersPage() {
                                                                     </button>
                                                                     {isDayOpen && (
                                                                         <div className="divide-y divide-zinc-800/50">
-                                                                            {dayExs.map((ex, j) => (
+                                                                            {dayExs.map((ex: any, j: number) => (
                                                                                 <div key={j} className="px-3 py-2">
                                                                                     <div className="flex items-center justify-between gap-2">
                                                                                         <div>
-                                                                                            <p className="text-white text-xs font-medium">{ex.exerciseName ?? 'Exercise'}</p>
+                                                                                            <p className="text-white text-xs font-medium">{ex.name ?? 'Exercise'}</p>
                                                                                             {ex.muscleGroup && <p className="text-zinc-500 text-[10px] capitalize">{ex.muscleGroup}</p>}
                                                                                         </div>
                                                                                         <div className="flex gap-1 text-[10px]">
-                                                                                            {ex.sets && <span className="bg-zinc-700 text-zinc-300 px-1.5 py-0.5 rounded">{ex.sets}×</span>}
-                                                                                            {ex.reps && <span className="bg-zinc-700 text-zinc-300 px-1.5 py-0.5 rounded">{ex.reps}</span>}
-                                                                                            {ex.durationSec && <span className="bg-zinc-700 text-zinc-300 px-1.5 py-0.5 rounded">{ex.durationSec}s</span>}
+                                                                                            {ex.sets != null && <span className="bg-zinc-700 text-zinc-300 px-1.5 py-0.5 rounded">{ex.sets}×</span>}
+                                                                                            {ex.reps != null && <span className="bg-zinc-700 text-zinc-300 px-1.5 py-0.5 rounded">{ex.reps}</span>}
+                                                                                            {ex.durationSec != null && <span className="bg-zinc-700 text-zinc-300 px-1.5 py-0.5 rounded">{ex.durationSec}s</span>}
                                                                                         </div>
                                                                                     </div>
                                                                                 </div>
@@ -392,6 +410,27 @@ export default function TrainerMembersPage() {
             {/* Assign Workout modal */}
             <Modal isOpen={assignOpen} onClose={() => setAssignOpen(false)} title="Assign Workout" description={selectedMember ? `Assign plan to ${selectedMember.name}` : ''} size="md">
                 <div className="space-y-4">
+                    <Select
+                        id="trainer-assign-library"
+                        label="Library template (optional)"
+                        options={[
+                            { value: '', label: '— Custom programme —' },
+                            ...workoutLibrary.map((l: any) => ({ value: l.id, label: l.name })),
+                        ]}
+                        value={assignForm.libraryPlanId}
+                        onChange={e => {
+                            const id = e.target.value;
+                            const lib = workoutLibrary.find((x: any) => x.id === id);
+                            setAssignForm(f => ({
+                                ...f,
+                                libraryPlanId: id,
+                                plan: lib ? lib.name : f.plan,
+                                durationWeeks: lib ? String(lib.durationWeeks) : f.durationWeeks,
+                                daysPerWeek: lib ? String(lib.daysPerWeek) : f.daysPerWeek,
+                                difficulty: (lib?.difficulty as 'beginner' | 'intermediate' | 'advanced') ?? f.difficulty,
+                            }));
+                        }}
+                    />
                     <Input id="trainer-assign-plan" label="Workout Plan Name" value={assignForm.plan} onChange={e => setAssignForm(f => ({ ...f, plan: e.target.value }))} placeholder="e.g. Fat Loss Starter - Week 1" />
                     <Input id="trainer-assign-start-date" label="Start Date" type="date" value={assignForm.startDate} onChange={e => setAssignForm(f => ({ ...f, startDate: e.target.value }))} />
                     <div className="grid grid-cols-2 gap-3">

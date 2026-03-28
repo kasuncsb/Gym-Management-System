@@ -15,6 +15,7 @@ import {
   mysqlEnum,
   index,
   smallint,
+  uniqueIndex,
 } from 'drizzle-orm/mysql-core';
 import { relations } from 'drizzle-orm';
 
@@ -190,21 +191,10 @@ export const payments = mysqlTable('payments', {
   promotionId: varchar('promotion_id', { length: 36 }),
   discountAmount: decimal('discount_amount', { precision: 10, scale: 2 }).notNull(),
   recordedBy: varchar('recorded_by', { length: 36 }),
-});
-
-// ============================================================================
-// INVOICE_RECORDS
-// ============================================================================
-export const invoiceRecords = mysqlTable('invoice_records', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
-  paymentId: varchar('payment_id', { length: 36 }).notNull(),
-  memberId: varchar('member_id', { length: 36 }).notNull(),
-  invoiceNumber: varchar('invoice_number', { length: 50 }).notNull(),
-  status: mysqlEnum('status', ['issued', 'emailed']).notNull().default('issued'),
-  emailTo: varchar('email_to', { length: 255 }),
-  htmlContent: text('html_content').notNull(),
-});
+  invoiceNumber: varchar('invoice_number', { length: 50 }),
+}, (t) => ({
+  invoiceUq: uniqueIndex('uq_pay_invoice').on(t.invoiceNumber),
+}));
 
 // ============================================================================
 // VISITS
@@ -252,6 +242,7 @@ export const workoutPlans = mysqlTable('workout_plans', {
   durationWeeks: tinyint('duration_weeks').notNull(),
   daysPerWeek: tinyint('days_per_week').notNull(),
   isActive: boolean('is_active').notNull(),
+  programJson: text('program_json').notNull(),
 });
 
 // ============================================================================
@@ -431,36 +422,6 @@ export const branchClosures = mysqlTable('branch_closures', {
 });
 
 // ============================================================================
-// EXERCISES
-// ============================================================================
-export const exercises = mysqlTable('exercises', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
-  name: varchar('name', { length: 120 }).notNull(),
-  muscleGroup: varchar('muscle_group', { length: 60 }),
-  equipmentNeeded: varchar('equipment_needed', { length: 100 }),
-  instructions: text('instructions'),
-  difficulty: mysqlEnum('difficulty', ['beginner', 'intermediate', 'advanced']),
-  videoUrl: varchar('video_url', { length: 255 }),
-});
-
-// ============================================================================
-// WORKOUT_PLAN_EXERCISES
-// ============================================================================
-export const workoutPlanExercises = mysqlTable('workout_plan_exercises', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  planId: varchar('plan_id', { length: 36 }).notNull(),
-  exerciseId: varchar('exercise_id', { length: 36 }).notNull(),
-  dayNumber: tinyint('day_number').notNull(),
-  sets: tinyint('sets'),
-  reps: tinyint('reps'),
-  durationSec: smallint('duration_sec'),
-  restSec: smallint('rest_sec'),
-  notes: text('notes'),
-  sortOrder: tinyint('sort_order').notNull(),
-});
-
-// ============================================================================
 // SHIFTS
 // ============================================================================
 export const shifts = mysqlTable('shifts', {
@@ -523,7 +484,6 @@ export type Trainer = typeof trainers.$inferSelect;
 export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
-export type InvoiceRecord = typeof invoiceRecords.$inferSelect;
 export type Visit = typeof visits.$inferSelect;
 export type PtSession = typeof ptSessions.$inferSelect;
 export type WorkoutPlan = typeof workoutPlans.$inferSelect;
@@ -535,8 +495,6 @@ export type Message = typeof messages.$inferSelect;
 export type AiInteraction = typeof aiInteractions.$inferSelect;
 export type AiChatSession = typeof aiChatSessions.$inferSelect;
 export type AiChatMessage = typeof aiChatMessages.$inferSelect;
-export type Exercise = typeof exercises.$inferSelect;
-export type WorkoutPlanExercise = typeof workoutPlanExercises.$inferSelect;
 export type WorkoutSession = typeof workoutSessions.$inferSelect;
 export type WorkoutSessionEvent = typeof workoutSessionEvents.$inferSelect;
 export type Shift = typeof shifts.$inferSelect;

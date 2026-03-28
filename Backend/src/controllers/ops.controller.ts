@@ -5,8 +5,10 @@ import type { AuthRequest } from '../middleware/auth.js';
 import * as opsService from '../services/ops.service.js';
 import * as auditService from '../services/audit.service.js';
 import { errors } from '../utils/errors.js';
+import type { WorkoutProgramJson } from '../validators/workoutProgram.js';
 
 type Role = 'admin' | 'manager' | 'trainer' | 'member';
+type RoleOrGuest = Role | 'guest';
 
 function requireUser(req: AuthRequest) {
   if (!req.user) throw errors.unauthorized();
@@ -209,6 +211,7 @@ export const assignWorkoutPlan = asyncHandler(async (req: AuthRequest, res: Resp
     difficulty?: 'beginner' | 'intermediate' | 'advanced';
     durationWeeks: number;
     daysPerWeek: number;
+    libraryPlanId?: string;
   };
   if (!payload?.memberId || !payload?.name) throw errors.badRequest('memberId and name are required');
   res.json(response.success(await opsService.assignWorkoutPlanToMember(user.id, payload), 'Workout plan assigned'));
@@ -433,30 +436,31 @@ export const simulateVitals = asyncHandler(async (req: AuthRequest, res: Respons
   res.json(response.success(await opsService.simulateVitals(memberId, req.body), 'Vitals simulation recorded'));
 });
 
-// ── Exercises ──────────────────────────────────────────────────────────────────
+// ── Workout programs (JSON) ───────────────────────────────────────────────────
 
-export const listExercises = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const filters = {
-    muscleGroup: req.query.muscleGroup as string | undefined,
-    difficulty: req.query.difficulty as string | undefined,
-  };
-  res.json(response.success(await opsService.listExercises(filters)));
+export const listWorkoutLibrary = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.listWorkoutLibrary()));
 });
 
-export const createExercise = asyncHandler(async (req: AuthRequest, res: Response) => {
-  res.json(response.success(await opsService.createExercise(req.body), 'Exercise created'));
-});
-
-export const getPlanExercises = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const getWorkoutPlanDetail = asyncHandler(async (req: AuthRequest, res: Response) => {
   const planId = String(req.params.planId ?? '').trim();
   if (!planId) throw errors.badRequest('planId is required');
-  res.json(response.success(await opsService.getPlanExercises(planId)));
+  const user = req.user;
+  const userId = user?.id ?? null;
+  const role: RoleOrGuest = user ? (user.role as Role) : 'guest';
+  res.json(response.success(await opsService.getWorkoutPlanDetail(planId, userId, role)));
 });
 
-export const addExerciseToPlan = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const patchWorkoutPlan = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
   const planId = String(req.params.planId ?? '').trim();
   if (!planId) throw errors.badRequest('planId is required');
-  res.json(response.success(await opsService.addExerciseToPlan(planId, req.body), 'Exercise added to plan'));
+  const program = (req.body as { program?: unknown })?.program;
+  if (!program || typeof program !== 'object') throw errors.badRequest('program is required');
+  res.json(response.success(
+    await opsService.updateWorkoutPlanProgram(planId, user.id, user.role as Role, { program: program as WorkoutProgramJson }),
+    'Workout plan updated',
+  ));
 });
 
 // ── Shifts ────────────────────────────────────────────────────────────────────

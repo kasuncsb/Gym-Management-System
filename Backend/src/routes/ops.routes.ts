@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate, authorize } from '../middleware/auth.js';
+import { authenticate, authorize, optionalAuthenticate } from '../middleware/auth.js';
 import * as ops from '../controllers/ops.controller.js';
 
 const router = Router();
@@ -18,6 +18,10 @@ router.get('/simulate/public/state', ops.publicGetSimulationState);
 router.get('/branch/capacity', ops.getBranchCapacity);
 router.get('/system/status', ops.getPublicSystemStatus);
 router.get('/public/subscription-plans', ops.listPublicSubscriptionPlans);
+
+// Workout library & plan detail: no login required for library templates; optional cookie for member plans
+router.get('/workouts/library', optionalAuthenticate, ops.listWorkoutLibrary);
+router.get('/workouts/plans/:planId', optionalAuthenticate, ops.getWorkoutPlanDetail);
 
 router.use(authenticate);
 
@@ -58,18 +62,13 @@ router.get('/workouts/plans/me', authorize('member'), ops.listMyWorkoutPlans);
 router.get('/workouts/plans/member/:memberId', authorize('trainer', 'manager', 'admin'), ops.getMemberWorkoutPlans);
 router.post('/workouts/plans/assign', authorize('trainer', 'manager', 'admin'), ops.assignWorkoutPlan);
 router.post('/workouts/plans/generate', authorize('member', 'trainer', 'manager', 'admin'), ops.generateAiWorkoutPlan);
+router.patch('/workouts/plans/:planId', authorize('trainer', 'manager', 'admin'), ops.patchWorkoutPlan);
 router.get('/workouts/logs/me', authorize('member'), ops.listMyWorkoutLogs);
 router.post('/workouts/logs', authorize('member', 'trainer'), ops.addWorkoutLog);
 router.get('/workouts/sessions/active', authorize('member'), ops.getActiveWorkoutSession);
 router.post('/workouts/sessions/start', authorize('member'), ops.startWorkoutSession);
 router.post('/workouts/sessions/:sessionId/events', authorize('member', 'trainer', 'manager', 'admin'), ops.addWorkoutSessionEvent);
 router.post('/workouts/sessions/:sessionId/stop', authorize('member', 'trainer', 'manager', 'admin'), ops.stopWorkoutSession);
-
-// Exercises
-router.get('/workouts/exercises', ops.listExercises);
-router.post('/workouts/exercises', authorize('trainer', 'manager', 'admin'), ops.createExercise);
-router.get('/workouts/plans/:planId/exercises', ops.getPlanExercises);
-router.post('/workouts/plans/:planId/exercises', authorize('trainer', 'manager', 'admin'), ops.addExerciseToPlan);
 
 // Metrics
 router.get('/metrics/me', authorize('member'), ops.getMyMetrics);

@@ -295,7 +295,7 @@ export const opsAPI = {
     apiClient.get('/ops/workouts/plans/me').then(r => r.data.data as any[]),
   memberWorkoutPlans: (memberId: string) =>
     apiClient.get(`/ops/workouts/plans/member/${memberId}`).then(r => r.data.data as any[]),
-  assignWorkoutPlan: (payload: { memberId: string; name: string; description?: string; difficulty?: 'beginner' | 'intermediate' | 'advanced'; durationWeeks: number; daysPerWeek: number }) =>
+  assignWorkoutPlan: (payload: { memberId: string; name: string; description?: string; difficulty?: 'beginner' | 'intermediate' | 'advanced'; durationWeeks: number; daysPerWeek: number; libraryPlanId?: string }) =>
     apiClient.post('/ops/workouts/plans/assign', payload).then(r => r.data.data),
   generateAiWorkoutPlan: (payload?: { memberId?: string }) =>
     apiClient.post('/ops/workouts/plans/generate', payload ?? {}).then(r => r.data.data),
@@ -420,15 +420,12 @@ export const opsAPI = {
   deactivatePromotion: (id: string) =>
     apiClient.delete(`/ops/promotions/${id}`).then(r => r.data.data),
 
-  // exercises
-  exercises: (filters?: { muscleGroup?: string; difficulty?: string }) =>
-    apiClient.get('/ops/workouts/exercises', { params: filters }).then(r => r.data.data as any[]),
-  createExercise: (payload: { name: string; muscleGroup?: string; equipmentNeeded?: string; instructions?: string; difficulty?: 'beginner' | 'intermediate' | 'advanced'; videoUrl?: string }) =>
-    apiClient.post('/ops/workouts/exercises', payload).then(r => r.data.data),
-  planExercises: (planId: string) =>
-    apiClient.get(`/ops/workouts/plans/${planId}/exercises`).then(r => r.data.data as any[]),
-  addExerciseToPlan: (planId: string, payload: { exerciseId?: string; exerciseName?: string; dayNumber: number; sets?: number; reps?: number; durationSec?: number; restSec?: number; notes?: string; sortOrder?: number }) =>
-    apiClient.post(`/ops/workouts/plans/${planId}/exercises`, payload).then(r => r.data.data),
+  workoutLibrary: () =>
+    apiClient.get('/ops/workouts/library').then(r => r.data.data as any[]),
+  getWorkoutPlan: (planId: string) =>
+    apiClient.get(`/ops/workouts/plans/${planId}`).then(r => r.data.data as any),
+  patchWorkoutPlan: (planId: string, payload: { program: Record<string, unknown> }) =>
+    apiClient.patch(`/ops/workouts/plans/${planId}`, payload).then(r => r.data.data),
 
   // shifts
   shifts: (filters?: { staffId?: string; shiftDate?: string }) =>

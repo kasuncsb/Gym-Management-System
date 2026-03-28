@@ -22,10 +22,7 @@ import {
   inventoryTransactions,
   messages,
   branchClosures,
-  exercises,
-  workoutPlanExercises,
   shifts,
-  invoiceRecords,
 } from '../db/schema.js';
 import {
   userLc,
@@ -33,7 +30,6 @@ import {
   promoLc,
   subLc,
   payLc,
-  invLc,
   visitLc,
   ptLc,
   wpLc,
@@ -46,7 +42,6 @@ import {
   itLc,
   msgLc,
   bcLc,
-  exLc,
   shiftLc,
 } from '../db/lifecycleAliases.js';
 import { ids } from '../utils/id.js';
@@ -57,8 +52,23 @@ import { assertMemberCanPurchaseSubscription } from './auth.service.js';
 import * as audit from './audit.service.js';
 import { getConfigValue } from './config.service.js';
 import { generateInvoiceEmailHTML, sendEmail } from '../utils/email.js';
+import {
+  buildProgramFromAiExercises,
+  emptyTrainerProgram,
+  parseAndValidateProgramJson,
+  stringifyProgram,
+  type WorkoutProgramJson,
+} from '../validators/workoutProgram.js';
 
 type Role = 'admin' | 'manager' | 'trainer' | 'member';
+
+function parseProgramOrThrow(raw: string | null): WorkoutProgramJson {
+  try {
+    return parseAndValidateProgramJson(raw);
+  } catch (e) {
+    throw errors.badRequest((e as Error).message);
+  }
+}
 
 function addDays(base: Date, days: number | string): Date {
   const d = new Date(base);
@@ -88,7 +98,7 @@ export function hashPaymentInstrument(pan: string): { fullHash: string; lastFour
   return { fullHash, lastFour };
 }
 
-async function issueInvoiceRecord(input: {
+async function sendInvoiceEmailForPayment(input: {
   paymentId: string;
   memberId: string;
   memberName: string;
@@ -98,14 +108,10 @@ async function issueInvoiceRecord(input: {
   paymentDate: Date;
   receiptNumber: string;
   referenceNumber: string;
+  invoiceNumber: string;
 }) {
-  const [existing] = await db.select().from(invoiceRecords).where(eq(invoiceRecords.paymentId, input.paymentId)).limit(1);
-  if (existing) return existing;
-  const invoiceId = ids.uuid();
-  const invLid = await insertLifecycleRow();
-  const invoiceNumber = `INV-${Date.now()}-${Math.floor(Math.random() * 900 + 100)}`;
   const html = generateInvoiceEmailHTML({
-    invoiceNumber,
+    invoiceNumber: input.invoiceNumber,
     memberName: input.memberName,
     planName: input.planName,
     amount: input.amount,
@@ -113,22 +119,11 @@ async function issueInvoiceRecord(input: {
     receiptNumber: input.receiptNumber,
     referenceNumber: input.referenceNumber,
   });
-  await db.insert(invoiceRecords).values({
-    id: invoiceId,
-    lifecycleId: invLid,
-    paymentId: input.paymentId,
-    memberId: input.memberId,
-    invoiceNumber,
-    status: 'issued',
-    emailTo: input.memberEmail,
-    htmlContent: html,
-  });
   if (input.memberEmail) {
     try {
-      await sendEmail(input.memberEmail, `Invoice ${invoiceNumber}`, html);
-      await db.update(invoiceRecords).set({ status: 'emailed' }).where(eq(invoiceRecords.id, invoiceId));
+      await sendEmail(input.memberEmail, `Invoice ${input.invoiceNumber}`, html);
     } catch {
-      // keep issued status when email fails
+      // non-fatal
     }
   }
   await audit.appendAudit({
@@ -137,10 +132,8 @@ async function issueInvoiceRecord(input: {
     category: 'payment',
     entityType: 'payment',
     entityId: input.paymentId,
-    detail: invoiceNumber,
+    detail: input.invoiceNumber,
   });
-  const [invoice] = await db.select().from(invoiceRecords).where(eq(invoiceRecords.id, invoiceId)).limit(1);
-  return invoice!;
 }
 
 async function settleSubscriptionPurchase(
@@ -215,6 +208,7 @@ async function settleSubscriptionPurchase(
   const paymentId = ids.uuid();
   const receiptNumber = `RCPT-${Date.now()}`;
   const referenceNumber = `REF-${Math.floor(Math.random() * 1_000_000)}`;
+  const invoiceNumber = `INV-${Date.now()}-${Math.floor(Math.random() * 900 + 100)}`;
   await db.insert(payments).values({
     id: paymentId,
     lifecycleId: payLid,
@@ -225,6 +219,7 @@ async function settleSubscriptionPurchase(
     status: 'completed',
     receiptNumber,
     referenceNumber,
+    invoiceNumber,
     instrumentHash,
     promotionId,
     discountAmount: String(discountAmount),
@@ -246,7 +241,7 @@ async function settleSubscriptionPurchase(
     entityId: input.sessionId ?? subscriptionId,
     detail: `plan=${plan.id} method=${input.paymentMethod}`,
   });
-  const invoice = await issueInvoiceRecord({
+  await sendInvoiceEmailForPayment({
     paymentId,
     memberId: userId,
     memberName: u?.fullName ?? 'Member',
@@ -256,9 +251,10 @@ async function settleSubscriptionPurchase(
     paymentDate: startDate,
     receiptNumber,
     referenceNumber,
+    invoiceNumber,
   });
   const [created] = await db.select().from(subscriptions).where(eq(subscriptions.id, subscriptionId));
-  return { subscription: created!, paymentId, invoice };
+  return { subscription: created!, paymentId, invoiceNumber };
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -519,13 +515,11 @@ export async function getMyPayments(userId: string) {
       status: payments.status,
       receiptNumber: payments.receiptNumber,
       planName: subscriptionPlans.name,
-      invoiceId: invoiceRecords.id,
-      invoiceNumber: invoiceRecords.invoiceNumber,
+      invoiceNumber: payments.invoiceNumber,
     })
     .from(payments)
     .leftJoin(subscriptions, eq(subscriptions.id, payments.subscriptionId))
     .leftJoin(subscriptionPlans, eq(subscriptionPlans.id, subscriptions.planId))
-    .leftJoin(invoiceRecords, eq(invoiceRecords.paymentId, payments.id))
     .innerJoin(payLc, eq(payments.lifecycleId, payLc.id))
     .where(eq(subscriptions.memberId, userId))
     .orderBy(desc(payLc.createdAt));
@@ -565,6 +559,7 @@ export async function listAllPayments() {
       status: payments.status,
       receiptNumber: payments.receiptNumber,
       referenceNumber: payments.referenceNumber,
+      invoiceNumber: payments.invoiceNumber,
       discountAmount: payments.discountAmount,
       memberId: subscriptions.memberId,
       memberName: users.fullName,
@@ -603,6 +598,7 @@ export async function listRecentSettledPayments(limit = 20) {
       paymentMethod: payments.paymentMethod,
       paymentDate: payments.paymentDate,
       receiptNumber: payments.receiptNumber,
+      invoiceNumber: payments.invoiceNumber,
       createdAt: payLc.createdAt,
       memberId: subscriptions.memberId,
       memberName: users.fullName,
@@ -619,9 +615,34 @@ export async function listRecentSettledPayments(limit = 20) {
 }
 
 export async function getPaymentInvoiceHtml(paymentId: string, memberId: string) {
-  const [invoice] = await db.select().from(invoiceRecords).where(and(eq(invoiceRecords.paymentId, paymentId), eq(invoiceRecords.memberId, memberId))).limit(1);
-  if (!invoice) throw errors.notFound('Invoice');
-  return invoice;
+  const [row] = await db
+    .select({
+      payment: payments,
+      planName: subscriptionPlans.name,
+      memberName: users.fullName,
+      memberEmail: users.email,
+    })
+    .from(payments)
+    .innerJoin(subscriptions, eq(payments.subscriptionId, subscriptions.id))
+    .innerJoin(subscriptionPlans, eq(subscriptions.planId, subscriptionPlans.id))
+    .innerJoin(users, eq(subscriptions.memberId, users.id))
+    .where(and(eq(payments.id, paymentId), eq(subscriptions.memberId, memberId)))
+    .limit(1);
+  if (!row?.payment.invoiceNumber) throw errors.notFound('Invoice');
+  const amount = Number(row.payment.amount);
+  const paymentDate = row.payment.paymentDate instanceof Date
+    ? row.payment.paymentDate
+    : new Date(String(row.payment.paymentDate));
+  const htmlContent = generateInvoiceEmailHTML({
+    invoiceNumber: row.payment.invoiceNumber,
+    memberName: row.memberName ?? 'Member',
+    planName: row.planName ?? 'Plan',
+    amount,
+    paymentDate: dateOnlyIso(paymentDate),
+    receiptNumber: row.payment.receiptNumber ?? '—',
+    referenceNumber: row.payment.referenceNumber ?? '—',
+  });
+  return { htmlContent, invoiceNumber: row.payment.invoiceNumber };
 }
 
 // ── Check-in / Check-out ──────────────────────────────────────────────────────
@@ -1167,10 +1188,33 @@ export async function assignWorkoutPlanToMember(
     difficulty?: 'beginner' | 'intermediate' | 'advanced';
     durationWeeks: number;
     daysPerWeek: number;
+    /** When set, copies `program_json` from this library template */
+    libraryPlanId?: string;
   },
 ) {
   const [member] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, input.memberId)).limit(1);
   if (!member || member.role !== 'member') throw errors.notFound('Member');
+
+  const durationWeeks = safeInt(input.durationWeeks, 4);
+  const daysPerWeek = safeInt(input.daysPerWeek, 3);
+  let programJson: string;
+  if (input.libraryPlanId?.trim()) {
+    const [lib] = await db
+      .select()
+      .from(workoutPlans)
+      .where(and(
+        eq(workoutPlans.id, input.libraryPlanId.trim()),
+        eq(workoutPlans.source, 'library'),
+        isNull(workoutPlans.memberId),
+        eq(workoutPlans.isActive, true),
+      ))
+      .limit(1);
+    if (!lib) throw errors.notFound('Library workout plan');
+    parseProgramOrThrow(lib.programJson);
+    programJson = lib.programJson;
+  } else {
+    programJson = stringifyProgram(emptyTrainerProgram({ durationWeeks, daysPerWeek }));
+  }
 
   const id = ids.uuid();
   const wpLid = await insertLifecycleRow();
@@ -1183,9 +1227,10 @@ export async function assignWorkoutPlanToMember(
     description: input.description ?? null,
     source: 'trainer_created',
     difficulty: input.difficulty ?? 'beginner',
-    durationWeeks: safeInt(input.durationWeeks, 4),
-    daysPerWeek: safeInt(input.daysPerWeek, 3),
+    durationWeeks,
+    daysPerWeek,
     isActive: true,
+    programJson,
   });
 
   const assignMsgLc = await insertLifecycleRow();
@@ -1312,8 +1357,6 @@ Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
     daysPerWeek: 3,
     exerciseList: [] as AiExercise[],
   };
-  let geminiSucceeded = false;
-
   // Attempt Gemini call
   try {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -1342,7 +1385,6 @@ Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
             daysPerWeek: safeInt(parsed.daysPerWeek, 3),
             exerciseList: Array.isArray(parsed.exercises) ? parsed.exercises : [],
           };
-          geminiSucceeded = planData.exerciseList.length > 0;
         }
       }
     }
@@ -1362,7 +1404,24 @@ Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
   }
 
   const id = ids.uuid();
-  const planSource = geminiSucceeded ? 'ai_generated' : 'library';
+  const planSource: 'ai_generated' = 'ai_generated';
+  const program = buildProgramFromAiExercises({
+    durationWeeks: planData.durationWeeks,
+    daysPerWeek: planData.daysPerWeek,
+    focus: goals,
+    locale: 'LK',
+    exercises: planData.exerciseList.map((ex) => ({
+      day: safeInt(ex.day, 1),
+      name: String(ex.name ?? ''),
+      muscleGroup: ex.muscleGroup,
+      sets: ex.sets,
+      reps: ex.reps,
+      durationSec: ex.durationSec,
+      restSec: ex.restSec,
+      instructions: ex.instructions,
+      sortOrder: ex.sortOrder,
+    })),
+  });
   const aiWpLc = await insertLifecycleRow();
   await db.insert(workoutPlans).values({
     id,
@@ -1376,45 +1435,8 @@ Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
     durationWeeks: planData.durationWeeks,
     daysPerWeek: planData.daysPerWeek,
     isActive: true,
+    programJson: stringifyProgram(program),
   });
-
-  // Persist AI-generated exercises: upsert into exercises table, then link to plan
-  if (planData.exerciseList.length > 0) {
-    try {
-      for (const ex of planData.exerciseList) {
-        const exName = String(ex.name ?? '').trim();
-        if (!exName) continue;
-        // Find or create exercise in library
-        let [existingEx] = await db.select({ id: exercises.id }).from(exercises).where(sql`lower(${exercises.name}) = lower(${exName})`).limit(1);
-        if (!existingEx) {
-          const exId = ids.uuid();
-          const exLc = await insertLifecycleRow();
-          await db.insert(exercises).values({
-            id: exId,
-            lifecycleId: exLc,
-            name: exName,
-            muscleGroup: ex.muscleGroup ?? null,
-            instructions: ex.instructions ?? null,
-            difficulty: planData.difficulty,
-          });
-          existingEx = { id: exId };
-        }
-        await db.insert(workoutPlanExercises).values({
-          id: ids.uuid(),
-          planId: id,
-          exerciseId: existingEx.id,
-          dayNumber: safeInt(ex.day, 1),
-          sets: ex.sets ?? null,
-          reps: ex.reps ?? null,
-          durationSec: ex.durationSec ?? null,
-          restSec: ex.restSec ?? null,
-          sortOrder: safeInt(ex.sortOrder, 0),
-        });
-      }
-    } catch {
-      // Exercise insertion is non-blocking
-    }
-  }
 
   const aiMsgLc = await insertLifecycleRow();
   await db.insert(messages).values({
@@ -1505,108 +1527,73 @@ export async function addMetricForMember(
   return row;
 }
 
-// ── Exercises (library) ───────────────────────────────────────────────────────
+// ── Workout programs (JSON on workout_plans) ─────────────────────────────────
 
-export async function listExercises(filters?: { muscleGroup?: string; difficulty?: string }) {
-  let query = db.select().from(exercises).$dynamic();
-  if (filters?.muscleGroup) query = query.where(sql`lower(${exercises.muscleGroup}) = lower(${filters.muscleGroup})`);
-  if (filters?.difficulty) query = query.where(sql`${exercises.difficulty} = ${filters.difficulty}`);
-  return query.orderBy(exercises.muscleGroup, exercises.name);
-}
-
-export async function createExercise(input: {
-  name: string;
-  muscleGroup?: string;
-  equipmentNeeded?: string;
-  instructions?: string;
-  difficulty?: 'beginner' | 'intermediate' | 'advanced';
-  videoUrl?: string;
-}) {
-  const id = ids.uuid();
-  const exLcNew = await insertLifecycleRow();
-  await db.insert(exercises).values({
-    id,
-    lifecycleId: exLcNew,
-    name: input.name,
-    muscleGroup: input.muscleGroup ?? null,
-    equipmentNeeded: input.equipmentNeeded ?? null,
-    instructions: input.instructions ?? null,
-    difficulty: input.difficulty ?? null,
-    videoUrl: input.videoUrl ?? null,
-  });
-  const [row] = await db.select().from(exercises).where(eq(exercises.id, id));
-  return row;
-}
-
-export async function getPlanExercises(planId: string) {
-  const [plan] = await db.select({ id: workoutPlans.id }).from(workoutPlans).where(eq(workoutPlans.id, planId)).limit(1);
-  if (!plan) throw errors.notFound('Workout plan');
+export async function listWorkoutLibrary() {
   return db
     .select({
-      id: workoutPlanExercises.id,
-      planId: workoutPlanExercises.planId,
-      exerciseId: workoutPlanExercises.exerciseId,
-      dayNumber: workoutPlanExercises.dayNumber,
-      sets: workoutPlanExercises.sets,
-      reps: workoutPlanExercises.reps,
-      durationSec: workoutPlanExercises.durationSec,
-      restSec: workoutPlanExercises.restSec,
-      notes: workoutPlanExercises.notes,
-      sortOrder: workoutPlanExercises.sortOrder,
-      exerciseName: exercises.name,
-      muscleGroup: exercises.muscleGroup,
-      equipmentNeeded: exercises.equipmentNeeded,
-      instructions: exercises.instructions,
-      difficulty: exercises.difficulty,
+      id: workoutPlans.id,
+      name: workoutPlans.name,
+      description: workoutPlans.description,
+      source: workoutPlans.source,
+      difficulty: workoutPlans.difficulty,
+      durationWeeks: workoutPlans.durationWeeks,
+      daysPerWeek: workoutPlans.daysPerWeek,
+      isActive: workoutPlans.isActive,
     })
-    .from(workoutPlanExercises)
-    .leftJoin(exercises, eq(workoutPlanExercises.exerciseId, exercises.id))
-    .where(eq(workoutPlanExercises.planId, planId))
-    .orderBy(workoutPlanExercises.dayNumber, workoutPlanExercises.sortOrder);
+    .from(workoutPlans)
+    .innerJoin(wpLc, eq(workoutPlans.lifecycleId, wpLc.id))
+    .where(and(
+      eq(workoutPlans.source, 'library'),
+      isNull(workoutPlans.memberId),
+      eq(workoutPlans.isActive, true),
+      isNull(wpLc.deletedAt),
+    ))
+    .orderBy(workoutPlans.name);
 }
 
-export async function addExerciseToPlan(planId: string, input: {
-  exerciseId?: string;
-  exerciseName?: string;
-  dayNumber: number;
-  sets?: number;
-  reps?: number;
-  durationSec?: number;
-  restSec?: number;
-  notes?: string;
-  sortOrder?: number;
-}) {
-  const [plan] = await db.select({ id: workoutPlans.id }).from(workoutPlans).where(eq(workoutPlans.id, planId)).limit(1);
+export async function getWorkoutPlanDetail(planId: string, userId: string | null, role: Role | 'guest') {
+  const [plan] = await db.select().from(workoutPlans).where(eq(workoutPlans.id, planId)).limit(1);
   if (!plan) throw errors.notFound('Workout plan');
-
-  let exerciseId = input.exerciseId;
-  if (!exerciseId && input.exerciseName) {
-    // Auto-create exercise if not found
-    const [existing] = await db.select({ id: exercises.id }).from(exercises).where(sql`lower(${exercises.name}) = lower(${input.exerciseName})`).limit(1);
-    if (existing) {
-      exerciseId = existing.id;
-    } else {
-      const newEx = await createExercise({ name: input.exerciseName });
-      exerciseId = newEx!.id;
+  const isLibrary = plan.source === 'library' && plan.memberId == null;
+  if (!isLibrary) {
+    if (role === 'guest' || userId == null) {
+      throw errors.unauthorized('Authentication required');
+    }
+    if (role === 'member' && plan.memberId !== userId) {
+      throw errors.forbidden('Not your workout plan');
     }
   }
-  if (!exerciseId) throw errors.badRequest('exerciseId or exerciseName required');
+  const program = parseProgramOrThrow(plan.programJson);
+  const { programJson: _omit, ...meta } = plan;
+  return { ...meta, program };
+}
 
-  const id = ids.uuid();
-  await db.insert(workoutPlanExercises).values({
-    id,
-    planId,
-    exerciseId,
-    dayNumber: input.dayNumber,
-    sets: input.sets ?? null,
-    reps: input.reps ?? null,
-    durationSec: input.durationSec ?? null,
-    restSec: input.restSec ?? null,
-    notes: input.notes ?? null,
-    sortOrder: input.sortOrder ?? 0,
-  });
-  const [row] = await db.select().from(workoutPlanExercises).where(eq(workoutPlanExercises.id, id));
-  return row;
+export async function updateWorkoutPlanProgram(
+  planId: string,
+  _actorId: string,
+  role: Role,
+  input: { program: WorkoutProgramJson },
+) {
+  const [plan] = await db.select().from(workoutPlans).where(eq(workoutPlans.id, planId)).limit(1);
+  if (!plan) throw errors.notFound('Workout plan');
+  const isLibraryTemplate = plan.source === 'library' && plan.memberId == null;
+  if (isLibraryTemplate && !['manager', 'admin'].includes(role)) {
+    throw errors.forbidden('Only managers can edit library templates');
+  }
+  if (!isLibraryTemplate && !['trainer', 'manager', 'admin'].includes(role)) {
+    throw errors.forbidden();
+  }
+  const json = stringifyProgram(input.program);
+  parseProgramOrThrow(json);
+  const dw = input.program.meta.durationWeeks ?? plan.durationWeeks;
+  const dpw = input.program.meta.daysPerWeek ?? plan.daysPerWeek;
+  await db.update(workoutPlans).set({
+    programJson: json,
+    durationWeeks: dw,
+    daysPerWeek: dpw,
+  }).where(eq(workoutPlans.id, planId));
+  return getWorkoutPlanDetail(planId, _actorId, role);
 }
 
 // ── Shifts ────────────────────────────────────────────────────────────────────
@@ -2509,7 +2496,7 @@ export async function simulatePayment(input: {
     paymentMethod: (input.paymentMethod ?? 'online'),
     cardPan: input.cardPan,
   });
-  return { subscription: result.subscription, invoice: result.invoice };
+  return { subscription: result.subscription, paymentId: result.paymentId, invoiceNumber: result.invoiceNumber };
 }
 
 /** Public hardware simulator: mock card network — any valid-length PAN succeeds. */
@@ -2526,7 +2513,7 @@ export async function publicSimulateCardPayment(input: {
     paymentMethod: 'card',
     cardPan: pan,
   });
-  return { subscription: result.subscription, invoice: result.invoice };
+  return { subscription: result.subscription, paymentId: result.paymentId, invoiceNumber: result.invoiceNumber };
 }
 
 export async function simulateWorkout(input: { memberId: string; durationMin?: number; caloriesBurned?: number; notes?: string; action?: 'simulate' | 'start' | 'stop' }) {

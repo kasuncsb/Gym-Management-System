@@ -1,5 +1,5 @@
 /**
- * Database seed — 4 users (one per role) + ~10 LKR subscription plans + sample inventory.
+ * Database seed — 4 users (one per role) + LKR subscription tiers + library workout templates + sample inventory.
  * Run with: npm run db:seed
  */
 
@@ -29,7 +29,9 @@ import {
 import { ids } from '../src/utils/id.js';
 import { hashPassword } from '../src/utils/password.js';
 import { insertLifecycleRow } from '../src/utils/lifecycle.js';
-import { eq, inArray, or } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or } from 'drizzle-orm';
+import { LIBRARY_WORKOUT_PLANS } from './data/libraryWorkoutPlans.seed.js';
+import { stringifyProgram, workoutProgramJsonSchema } from '../src/validators/workoutProgram.js';
 
 const SEED_PASSWORD = 'PWlogin!26';
 
@@ -225,83 +227,83 @@ async function seed() {
   const SEED_PLANS = [
     {
       planCode: 'KBG-DAY',
-      name: 'Day Pass — Kiribathgoda',
-      description: 'Single-day full floor access. Perfect for visitors or trial days.',
+      name: 'Day Pass',
+      description: 'Single day, full floor access.',
       planType: 'daily_pass' as const,
-      price: '1800.00',
+      price: '800.00',
       durationDays: 1,
     },
     {
       planCode: 'KBG-WK1',
-      name: '7-Day Flex',
-      description: 'One week of unlimited access — ideal for short stays.',
+      name: 'Weekly',
+      description: '7 days unlimited access.',
       planType: 'individual' as const,
-      price: '5200.00',
+      price: '2800.00',
       durationDays: 7,
     },
     {
       planCode: 'KBG-M1',
-      name: 'Monthly Individual',
-      description: 'Full gym access for 30 days at our Kiribathgoda branch.',
+      name: 'Monthly',
+      description: '30 days individual membership.',
       planType: 'individual' as const,
-      price: '8999.00',
+      price: '5500.00',
       durationDays: 30,
     },
     {
       planCode: 'KBG-M3',
-      name: '3-Month Commitment',
-      description: 'Better value for consistent training over a quarter.',
+      name: '3 Months',
+      description: '90 days — saves vs monthly.',
       planType: 'individual' as const,
-      price: '23999.00',
+      price: '14500.00',
       durationDays: 90,
     },
     {
       planCode: 'KBG-M6',
-      name: '6-Month Individual',
-      description: 'Half-year access with member perks and priority class reminders.',
+      name: '6 Months',
+      description: '180 days individual membership.',
       planType: 'individual' as const,
-      price: '42999.00',
+      price: '24000.00',
       durationDays: 180,
     },
     {
       planCode: 'KBG-Y1',
-      name: 'Annual Individual',
-      description: 'Best long-term value — 12 months unlimited access.',
+      name: 'Annual',
+      description: '12 months — best per-month value.',
       planType: 'individual' as const,
-      price: '79999.00',
+      price: '42000.00',
       durationDays: 365,
     },
     {
       planCode: 'KBG-STU',
       name: 'Student Monthly',
-      description: 'Valid student ID required at front desk. 30 days access.',
+      description: '30 days; valid student ID at desk.',
       planType: 'student' as const,
-      price: '6499.00',
+      price: '4500.00',
       durationDays: 30,
     },
     {
       planCode: 'KBG-CP2',
       name: 'Couple Monthly',
-      description: 'Two adults under one membership — train together.',
+      description: 'Two adults, one membership, 30 days.',
       planType: 'couple' as const,
-      price: '14999.00',
+      price: '9500.00',
       durationDays: 30,
     },
     {
       planCode: 'KBG-CORP',
-      name: 'Corporate Team (10 seats)',
-      description: 'Team block for companies near Kiribathgoda — invoicing on request.',
+      name: 'Corporate (10 seats)',
+      description: '30-day team block; invoice on request.',
       planType: 'corporate' as const,
-      price: '69999.00',
+      price: '38000.00',
       durationDays: 30,
     },
     {
       planCode: 'KBG-ELITE',
-      name: 'Elite Quarterly',
-      description: 'Premium tier naming — peak-hour priority lockers where available.',
+      name: 'Peak Plus Monthly',
+      description: '30 days; peak-hour perks where available.',
       planType: 'individual' as const,
-      price: '31999.00',
-      durationDays: 90,
+      price: '6500.00',
+      durationDays: 30,
     },
   ];
 
@@ -327,6 +329,28 @@ async function seed() {
     });
   }
   console.log('✅ Subscription plans seeded (~10 LKR tiers)');
+
+  await db.delete(workoutPlans).where(and(eq(workoutPlans.source, 'library'), isNull(workoutPlans.memberId)));
+  for (const def of LIBRARY_WORKOUT_PLANS) {
+    workoutProgramJsonSchema.parse(def.program);
+    const wId = ids.uuid();
+    const wLc = await insertLifecycleRow();
+    await db.insert(workoutPlans).values({
+      id: wId,
+      lifecycleId: wLc,
+      memberId: null,
+      trainerId: null,
+      name: def.name,
+      description: def.description,
+      source: 'library',
+      difficulty: def.difficulty,
+      durationWeeks: def.durationWeeks,
+      daysPerWeek: def.daysPerWeek,
+      isActive: true,
+      programJson: stringifyProgram(def.program),
+    });
+  }
+  console.log(`✅ Library workout plans seeded (${LIBRARY_WORKOUT_PLANS.length} programmes)`);
 
   const SEED_INVENTORY = [
     { name: 'Treadmill', category: 'cardio', qtyInStock: 5, reorderThreshold: 2, isActive: true },
