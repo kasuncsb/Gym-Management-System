@@ -16,6 +16,8 @@ const exerciseSchema = z.object({
 const daySchema = z.object({
   dayNumber: z.number().int().min(1).max(14),
   title: z.string().max(200).optional().nullable(),
+  /** Session intent, warm-up cues, or how hard to push */
+  notes: z.string().max(2000).optional().nullable(),
   exercises: z.array(exerciseSchema).max(40),
 });
 
@@ -27,6 +29,10 @@ export const workoutProgramJsonSchema = z.object({
     daysPerWeek: z.number().int().min(1).max(7).optional(),
     focus: z.string().max(200).optional().nullable(),
     locale: z.string().max(10).optional().nullable(),
+    /** Single hero image for programme cards / header (e.g. library templates) */
+    coverImageUrl: z.string().max(500).optional().nullable(),
+    /** Coach-style overview: how to run the block, progression, recovery */
+    programIntro: z.string().max(4000).optional().nullable(),
   }),
   days: z.array(daySchema).max(14),
 });
@@ -114,6 +120,7 @@ export function buildProgramFromAiExercises(
     days.push({
       dayNumber,
       title: `Day ${dayNumber}`,
+      notes: null,
       exercises: list.map((ex) => ({
         name: String(ex.name ?? 'Exercise').slice(0, 200),
         sets: ex.sets ?? null,

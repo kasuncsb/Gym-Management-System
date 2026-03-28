@@ -52,6 +52,7 @@ import {
   buildProgramFromAiExercises,
   emptyTrainerProgram,
   parseAndValidateProgramJson,
+  safeParseProgramJson,
   stringifyProgram,
   type WorkoutProgramJson,
 } from '../validators/workoutProgram.js';
@@ -1003,6 +1004,12 @@ export async function updatePtSession(
 
 // ── Workout Plans & Logs ──────────────────────────────────────────────────────
 
+function attachPlanCoverImage<T extends { programJson: string }>(plan: T): T & { coverImageUrl: string | null } {
+  const parsed = safeParseProgramJson(plan.programJson);
+  const coverImageUrl = parsed?.meta?.coverImageUrl?.trim() || null;
+  return { ...plan, coverImageUrl };
+}
+
 export async function listMyWorkoutPlans(userId: string) {
   return db
     .select({ plan: workoutPlans })
@@ -1010,7 +1017,7 @@ export async function listMyWorkoutPlans(userId: string) {
     .innerJoin(wpLc, eq(workoutPlans.lifecycleId, wpLc.id))
     .where(and(eq(workoutPlans.memberId, userId), eq(workoutPlans.isActive, true)))
     .orderBy(desc(wpLc.createdAt))
-    .then((rows) => rows.map((r) => r.plan));
+    .then((rows) => rows.map((r) => attachPlanCoverImage(r.plan)));
 }
 
 export async function getMemberWorkoutPlans(memberId: string) {
@@ -1023,7 +1030,7 @@ export async function getMemberWorkoutPlans(memberId: string) {
     .innerJoin(wpLc, eq(workoutPlans.lifecycleId, wpLc.id))
     .where(and(eq(workoutPlans.memberId, memberId), eq(workoutPlans.isActive, true)))
     .orderBy(desc(wpLc.createdAt))
-    .then((rows) => rows.map((r) => r.plan));
+    .then((rows) => rows.map((r) => attachPlanCoverImage(r.plan)));
 }
 
 /** Member removes a plan from their account (soft-deactivate). Library templates are unaffected. */
@@ -1518,7 +1525,7 @@ export async function addMetricForMember(
 // ── Workout programs (JSON on workout_plans) ─────────────────────────────────
 
 export async function listWorkoutLibrary() {
-  return db
+  const rows = await db
     .select({
       id: workoutPlans.id,
       name: workoutPlans.name,
@@ -1528,6 +1535,7 @@ export async function listWorkoutLibrary() {
       durationWeeks: workoutPlans.durationWeeks,
       daysPerWeek: workoutPlans.daysPerWeek,
       isActive: workoutPlans.isActive,
+      programJson: workoutPlans.programJson,
     })
     .from(workoutPlans)
     .innerJoin(wpLc, eq(workoutPlans.lifecycleId, wpLc.id))
@@ -1538,6 +1546,10 @@ export async function listWorkoutLibrary() {
       isNull(wpLc.deletedAt),
     ))
     .orderBy(workoutPlans.name);
+  return rows.map(({ programJson, ...rest }) => ({
+    ...rest,
+    coverImageUrl: safeParseProgramJson(programJson)?.meta?.coverImageUrl?.trim() || null,
+  }));
 }
 
 export async function getWorkoutPlanDetail(planId: string, userId: string | null, role: Role | 'guest') {

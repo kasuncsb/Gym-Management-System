@@ -16,6 +16,8 @@ interface Plan {
     durationWeeks: number;
     daysPerWeek: number;
     description?: string | null;
+    /** From program JSON meta — library templates & copies from library */
+    coverImageUrl?: string | null;
 }
 
 interface ProgramExercise {
@@ -34,11 +36,20 @@ interface ProgramExercise {
 interface ProgramDay {
     dayNumber: number;
     title?: string | null;
+    notes?: string | null;
     exercises: ProgramExercise[];
 }
 
 interface PlanDetail extends Plan {
-    program?: { meta?: { focus?: string | null; locale?: string | null }; days?: ProgramDay[] };
+    program?: {
+        meta?: {
+            focus?: string | null;
+            locale?: string | null;
+            coverImageUrl?: string | null;
+            programIntro?: string | null;
+        };
+        days?: ProgramDay[];
+    };
 }
 
 const difficultyColor: Record<string, string> = {
@@ -53,15 +64,84 @@ const sourceBadgeClass: Record<string, string> = {
 };
 
 /** Shown only when it adds context; AI-generated plans omit a label to avoid repetition. */
-function PlanSourceTag({ source, listTab }: { source: Plan['source']; listTab: 'mine' | 'library' }) {
+function PlanSourceTag({ source, listTab, onDark }: { source: Plan['source']; listTab: 'mine' | 'library'; onDark?: boolean }) {
     if (source === 'ai_generated') return null;
     if (listTab === 'mine' && source === 'library') return null;
     const label = source === 'trainer_created' ? 'Trainer' : 'Library';
     const cls = sourceBadgeClass[source] ?? 'bg-zinc-700 text-zinc-300';
+    const dark = onDark ? 'border border-white/20 shadow-sm' : '';
     return (
-        <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full font-semibold mt-0.5 ${cls}`}>
+        <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full font-semibold mt-0.5 ${cls} ${dark}`}>
             {label}
         </span>
+    );
+}
+
+function PlanCardWithHero({
+    plan,
+    listTab,
+    selected,
+    onSelect,
+}: {
+    plan: Plan;
+    listTab: 'mine' | 'library';
+    selected: boolean;
+    onSelect: () => void;
+}) {
+    const cover = plan.coverImageUrl?.trim();
+    if (cover) {
+        return (
+            <div onClick={onSelect} className="cursor-pointer">
+                <Card
+                    padding="none"
+                    className={`overflow-hidden transition-all hover:scale-[1.01] ${
+                        selected ? 'border-red-600/60 bg-red-600/5 ring-1 ring-red-500/35' : 'hover:border-zinc-700/50'
+                    }`}
+                >
+                    <div className="relative h-44 sm:h-48">
+                        <img src={cover} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/5" />
+                        <div className="absolute bottom-0 left-0 right-0 p-4 pt-14">
+                            <p className="text-xl sm:text-2xl font-bold text-white leading-snug drop-shadow-md">{plan.name}</p>
+                            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-white/90 tabular-nums">
+                                <span className={`rounded-full px-2 py-0.5 font-semibold capitalize ${difficultyColor[plan.difficulty ?? 'beginner']}`}>
+                                    {plan.difficulty ?? 'beginner'}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <Clock size={12} className="opacity-90" /> {plan.durationWeeks} wk
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <Flame size={12} className="opacity-90" /> {plan.daysPerWeek}×/wk
+                                </span>
+                                <PlanSourceTag source={plan.source} listTab={listTab} onDark />
+                            </div>
+                        </div>
+                    </div>
+                </Card>
+            </div>
+        );
+    }
+    return (
+        <div onClick={onSelect}>
+            <Card
+                padding="md"
+                className={`cursor-pointer transition-all hover:scale-[1.01] ${selected ? 'border-red-600/60 bg-red-600/5' : 'hover:border-zinc-700/50'}`}
+            >
+                <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1 min-w-0 mr-2">
+                        <p className="text-white font-semibold truncate">{plan.name}</p>
+                        <PlanSourceTag source={plan.source} listTab={listTab} />
+                    </div>
+                    <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-semibold capitalize ${difficultyColor[plan.difficulty ?? 'beginner']}`}>
+                        {plan.difficulty ?? 'beginner'}
+                    </span>
+                </div>
+                <div className="flex gap-4 text-xs text-zinc-500">
+                    <span className="flex items-center gap-1"><Clock size={11} /> {plan.durationWeeks} weeks</span>
+                    <span className="flex items-center gap-1"><Flame size={11} /> {plan.daysPerWeek} days/week</span>
+                </div>
+            </Card>
+        </div>
     );
 }
 
@@ -163,6 +243,10 @@ export default function WorkoutsPage() {
     };
 
     const days = active?.program?.days ?? [];
+    const detailCoverUrl = active?.program?.meta?.coverImageUrl?.trim() ?? '';
+    const useProgramHero = Boolean(detailCoverUrl);
+    const hideExerciseThumbs = useProgramHero;
+    const programIntro = active?.program?.meta?.programIntro?.trim();
 
     const confirmRemovePlan = async () => {
         if (!planToRemove) return;
@@ -271,24 +355,13 @@ export default function WorkoutsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="space-y-4">
                     {filtered.map(plan => (
-                        <div key={plan.id} onClick={() => setSelected(plan.id)}>
-                            <Card padding="md"
-                                className={`cursor-pointer transition-all hover:scale-[1.01] ${selected === plan.id ? 'border-red-600/60 bg-red-600/5' : 'hover:border-zinc-700/50'}`}>
-                                <div className="flex items-start justify-between mb-3">
-                                    <div className="flex-1 min-w-0 mr-2">
-                                        <p className="text-white font-semibold truncate">{plan.name}</p>
-                                        <PlanSourceTag source={plan.source} listTab={listTab} />
-                                    </div>
-                                    <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-semibold capitalize ${difficultyColor[plan.difficulty ?? 'beginner']}`}>
-                                        {plan.difficulty ?? 'beginner'}
-                                    </span>
-                                </div>
-                                <div className="flex gap-4 text-xs text-zinc-500">
-                                    <span className="flex items-center gap-1"><Clock size={11} /> {plan.durationWeeks} weeks</span>
-                                    <span className="flex items-center gap-1"><Flame size={11} /> {plan.daysPerWeek} days/week</span>
-                                </div>
-                            </Card>
-                        </div>
+                        <PlanCardWithHero
+                            key={plan.id}
+                            plan={plan}
+                            listTab={listTab}
+                            selected={selected === plan.id}
+                            onSelect={() => setSelected(plan.id)}
+                        />
                     ))}
                 </div>
 
@@ -297,69 +370,120 @@ export default function WorkoutsPage() {
                         Loading programme…
                     </Card>
                 ) : active ? (
-                    <Card className="lg:col-span-2">
-                        <div className="flex items-start justify-between mb-6 gap-4">
-                            <div className="min-w-0">
-                                <h2 className="text-xl font-bold text-white">{active.name}</h2>
-                                <p className="text-zinc-500 text-sm mt-0.5">
-                                    {active.durationWeeks} weeks · {active.daysPerWeek} days/week · <span className="capitalize">{active.difficulty ?? 'beginner'}</span>
-                                    {active.program?.meta?.focus && (
-                                        <span> · {active.program.meta.focus}</span>
+                    <Card className="lg:col-span-2 overflow-hidden p-0">
+                        {useProgramHero ? (
+                            <div className="relative min-h-[220px] sm:min-h-[280px] md:min-h-[300px]">
+                                <img src={detailCoverUrl} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+                                <div className="absolute bottom-0 left-0 right-0 p-5 md:p-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                                    <div className="min-w-0 pr-2">
+                                        <h2 className="text-2xl md:text-4xl font-bold text-white tracking-tight leading-tight drop-shadow-lg">{active.name}</h2>
+                                        <p className="mt-1.5 text-sm text-white/85">
+                                            {active.durationWeeks} weeks · {active.daysPerWeek} days/week · <span className="capitalize">{active.difficulty ?? 'beginner'}</span>
+                                            {active.program?.meta?.focus && (
+                                                <span> · {active.program.meta.focus}</span>
+                                            )}
+                                        </p>
+                                        <div className="mt-2">
+                                            <PlanSourceTag source={active.source} listTab={listTab} onDark />
+                                        </div>
+                                    </div>
+                                    {isAssignedPlan && (
+                                        <div className="flex flex-wrap gap-2 shrink-0">
+                                            <LoadingButton
+                                                icon={Play}
+                                                size="sm"
+                                                loading={starting}
+                                                onClick={async () => {
+                                                    setStarting(true);
+                                                    try {
+                                                        if (activeSession?.id) {
+                                                            await opsAPI.stopWorkoutSession(activeSession.id, { complete: true, mood: 'good' });
+                                                            toast.success('Workout completed', 'Session saved — nice work.');
+                                                            setActiveSession(null);
+                                                            opsAPI.activeWorkoutSession().then(setActiveSession).catch(() => setActiveSession(null));
+                                                        } else {
+                                                            const s = await opsAPI.startWorkoutSession({ planId: active.id, notes: `Started from plan: ${active.name}` });
+                                                            toast.success('Workout started', 'Session is live — tap Complete when you are done.');
+                                                            setActiveSession(s);
+                                                        }
+                                                    } catch (err) {
+                                                        toast.error('Error', getErrorMessage(err));
+                                                    } finally {
+                                                        setStarting(false);
+                                                    }
+                                                }}
+                                            >
+                                                {activeSession?.id ? 'Complete session' : 'Start workout'}
+                                            </LoadingButton>
+                                            <LoadingButton icon={ClipboardCheck} size="sm" variant="secondary" onClick={() => setLogOpen((o) => !o)}>
+                                                Log completed
+                                            </LoadingButton>
+                                            <LoadingButton icon={Trash2} size="sm" variant="secondary" onClick={() => setPlanToRemove({ id: active.id, name: active.name })}>
+                                                Remove
+                                            </LoadingButton>
+                                        </div>
                                     )}
-                                </p>
-                                <div className="mt-1">
-                                    <PlanSourceTag source={active.source} listTab={listTab} />
                                 </div>
                             </div>
-                            <div className="flex flex-wrap gap-2 justify-end">
-                            {isAssignedPlan && (
-                                <>
-                                <LoadingButton
-                                    icon={Play}
-                                    size="sm"
-                                    loading={starting}
-                                    onClick={async () => {
-                                        setStarting(true);
-                                        try {
-                                            if (activeSession?.id) {
-                                                await opsAPI.stopWorkoutSession(activeSession.id, { complete: true, mood: 'good' });
-                                                toast.success('Workout completed', 'Session saved — nice work.');
-                                                setActiveSession(null);
-                                                opsAPI.activeWorkoutSession().then(setActiveSession).catch(() => setActiveSession(null));
-                                            } else {
-                                                const s = await opsAPI.startWorkoutSession({ planId: active.id, notes: `Started from plan: ${active.name}` });
-                                                toast.success('Workout started', 'Session is live — tap Complete when you are done.');
-                                                setActiveSession(s);
-                                            }
-                                        } catch (err) {
-                                            toast.error('Error', getErrorMessage(err));
-                                        } finally {
-                                            setStarting(false);
-                                        }
-                                    }}
-                                >
-                                    {activeSession?.id ? 'Complete session' : 'Start workout'}
-                                </LoadingButton>
-                                <LoadingButton
-                                    icon={ClipboardCheck}
-                                    size="sm"
-                                    variant="secondary"
-                                    onClick={() => setLogOpen((o) => !o)}
-                                >
-                                    Log completed
-                                </LoadingButton>
-                                <LoadingButton
-                                    icon={Trash2}
-                                    size="sm"
-                                    variant="secondary"
-                                    onClick={() => setPlanToRemove({ id: active.id, name: active.name })}
-                                >
-                                    Remove
-                                </LoadingButton>
-                                </>
-                            )}
+                        ) : (
+                            <div className="p-6 pb-0">
+                                <div className="flex items-start justify-between mb-6 gap-4">
+                                    <div className="min-w-0">
+                                        <h2 className="text-xl font-bold text-white">{active.name}</h2>
+                                        <p className="text-zinc-500 text-sm mt-0.5">
+                                            {active.durationWeeks} weeks · {active.daysPerWeek} days/week · <span className="capitalize">{active.difficulty ?? 'beginner'}</span>
+                                            {active.program?.meta?.focus && (
+                                                <span> · {active.program.meta.focus}</span>
+                                            )}
+                                        </p>
+                                        <div className="mt-1">
+                                            <PlanSourceTag source={active.source} listTab={listTab} />
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 justify-end">
+                                        {isAssignedPlan && (
+                                            <>
+                                                <LoadingButton
+                                                    icon={Play}
+                                                    size="sm"
+                                                    loading={starting}
+                                                    onClick={async () => {
+                                                        setStarting(true);
+                                                        try {
+                                                            if (activeSession?.id) {
+                                                                await opsAPI.stopWorkoutSession(activeSession.id, { complete: true, mood: 'good' });
+                                                                toast.success('Workout completed', 'Session saved — nice work.');
+                                                                setActiveSession(null);
+                                                                opsAPI.activeWorkoutSession().then(setActiveSession).catch(() => setActiveSession(null));
+                                                            } else {
+                                                                const s = await opsAPI.startWorkoutSession({ planId: active.id, notes: `Started from plan: ${active.name}` });
+                                                                toast.success('Workout started', 'Session is live — tap Complete when you are done.');
+                                                                setActiveSession(s);
+                                                            }
+                                                        } catch (err) {
+                                                            toast.error('Error', getErrorMessage(err));
+                                                        } finally {
+                                                            setStarting(false);
+                                                        }
+                                                    }}
+                                                >
+                                                    {activeSession?.id ? 'Complete session' : 'Start workout'}
+                                                </LoadingButton>
+                                                <LoadingButton icon={ClipboardCheck} size="sm" variant="secondary" onClick={() => setLogOpen((o) => !o)}>
+                                                    Log completed
+                                                </LoadingButton>
+                                                <LoadingButton icon={Trash2} size="sm" variant="secondary" onClick={() => setPlanToRemove({ id: active.id, name: active.name })}>
+                                                    Remove
+                                                </LoadingButton>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        )}
+
+                        <div className="p-6">
 
                         {isAssignedPlan && logOpen && (
                             <div className="mb-4 rounded-xl border border-zinc-700/80 bg-zinc-900/50 p-4 space-y-3">
@@ -409,10 +533,15 @@ export default function WorkoutsPage() {
 
                         <div className="space-y-3">
                             <div className="bg-zinc-800/30 rounded-xl p-4">
-                                <p className="text-white text-sm font-semibold mb-2">Plan Description</p>
-                                <p className="text-zinc-400 text-sm">
-                                    {active.description ?? 'No detailed description.'}
-                                </p>
+                                <p className="text-white text-sm font-semibold mb-2">Plan overview</p>
+                                {programIntro ? (
+                                    <p className="text-zinc-300 text-sm mb-3 leading-relaxed whitespace-pre-wrap">{programIntro}</p>
+                                ) : null}
+                                {active.description ? (
+                                    <p className="text-zinc-400 text-sm leading-relaxed">{active.description}</p>
+                                ) : !programIntro ? (
+                                    <p className="text-zinc-500 text-sm">No detailed description.</p>
+                                ) : null}
                             </div>
                             <div className="bg-zinc-800/30 rounded-xl p-4">
                                 <p className="text-white text-sm font-semibold mb-3">Programme Overview</p>
@@ -458,10 +587,13 @@ export default function WorkoutsPage() {
                                                     </button>
                                                     {isOpen && (
                                                         <div className="divide-y divide-zinc-800/50">
+                                                            {day.notes ? (
+                                                                <p className="px-4 py-3 text-xs text-zinc-400 bg-zinc-900/35 border-b border-zinc-800/60 leading-relaxed">{day.notes}</p>
+                                                            ) : null}
                                                             {exs.map((ex, i) => (
                                                                 <div key={i} className="px-4 py-3">
                                                                     <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-                                                                        {ex.imageUrl && (
+                                                                        {!hideExerciseThumbs && ex.imageUrl && (
                                                                             <img src={ex.imageUrl} alt="" className="w-full sm:w-28 h-20 object-cover rounded-lg border border-zinc-700/50 shrink-0" />
                                                                         )}
                                                                         <div className="min-w-0 flex-1">
@@ -496,6 +628,7 @@ export default function WorkoutsPage() {
                                     </div>
                                 )}
                             </div>
+                        </div>
                         </div>
                     </Card>
                 ) : (
