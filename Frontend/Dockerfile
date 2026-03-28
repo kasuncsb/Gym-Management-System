@@ -24,12 +24,13 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 
-# Copy standalone output (if output: 'standalone' used) or full .next
-COPY --from=builder /app/public        ./public
-COPY --from=builder /app/.next         ./.next
-COPY --from=builder /app/node_modules  ./node_modules
-COPY --from=builder /app/package.json  ./package.json
+# Standalone trace (see `output: 'standalone'` in next.config.ts) — minimal deps, fewer/lighter layers
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
 USER root
 COPY nginx.conf /etc/nginx/nginx.conf
@@ -37,7 +38,7 @@ COPY entrypoint.sh ./
 RUN apk add --no-cache nginx && \
     chmod +x ./entrypoint.sh && \
     mkdir -p /var/log/nginx /var/lib/nginx && \
-    chown -R appuser:appgroup /var/log/nginx /var/lib/nginx /etc/nginx
+    chown -R appuser:appgroup /app /var/log/nginx /var/lib/nginx /etc/nginx
 
 USER appuser
 

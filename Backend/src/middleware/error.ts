@@ -20,6 +20,14 @@ function isBodyParserJsonError(err: unknown): err is { type: string; status?: nu
     && (err as any).type === 'entity.parse.failed';
 }
 
+function isPayloadTooLargeError(err: unknown): err is { type: string; status?: number; statusCode?: number; message?: string } {
+  return typeof err === 'object'
+    && err !== null
+    && 'type' in err
+    && typeof (err as any).type === 'string'
+    && (err as any).type === 'entity.too.large';
+}
+
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   if (err instanceof AppError) {
     if (err.statusCode >= 500) {
@@ -51,6 +59,17 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   // JSON body parse errors should be 400, not 500.
   if (isBodyParserJsonError(err)) {
     res.status(400).json(response.error('BAD_REQUEST', 'Malformed JSON body'));
+    return;
+  }
+
+  if (isPayloadTooLargeError(err)) {
+    res.status(413).json(response.error('PAYLOAD_TOO_LARGE', 'Request body exceeds the size limit.'));
+    return;
+  }
+
+  const errStatus = typeof err === 'object' && err !== null && 'status' in err ? Number((err as { status: unknown }).status) : NaN;
+  if (errStatus === 413) {
+    res.status(413).json(response.error('PAYLOAD_TOO_LARGE', 'Request body exceeds the size limit.'));
     return;
   }
 

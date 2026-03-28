@@ -8,4 +8,4 @@ echo "Starting Nginx in background..."
 nginx -c /etc/nginx/nginx.conf
 
 echo "Starting Next.js in foreground..."
-exec node_modules/.bin/next start
+exec node server.js

@@ -5,6 +5,9 @@ if (!process.env.BACKEND_URL) {
 }
 
 const nextConfig: NextConfig = {
+  // Trace production deps into `.next/standalone` — small image vs copying full `node_modules`
+  // (avoids BuildKit "parent snapshot does not exist" failures on constrained VPS disks).
+  output: "standalone",
   experimental: {
     // Match nginx's client_max_body_size 20M (used for file uploads in production).
     // Without this, Next.js's default ~1 MB limit would reject large uploads in dev.

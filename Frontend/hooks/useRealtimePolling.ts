@@ -17,7 +17,11 @@ export function useRealtimePolling(fn: () => void | Promise<void>, intervalMs = 
     let stopped = false;
     const tick = async () => {
       if (stopped) return;
-      await fnRef.current();
+      try {
+        await fnRef.current();
+      } catch {
+        // Best-effort polling — avoid unhandled rejections (4xx/5xx/429); pages attach their own error UX on refresh.
+      }
     };
     tick();
     const id = window.setInterval(tick, intervalMs);

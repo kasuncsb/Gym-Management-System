@@ -3,7 +3,7 @@
  * Authentication is handled entirely via httpOnly cookies set by the backend.
  * No tokens are stored or managed client-side.
  */
-import axios from 'axios';
+import axios, { type AxiosError } from 'axios';
 
 const apiClient = axios.create({
   baseURL: '/api',
@@ -64,22 +64,25 @@ apiClient.interceptors.response.use(
       return apiClient(original);
     } catch (refreshError) {
       processQueue(refreshError);
-      
-      // Refresh failed. Only forcefully redirect if on a protected route.
+
+      // Refresh failed. Redirect to login only for auth failures — not for 429 (rate limit) or network errors.
       if (typeof window !== 'undefined') {
-        const path = window.location.pathname;
-        const publicRoutes = [
-          '/', '/login',
-          '/simulate',
-          '/member/register', '/member/register/personal-details',
-          '/member/register/identity-verification', '/member/register/subscription',
-          '/member/register/verify-email', '/member/register/dashboard',
-          '/member/forgot-password', '/member/forgot-password/pin-code',
-          '/member/forgot-password/new-password', '/member/forgot-password/success',
-          '/member/verify-email', '/member/reset-password',
-        ];
-        if (!publicRoutes.some(r => path === r || path.startsWith(r + '/'))) {
-          window.location.href = '/login';
+        const st = axios.isAxiosError(refreshError) ? refreshError.response?.status : undefined;
+        if (st !== 429) {
+          const path = window.location.pathname;
+          const publicRoutes = [
+            '/', '/login',
+            '/simulate',
+            '/member/register', '/member/register/personal-details',
+            '/member/register/identity-verification', '/member/register/subscription',
+            '/member/register/verify-email', '/member/register/dashboard',
+            '/member/forgot-password', '/member/forgot-password/pin-code',
+            '/member/forgot-password/new-password', '/member/forgot-password/success',
+            '/member/verify-email', '/member/reset-password',
+          ];
+          if (!publicRoutes.some(r => path === r || path.startsWith(r + '/'))) {
+            window.location.href = '/login';
+          }
         }
       }
       return Promise.reject(refreshError);
@@ -489,29 +492,79 @@ export const aiAPI = {
   workoutPlan: (memberId?: string) => apiClient.post('/ai/workout-plan', memberId ? { memberId } : {}).then(r => r.data.data as { id?: string | null; name?: string | null; source?: string | null }),
 };
 
-/** Safely read API error message; handles HTML or non-standard response bodies from proxies. */
+/** Safely read API error message; handles HTML, nginx/proxy bodies, and rate-limit JSON. */
 function getApiErrorMessage(error: unknown): string | null {
   if (!axios.isAxiosError(error) || !error.response?.data) return null;
   const data = error.response.data;
+  if (typeof data === 'string') {
+    const t = data.trim();
+    if (t.startsWith('<')) return null;
+    return t.length ? t.slice(0, 800) : null;
+  }
   if (typeof data !== 'object' || data === null) return null;
-  const err = (data as Record<string, unknown>).error;
-  if (typeof err !== 'object' || err === null) return null;
-  const msg = (err as Record<string, unknown>).message;
-  return typeof msg === 'string' ? msg : null;
+  const d = data as Record<string, unknown>;
+  const nested = d.error;
+  if (typeof nested === 'object' && nested !== null) {
+    const msg = (nested as Record<string, unknown>).message;
+    if (typeof msg === 'string' && msg.length) return msg;
+  }
+  if (typeof nested === 'string' && nested.length) return nested;
+  if (typeof d.message === 'string' && d.message.length) return d.message;
+  return null;
+}
+
+function retryAfterHint(error: AxiosError): string {
+  const raw = error.response?.headers?.['retry-after'];
+  if (raw == null) return '';
+  const n = Number(raw);
+  if (Number.isFinite(n) && n > 0 && n < 3600) return ` Try again in about ${n}s.`;
+  return '';
 }
 
 export function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
     const apiMsg = getApiErrorMessage(error);
     if (apiMsg) return apiMsg;
-    if (error.response?.status === 429) {
-      return 'Too many requests. Please wait a few minutes and try again.';
+    const st = error.response?.status;
+    const ra = retryAfterHint(error);
+
+    if (st === 429) {
+      return `Too many requests.${ra || ' Please wait a minute and try again.'}`.trim();
     }
-    if (error.response?.status === 403) return 'You do not have permission to perform this action.';
-    if (error.response?.status === 404) return 'The requested resource was not found.';
-    if (error.response?.status && error.response.status >= 500) {
+    if (st === 408 || error.code === 'ECONNABORTED') {
+      return 'The request timed out. Check your connection and try again.';
+    }
+    if (st === 413) {
+      return 'The upload or request body is too large. Try a smaller file or shorter text.';
+    }
+    if (st === 415) {
+      return 'This file type is not supported for upload.';
+    }
+    if (st === 401) {
+      return 'Your session has expired or you are not signed in.';
+    }
+    if (st === 403) return 'You do not have permission to perform this action.';
+    if (st === 404) return 'The requested resource was not found.';
+    if (st === 409) {
+      return 'This action conflicts with the current data. Refresh the page and try again.';
+    }
+    if (st === 422) {
+      return 'Some fields are invalid. Check your input and try again.';
+    }
+    if (st === 502 || st === 503 || st === 504) {
+      return 'The service is temporarily unavailable. Please try again shortly.';
+    }
+    if (st !== undefined && st >= 500) {
       return 'The server is temporarily unavailable. Please try again later.';
     }
+
+    if (!error.response) {
+      if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+        return 'Network error — check your connection and that the server is reachable.';
+      }
+      return error.message || 'Unable to reach the server.';
+    }
+
     return error.message || 'Request failed';
   }
   if (error instanceof Error) return error.message;

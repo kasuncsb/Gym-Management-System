@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
 import { authAPI } from '../lib/api';
 
 /** Throttle profile re-validation to avoid 429 when navigating / remounting. */
@@ -134,7 +135,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(true);
         localStorage.setItem('user', JSON.stringify(freshUser));
       })
-      .catch(() => {
+      .catch((err) => {
+        // 429: keep cached session — do not log the user out on transient rate limits.
+        if (axios.isAxiosError(err) && err.response?.status === 429) {
+          lastProfileSuccessAt.current = Date.now();
+          setIsAuthenticated(true);
+          return;
+        }
         lastProfileSuccessAt.current = 0;
         setUser(null);
         setIsAuthenticated(false);
@@ -199,7 +206,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(freshUser);
       localStorage.setItem('user', JSON.stringify(freshUser));
       return freshUser;
-    } catch {
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 429) {
+        lastProfileSuccessAt.current = Date.now();
+        try {
+          const stored = localStorage.getItem('user');
+          if (stored) {
+            const u = JSON.parse(stored) as User;
+            setUser(u);
+            setIsAuthenticated(true);
+            return u;
+          }
+        } catch {
+          /* fall through */
+        }
+        return null;
+      }
       lastProfileSuccessAt.current = 0;
       setUser(null);
       setIsAuthenticated(false);

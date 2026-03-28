@@ -4,11 +4,33 @@
  * - Login: stricter limit per IP to reduce brute-force risk.
  * - AI chat: per-user per minute (align with `ai_chat_rate_limit_per_minute` config; env override).
  */
-import type { Request } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import type { AuthRequest } from './auth.js';
+import * as apiResponse from '../utils/response.js';
 
 const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+type RateLimitOptions = { statusCode: number; message: unknown | ((req: Request, res: Response) => unknown | Promise<unknown>) };
+
+/** Same envelope as `response.error()` so clients (`getErrorMessage`) parse reliably. */
+function rateLimitJsonHandler(req: Request, res: Response, _next: NextFunction, options: RateLimitOptions): void {
+  void (async () => {
+    try {
+      const raw =
+        typeof options.message === 'function' ? await options.message(req, res) : options.message;
+      if (!res.writableEnded) {
+        res.status(options.statusCode).json(raw);
+      }
+    } catch {
+      if (!res.writableEnded) {
+        res
+          .status(options.statusCode)
+          .json(apiResponse.error('TOO_MANY_REQUESTS', 'Too many requests. Please try again later.'));
+      }
+    }
+  })();
+}
 
 /** General API: 500 requests per 15 min per IP. Normal SPA use stays well below this. */
 export const apiRateLimiter = rateLimit({
@@ -21,7 +43,8 @@ export const apiRateLimiter = rateLimit({
     // Note: this middleware is mounted at /api/*, so req.path is the path after that mount.
     return p.startsWith('/ops/simulate/public/');
   },
-  message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Too many requests. Please wait a few minutes and try again.' } },
+  message: apiResponse.error('TOO_MANY_REQUESTS', 'Too many requests. Please wait a few minutes and try again.'),
+  handler: rateLimitJsonHandler,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -30,7 +53,8 @@ export const apiRateLimiter = rateLimit({
 export const loginRateLimiter = rateLimit({
   windowMs: WINDOW_MS,
   limit: 20,
-  message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Too many login attempts. Please try again in 15 minutes.' } },
+  message: apiResponse.error('TOO_MANY_REQUESTS', 'Too many login attempts. Please try again in 15 minutes.'),
+  handler: rateLimitJsonHandler,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -45,7 +69,8 @@ export const aiChatUserRateLimiter = rateLimit({
     const u = (req as AuthRequest).user;
     return u?.id ?? req.ip ?? 'anon';
   },
-  message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Too many AI chat messages. Please wait a minute and try again.' } },
+  message: apiResponse.error('TOO_MANY_REQUESTS', 'Too many AI chat messages. Please wait a minute and try again.'),
+  handler: rateLimitJsonHandler,
   standardHeaders: true,
   legacyHeaders: false,
 });
