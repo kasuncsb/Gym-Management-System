@@ -77,7 +77,7 @@ export const idVerificationSchema = z.object({
   path: ['note'],
 });
 
-/** Basic info (users table) — editable by all roles. Member can also update emergency (member_profiles). */
+/** Basic info (`users`) — editable by all roles. Members also update emergency fields on `members`. */
 export const updateProfileSchema = z.object({
   fullName: z.string().min(2).max(100).optional(),
   phone: z.union([z.string().regex(/^\+?[\d\s-]{10,20}$/), z.literal('')]).optional(),

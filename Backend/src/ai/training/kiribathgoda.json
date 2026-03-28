@@ -68,7 +68,7 @@
     "role": "manager",
     "topic": "insights",
     "tags": ["revenue", "renewals", "upsell", "kiribathgoda"],
-    "content": "For Kiribathgoda, monthly revenue is mainly driven by renewals of monthly plans and upsell of PT sessions. Managers should watch upcoming expiries, freeze requests, and idle members who have not visited in 14+ days.",
+    "content": "For Kiribathgoda, monthly revenue is mainly driven by renewals of monthly plans and add-on PT bookings. Managers should watch upcoming expiries and idle members who have not visited in 14+ days.",
     "businessRule": {
       "area": "revenue",
       "rule": "When churn risk is high (many members near expiry with low visits), focus campaigns on reactivation and short-term discounts instead of only acquiring new members."

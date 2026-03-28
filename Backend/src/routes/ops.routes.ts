@@ -17,6 +17,7 @@ router.post('/simulate/public/vitals', ops.publicSimulateVitals);
 router.get('/simulate/public/state', ops.publicGetSimulationState);
 router.get('/branch/capacity', ops.getBranchCapacity);
 router.get('/system/status', ops.getPublicSystemStatus);
+router.get('/public/subscription-plans', ops.listPublicSubscriptionPlans);
 
 router.use(authenticate);
 
@@ -31,8 +32,6 @@ router.patch('/subscriptions/plans/:id', authorize('admin', 'manager'), ops.upda
 router.get('/subscriptions/me', authorize('member'), ops.getMySubscriptions);
 router.get('/subscriptions', authorize('admin', 'manager'), ops.listAllSubscriptions);
 router.post('/subscriptions/purchase', authorize('member'), ops.purchaseSubscription);
-router.post('/subscriptions/freeze', authorize('member'), ops.requestFreeze);
-router.post('/subscriptions/:id/unfreeze', authorize('admin', 'manager'), ops.unfreezeSubscription);
 
 // Payments
 router.get('/payments/me', authorize('member'), ops.getMyPayments);

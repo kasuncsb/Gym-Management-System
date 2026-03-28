@@ -4,11 +4,11 @@ import { db } from '../config/database.js';
 import {
   config,
   users,
-  memberProfiles,
+  members,
+  trainers,
   subscriptionPlans,
   promotions,
   subscriptions,
-  subscriptionFreezes,
   payments,
   visits,
   ptSessions,
@@ -27,7 +27,30 @@ import {
   shifts,
   invoiceRecords,
 } from '../db/schema.js';
+import {
+  userLc,
+  planLc,
+  promoLc,
+  subLc,
+  payLc,
+  invLc,
+  visitLc,
+  ptLc,
+  wpLc,
+  wsLc,
+  wseLc,
+  mmLc,
+  eqLc,
+  eeLc,
+  iiLc,
+  itLc,
+  msgLc,
+  bcLc,
+  exLc,
+  shiftLc,
+} from '../db/lifecycleAliases.js';
 import { ids } from '../utils/id.js';
+import { insertLifecycleRow } from '../utils/lifecycle.js';
 import { errors } from '../utils/errors.js';
 import { hashPassword } from '../utils/password.js';
 import { assertMemberCanPurchaseSubscription } from './auth.service.js';
@@ -79,6 +102,7 @@ async function issueInvoiceRecord(input: {
   const [existing] = await db.select().from(invoiceRecords).where(eq(invoiceRecords.paymentId, input.paymentId)).limit(1);
   if (existing) return existing;
   const invoiceId = ids.uuid();
+  const invLid = await insertLifecycleRow();
   const invoiceNumber = `INV-${Date.now()}-${Math.floor(Math.random() * 900 + 100)}`;
   const html = generateInvoiceEmailHTML({
     invoiceNumber,
@@ -91,6 +115,7 @@ async function issueInvoiceRecord(input: {
   });
   await db.insert(invoiceRecords).values({
     id: invoiceId,
+    lifecycleId: invLid,
     paymentId: input.paymentId,
     memberId: input.memberId,
     invoiceNumber,
@@ -135,10 +160,12 @@ async function settleSubscriptionPurchase(
       throw errors.badRequest('Valid card number is required');
     }
   }
-  const [plan] = await db
-    .select()
+  const [planRow] = await db
+    .select({ plan: subscriptionPlans })
     .from(subscriptionPlans)
-    .where(and(eq(subscriptionPlans.id, input.planId), eq(subscriptionPlans.isActive, true), isNull(subscriptionPlans.deletedAt)));
+    .innerJoin(planLc, eq(subscriptionPlans.lifecycleId, planLc.id))
+    .where(and(eq(subscriptionPlans.id, input.planId), eq(subscriptionPlans.isActive, true), isNull(planLc.deletedAt)));
+  const plan = planRow?.plan;
   if (!plan) throw errors.notFound('Subscription plan');
 
   let discountAmount = 0;
@@ -168,9 +195,12 @@ async function settleSubscriptionPurchase(
   const endDate = addDays(startDate, plan.durationDays);
   const subscriptionId = ids.uuid();
   const pricePaid = Math.max(0, Number(plan.price) - discountAmount);
+  const subLid = await insertLifecycleRow();
+  const payLid = await insertLifecycleRow();
 
   await db.insert(subscriptions).values({
     id: subscriptionId,
+    lifecycleId: subLid,
     memberId: userId,
     planId: plan.id,
     startDate,
@@ -179,7 +209,6 @@ async function settleSubscriptionPurchase(
     pricePaid: String(pricePaid),
     discountAmount: String(discountAmount),
     promotionId,
-    ptSessionsLeft: plan.includedPtSessions ?? 0,
   });
 
   const instrumentHash = input.cardPan?.trim() ? hashPaymentInstrument(input.cardPan).fullHash : null;
@@ -188,6 +217,7 @@ async function settleSubscriptionPurchase(
   const referenceNumber = `REF-${Math.floor(Math.random() * 1_000_000)}`;
   await db.insert(payments).values({
     id: paymentId,
+    lifecycleId: payLid,
     subscriptionId,
     amount: String(pricePaid),
     paymentMethod: input.paymentMethod,
@@ -201,10 +231,10 @@ async function settleSubscriptionPurchase(
     recordedBy: userId,
   });
 
-  await db.update(users).set({
+  await db.update(members).set({
     memberStatus: 'active',
-    joinDate: sql`coalesce(${users.joinDate}, curdate())`,
-  }).where(eq(users.id, userId));
+    joinDate: sql`coalesce(${members.joinDate}, curdate())`,
+  }).where(eq(members.userId, userId));
 
   const [u] = await db.select({ fullName: users.fullName, email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
   await audit.appendAudit({
@@ -234,7 +264,12 @@ async function settleSubscriptionPurchase(
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
 export async function getDashboard(role: Role, userId: string) {
-  const [activeMembersRow] = await db.select({ count: sql<number>`count(*)` }).from(users).where(and(eq(users.role, 'member'), isNull(users.deletedAt), eq(users.memberStatus, 'active')));
+  const [activeMembersRow] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(users)
+    .innerJoin(userLc, eq(users.lifecycleId, userLc.id))
+    .innerJoin(members, eq(members.userId, users.id))
+    .where(and(eq(users.role, 'member'), isNull(userLc.deletedAt), eq(members.memberStatus, 'active')));
   const [todayVisitsRow] = await db.select({ count: sql<number>`count(*)` }).from(visits).where(sql`date(${visits.checkInAt}) = curdate()`);
   const [openIssuesRow] = await db.select({ count: sql<number>`count(*)` }).from(equipmentEvents).where(eq(equipmentEvents.status, 'open'));
   const [revenueRow] = await db.select({ total: sql<string>`coalesce(sum(${payments.amount}), 0)` }).from(payments).where(sql`month(${payments.paymentDate}) = month(curdate()) and year(${payments.paymentDate}) = year(curdate())`);
@@ -261,7 +296,12 @@ export async function getDashboard(role: Role, userId: string) {
   if (role === 'trainer') {
     const [sessionsToday] = await db.select({ count: sql<number>`count(*)` }).from(ptSessions).where(and(eq(ptSessions.trainerId, userId), sql`${ptSessions.sessionDate} = curdate()`));
     const [upcomingSessions] = await db.select({ count: sql<number>`count(*)` }).from(ptSessions).where(and(eq(ptSessions.trainerId, userId), sql`${ptSessions.sessionDate} >= curdate()`, sql`${ptSessions.status} in ('booked','confirmed')`));
-    const [assignedMembers] = await db.select({ count: sql<number>`count(*)` }).from(users).where(and(eq(users.role, 'member'), eq(users.assignedTrainerId, userId), isNull(users.deletedAt)));
+    const [assignedMembers] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users)
+      .innerJoin(userLc, eq(users.lifecycleId, userLc.id))
+      .innerJoin(members, eq(members.userId, users.id))
+      .where(and(eq(users.role, 'member'), eq(members.assignedTrainerId, userId), isNull(userLc.deletedAt)));
     const [pendingIssues] = await db.select({ count: sql<number>`count(*)` }).from(equipmentEvents).where(and(eq(equipmentEvents.loggedBy, userId), eq(equipmentEvents.status, 'open')));
     return {
       ...base,
@@ -274,24 +314,34 @@ export async function getDashboard(role: Role, userId: string) {
 
   if (role === 'manager') {
     const [trainersOnShift] = await db.select({ count: sql<number>`count(*)` }).from(visits).leftJoin(users, eq(users.id, visits.personId)).where(and(eq(visits.status, 'active'), eq(users.role, 'trainer')));
-    const [frozenSubs] = await db.select({ count: sql<number>`count(*)` }).from(subscriptions).where(eq(subscriptions.status, 'frozen'));
-    const [pendingId] = await db.select({ count: sql<number>`count(*)` }).from(users).where(and(eq(users.idVerificationStatus, 'pending'), isNull(users.deletedAt)));
+    const [pendingId] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users)
+      .innerJoin(userLc, eq(users.lifecycleId, userLc.id))
+      .innerJoin(members, eq(members.userId, users.id))
+      .where(and(eq(users.role, 'member'), eq(members.idVerificationStatus, 'pending'), isNull(userLc.deletedAt)));
     return {
       ...base,
       trainersOnShift: Number(trainersOnShift?.count ?? 0),
-      frozenSubscriptions: Number(frozenSubs?.count ?? 0),
       pendingIdVerifications: Number(pendingId?.count ?? 0),
     };
   }
 
   if (role === 'admin') {
-    const [pendingId] = await db.select({ count: sql<number>`count(*)` }).from(users).where(and(eq(users.idVerificationStatus, 'pending'), isNull(users.deletedAt)));
-    const [frozenSubs] = await db.select({ count: sql<number>`count(*)` }).from(subscriptions).where(eq(subscriptions.status, 'frozen'));
-    const [systemAlerts] = await db.select({ count: sql<number>`count(*)` }).from(messages).where(and(eq(messages.status, 'sent'), sql`${messages.priority} in ('high','critical')`));
+    const [pendingId] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users)
+      .innerJoin(userLc, eq(users.lifecycleId, userLc.id))
+      .innerJoin(members, eq(members.userId, users.id))
+      .where(and(eq(users.role, 'member'), eq(members.idVerificationStatus, 'pending'), isNull(userLc.deletedAt)));
+    const [systemAlerts] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(messages)
+      .innerJoin(msgLc, eq(messages.lifecycleId, msgLc.id))
+      .where(and(eq(messages.status, 'sent'), sql`${messages.priority} in ('high','critical')`));
     return {
       ...base,
       pendingIdVerifications: Number(pendingId?.count ?? 0),
-      frozenSubscriptions: Number(frozenSubs?.count ?? 0),
       systemAlertCount: Number(systemAlerts?.count ?? 0),
     };
   }
@@ -304,12 +354,15 @@ export async function getDashboard(role: Role, userId: string) {
 export async function listPlans(options?: { includeInactive?: boolean }) {
   const includeInactive = options?.includeInactive ?? false;
   const plans = await db
-    .select()
+    .select({ plan: subscriptionPlans })
     .from(subscriptionPlans)
+    .innerJoin(planLc, eq(subscriptionPlans.lifecycleId, planLc.id))
     .where(includeInactive
-      ? isNull(subscriptionPlans.deletedAt)
-      : and(eq(subscriptionPlans.isActive, true), isNull(subscriptionPlans.deletedAt)))
-    .orderBy(subscriptionPlans.sortOrder, subscriptionPlans.createdAt);
+      ? isNull(planLc.deletedAt)
+      : and(eq(subscriptionPlans.isActive, true), isNull(planLc.deletedAt)))
+    .orderBy(subscriptionPlans.price, subscriptionPlans.name);
+
+  const planRows = plans.map((r) => r.plan);
 
   // Attach active subscriber count per plan
   const counts = await db
@@ -319,13 +372,23 @@ export async function listPlans(options?: { includeInactive?: boolean }) {
     .groupBy(subscriptions.planId);
 
   const countMap = Object.fromEntries(counts.map(c => [c.planId, Number(c.count)]));
-  return plans.map(p => ({ ...p, activeSubscribers: countMap[p.id] ?? 0 }));
+  return planRows.map(p => ({ ...p, activeSubscribers: countMap[p.id] ?? 0 }));
+}
+
+/** Public catalog: active plans only, no auth. */
+export async function listPublicSubscriptionPlans() {
+  return listPlans({ includeInactive: false });
 }
 
 // ── Promotions ─────────────────────────────────────────────────────────────────
 
 export async function listPromotions() {
-  return db.select().from(promotions).orderBy(desc(promotions.createdAt));
+  return db
+    .select({ promo: promotions, createdAt: promoLc.createdAt })
+    .from(promotions)
+    .innerJoin(promoLc, eq(promotions.lifecycleId, promoLc.id))
+    .orderBy(desc(promoLc.createdAt))
+    .then((rows) => rows.map((r) => r.promo));
 }
 
 export async function createPromotion(input: {
@@ -338,8 +401,10 @@ export async function createPromotion(input: {
   isActive?: boolean;
 }) {
   const id = ids.uuid();
+  const lc = await insertLifecycleRow();
   await db.insert(promotions).values({
     id,
+    lifecycleId: lc,
     code: input.code.toUpperCase().trim(),
     name: input.name,
     discountType: input.discountType,
@@ -388,20 +453,19 @@ export async function createPlan(input: {
   planType: 'individual' | 'couple' | 'student' | 'corporate' | 'daily_pass';
   price: number;
   durationDays: number;
-  includedPtSessions?: number;
 }) {
   const id = ids.uuid();
+  const lc = await insertLifecycleRow();
   await db.insert(subscriptionPlans).values({
     id,
+    lifecycleId: lc,
     planCode: `PLAN-${Date.now()}`,
     name: input.name,
     description: input.description ?? null,
     planType: input.planType,
     price: String(input.price),
     durationDays: input.durationDays,
-    includedPtSessions: input.includedPtSessions ?? 0,
     isActive: true,
-    sortOrder: 0,
   });
   const [plan] = await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, id));
   return plan;
@@ -433,15 +497,16 @@ export async function getMySubscriptions(userId: string) {
       startDate: subscriptions.startDate,
       endDate: subscriptions.endDate,
       pricePaid: subscriptions.pricePaid,
-      ptSessionsLeft: subscriptions.ptSessionsLeft,
       planId: subscriptions.planId,
       planName: subscriptionPlans.name,
       planType: subscriptionPlans.planType,
+      createdAt: subLc.createdAt,
     })
     .from(subscriptions)
+    .innerJoin(subLc, eq(subscriptions.lifecycleId, subLc.id))
     .leftJoin(subscriptionPlans, eq(subscriptionPlans.id, subscriptions.planId))
     .where(eq(subscriptions.memberId, userId))
-    .orderBy(desc(subscriptions.createdAt));
+    .orderBy(desc(subLc.createdAt));
 }
 
 export async function getMyPayments(userId: string) {
@@ -461,8 +526,9 @@ export async function getMyPayments(userId: string) {
     .leftJoin(subscriptions, eq(subscriptions.id, payments.subscriptionId))
     .leftJoin(subscriptionPlans, eq(subscriptionPlans.id, subscriptions.planId))
     .leftJoin(invoiceRecords, eq(invoiceRecords.paymentId, payments.id))
+    .innerJoin(payLc, eq(payments.lifecycleId, payLc.id))
     .where(eq(subscriptions.memberId, userId))
-    .orderBy(desc(payments.createdAt));
+    .orderBy(desc(payLc.createdAt));
 }
 
 export async function listAllSubscriptions() {
@@ -471,7 +537,7 @@ export async function listAllSubscriptions() {
       id: subscriptions.id,
       memberId: subscriptions.memberId,
       memberName: users.fullName,
-      memberCode: users.memberCode,
+      memberCode: members.memberCode,
       planId: subscriptions.planId,
       planName: subscriptionPlans.name,
       planType: subscriptionPlans.planType,
@@ -479,13 +545,14 @@ export async function listAllSubscriptions() {
       startDate: subscriptions.startDate,
       endDate: subscriptions.endDate,
       pricePaid: subscriptions.pricePaid,
-      ptSessionsLeft: subscriptions.ptSessionsLeft,
-      createdAt: subscriptions.createdAt,
+      createdAt: subLc.createdAt,
     })
     .from(subscriptions)
+    .innerJoin(subLc, eq(subscriptions.lifecycleId, subLc.id))
     .leftJoin(users, eq(users.id, subscriptions.memberId))
+    .leftJoin(members, eq(members.userId, subscriptions.memberId))
     .leftJoin(subscriptionPlans, eq(subscriptionPlans.id, subscriptions.planId))
-    .orderBy(desc(subscriptions.createdAt));
+    .orderBy(desc(subLc.createdAt));
 }
 
 export async function listAllPayments() {
@@ -502,13 +569,14 @@ export async function listAllPayments() {
       memberId: subscriptions.memberId,
       memberName: users.fullName,
       planName: subscriptionPlans.name,
-      createdAt: payments.createdAt,
+      createdAt: payLc.createdAt,
     })
     .from(payments)
+    .innerJoin(payLc, eq(payments.lifecycleId, payLc.id))
     .leftJoin(subscriptions, eq(subscriptions.id, payments.subscriptionId))
     .leftJoin(users, eq(users.id, subscriptions.memberId))
     .leftJoin(subscriptionPlans, eq(subscriptionPlans.id, subscriptions.planId))
-    .orderBy(desc(payments.createdAt));
+    .orderBy(desc(payLc.createdAt));
 }
 
 export async function purchaseSubscription(
@@ -535,17 +603,18 @@ export async function listRecentSettledPayments(limit = 20) {
       paymentMethod: payments.paymentMethod,
       paymentDate: payments.paymentDate,
       receiptNumber: payments.receiptNumber,
-      createdAt: payments.createdAt,
+      createdAt: payLc.createdAt,
       memberId: subscriptions.memberId,
       memberName: users.fullName,
       planId: subscriptions.planId,
       planName: subscriptionPlans.name,
     })
     .from(payments)
+    .innerJoin(payLc, eq(payments.lifecycleId, payLc.id))
     .leftJoin(subscriptions, eq(subscriptions.id, payments.subscriptionId))
     .leftJoin(users, eq(users.id, subscriptions.memberId))
     .leftJoin(subscriptionPlans, eq(subscriptionPlans.id, subscriptions.planId))
-    .orderBy(desc(payments.createdAt))
+    .orderBy(desc(payLc.createdAt))
     .limit(capped);
 }
 
@@ -553,72 +622,6 @@ export async function getPaymentInvoiceHtml(paymentId: string, memberId: string)
   const [invoice] = await db.select().from(invoiceRecords).where(and(eq(invoiceRecords.paymentId, paymentId), eq(invoiceRecords.memberId, memberId))).limit(1);
   if (!invoice) throw errors.notFound('Invoice');
   return invoice;
-}
-
-export async function requestFreeze(
-  userId: string,
-  input: { subscriptionId?: string; freezeStart: string; freezeEnd: string; reason?: string },
-) {
-  const freezeStartDate = safeDate(input.freezeStart);
-  const freezeEndDate = safeDate(input.freezeEnd);
-  if (freezeEndDate < freezeStartDate) {
-    throw errors.badRequest('freezeEnd must be on or after freezeStart');
-  }
-  const [activeSub] = input.subscriptionId
-    ? await db.select().from(subscriptions).where(and(eq(subscriptions.id, input.subscriptionId), eq(subscriptions.memberId, userId)))
-    : await db.select().from(subscriptions).where(and(eq(subscriptions.memberId, userId), eq(subscriptions.status, 'active'))).orderBy(desc(subscriptions.createdAt)).limit(1);
-
-  if (!activeSub) throw errors.notFound('Active subscription');
-
-  const freezeId = ids.uuid();
-  await db.insert(subscriptionFreezes).values({
-    id: freezeId,
-    subscriptionId: activeSub.id,
-    freezeStart: freezeStartDate,
-    freezeEnd: freezeEndDate,
-    reason: input.reason ?? null,
-    requestedBy: userId,
-  });
-
-  await db.update(subscriptions).set({
-    status: 'frozen',
-    notes: input.reason ?? 'Frozen by member request',
-  }).where(eq(subscriptions.id, activeSub.id));
-
-  const [freeze] = await db.select().from(subscriptionFreezes).where(eq(subscriptionFreezes.id, freezeId));
-  return freeze;
-}
-
-export async function unfreezeSubscription(subscriptionId: string) {
-  const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.id, subscriptionId)).limit(1);
-  if (!sub) throw errors.notFound('Subscription');
-  if (sub.status !== 'frozen') throw errors.badRequest('Subscription is not frozen');
-
-  // Find the latest freeze record and extend endDate by the number of frozen days
-  const [freeze] = await db
-    .select()
-    .from(subscriptionFreezes)
-    .where(eq(subscriptionFreezes.subscriptionId, subscriptionId))
-    .orderBy(desc(subscriptionFreezes.createdAt))
-    .limit(1);
-
-  let newEndDate: Date | undefined;
-  if (freeze) {
-    const freezeStart = new Date(freeze.freezeStart);
-    const freezeEnd = new Date(freeze.freezeEnd);
-    const frozenDays = Math.ceil((freezeEnd.getTime() - freezeStart.getTime()) / 86_400_000);
-    const currentEnd = new Date(sub.endDate);
-    newEndDate = addDays(currentEnd, frozenDays);
-  }
-
-  await db.update(subscriptions).set({
-    status: 'active',
-    notes: 'Unfrozen by admin/manager',
-    ...(newEndDate && { endDate: newEndDate }),
-  }).where(eq(subscriptions.id, subscriptionId));
-
-  const [updated] = await db.select().from(subscriptions).where(eq(subscriptions.id, subscriptionId));
-  return updated;
 }
 
 // ── Check-in / Check-out ──────────────────────────────────────────────────────
@@ -634,13 +637,16 @@ export async function checkIn(userId: string) {
     const [sub] = await db
       .select({ status: subscriptions.status })
       .from(subscriptions)
+      .innerJoin(subLc, eq(subscriptions.lifecycleId, subLc.id))
       .where(eq(subscriptions.memberId, userId))
-      .orderBy(desc(subscriptions.createdAt))
+      .orderBy(desc(subLc.createdAt))
       .limit(1);
     if (!sub || !['active', 'grace_period'].includes(sub.status)) {
       const deniedId = ids.uuid();
+      const vLc = await insertLifecycleRow();
       await db.insert(visits).values({
         id: deniedId,
+        lifecycleId: vLc,
         personId: userId,
         checkInAt: new Date(),
         status: 'denied',
@@ -661,8 +667,10 @@ export async function checkIn(userId: string) {
   }
 
   const id = ids.uuid();
+  const vLc = await insertLifecycleRow();
   await db.insert(visits).values({
     id,
+    lifecycleId: vLc,
     personId: userId,
     checkInAt: new Date(),
     status: 'active',
@@ -769,10 +777,11 @@ export async function listMyPtSessions(userId: string) {
       status: ptSessions.status,
       cancelReason: ptSessions.cancelReason,
       reviewRating: ptSessions.reviewRating,
-      createdAt: ptSessions.createdAt,
+      createdAt: ptLc.createdAt,
       trainerName: users.fullName,
     })
     .from(ptSessions)
+    .innerJoin(ptLc, eq(ptSessions.lifecycleId, ptLc.id))
     .leftJoin(users, eq(users.id, ptSessions.trainerId))
     .where(eq(ptSessions.memberId, userId))
     .orderBy(desc(ptSessions.sessionDate));
@@ -791,19 +800,17 @@ export async function listTrainerPtSessions(userId: string) {
       status: ptSessions.status,
       cancelReason: ptSessions.cancelReason,
       reviewRating: ptSessions.reviewRating,
-      createdAt: ptSessions.createdAt,
+      createdAt: ptLc.createdAt,
       memberName: memberAlias.fullName,
     })
     .from(ptSessions)
+    .innerJoin(ptLc, eq(ptSessions.lifecycleId, ptLc.id))
     .leftJoin(memberAlias, eq(memberAlias.id, ptSessions.memberId))
     .where(eq(ptSessions.trainerId, userId))
     .orderBy(desc(ptSessions.sessionDate));
 }
 
 export async function listAllPtSessions() {
-  const members = db.$with('members').as(db.select({ id: users.id, fullName: users.fullName }).from(users));
-  const trainers = db.$with('trainers').as(db.select({ id: users.id, fullName: users.fullName }).from(users));
-
   return db
     .select({
       id: ptSessions.id,
@@ -815,11 +822,12 @@ export async function listAllPtSessions() {
       status: ptSessions.status,
       cancelReason: ptSessions.cancelReason,
       reviewRating: ptSessions.reviewRating,
-      createdAt: ptSessions.createdAt,
+      createdAt: ptLc.createdAt,
       memberName: sql<string>`(SELECT full_name FROM users WHERE id = ${ptSessions.memberId})`,
       trainerName: sql<string>`(SELECT full_name FROM users WHERE id = ${ptSessions.trainerId})`,
     })
     .from(ptSessions)
+    .innerJoin(ptLc, eq(ptSessions.lifecycleId, ptLc.id))
     .orderBy(desc(ptSessions.sessionDate));
 }
 
@@ -847,8 +855,10 @@ export async function createPtSession(
   if (memberConflict.length) throw errors.conflict('Member already has a session at this time');
 
   const id = ids.uuid();
+  const ptLid = await insertLifecycleRow();
   await db.insert(ptSessions).values({
     id,
+    lifecycleId: ptLid,
     memberId: input.memberId,
     trainerId: input.trainerId,
     sessionDate: sessionDateObj,
@@ -858,9 +868,14 @@ export async function createPtSession(
   });
 
   const when = `${input.sessionDate} ${input.startTime} - ${input.endTime}`;
+  const m1 = ids.uuid();
+  const m2 = ids.uuid();
+  const ml1 = await insertLifecycleRow();
+  const ml2 = await insertLifecycleRow();
   await db.insert(messages).values([
     {
-      id: ids.uuid(),
+      id: m1,
+      lifecycleId: ml1,
       type: 'notification',
       channel: 'in_app',
       toPersonId: input.trainerId,
@@ -870,7 +885,8 @@ export async function createPtSession(
       status: 'sent',
     },
     {
-      id: ids.uuid(),
+      id: m2,
+      lifecycleId: ml2,
       type: 'notification',
       channel: 'in_app',
       toPersonId: input.memberId,
@@ -942,8 +958,11 @@ export async function updatePtSession(
 
   const n = notifyMap[input.status];
   if (n) {
+    const mid = ids.uuid();
+    const msgLcId = await insertLifecycleRow();
     await db.insert(messages).values({
-      id: ids.uuid(),
+      id: mid,
+      lifecycleId: msgLcId,
       type: 'notification',
       channel: 'in_app',
       toPersonId: n.toId,
@@ -962,10 +981,12 @@ export async function updatePtSession(
 
 export async function listMyWorkoutPlans(userId: string) {
   return db
-    .select()
+    .select({ plan: workoutPlans })
     .from(workoutPlans)
+    .innerJoin(wpLc, eq(workoutPlans.lifecycleId, wpLc.id))
     .where(and(eq(workoutPlans.memberId, userId), eq(workoutPlans.isActive, true)))
-    .orderBy(desc(workoutPlans.createdAt));
+    .orderBy(desc(wpLc.createdAt))
+    .then((rows) => rows.map((r) => r.plan));
 }
 
 export async function getMemberWorkoutPlans(memberId: string) {
@@ -973,10 +994,12 @@ export async function getMemberWorkoutPlans(memberId: string) {
   if (!member || member.role !== 'member') throw errors.notFound('Member');
 
   return db
-    .select()
+    .select({ plan: workoutPlans })
     .from(workoutPlans)
+    .innerJoin(wpLc, eq(workoutPlans.lifecycleId, wpLc.id))
     .where(and(eq(workoutPlans.memberId, memberId), eq(workoutPlans.isActive, true)))
-    .orderBy(desc(workoutPlans.createdAt));
+    .orderBy(desc(wpLc.createdAt))
+    .then((rows) => rows.map((r) => r.plan));
 }
 
 export async function listMyWorkoutLogs(userId: string) {
@@ -990,16 +1013,17 @@ export async function listMyWorkoutLogs(userId: string) {
       mood: workoutSessions.mood,
       caloriesBurned: workoutSessions.caloriesBurned,
       notes: workoutSessions.notes,
-      createdAt: workoutSessions.createdAt,
+      createdAt: wsLc.createdAt,
       status: workoutSessions.status,
     })
     .from(workoutSessions)
+    .innerJoin(wsLc, eq(workoutSessions.lifecycleId, wsLc.id))
     .where(and(
       eq(workoutSessions.personId, userId),
       sql`${workoutSessions.status} in ('completed','stopped')`,
       sql`${workoutSessions.endedAt} is not null`,
     ))
-    .orderBy(desc(workoutSessions.endedAt), desc(workoutSessions.createdAt));
+    .orderBy(desc(workoutSessions.endedAt), desc(wsLc.createdAt));
 }
 
 export async function addWorkoutLog(
@@ -1047,16 +1071,20 @@ export async function startWorkoutSession(userId: string, input: { planId?: stri
   const active = await getActiveWorkoutSession(userId);
   if (active) return active;
   const id = ids.uuid();
+  const wsLid = await insertLifecycleRow();
   await db.insert(workoutSessions).values({
     id,
+    lifecycleId: wsLid,
     personId: userId,
     planId: input.planId ?? null,
     status: 'active',
     startedAt: new Date(),
     notes: input.notes ?? null,
   });
+  const wseLid = await insertLifecycleRow();
   await db.insert(workoutSessionEvents).values({
     id: ids.uuid(),
+    lifecycleId: wseLid,
     sessionId: id,
     personId: userId,
     eventType: 'started',
@@ -1075,8 +1103,10 @@ export async function addWorkoutSessionEvent(userId: string, sessionId: string, 
     : await db.select().from(workoutSessions).where(eq(workoutSessions.id, sessionId)).limit(1);
   if (!session) throw errors.notFound('Workout session');
   const eventActorId = actorRole === 'member' ? userId : session.personId;
+  const evLc = await insertLifecycleRow();
   await db.insert(workoutSessionEvents).values({
     id: ids.uuid(),
+    lifecycleId: evLc,
     sessionId,
     personId: eventActorId,
     eventType: input.eventType,
@@ -1115,8 +1145,10 @@ export async function stopWorkoutSession(
     mood: input.mood ?? null,
     notes: input.notes ?? session.notes ?? null,
   }).where(eq(workoutSessions.id, sessionId));
+  const evLc2 = await insertLifecycleRow();
   await db.insert(workoutSessionEvents).values({
     id: ids.uuid(),
+    lifecycleId: evLc2,
     sessionId,
     personId: session.personId,
     eventType: input.complete ? 'completed' : 'stopped',
@@ -1141,8 +1173,10 @@ export async function assignWorkoutPlanToMember(
   if (!member || member.role !== 'member') throw errors.notFound('Member');
 
   const id = ids.uuid();
+  const wpLid = await insertLifecycleRow();
   await db.insert(workoutPlans).values({
     id,
+    lifecycleId: wpLid,
     memberId: input.memberId,
     trainerId,
     name: input.name,
@@ -1154,8 +1188,10 @@ export async function assignWorkoutPlanToMember(
     isActive: true,
   });
 
+  const assignMsgLc = await insertLifecycleRow();
   await db.insert(messages).values({
     id: ids.uuid(),
+    lifecycleId: assignMsgLc,
     type: 'notification',
     channel: 'in_app',
     toPersonId: input.memberId,
@@ -1228,8 +1264,8 @@ export async function generateAiWorkoutPlan(
 
   const [profile] = await db
     .select()
-    .from(memberProfiles)
-    .where(eq(memberProfiles.personId, memberId))
+    .from(members)
+    .where(eq(members.userId, memberId))
     .limit(1);
 
   // Build AI prompt with member context
@@ -1327,8 +1363,10 @@ Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
 
   const id = ids.uuid();
   const planSource = geminiSucceeded ? 'ai_generated' : 'library';
+  const aiWpLc = await insertLifecycleRow();
   await db.insert(workoutPlans).values({
     id,
+    lifecycleId: aiWpLc,
     memberId,
     trainerId: requesterRole !== 'member' ? requesterId : null,
     name: planData.name,
@@ -1350,8 +1388,10 @@ Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
         let [existingEx] = await db.select({ id: exercises.id }).from(exercises).where(sql`lower(${exercises.name}) = lower(${exName})`).limit(1);
         if (!existingEx) {
           const exId = ids.uuid();
+          const exLc = await insertLifecycleRow();
           await db.insert(exercises).values({
             id: exId,
+            lifecycleId: exLc,
             name: exName,
             muscleGroup: ex.muscleGroup ?? null,
             instructions: ex.instructions ?? null,
@@ -1376,8 +1416,10 @@ Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
     }
   }
 
+  const aiMsgLc = await insertLifecycleRow();
   await db.insert(messages).values({
     id: ids.uuid(),
+    lifecycleId: aiMsgLc,
     type: 'notification',
     channel: 'in_app',
     toPersonId: memberId,
@@ -1408,8 +1450,10 @@ export async function addMetric(
   input: { weightKg?: number; heightCm?: number; bmi?: number; restingHr?: number; notes?: string },
 ) {
   const id = ids.uuid();
+  const mmLid = await insertLifecycleRow();
   await db.insert(memberMetrics).values({
     id,
+    lifecycleId: mmLid,
     personId: userId,
     source: 'manual',
     weightKg: input.weightKg != null ? String(input.weightKg) : null,
@@ -1431,8 +1475,10 @@ export async function addMetricForMember(
   if (!member || member.role !== 'member') throw errors.notFound('Member');
 
   const id = ids.uuid();
+  const mmLid2 = await insertLifecycleRow();
   await db.insert(memberMetrics).values({
     id,
+    lifecycleId: mmLid2,
     personId: memberId,
     source: 'trainer',
     weightKg: input.weightKg != null ? String(input.weightKg) : null,
@@ -1442,8 +1488,10 @@ export async function addMetricForMember(
     notes: input.notes ?? null,
   });
 
+  const metricMsgLc = await insertLifecycleRow();
   await db.insert(messages).values({
     id: ids.uuid(),
+    lifecycleId: metricMsgLc,
     type: 'notification',
     channel: 'in_app',
     toPersonId: memberId,
@@ -1475,8 +1523,10 @@ export async function createExercise(input: {
   videoUrl?: string;
 }) {
   const id = ids.uuid();
+  const exLcNew = await insertLifecycleRow();
   await db.insert(exercises).values({
     id,
+    lifecycleId: exLcNew,
     name: input.name,
     muscleGroup: input.muscleGroup ?? null,
     equipmentNeeded: input.equipmentNeeded ?? null,
@@ -1577,9 +1627,10 @@ export async function listShifts(filters?: { staffId?: string; shiftDate?: strin
       endTime: shifts.endTime,
       status: shifts.status,
       notes: shifts.notes,
-      createdAt: shifts.createdAt,
+      createdAt: shiftLc.createdAt,
     })
     .from(shifts)
+    .innerJoin(shiftLc, eq(shifts.lifecycleId, shiftLc.id))
     .leftJoin(users, eq(shifts.staffId, users.id))
     .where(conditions.length ? and(...conditions as [ReturnType<typeof eq>, ...ReturnType<typeof eq>[]]) : undefined)
     .orderBy(desc(shifts.shiftDate), shifts.startTime);
@@ -1600,8 +1651,10 @@ export async function createShift(input: {
   createdBy: string;
 }) {
   const id = ids.uuid();
+  const shLc = await insertLifecycleRow();
   await db.insert(shifts).values({
     id,
+    lifecycleId: shLc,
     staffId: input.staffId,
     shiftType: input.shiftType,
     shiftDate: safeDate(input.shiftDate),
@@ -1612,8 +1665,10 @@ export async function createShift(input: {
     createdBy: input.createdBy,
   });
 
+  const shiftMsgLc = await insertLifecycleRow();
   await db.insert(messages).values({
     id: ids.uuid(),
+    lifecycleId: shiftMsgLc,
     type: 'notification',
     channel: 'in_app',
     toPersonId: input.staffId,
@@ -1655,8 +1710,10 @@ export async function createEquipment(input: {
   zoneLabel?: string;
 }) {
   const id = ids.uuid();
+  const eqLid = await insertLifecycleRow();
   await db.insert(equipment).values({
     id,
+    lifecycleId: eqLid,
     name: input.name,
     category: input.category,
     quantity: input.quantity,
@@ -1693,11 +1750,12 @@ export async function listEquipmentEvents() {
       loggedBy: equipmentEvents.loggedBy,
       resolvedBy: equipmentEvents.resolvedBy,
       resolvedAt: equipmentEvents.resolvedAt,
-      createdAt: equipmentEvents.createdAt,
+      createdAt: eeLc.createdAt,
     })
     .from(equipmentEvents)
+    .innerJoin(eeLc, eq(equipmentEvents.lifecycleId, eeLc.id))
     .leftJoin(equipment, eq(equipment.id, equipmentEvents.equipmentId))
-    .orderBy(desc(equipmentEvents.createdAt));
+    .orderBy(desc(eeLc.createdAt));
 }
 
 export async function addEquipmentEvent(
@@ -1705,8 +1763,10 @@ export async function addEquipmentEvent(
   input: { equipmentId: string; eventType: 'issue_reported' | 'maintenance_done'; severity?: 'low' | 'medium' | 'high' | 'critical'; description: string; status?: 'open' | 'in_progress' | 'resolved' },
 ) {
   const id = ids.uuid();
+  const eeLid = await insertLifecycleRow();
   await db.insert(equipmentEvents).values({
     id,
+    lifecycleId: eeLid,
     equipmentId: input.equipmentId,
     eventType: input.eventType,
     severity: input.severity ?? null,
@@ -1755,8 +1815,10 @@ export async function createInventoryItem(input: {
   reorderThreshold: number;
 }) {
   const id = ids.uuid();
+  const iiLid = await insertLifecycleRow();
   await db.insert(inventoryItems).values({
     id,
+    lifecycleId: iiLid,
     name: input.name,
     category: input.category,
     qtyInStock: input.qtyInStock,
@@ -1793,12 +1855,13 @@ export async function listInventoryTransactions(itemId?: string) {
       reference: inventoryTransactions.reference,
       recordedBy: inventoryTransactions.recordedBy,
       recorderName: users.fullName,
-      createdAt: inventoryTransactions.createdAt,
+      createdAt: itLc.createdAt,
     })
     .from(inventoryTransactions)
+    .innerJoin(itLc, eq(inventoryTransactions.lifecycleId, itLc.id))
     .leftJoin(inventoryItems, eq(inventoryItems.id, inventoryTransactions.itemId))
     .leftJoin(users, eq(users.id, inventoryTransactions.recordedBy))
-    .orderBy(desc(inventoryTransactions.createdAt))
+    .orderBy(desc(itLc.createdAt))
     .limit(200);
 
   if (itemId) {
@@ -1815,8 +1878,10 @@ export async function addInventoryTransaction(
   if (!item) throw errors.notFound('Inventory item');
 
   const id = ids.uuid();
+  const itLid = await insertLifecycleRow();
   await db.insert(inventoryTransactions).values({
     id,
+    lifecycleId: itLid,
     itemId: input.itemId,
     txnType: input.txnType,
     qtyChange: input.qtyChange,
@@ -1846,11 +1911,12 @@ export async function listMessagesForUser(userId: string, role: Role) {
       body: messages.body,
       priority: messages.priority,
       status: messages.status,
-      createdAt: messages.createdAt,
+      createdAt: msgLc.createdAt,
     })
     .from(messages)
+    .innerJoin(msgLc, eq(messages.lifecycleId, msgLc.id))
     .where(sql`(${messages.toPersonId} = ${userId}) or (${messages.targetRole} = ${role}) or (${messages.toPersonId} is null and ${messages.targetRole} is null)`)
-    .orderBy(desc(messages.createdAt));
+    .orderBy(desc(msgLc.createdAt));
 }
 
 export async function markMessageRead(messageId: string, userId: string, role: Role) {
@@ -1885,9 +1951,10 @@ export async function markMessageRead(messageId: string, userId: string, role: R
       body: messages.body,
       priority: messages.priority,
       status: messages.status,
-      createdAt: messages.createdAt,
+      createdAt: msgLc.createdAt,
     })
     .from(messages)
+    .innerJoin(msgLc, eq(messages.lifecycleId, msgLc.id))
     .where(eq(messages.id, messageId))
     .limit(1);
   return updated!;
@@ -1904,8 +1971,10 @@ export async function broadcastMessage(
   },
 ) {
   const id = ids.uuid();
+  const bcMsgLc = await insertLifecycleRow();
   await db.insert(messages).values({
     id,
+    lifecycleId: bcMsgLc,
     type: 'announcement',
     channel: 'in_app',
     toPersonId: input.toPersonId ?? null,
@@ -1927,9 +1996,10 @@ export async function broadcastMessage(
       body: messages.body,
       priority: messages.priority,
       status: messages.status,
-      createdAt: messages.createdAt,
+      createdAt: msgLc.createdAt,
     })
     .from(messages)
+    .innerJoin(msgLc, eq(messages.lifecycleId, msgLc.id))
     .where(eq(messages.id, id));
   await audit.appendAudit({
     actorId: senderId,
@@ -1951,7 +2021,12 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
 
   // Base overview metrics (always returned)
   const [revenue] = await db.select({ total: sql<string>`coalesce(sum(${payments.amount}), 0)` }).from(payments).where(sql`month(${payments.paymentDate}) = month(curdate()) and year(${payments.paymentDate}) = year(curdate())`);
-  const [activeMembers] = await db.select({ count: sql<number>`count(*)` }).from(users).where(and(eq(users.role, 'member'), eq(users.memberStatus, 'active'), isNull(users.deletedAt)));
+  const [activeMembers] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(users)
+    .innerJoin(userLc, eq(users.lifecycleId, userLc.id))
+    .innerJoin(members, eq(members.userId, users.id))
+    .where(and(eq(users.role, 'member'), eq(members.memberStatus, 'active'), isNull(userLc.deletedAt)));
   const [totalVisits] = await db.select({ count: sql<number>`count(*)` }).from(visits).where(sql`date(${visits.checkInAt}) >= ${sql.raw(from)} and date(${visits.checkInAt}) <= ${sql.raw(to)}`);
   const [openIncidents] = await db.select({ count: sql<number>`count(*)` }).from(equipmentEvents).where(eq(equipmentEvents.status, 'open'));
 
@@ -1983,11 +2058,20 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
   }
 
   if (type === 'membership') {
-    const newMembers = await db.select({ count: sql<number>`count(*)` }).from(users).where(and(eq(users.role, 'member'), sql`date(${users.createdAt}) >= ${sql.raw(from)} and date(${users.createdAt}) <= ${sql.raw(to)}`));
-    const byStatus = await db.select({
-      status: subscriptions.status,
-      count: sql<number>`count(*)`,
-    }).from(subscriptions).where(sql`date(${subscriptions.createdAt}) >= ${sql.raw(from)} and date(${subscriptions.createdAt}) <= ${sql.raw(to)}`).groupBy(subscriptions.status);
+    const newMembers = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users)
+      .innerJoin(userLc, eq(users.lifecycleId, userLc.id))
+      .where(and(eq(users.role, 'member'), sql`date(${userLc.createdAt}) >= ${sql.raw(from)} and date(${userLc.createdAt}) <= ${sql.raw(to)}`));
+    const byStatus = await db
+      .select({
+        status: subscriptions.status,
+        count: sql<number>`count(*)`,
+      })
+      .from(subscriptions)
+      .innerJoin(subLc, eq(subscriptions.lifecycleId, subLc.id))
+      .where(sql`date(${subLc.createdAt}) >= ${sql.raw(from)} and date(${subLc.createdAt}) <= ${sql.raw(to)}`)
+      .groupBy(subscriptions.status);
     const byPlan = await db.select({
       planId: subscriptions.planId,
       planName: subscriptionPlans.name,
@@ -2016,19 +2100,27 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
   }
 
   if (type === 'equipment') {
-    const bySeverity = await db.select({
-      severity: equipmentEvents.severity,
-      status: equipmentEvents.status,
-      count: sql<number>`count(*)`,
-    }).from(equipmentEvents).where(sql`date(${equipmentEvents.createdAt}) >= ${sql.raw(from)} and date(${equipmentEvents.createdAt}) <= ${sql.raw(to)}`).groupBy(equipmentEvents.severity, equipmentEvents.status);
+    const bySeverity = await db
+      .select({
+        severity: equipmentEvents.severity,
+        status: equipmentEvents.status,
+        count: sql<number>`count(*)`,
+      })
+      .from(equipmentEvents)
+      .innerJoin(eeLc, eq(equipmentEvents.lifecycleId, eeLc.id))
+      .where(sql`date(${eeLc.createdAt}) >= ${sql.raw(from)} and date(${eeLc.createdAt}) <= ${sql.raw(to)}`)
+      .groupBy(equipmentEvents.severity, equipmentEvents.status);
 
-    const byEquipment = await db.select({
-      equipmentId: equipmentEvents.equipmentId,
-      equipmentName: equipment.name,
-      count: sql<number>`count(*)`,
-    }).from(equipmentEvents)
+    const byEquipment = await db
+      .select({
+        equipmentId: equipmentEvents.equipmentId,
+        equipmentName: equipment.name,
+        count: sql<number>`count(*)`,
+      })
+      .from(equipmentEvents)
+      .innerJoin(eeLc, eq(equipmentEvents.lifecycleId, eeLc.id))
       .leftJoin(equipment, eq(equipmentEvents.equipmentId, equipment.id))
-      .where(sql`date(${equipmentEvents.createdAt}) >= ${sql.raw(from)} and date(${equipmentEvents.createdAt}) <= ${sql.raw(to)}`)
+      .where(sql`date(${eeLc.createdAt}) >= ${sql.raw(from)} and date(${eeLc.createdAt}) <= ${sql.raw(to)}`)
       .groupBy(equipmentEvents.equipmentId, equipment.name)
       .orderBy(sql`count(*) desc`);
 
@@ -2058,23 +2150,25 @@ export async function getRecentReportItems() {
   const recentPayments = await db
     .select({
       id: payments.id,
-      createdAt: payments.createdAt,
+      createdAt: payLc.createdAt,
       kind: sql<string>`'payment'`,
       title: sql<string>`concat('Payment ', ${payments.receiptNumber})`,
     })
     .from(payments)
-    .orderBy(desc(payments.createdAt))
+    .innerJoin(payLc, eq(payments.lifecycleId, payLc.id))
+    .orderBy(desc(payLc.createdAt))
     .limit(5);
 
   const recentIncidents = await db
     .select({
       id: equipmentEvents.id,
-      createdAt: equipmentEvents.createdAt,
+      createdAt: eeLc.createdAt,
       kind: sql<string>`'equipment_event'`,
       title: equipmentEvents.description,
     })
     .from(equipmentEvents)
-    .orderBy(desc(equipmentEvents.createdAt))
+    .innerJoin(eeLc, eq(equipmentEvents.lifecycleId, eeLc.id))
+    .orderBy(desc(eeLc.createdAt))
     .limit(5);
 
   return [...recentPayments, ...recentIncidents]
@@ -2108,22 +2202,50 @@ export async function updateConfigValues(values: Record<string, string>, actor?:
 // ── User / Member Management ──────────────────────────────────────────────────
 
 export async function listUsersByRole(role?: Role) {
-  if (role) {
-    return db.select().from(users).where(and(eq(users.role, role), isNull(users.deletedAt))).orderBy(desc(users.createdAt));
-  }
-  return db.select().from(users).where(isNull(users.deletedAt)).orderBy(desc(users.createdAt));
+  const cond = role
+    ? and(isNull(userLc.deletedAt), eq(users.role, role))
+    : isNull(userLc.deletedAt);
+  const rows = await db
+    .select({ u: users, m: members, accountCreatedAt: userLc.createdAt })
+    .from(users)
+    .innerJoin(userLc, eq(users.lifecycleId, userLc.id))
+    .leftJoin(members, eq(members.userId, users.id))
+    .where(cond!)
+    .orderBy(desc(userLc.createdAt));
+  return rows.map(({ u, m, accountCreatedAt }) => ({
+    ...u,
+    memberStatus: m?.memberStatus ?? null,
+    joinDate: m?.joinDate ?? null,
+    accountCreatedAt,
+  }));
 }
 
 export async function listSimulationPeople(role: 'member' | 'trainer') {
+  if (role === 'member') {
+    return db
+      .select({
+        id: users.id,
+        fullName: users.fullName,
+        memberCode: members.memberCode,
+        employeeCode: sql<string | null>`null`,
+      })
+      .from(users)
+      .innerJoin(userLc, eq(users.lifecycleId, userLc.id))
+      .leftJoin(members, eq(members.userId, users.id))
+      .where(and(eq(users.role, 'member'), eq(users.isActive, true), isNull(userLc.deletedAt)))
+      .orderBy(users.fullName);
+  }
   return db
     .select({
       id: users.id,
       fullName: users.fullName,
-      memberCode: users.memberCode,
-      employeeCode: users.employeeCode,
+      memberCode: sql<string | null>`null`,
+      employeeCode: trainers.employeeCode,
     })
     .from(users)
-    .where(and(eq(users.role, role), eq(users.isActive, true), isNull(users.deletedAt)))
+    .innerJoin(userLc, eq(users.lifecycleId, userLc.id))
+    .leftJoin(trainers, eq(trainers.userId, users.id))
+    .where(and(eq(users.role, 'trainer'), eq(users.isActive, true), isNull(userLc.deletedAt)))
     .orderBy(users.fullName);
 }
 
@@ -2134,7 +2256,8 @@ export async function listTrainers() {
       fullName: users.fullName,
     })
     .from(users)
-    .where(and(eq(users.role, 'trainer'), eq(users.isActive, true), isNull(users.deletedAt)))
+    .innerJoin(userLc, eq(users.lifecycleId, userLc.id))
+    .where(and(eq(users.role, 'trainer'), eq(users.isActive, true), isNull(userLc.deletedAt)))
     .orderBy(users.fullName);
 }
 
@@ -2162,7 +2285,6 @@ export async function createUser(
     specialization?: string;
     ptHourlyRate?: number;
     yearsExperience?: number;
-    certification?: { name: string; issuingBody?: string; issuedYear?: number; expiryDate?: string };
   },
   actor?: { id: string; label?: string },
 ) {
@@ -2176,55 +2298,59 @@ export async function createUser(
   const id = ids.uuid();
   const memberCode = input.role === 'member' ? ids.memberCode() : null;
   const employeeCode = input.role === 'trainer' ? `EMP-${Date.now().toString().slice(-6)}` : null;
+  const passwordHash = await hashPassword(input.password);
 
-  const primaryCertName = input.role === 'trainer' ? (input.certification?.name?.trim() || null) : null;
-  const primaryCertIssuingBody = input.role === 'trainer' ? (input.certification?.issuingBody?.trim() || null) : null;
-  const primaryCertIssuedYear = input.role === 'trainer' ? input.certification?.issuedYear ?? null : null;
-  const primaryCertExpiryDate = input.role === 'trainer' && input.certification?.expiryDate ? safeDate(input.certification.expiryDate) : null;
-
-  await db.insert(users).values({
-    id,
-    fullName: input.fullName,
-    email: input.email.toLowerCase().trim(),
-    phone: input.phone ?? null,
-    dob: input.dob ? safeDate(input.dob) : null,
-    gender: input.gender ?? null,
-    nicNumber: input.nicNumber ?? null,
-    role: input.role,
-    passwordHash: await hashPassword(input.password),
-    emailVerified: true,
-    isActive: true,
-    qrSecret: ids.qrSecret(),
-    memberCode,
-    employeeCode,
-    joinDate: input.role === 'member' ? new Date() : null,
-    memberStatus: input.role === 'member' ? (input.memberStatus ?? 'active') : null,
-    hireDate: input.role === 'trainer' && input.hireDate ? safeDate(input.hireDate) : input.role === 'trainer' ? new Date() : null,
-    designation: input.role === 'trainer' ? (input.designation ?? 'Trainer') : null,
-    specialization: input.role === 'trainer' ? (input.specialization ?? null) : null,
-    ptHourlyRate: input.role === 'trainer' && input.ptHourlyRate != null ? String(input.ptHourlyRate) : null,
-    yearsExperience: input.role === 'trainer' ? (input.yearsExperience ?? null) : null,
-
-    primaryCertName,
-    primaryCertIssuingBody,
-    primaryCertIssuedYear: primaryCertIssuedYear == null ? null : primaryCertIssuedYear,
-    primaryCertExpiryDate,
-  });
-
-  if (input.role === 'member') {
-    await db.insert(memberProfiles).values({
-      personId: id,
-      isOnboarded: false,
-      emergencyName: input.emergencyName ?? null,
-      emergencyPhone: input.emergencyPhone ?? null,
-      emergencyRelation: input.emergencyRelation ?? null,
-      bloodType: input.bloodType ?? null,
-      medicalConditions: input.medicalConditions ?? null,
-      allergies: input.allergies ?? null,
+  await db.transaction(async (tx) => {
+    const userLid = await insertLifecycleRow(tx);
+    await tx.insert(users).values({
+      id,
+      lifecycleId: userLid,
+      fullName: input.fullName,
+      email: input.email.toLowerCase().trim(),
+      phone: input.phone ?? null,
+      dob: input.dob ? safeDate(input.dob) : null,
+      gender: input.gender ?? null,
+      nicNumber: input.nicNumber ?? null,
+      role: input.role,
+      passwordHash,
+      emailVerified: true,
+      isActive: true,
+      qrSecret: ids.qrSecret(),
     });
-  }
 
-  // Note: trainer certification is persisted as 1:1 primary-cert columns on `users`.
+    if (input.role === 'member') {
+      const memLid = await insertLifecycleRow(tx);
+      await tx.insert(members).values({
+        userId: id,
+        lifecycleId: memLid,
+        memberCode: memberCode!,
+        memberStatus: input.memberStatus ?? 'active',
+        joinDate: safeDate(dateOnlyIso(new Date())),
+        isOnboarded: false,
+        emergencyName: input.emergencyName ?? null,
+        emergencyPhone: input.emergencyPhone ?? null,
+        emergencyRelation: input.emergencyRelation ?? null,
+        bloodType: input.bloodType ?? null,
+        medicalConditions: input.medicalConditions ?? null,
+        allergies: input.allergies ?? null,
+      });
+    }
+
+    if (input.role === 'trainer') {
+      const trLid = await insertLifecycleRow(tx);
+      await tx.insert(trainers).values({
+        userId: id,
+        lifecycleId: trLid,
+        employeeCode: employeeCode!,
+        hireDate: input.hireDate ? safeDate(input.hireDate) : safeDate(dateOnlyIso(new Date())),
+        designation: input.designation ?? 'Trainer',
+        specialization: input.specialization ?? null,
+        ptHourlyRate: input.ptHourlyRate != null ? String(input.ptHourlyRate) : null,
+        yearsExperience: input.yearsExperience ?? null,
+        isKeyHolder: false,
+      });
+    }
+  });
 
   const [row] = await db.select().from(users).where(eq(users.id, id));
   if (actor) {
@@ -2245,20 +2371,41 @@ export async function updateUser(
   userId: string,
   input: Partial<{ fullName: string; phone: string; isActive: boolean; role: Role; memberStatus: 'active' | 'inactive' | 'suspended' }>,
 ) {
-  await db.update(users).set({
-    fullName: input.fullName,
-    phone: input.phone,
-    isActive: input.isActive,
-    role: input.role,
-    memberStatus: input.memberStatus,
-  }).where(eq(users.id, userId));
+  const userPatch: Partial<typeof users.$inferInsert> = {};
+  if (input.fullName !== undefined) userPatch.fullName = input.fullName;
+  if (input.phone !== undefined) userPatch.phone = input.phone;
+  if (input.isActive !== undefined) userPatch.isActive = input.isActive;
+  if (input.role !== undefined) userPatch.role = input.role;
+  if (Object.keys(userPatch).length) {
+    await db.update(users).set(userPatch).where(eq(users.id, userId));
+  }
+  if (input.memberStatus !== undefined) {
+    await db.update(members).set({ memberStatus: input.memberStatus }).where(eq(members.userId, userId));
+  }
   const [row] = await db.select().from(users).where(eq(users.id, userId));
   if (!row) throw errors.notFound('User');
   return row;
 }
 
 export async function listMembers() {
-  return db.select().from(users).where(and(eq(users.role, 'member'), isNull(users.deletedAt))).orderBy(desc(users.createdAt));
+  const rows = await db
+    .select({ u: users, m: members })
+    .from(users)
+    .innerJoin(userLc, eq(users.lifecycleId, userLc.id))
+    .innerJoin(members, eq(members.userId, users.id))
+    .where(and(eq(users.role, 'member'), isNull(userLc.deletedAt)))
+    .orderBy(desc(userLc.createdAt));
+  return rows.map(({ u, m }) => ({
+    ...u,
+    memberCode: m.memberCode,
+    memberStatus: m.memberStatus,
+    joinDate: m.joinDate,
+    assignedTrainerId: m.assignedTrainerId,
+    isOnboarded: m.isOnboarded,
+    emergencyName: m.emergencyName,
+    emergencyPhone: m.emergencyPhone,
+    idVerificationStatus: m.idVerificationStatus,
+  }));
 }
 
 // ── Branch Closures ───────────────────────────────────────────────────────────
@@ -2272,8 +2419,10 @@ export async function createClosure(
   input: { closureDate: string; reason?: string; isEmergency?: boolean },
 ) {
   const id = ids.uuid();
+  const lifecycleId = await insertLifecycleRow();
   await db.insert(branchClosures).values({
     id,
+    lifecycleId,
     closureDate: safeDate(input.closureDate),
     reason: input.reason ?? null,
     isEmergency: input.isEmergency ?? false,
@@ -2444,8 +2593,10 @@ export async function simulateVitals(memberId: string, input: {
   if (!member || member.role !== 'member') throw errors.notFound('Member');
 
   const id = ids.uuid();
+  const mmLid = await insertLifecycleRow();
   await db.insert(memberMetrics).values({
     id,
+    lifecycleId: mmLid,
     personId: memberId,
     source: 'device',
     weightKg: input.weightKg != null ? String(input.weightKg) : null,
@@ -2453,6 +2604,7 @@ export async function simulateVitals(memberId: string, input: {
     bmi: input.bmi != null ? String(input.bmi) : null,
     restingHr: input.restingHr ?? null,
     notes: input.notes ?? 'Simulated device capture',
+    recordedAt: new Date(),
   });
   const [row] = await db.select().from(memberMetrics).where(eq(memberMetrics.id, id));
   return row;
@@ -2471,11 +2623,19 @@ export async function getSimulationState() {
   }
 
   const [todayVisits, todayPayments, recentWorkouts, activeWorkoutSessions, upcomingSessions] = await Promise.all([
-    safeQuery(() => db.select().from(visits).orderBy(desc(visits.createdAt)).limit(20), [] as any[]),
-    safeQuery(() => db.select().from(payments).orderBy(desc(payments.createdAt)).limit(20), [] as any[]),
-    safeQuery(() => db.select().from(workoutSessions).where(sql`${workoutSessions.status} in ('completed','stopped')`).orderBy(desc(workoutSessions.endedAt), desc(workoutSessions.createdAt)).limit(20), [] as any[]),
+    safeQuery(() => db.select().from(visits).orderBy(desc(visits.checkInAt)).limit(20), [] as any[]),
+    safeQuery(async () => {
+      const rows = await db
+        .select({ p: payments })
+        .from(payments)
+        .innerJoin(payLc, eq(payments.lifecycleId, payLc.id))
+        .orderBy(desc(payLc.createdAt))
+        .limit(20);
+      return rows.map((r) => r.p);
+    }, [] as any[]),
+    safeQuery(() => db.select().from(workoutSessions).where(sql`${workoutSessions.status} in ('completed','stopped')`).orderBy(desc(workoutSessions.endedAt), desc(workoutSessions.startedAt)).limit(20), [] as any[]),
     safeQuery(() => db.select().from(workoutSessions).where(eq(workoutSessions.status, 'active')).orderBy(desc(workoutSessions.startedAt)).limit(20), [] as any[]),
-    safeQuery(() => db.select().from(ptSessions).orderBy(desc(ptSessions.createdAt)).limit(20), [] as any[]),
+    safeQuery(() => db.select().from(ptSessions).orderBy(desc(ptSessions.sessionDate), desc(ptSessions.startTime)).limit(20), [] as any[]),
   ]);
 
   return {

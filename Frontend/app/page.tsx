@@ -1,31 +1,36 @@
 'use client';
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { HeroVideo } from "@/components/ui/HeroVideo";
 import { ArrowRight, Check, Zap, Users, Trophy } from "lucide-react";
+import { opsAPI } from "@/lib/api";
 
-const PLANS = [
-  {
-    name: "Monthly",
-    price: "Rs. 3,500",
-    period: "mo",
-    popular: false,
-    features: ["Full Gym Access", "Locker Usage", "Free Wi-Fi"],
-  },
-  {
-    name: "Quarterly",
-    price: "Rs. 9,000",
-    period: "3 mo",
-    popular: true,
-    features: ["Full Gym Access", "Locker Usage", "Free Wi-Fi", "1 PT Session"],
-  },
-  {
-    name: "Annual",
-    price: "Rs. 30,000",
-    period: "yr",
-    popular: false,
-    features: ["Full Gym Access", "Locker Usage", "Free Wi-Fi", "4 PT Sessions", "Guest Pass"],
-  },
+type HomePlanCard = { name: string; price: string; period: string; popular: boolean; features: string[] };
+
+function formatLkr(price: string | number) {
+  const n = typeof price === "string" ? parseFloat(price) : price;
+  if (!Number.isFinite(n)) return "Rs. —";
+  return `Rs. ${Math.round(n).toLocaleString("en-LK")}`;
+}
+
+function periodLabel(durationDays: number) {
+  const d = Number(durationDays);
+  if (!Number.isFinite(d) || d <= 0) return "term";
+  if (d <= 1) return "day";
+  if (d < 30) return `${d} days`;
+  if (d <= 35) return "mo";
+  if (d >= 300) return "yr";
+  if (d < 120) return `${Math.max(1, Math.round(d / 30))} mo`;
+  return `${d} days`;
+}
+
+const DEFAULT_FEATURES = ["Full gym access", "Locker usage", "Kiribathgoda branch"];
+
+const FALLBACK_PLANS: HomePlanCard[] = [
+  { name: "Monthly Individual", price: "Rs. 8,999", period: "mo", popular: false, features: DEFAULT_FEATURES },
+  { name: "3-Month Commitment", price: "Rs. 23,999", period: "3 mo", popular: true, features: [...DEFAULT_FEATURES, "Better per-month value"] },
+  { name: "Annual Individual", price: "Rs. 79,999", period: "yr", popular: false, features: [...DEFAULT_FEATURES, "Best long-term value"] },
 ];
 
 const STATS = [
@@ -36,6 +41,46 @@ const STATS = [
 ];
 
 export default function Home() {
+  const [planCards, setPlanCards] = useState<HomePlanCard[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
+
+  useEffect(() => {
+    opsAPI
+      .publicSubscriptionPlans()
+      .then((raw: unknown[]) => {
+        const list = (raw ?? []) as Array<{
+          name?: string;
+          price?: string;
+          durationDays?: number;
+          description?: string | null;
+        }>;
+        const sorted = [...list].sort((a, b) => Number(a.price) - Number(b.price));
+        const picked = sorted.filter((p) => p.name).slice(0, 6);
+        const mapped: HomePlanCard[] = picked.map((p) => {
+          const days = Number(p.durationDays ?? 30);
+          const desc = p.description ? String(p.description) : "";
+          const fromDesc = desc
+            .split(/[.\n]+/)
+            .map((s) => s.trim())
+            .filter((s) => s.length > 3);
+          const features = fromDesc.length ? fromDesc.slice(0, 4) : DEFAULT_FEATURES;
+          const popular = days >= 85 && days <= 100;
+          return {
+            name: String(p.name),
+            price: formatLkr(p.price ?? 0),
+            period: periodLabel(days),
+            popular,
+            features,
+          };
+        });
+        setPlanCards(mapped.length >= 3 ? mapped.slice(0, 6) : []);
+      })
+      .catch(() => setPlanCards([]))
+      .finally(() => setPlansLoading(false));
+  }, []);
+
+  const displayPlans = planCards.length >= 3 ? planCards : FALLBACK_PLANS;
+
   return (
     <div className="min-h-screen bg-app text-white selection:bg-red-600/30">
       {/* Hero Section */}
@@ -137,50 +182,66 @@ export default function Home() {
         <div className="container px-6 mx-auto">
           <div className="text-center mb-24">
             <h2 className="text-3xl md:text-5xl font-bold mb-6">Simple, Transparent <span className="text-red-600">Pricing</span></h2>
-            <p className="text-zinc-400">No joining fees. Cancel anytime.</p>
+            <p className="text-zinc-400">Pricing reflects live plans at our Kiribathgoda branch. Join online to get started.</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {PLANS.map((plan, i) => (
+            {(plansLoading
+              ? ([0, 1, 2] as const)
+              : displayPlans
+            ).map((plan, i) => (
               <div
-                key={i}
-                className={`relative p-8 rounded-3xl border flex flex-col ${plan.popular
+                key={plansLoading ? `sk-${i}` : `plan-${(plan as HomePlanCard).name}-${i}`}
+                className={`relative p-8 rounded-3xl border flex flex-col ${!plansLoading && (plan as HomePlanCard).popular
                   ? "bg-zinc-900/80 border-red-600 shadow-2xl shadow-red-600/10 scale-105 z-10"
                   : "bg-zinc-900/80 border-zinc-800 hover:border-zinc-700"
                   }`}
               >
-                {plan.popular && (
+                {!plansLoading && (plan as HomePlanCard).popular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-red-700 text-white text-xs font-bold uppercase tracking-wide rounded-full">
                     Best Value
                   </div>
                 )}
                 <div className="mb-8">
-                  <h3 className="text-xl font-medium text-zinc-300 mb-2">{plan.name}</h3>
+                  <h3 className="text-xl font-medium text-zinc-300 mb-2">
+                    {plansLoading ? <span className="inline-block h-6 w-40 bg-zinc-800 rounded animate-pulse" /> : (plan as HomePlanCard).name}
+                  </h3>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-5xl font-bold text-white tracking-tight">{plan.price}</span>
-                    <span className="text-zinc-500">/{plan.period}</span>
+                    <span className="text-5xl font-bold text-white tracking-tight">
+                      {plansLoading ? <span className="inline-block h-12 w-36 bg-zinc-800 rounded animate-pulse" /> : (plan as HomePlanCard).price}
+                    </span>
+                    {!plansLoading && (
+                      <span className="text-zinc-500">/{(plan as HomePlanCard).period}</span>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex-1 space-y-4 mb-8">
-                  {plan.features.map((feat, j) => (
-                    <div key={j} className="flex items-center gap-3">
-                      <div className="w-5 h-5 rounded-full bg-red-600/20 flex items-center justify-center shrink-0">
-                        <Check size={12} className="text-red-500" />
-                      </div>
-                      <span className="text-zinc-300 text-sm">{feat}</span>
-                    </div>
-                  ))}
+                  {plansLoading
+                    ? [1, 2, 3].map((j) => (
+                        <div key={j} className="flex items-center gap-3">
+                          <div className="w-5 h-5 rounded-full bg-zinc-800 shrink-0 animate-pulse" />
+                          <span className="h-4 flex-1 bg-zinc-800 rounded animate-pulse" />
+                        </div>
+                      ))
+                    : (plan as HomePlanCard).features.map((feat, j) => (
+                        <div key={j} className="flex items-center gap-3">
+                          <div className="w-5 h-5 rounded-full bg-red-600/20 flex items-center justify-center shrink-0">
+                            <Check size={12} className="text-red-500" />
+                          </div>
+                          <span className="text-zinc-300 text-sm">{feat}</span>
+                        </div>
+                      ))}
                 </div>
 
                 <Link
                   href="/member/register"
-                  className={`w-full py-4 rounded-xl font-bold transition-all text-center ${plan.popular
+                  className={`w-full py-4 rounded-xl font-bold transition-all text-center ${!plansLoading && (plan as HomePlanCard).popular
                     ? "bg-red-700 hover:bg-red-800 text-white shadow-lg shadow-red-600/25"
                     : "bg-zinc-100 hover:bg-white text-black"
                     }`}
                 >
-                  Select {plan.name}
+                  {plansLoading ? "…" : `Select ${(plan as HomePlanCard).name}`}
                 </Link>
               </div>
             ))}

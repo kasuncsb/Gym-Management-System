@@ -1,6 +1,6 @@
 /**
- * Gym Management System — Drizzle ORM Schema v4 (Full schema)
- * All tables centralised here for use by services, controllers, and migration tooling.
+ * Gym Management System — Drizzle ORM Schema v5
+ * entity_lifecycle + members/trainers extensions; subscription freezes removed.
  */
 
 import {
@@ -14,13 +14,12 @@ import {
   timestamp,
   mysqlEnum,
   index,
-  int,
   smallint,
 } from 'drizzle-orm/mysql-core';
 import { relations } from 'drizzle-orm';
 
 // ============================================================================
-// CONFIG (single branch system - key/value store)
+// CONFIG
 // ============================================================================
 export const config = mysqlTable('config', {
   key: varchar('key', { length: 50 }).primaryKey(),
@@ -28,12 +27,22 @@ export const config = mysqlTable('config', {
 });
 
 // ============================================================================
-// USERS (unified table for all humans: admin, manager, trainer, member)
+// ENTITY_LIFECYCLE (created_at / updated_at / deleted_at for linked rows)
+// ============================================================================
+export const entityLifecycle = mysqlTable('entity_lifecycle', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
+  deletedAt: timestamp('deleted_at'),
+});
+
+// ============================================================================
+// USERS — identity + auth + admin/manager ops only; avatar/cover
 // ============================================================================
 export const users = mysqlTable('users', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
 
-  // Identity
   fullName: varchar('full_name', { length: 100 }).notNull(),
   email: varchar('email', { length: 255 }).notNull().unique(),
   phone: varchar('phone', { length: 20 }),
@@ -41,11 +50,9 @@ export const users = mysqlTable('users', {
   gender: mysqlEnum('gender', ['male', 'female', 'other']),
   nicNumber: varchar('nic_number', { length: 20 }),
 
-  // Role & status
   role: mysqlEnum('role', ['admin', 'manager', 'trainer', 'member']).notNull().default('member'),
   isActive: boolean('is_active').notNull().default(true),
 
-  // Auth
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   emailVerified: boolean('email_verified').notNull().default(false),
   emailVerifyToken: varchar('email_verify_token', { length: 255 }),
@@ -56,55 +63,27 @@ export const users = mysqlTable('users', {
   resetToken: varchar('reset_token', { length: 255 }),
   resetExpires: timestamp('reset_expires'),
 
-  // Staff/trainer columns (NULL for members)
+  /** Admin / manager only (trainers use `trainers` table) */
   employeeCode: varchar('employee_code', { length: 20 }).unique(),
   hireDate: date('hire_date'),
   designation: varchar('designation', { length: 100 }),
   baseSalary: decimal('base_salary', { precision: 10, scale: 2 }),
   isKeyHolder: boolean('is_key_holder').notNull().default(false),
-  specialization: varchar('specialization', { length: 100 }),
-  ptHourlyRate: decimal('pt_hourly_rate', { precision: 8, scale: 2 }),
-  ptRating: decimal('pt_rating', { precision: 3, scale: 2 }),
-  yearsExperience: tinyint('years_experience'),
 
-  // Primary certification (trainer 1:1). We keep only the primary cert here.
-  primaryCertName: varchar('primary_cert_name', { length: 150 }),
-  primaryCertIssuingBody: varchar('primary_cert_issuing_body', { length: 150 }),
-  primaryCertIssuedYear: smallint('primary_cert_issued_year'),
-  primaryCertExpiryDate: date('primary_cert_expiry_date'),
-
-  // Member columns (NULL for non-members)
-  memberCode: varchar('member_code', { length: 20 }).unique(),
-  joinDate: date('join_date'),
-  memberStatus: mysqlEnum('member_status', ['active', 'inactive', 'suspended']),
-  assignedTrainerId: varchar('assigned_trainer', { length: 36 }),
-
-  // Profile media (OCI object keys or local paths in development)
   avatarKey: varchar('avatar_key', { length: 500 }),
   coverKey: varchar('cover_key', { length: 500 }),
-
-  // ID Verification (document type + files in OCI Object Storage)
-  idDocumentType: mysqlEnum('id_document_type', ['nic', 'driving_license', 'passport']),
-  idNicFront: varchar('id_nic_front', { length: 500 }),
-  idNicBack: varchar('id_nic_back', { length: 500 }),
-  idVerificationStatus: mysqlEnum('id_verification_status', ['pending', 'approved', 'rejected']),
-  idVerificationNote: text('id_verification_note'),
-  idSubmittedAt: timestamp('id_submitted_at'),
-
-  // Audit
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').onUpdateNow(),
-  deletedAt: timestamp('deleted_at'),
 }, (t) => ({
   roleIdx: index('idx_role').on(t.role),
   activeIdx: index('idx_active').on(t.isActive, t.role),
 }));
 
 // ============================================================================
-// MEMBER_PROFILES (1:1 with users where role='member')
+// MEMBERS (1:1 users where role=member)
 // ============================================================================
-export const memberProfiles = mysqlTable('member_profiles', {
-  personId: varchar('person_id', { length: 36 }).primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+export const members = mysqlTable('members', {
+  userId: varchar('user_id', { length: 36 }).primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
+
   bloodType: mysqlEnum('blood_type', ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']),
   medicalConditions: text('medical_conditions'),
   allergies: text('allergies'),
@@ -115,6 +94,36 @@ export const memberProfiles = mysqlTable('member_profiles', {
   emergencyRelation: varchar('emergency_relation', { length: 50 }),
   isOnboarded: boolean('is_onboarded').notNull().default(false),
   onboardedAt: timestamp('onboarded_at'),
+
+  idDocumentType: mysqlEnum('id_document_type', ['nic', 'driving_license', 'passport']),
+  idNicFront: varchar('id_nic_front', { length: 500 }),
+  idNicBack: varchar('id_nic_back', { length: 500 }),
+  idVerificationStatus: mysqlEnum('id_verification_status', ['pending', 'approved', 'rejected']),
+  idVerificationNote: text('id_verification_note'),
+  idSubmittedAt: timestamp('id_submitted_at'),
+
+  memberCode: varchar('member_code', { length: 20 }).unique(),
+  joinDate: date('join_date'),
+  memberStatus: mysqlEnum('member_status', ['active', 'inactive', 'suspended']),
+  assignedTrainerId: varchar('assigned_trainer', { length: 36 }),
+});
+
+// ============================================================================
+// TRAINERS (1:1 users where role=trainer)
+// ============================================================================
+export const trainers = mysqlTable('trainers', {
+  userId: varchar('user_id', { length: 36 }).primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
+
+  employeeCode: varchar('employee_code', { length: 20 }).unique(),
+  hireDate: date('hire_date'),
+  designation: varchar('designation', { length: 100 }),
+  baseSalary: decimal('base_salary', { precision: 10, scale: 2 }),
+  isKeyHolder: boolean('is_key_holder').notNull().default(false),
+  specialization: varchar('specialization', { length: 100 }),
+  ptHourlyRate: decimal('pt_hourly_rate', { precision: 8, scale: 2 }),
+  ptRating: decimal('pt_rating', { precision: 3, scale: 2 }),
+  yearsExperience: tinyint('years_experience'),
 });
 
 // ============================================================================
@@ -122,17 +131,14 @@ export const memberProfiles = mysqlTable('member_profiles', {
 // ============================================================================
 export const subscriptionPlans = mysqlTable('subscription_plans', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   planCode: varchar('plan_code', { length: 30 }),
   name: varchar('name', { length: 100 }).notNull(),
   description: text('description'),
   planType: mysqlEnum('plan_type', ['individual', 'couple', 'student', 'corporate', 'daily_pass']).notNull(),
   price: decimal('price', { precision: 10, scale: 2 }).notNull(),
   durationDays: smallint('duration_days').notNull(),
-  includedPtSessions: tinyint('included_pt_sessions').notNull(),
   isActive: boolean('is_active').notNull(),
-  sortOrder: tinyint('sort_order').notNull(),
-  createdAt: timestamp('created_at'),
-  deletedAt: timestamp('deleted_at'),
 });
 
 // ============================================================================
@@ -140,6 +146,7 @@ export const subscriptionPlans = mysqlTable('subscription_plans', {
 // ============================================================================
 export const promotions = mysqlTable('promotions', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   code: varchar('code', { length: 50 }).notNull(),
   name: varchar('name', { length: 100 }).notNull(),
   discountType: mysqlEnum('discount_type', ['percentage', 'fixed']).notNull(),
@@ -148,7 +155,6 @@ export const promotions = mysqlTable('promotions', {
   validUntil: date('valid_until'),
   isActive: boolean('is_active').notNull(),
   usedCount: smallint('used_count').notNull(),
-  createdAt: timestamp('created_at'),
 });
 
 // ============================================================================
@@ -156,39 +162,23 @@ export const promotions = mysqlTable('promotions', {
 // ============================================================================
 export const subscriptions = mysqlTable('subscriptions', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   memberId: varchar('member_id', { length: 36 }).notNull(),
   planId: varchar('plan_id', { length: 36 }).notNull(),
   startDate: date('start_date').notNull(),
   endDate: date('end_date').notNull(),
-  status: mysqlEnum('status', ['pending_payment', 'active', 'frozen', 'grace_period', 'expired', 'cancelled']).notNull(),
+  status: mysqlEnum('status', ['pending_payment', 'active', 'grace_period', 'expired', 'cancelled']).notNull(),
   pricePaid: decimal('price_paid', { precision: 10, scale: 2 }),
   discountAmount: decimal('discount_amount', { precision: 10, scale: 2 }).notNull(),
   promotionId: varchar('promotion_id', { length: 36 }),
-  ptSessionsLeft: tinyint('pt_sessions_left').notNull(),
-  notes: text('notes'),
-  createdAt: timestamp('created_at'),
-});
-
-// ============================================================================
-// SUBSCRIPTION_FREEZES
-// ============================================================================
-export const subscriptionFreezes = mysqlTable('subscription_freezes', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  subscriptionId: varchar('subscription_id', { length: 36 }).notNull(),
-  freezeStart: date('freeze_start').notNull(),
-  freezeEnd: date('freeze_end').notNull(),
-  reason: varchar('reason', { length: 255 }),
-  requestedBy: varchar('requested_by', { length: 36 }),
-  createdAt: timestamp('created_at'),
 });
 
 // ============================================================================
 // PAYMENTS
 // ============================================================================
-// Minimal immutable ledger: settlement facts only.
-// Checkout and simulator settle directly into this ledger.
 export const payments = mysqlTable('payments', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   subscriptionId: varchar('subscription_id', { length: 36 }).notNull(),
   amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
   paymentMethod: mysqlEnum('payment_method', ['cash', 'card', 'bank_transfer', 'online']).notNull(),
@@ -196,12 +186,10 @@ export const payments = mysqlTable('payments', {
   status: mysqlEnum('status', ['completed', 'disputed']).notNull(),
   receiptNumber: varchar('receipt_number', { length: 50 }),
   referenceNumber: varchar('reference_number', { length: 100 }),
-  /** SHA-256 of normalized card PAN (simulator / PCI-style token reference) */
   instrumentHash: varchar('instrument_hash', { length: 64 }),
   promotionId: varchar('promotion_id', { length: 36 }),
   discountAmount: decimal('discount_amount', { precision: 10, scale: 2 }).notNull(),
   recordedBy: varchar('recorded_by', { length: 36 }),
-  createdAt: timestamp('created_at'),
 });
 
 // ============================================================================
@@ -209,34 +197,35 @@ export const payments = mysqlTable('payments', {
 // ============================================================================
 export const invoiceRecords = mysqlTable('invoice_records', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   paymentId: varchar('payment_id', { length: 36 }).notNull(),
   memberId: varchar('member_id', { length: 36 }).notNull(),
   invoiceNumber: varchar('invoice_number', { length: 50 }).notNull(),
   status: mysqlEnum('status', ['issued', 'emailed']).notNull().default('issued'),
   emailTo: varchar('email_to', { length: 255 }),
   htmlContent: text('html_content').notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
 // ============================================================================
-// VISITS (check-in / check-out log)
+// VISITS
 // ============================================================================
 export const visits = mysqlTable('visits', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   personId: varchar('person_id', { length: 36 }).notNull(),
   checkInAt: timestamp('check_in_at').notNull(),
   checkOutAt: timestamp('check_out_at'),
   durationMin: smallint('duration_min'),
   status: mysqlEnum('status', ['active', 'completed', 'auto_closed', 'denied']).notNull(),
   denyReason: varchar('deny_reason', { length: 100 }),
-  createdAt: timestamp('created_at'),
 });
 
 // ============================================================================
-// PT_SESSIONS (personal training appointments)
+// PT_SESSIONS
 // ============================================================================
 export const ptSessions = mysqlTable('pt_sessions', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   memberId: varchar('member_id', { length: 36 }).notNull(),
   trainerId: varchar('trainer_id', { length: 36 }).notNull(),
   sessionDate: date('session_date').notNull(),
@@ -246,7 +235,6 @@ export const ptSessions = mysqlTable('pt_sessions', {
   cancelReason: varchar('cancel_reason', { length: 255 }),
   reviewRating: tinyint('review_rating'),
   reviewComment: text('review_comment'),
-  createdAt: timestamp('created_at'),
 });
 
 // ============================================================================
@@ -254,6 +242,7 @@ export const ptSessions = mysqlTable('pt_sessions', {
 // ============================================================================
 export const workoutPlans = mysqlTable('workout_plans', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   memberId: varchar('member_id', { length: 36 }),
   trainerId: varchar('trainer_id', { length: 36 }),
   name: varchar('name', { length: 150 }).notNull(),
@@ -263,14 +252,14 @@ export const workoutPlans = mysqlTable('workout_plans', {
   durationWeeks: tinyint('duration_weeks').notNull(),
   daysPerWeek: tinyint('days_per_week').notNull(),
   isActive: boolean('is_active').notNull(),
-  createdAt: timestamp('created_at'),
 });
 
 // ============================================================================
-// MEMBER_METRICS (body vitals)
+// MEMBER_METRICS
 // ============================================================================
 export const memberMetrics = mysqlTable('member_metrics', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   personId: varchar('person_id', { length: 36 }).notNull(),
   recordedAt: timestamp('recorded_at'),
   source: mysqlEnum('source', ['manual', 'trainer', 'device']).notNull(),
@@ -286,19 +275,20 @@ export const memberMetrics = mysqlTable('member_metrics', {
 // ============================================================================
 export const equipment = mysqlTable('equipment', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   name: varchar('name', { length: 100 }).notNull(),
   category: mysqlEnum('category', ['cardio', 'strength_machine', 'free_weight', 'bench', 'accessory', 'other']).notNull(),
   quantity: tinyint('quantity').notNull(),
   status: mysqlEnum('status', ['operational', 'needs_maintenance', 'under_maintenance', 'retired']).notNull(),
   zoneLabel: varchar('zone_label', { length: 50 }),
-  createdAt: timestamp('created_at'),
 });
 
 // ============================================================================
-// EQUIPMENT_EVENTS (issue reports and maintenance logs)
+// EQUIPMENT_EVENTS
 // ============================================================================
 export const equipmentEvents = mysqlTable('equipment_events', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   equipmentId: varchar('equipment_id', { length: 36 }).notNull(),
   eventType: mysqlEnum('event_type', ['issue_reported', 'maintenance_done']).notNull(),
   severity: mysqlEnum('severity', ['low', 'medium', 'high', 'critical']),
@@ -307,7 +297,6 @@ export const equipmentEvents = mysqlTable('equipment_events', {
   loggedBy: varchar('logged_by', { length: 36 }),
   resolvedBy: varchar('resolved_by', { length: 36 }),
   resolvedAt: timestamp('resolved_at'),
-  createdAt: timestamp('created_at'),
 });
 
 // ============================================================================
@@ -315,12 +304,12 @@ export const equipmentEvents = mysqlTable('equipment_events', {
 // ============================================================================
 export const inventoryItems = mysqlTable('inventory_items', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   name: varchar('name', { length: 100 }).notNull(),
   category: varchar('category', { length: 50 }).notNull(),
   qtyInStock: smallint('qty_in_stock').notNull(),
   reorderThreshold: smallint('reorder_threshold').notNull(),
   isActive: boolean('is_active').notNull(),
-  createdAt: timestamp('created_at'),
 });
 
 // ============================================================================
@@ -328,19 +317,20 @@ export const inventoryItems = mysqlTable('inventory_items', {
 // ============================================================================
 export const inventoryTransactions = mysqlTable('inventory_transactions', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   itemId: varchar('item_id', { length: 36 }).notNull(),
   txnType: mysqlEnum('txn_type', ['restock', 'sale', 'adjustment', 'waste']).notNull(),
   qtyChange: smallint('qty_change').notNull(),
   reference: varchar('reference', { length: 100 }),
   recordedBy: varchar('recorded_by', { length: 36 }),
-  createdAt: timestamp('created_at'),
 });
 
 // ============================================================================
-// MESSAGES (in-app notifications, announcements, broadcasts)
+// MESSAGES
 // ============================================================================
 export const messages = mysqlTable('messages', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   type: mysqlEnum('type', ['notification', 'announcement', 'email']).notNull(),
   channel: mysqlEnum('channel', ['in_app', 'email', 'sms']).notNull(),
   toPersonId: varchar('to_person_id', { length: 36 }),
@@ -350,14 +340,14 @@ export const messages = mysqlTable('messages', {
   priority: mysqlEnum('priority', ['low', 'normal', 'high', 'critical']).notNull(),
   status: mysqlEnum('status', ['pending', 'sent', 'read', 'failed']).notNull(),
   sentBy: varchar('sent_by', { length: 36 }),
-  createdAt: timestamp('created_at'),
 });
 
 // ============================================================================
-// AI_INTERACTIONS (chat, workout generation, manager insights audit log)
+// AI_INTERACTIONS
 // ============================================================================
 export const aiInteractions = mysqlTable('ai_interactions', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   userId: varchar('user_id', { length: 36 }).notNull(),
   userRole: mysqlEnum('user_role', ['admin', 'manager', 'trainer', 'member']).notNull(),
   interactionType: mysqlEnum('interaction_type', ['chat', 'workout_plan', 'insight']).notNull(),
@@ -365,20 +355,18 @@ export const aiInteractions = mysqlTable('ai_interactions', {
   responseText: text('response_text'),
   source: mysqlEnum('source', ['rag', 'gemini', 'fallback']).notNull(),
   metadataJson: text('metadata_json'),
-  createdAt: timestamp('created_at'),
 });
 
 // ============================================================================
-// AI_CHAT_SESSIONS / AI_CHAT_MESSAGES (persistent multi-turn memory)
+// AI_CHAT_SESSIONS / AI_CHAT_MESSAGES
 // ============================================================================
 export const aiChatSessions = mysqlTable('ai_chat_sessions', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   userId: varchar('user_id', { length: 36 }).notNull(),
   role: mysqlEnum('role', ['member', 'manager']).notNull(),
   title: varchar('title', { length: 140 }),
   lastMessageAt: timestamp('last_message_at').notNull().defaultNow(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').onUpdateNow(),
 }, (t) => ({
   userRoleIdx: index('idx_ai_chat_sessions_user_role').on(t.userId, t.role),
   lastMessageIdx: index('idx_ai_chat_sessions_last_message').on(t.lastMessageAt),
@@ -386,22 +374,23 @@ export const aiChatSessions = mysqlTable('ai_chat_sessions', {
 
 export const aiChatMessages = mysqlTable('ai_chat_messages', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   sessionId: varchar('session_id', { length: 36 }).notNull(),
   userId: varchar('user_id', { length: 36 }).notNull(),
   role: mysqlEnum('role', ['user', 'assistant']).notNull(),
   source: mysqlEnum('source', ['rag', 'gemini', 'fallback', 'system']).notNull().default('system'),
   content: text('content').notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (t) => ({
-  sessionCreatedIdx: index('idx_ai_chat_messages_session_created').on(t.sessionId, t.createdAt),
-  userCreatedIdx: index('idx_ai_chat_messages_user_created').on(t.userId, t.createdAt),
+  sessionCreatedIdx: index('idx_ai_chat_messages_session_created').on(t.sessionId),
+  userCreatedIdx: index('idx_ai_chat_messages_user_created').on(t.userId),
 }));
 
 // ============================================================================
-// WORKOUT_SESSIONS / WORKOUT_SESSION_EVENTS (execution lifecycle)
+// WORKOUT_SESSIONS / WORKOUT_SESSION_EVENTS
 // ============================================================================
 export const workoutSessions = mysqlTable('workout_sessions', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   personId: varchar('person_id', { length: 36 }).notNull(),
   planId: varchar('plan_id', { length: 36 }),
   status: mysqlEnum('status', ['active', 'paused', 'completed', 'stopped']).notNull().default('active'),
@@ -411,8 +400,6 @@ export const workoutSessions = mysqlTable('workout_sessions', {
   caloriesBurned: smallint('calories_burned'),
   mood: mysqlEnum('mood', ['great', 'good', 'okay', 'tired', 'poor']),
   notes: text('notes'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').onUpdateNow(),
 }, (t) => ({
   personStatusIdx: index('idx_workout_sessions_person_status').on(t.personId, t.status),
   startedIdx: index('idx_workout_sessions_started').on(t.startedAt),
@@ -420,6 +407,7 @@ export const workoutSessions = mysqlTable('workout_sessions', {
 
 export const workoutSessionEvents = mysqlTable('workout_session_events', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   sessionId: varchar('session_id', { length: 36 }).notNull(),
   personId: varchar('person_id', { length: 36 }).notNull(),
   eventType: mysqlEnum('event_type', ['started', 'paused', 'resumed', 'exercise_started', 'set_completed', 'exercise_completed', 'stopped', 'completed', 'simulated']).notNull(),
@@ -435,29 +423,29 @@ export const workoutSessionEvents = mysqlTable('workout_session_events', {
 // ============================================================================
 export const branchClosures = mysqlTable('branch_closures', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   closureDate: date('closure_date').notNull(),
   reason: varchar('reason', { length: 255 }),
   isEmergency: boolean('is_emergency').notNull(),
   closedBy: varchar('closed_by', { length: 36 }),
-  createdAt: timestamp('created_at'),
 });
 
 // ============================================================================
-// EXERCISES (library of individual exercises)
+// EXERCISES
 // ============================================================================
 export const exercises = mysqlTable('exercises', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   name: varchar('name', { length: 120 }).notNull(),
   muscleGroup: varchar('muscle_group', { length: 60 }),
   equipmentNeeded: varchar('equipment_needed', { length: 100 }),
   instructions: text('instructions'),
   difficulty: mysqlEnum('difficulty', ['beginner', 'intermediate', 'advanced']),
   videoUrl: varchar('video_url', { length: 255 }),
-  createdAt: timestamp('created_at'),
 });
 
 // ============================================================================
-// WORKOUT_PLAN_EXERCISES (join: plan → exercise with sets/reps per day)
+// WORKOUT_PLAN_EXERCISES
 // ============================================================================
 export const workoutPlanExercises = mysqlTable('workout_plan_exercises', {
   id: varchar('id', { length: 36 }).primaryKey(),
@@ -473,10 +461,11 @@ export const workoutPlanExercises = mysqlTable('workout_plan_exercises', {
 });
 
 // ============================================================================
-// SHIFTS (staff roster — separate from visits check-in log)
+// SHIFTS
 // ============================================================================
 export const shifts = mysqlTable('shifts', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
   staffId: varchar('staff_id', { length: 36 }).notNull(),
   shiftType: mysqlEnum('shift_type', ['morning', 'afternoon', 'evening', 'full_day']).notNull(),
   shiftDate: date('shift_date').notNull(),
@@ -485,11 +474,10 @@ export const shifts = mysqlTable('shifts', {
   status: mysqlEnum('status', ['scheduled', 'active', 'completed', 'missed', 'swapped']).notNull(),
   notes: varchar('notes', { length: 255 }),
   createdBy: varchar('created_by', { length: 36 }),
-  createdAt: timestamp('created_at'),
 });
 
 // ============================================================================
-// AUDIT_LOGS (append-only operational trail)
+// AUDIT_LOGS
 // ============================================================================
 export const auditLogs = mysqlTable('audit_logs', {
   id: varchar('id', { length: 36 }).primaryKey(),
@@ -509,21 +497,20 @@ export const auditLogs = mysqlTable('audit_logs', {
 // RELATIONS
 // ============================================================================
 export const usersRelations = relations(users, ({ one }) => ({
-  profile: one(memberProfiles, {
-    fields: [users.id],
-    references: [memberProfiles.personId],
-  }),
-  assignedTrainer: one(users, {
-    fields: [users.assignedTrainerId],
-    references: [users.id],
-  }),
+  member: one(members, { fields: [users.id], references: [members.userId] }),
+  trainer: one(trainers, { fields: [users.id], references: [trainers.userId] }),
+  lifecycle: one(entityLifecycle, { fields: [users.lifecycleId], references: [entityLifecycle.id] }),
 }));
 
-export const memberProfilesRelations = relations(memberProfiles, ({ one }) => ({
-  person: one(users, {
-    fields: [memberProfiles.personId],
-    references: [users.id],
-  }),
+export const membersRelations = relations(members, ({ one }) => ({
+  user: one(users, { fields: [members.userId], references: [users.id] }),
+  lifecycle: one(entityLifecycle, { fields: [members.lifecycleId], references: [entityLifecycle.id] }),
+  assignedTrainer: one(users, { fields: [members.assignedTrainerId], references: [users.id] }),
+}));
+
+export const trainersRelations = relations(trainers, ({ one }) => ({
+  user: one(users, { fields: [trainers.userId], references: [users.id] }),
+  lifecycle: one(entityLifecycle, { fields: [trainers.lifecycleId], references: [entityLifecycle.id] }),
 }));
 
 // ============================================================================
@@ -531,7 +518,8 @@ export const memberProfilesRelations = relations(memberProfiles, ({ one }) => ({
 // ============================================================================
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
-export type MemberProfile = typeof memberProfiles.$inferSelect;
+export type Member = typeof members.$inferSelect;
+export type Trainer = typeof trainers.$inferSelect;
 export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
@@ -553,3 +541,4 @@ export type WorkoutSession = typeof workoutSessions.$inferSelect;
 export type WorkoutSessionEvent = typeof workoutSessionEvents.$inferSelect;
 export type Shift = typeof shifts.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
+export type EntityLifecycle = typeof entityLifecycle.$inferSelect;

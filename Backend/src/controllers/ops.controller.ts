@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/error.js';
 import * as response from '../utils/response.js';
 import type { AuthRequest } from '../middleware/auth.js';
@@ -73,12 +73,9 @@ export const getMyPaymentInvoice = asyncHandler(async (req: AuthRequest, res: Re
   res.setHeader('Content-Disposition', `attachment; filename="${invoice.invoiceNumber}.html"`);
   res.status(200).send(invoice.htmlContent);
 });
-export const requestFreeze = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = requireUser(req);
-  res.json(response.success(await opsService.requestFreeze(user.id, req.body), 'Freeze requested'));
-});
-export const unfreezeSubscription = asyncHandler(async (req: AuthRequest, res: Response) => {
-  res.json(response.success(await opsService.unfreezeSubscription(req.params.id), 'Subscription unfrozen'));
+
+export const listPublicSubscriptionPlans = asyncHandler(async (_req: Request, res: Response) => {
+  res.json(response.success(await opsService.listPublicSubscriptionPlans()));
 });
 
 export const checkIn = asyncHandler(async (req: AuthRequest, res: Response) => {

@@ -219,7 +219,6 @@ export interface OpsDashboard {
   pendingEquipmentIssues?: number;
   // manager extras
   trainersOnShift?: number;
-  frozenSubscriptions?: number;
   pendingIdVerifications?: number;
   // admin extras
   systemAlertCount?: number;
@@ -235,11 +234,14 @@ export const opsAPI = {
     apiClient.get('/ops/reports/recent').then(r => r.data.data),
 
   // subscriptions/payments
+  /** Public catalog (no auth). */
+  publicSubscriptionPlans: () =>
+    apiClient.get('/ops/public/subscription-plans').then(r => r.data.data as any[]),
   plans: (options?: { includeInactive?: boolean }) =>
     apiClient.get('/ops/subscriptions/plans', {
       params: options?.includeInactive ? { includeInactive: 'true' } : undefined,
     }).then(r => r.data.data as any[]),
-  createPlan: (payload: { name: string; description?: string; planType: 'individual' | 'couple' | 'student' | 'corporate' | 'daily_pass'; price: number; durationDays: number; includedPtSessions?: number }) =>
+  createPlan: (payload: { name: string; description?: string; planType: 'individual' | 'couple' | 'student' | 'corporate' | 'daily_pass'; price: number; durationDays: number }) =>
     apiClient.post('/ops/subscriptions/plans', payload).then(r => r.data.data),
   updatePlan: (id: string, payload: Partial<{ name: string; description: string; price: number; durationDays: number; isActive: boolean }>) =>
     apiClient.patch(`/ops/subscriptions/plans/${id}`, payload).then(r => r.data.data),
@@ -251,8 +253,6 @@ export const opsAPI = {
     promotionCode?: string;
     cardPan?: string;
   }) => apiClient.post('/ops/subscriptions/purchase', payload).then(r => r.data.data),
-  requestFreeze: (payload: { subscriptionId?: string; freezeStart: string; freezeEnd: string; reason?: string }) =>
-    apiClient.post('/ops/subscriptions/freeze', payload).then(r => r.data.data),
   myPayments: () =>
     apiClient.get('/ops/payments/me').then(r => r.data.data as any[]),
   downloadInvoiceHtml: async (paymentId: string) => {
@@ -332,8 +332,6 @@ export const opsAPI = {
   // subscriptions (admin/manager)
   allSubscriptions: () =>
     apiClient.get('/ops/subscriptions').then(r => r.data.data as any[]),
-  unfreezeSubscription: (id: string) =>
-    apiClient.post(`/ops/subscriptions/${id}/unfreeze`).then(r => r.data.data),
   allPayments: () =>
     apiClient.get('/ops/payments').then(r => r.data.data as any[]),
 
@@ -393,7 +391,6 @@ export const opsAPI = {
     specialization?: string;
     ptHourlyRate?: number;
     yearsExperience?: number;
-    certification?: { name: string; issuingBody?: string; issuedYear?: number; expiryDate?: string };
   }) => apiClient.post('/ops/users', payload).then(r => r.data.data),
   updateUser: (id: string, payload: Partial<{ fullName: string; phone: string; isActive: boolean; role: 'admin' | 'manager' | 'trainer' | 'member'; memberStatus: 'active' | 'inactive' | 'suspended' }>) =>
     apiClient.patch(`/ops/users/${id}`, payload).then(r => r.data.data),

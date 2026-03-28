@@ -1,0 +1,26 @@
+import { alias } from 'drizzle-orm/mysql-core';
+import { entityLifecycle } from './schema.js';
+
+export const userLc = alias(entityLifecycle, 'user_lc');
+export const planLc = alias(entityLifecycle, 'plan_lc');
+export const promoLc = alias(entityLifecycle, 'promo_lc');
+export const subLc = alias(entityLifecycle, 'sub_lc');
+export const payLc = alias(entityLifecycle, 'pay_lc');
+export const invLc = alias(entityLifecycle, 'inv_lc');
+export const visitLc = alias(entityLifecycle, 'visit_lc');
+export const ptLc = alias(entityLifecycle, 'pt_lc');
+export const wpLc = alias(entityLifecycle, 'wp_lc');
+export const wsLc = alias(entityLifecycle, 'ws_lc');
+export const wseLc = alias(entityLifecycle, 'wse_lc');
+export const mmLc = alias(entityLifecycle, 'mm_lc');
+export const eqLc = alias(entityLifecycle, 'eq_lc');
+export const eeLc = alias(entityLifecycle, 'ee_lc');
+export const iiLc = alias(entityLifecycle, 'ii_lc');
+export const itLc = alias(entityLifecycle, 'it_lc');
+export const msgLc = alias(entityLifecycle, 'msg_lc');
+export const bcLc = alias(entityLifecycle, 'bc_lc');
+export const exLc = alias(entityLifecycle, 'ex_lc');
+export const shiftLc = alias(entityLifecycle, 'shift_lc');
+export const aiChatSessLc = alias(entityLifecycle, 'ai_cs_lc');
+export const aiChatMsgLc = alias(entityLifecycle, 'ai_cm_lc');
+export const aiIntLc = alias(entityLifecycle, 'ai_int_lc');

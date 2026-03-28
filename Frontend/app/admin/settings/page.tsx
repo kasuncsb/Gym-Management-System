@@ -24,7 +24,6 @@ const KEYS = [
     'branch_capacity',
     'checkin_qr_ttl_seconds',
     'checkin_scan_max_retries',
-    'subscription_freeze_max_days',
     'payment_failure_max_retries',
     'login_failure_lock_threshold',
     'login_failure_lock_minutes',
@@ -126,7 +125,6 @@ export default function AdminSettingsPage() {
 
             <Card padding="lg" className="space-y-6">
                 <h2 className="text-white font-semibold">Subscriptions &amp; payments</h2>
-                {n('subscription_freeze_max_days', 'Maximum freeze duration (days)', 'Policy guard for freeze requests.')}
                 {n('payment_failure_max_retries', 'Payment retry budget', 'For billing workers / future automation.')}
             </Card>
 

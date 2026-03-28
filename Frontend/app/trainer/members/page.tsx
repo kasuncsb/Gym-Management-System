@@ -6,7 +6,7 @@ import { PageHeader, SearchInput, Card, Modal, Select, Input, LoadingButton } fr
 import { useToast } from '@/components/ui/Toast';
 import { getErrorMessage, opsAPI } from '@/lib/api';
 
-type MemberRow = { id: string; name: string; plan: string; status: string; lastVisit: string; ptLeft: number };
+type MemberRow = { id: string; name: string; plan: string; status: string; lastVisit: string };
 
 type DetailTab = 'metrics' | 'plans' | 'sessions';
 
@@ -56,7 +56,6 @@ export default function TrainerMembersPage() {
             plan: m.currentPlanName ?? 'Unassigned',
             status: m.memberStatus ?? 'inactive',
             lastVisit: latestVisit.get(m.id) ?? '—',
-            ptLeft: Number(m.ptSessionsLeft ?? 0),
         })));
     };
 
@@ -177,7 +176,6 @@ export default function TrainerMembersPage() {
                         <div className="space-y-1 text-sm text-zinc-400 mb-4">
                             <p>Plan: {m.plan}</p>
                             <p>Last visit: {m.lastVisit}</p>
-                            <p>PT sessions left: {m.ptLeft}</p>
                         </div>
                         <div className="flex gap-2 flex-wrap">
                             <LoadingButton variant="secondary" size="sm" onClick={() => openVitals(m)}>

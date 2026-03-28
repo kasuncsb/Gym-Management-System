@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { CreditCard, RefreshCw, ArrowUpCircle, Snowflake, ShieldAlert } from 'lucide-react';
-import { PageHeader, Card, Modal, Input, Select, Textarea, LoadingButton, Tabs } from '@/components/ui/SharedComponents';
+import { CreditCard, RefreshCw, ArrowUpCircle, ShieldAlert } from 'lucide-react';
+import { PageHeader, Card, Modal, Input, Select, LoadingButton, Tabs } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
 import { authAPI, getErrorMessage, opsAPI } from '@/lib/api';
 
@@ -21,7 +21,6 @@ interface MySubscription {
     startDate: string;
     endDate: string;
     pricePaid: string | null;
-    ptSessionsLeft: number;
     planName: string | null;
 }
 interface MyPayment {
@@ -41,7 +40,6 @@ export default function MemberSubscriptionPage() {
     const [idStatus, setIdStatus] = useState<IdVerificationStatus>(null);
     const [profileLoading, setProfileLoading] = useState(true);
     const [renewOpen, setRenewOpen] = useState(false);
-    const [freezeOpen, setFreezeOpen] = useState(false);
     const [upgradeOpen, setUpgradeOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [plans, setPlans] = useState<Plan[]>([]);
@@ -49,7 +47,6 @@ export default function MemberSubscriptionPage() {
     const [payments, setPayments] = useState<MyPayment[]>([]);
 
     const [renewForm, setRenewForm] = useState({ plan: '', promo: '', payment: 'card' });
-    const [freezeForm, setFreezeForm] = useState({ startDate: '', endDate: '', reason: '' });
     const [upgradeForm, setUpgradeForm] = useState({ plan: '' });
     const [checkoutOpen, setCheckoutOpen] = useState(false);
     const [checkout, setCheckout] = useState({
@@ -86,7 +83,7 @@ export default function MemberSubscriptionPage() {
     const idRejected = idStatus === 'rejected';
     const idPending = idStatus === 'pending';
     const canPurchase = !idRejected && !idPending;
-    const activeSubscription = subscriptions.find((s) => ['active', 'grace_period', 'frozen'].includes(s.status)) ?? subscriptions[0];
+    const activeSubscription = subscriptions.find((s) => ['active', 'grace_period'].includes(s.status)) ?? subscriptions[0];
     const planOptions = plans.map((p) => ({
         value: p.id,
         label: `${p.name} — ${p.durationDays} days — Rs. ${Number(p.price ?? 0).toLocaleString()}`,
@@ -163,30 +160,6 @@ export default function MemberSubscriptionPage() {
             paymentMethod: renewForm.payment,
         });
         setRenewForm({ plan: '', promo: '', payment: 'card' });
-    };
-
-    const handleFreeze = async () => {
-        if (!freezeForm.startDate || !freezeForm.endDate || !freezeForm.reason) {
-            toast.error('Validation Error', 'Please fill all fields');
-            return;
-        }
-        setLoading(true);
-        try {
-            await opsAPI.requestFreeze({
-                subscriptionId: activeSubscription?.id,
-                freezeStart: freezeForm.startDate,
-                freezeEnd: freezeForm.endDate,
-                reason: freezeForm.reason,
-            });
-            setSubscriptions(await opsAPI.mySubscriptions() as MySubscription[]);
-            toast.success('Freeze Request Sent', 'Your request will be processed soon.');
-            setFreezeOpen(false);
-            setFreezeForm({ startDate: '', endDate: '', reason: '' });
-        } catch (err) {
-            toast.error('Error', getErrorMessage(err));
-        } finally {
-            setLoading(false);
-        }
     };
 
     const handleUpgrade = async () => {
@@ -272,7 +245,7 @@ export default function MemberSubscriptionPage() {
                                             Rs. {Number(activeSubscription.pricePaid ?? 0).toLocaleString()}
                                         </p>
                                         <p className="text-zinc-500 text-xs mt-2">
-                                            Ends: {activeSubscription.endDate ?? '—'} · PT sessions left: {activeSubscription.ptSessionsLeft ?? 0}
+                                            Ends: {activeSubscription.endDate ?? '—'}
                                         </p>
                                     </div>
                                 </div>
@@ -280,7 +253,6 @@ export default function MemberSubscriptionPage() {
                                     <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${
                                         activeSubscription.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' :
                                         activeSubscription.status === 'grace_period' ? 'bg-yellow-500/20 text-yellow-400' :
-                                        activeSubscription.status === 'frozen' ? 'bg-blue-500/20 text-blue-400' :
                                         'bg-red-500/20 text-red-400'
                                     }`}>
                                         {activeSubscription.status?.replace('_', ' ') ?? 'unknown'}
@@ -305,14 +277,6 @@ export default function MemberSubscriptionPage() {
                                     disabled={!canPurchase}
                                 >
                                     Upgrade
-                                </LoadingButton>
-                                <LoadingButton
-                                    icon={Snowflake}
-                                    variant="secondary"
-                                    onClick={() => setFreezeOpen(true)}
-                                    size="sm"
-                                >
-                                    Request Freeze
                                 </LoadingButton>
                             </div>
                         </Card>
@@ -463,34 +427,6 @@ export default function MemberSubscriptionPage() {
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setCheckoutOpen(false)}>Cancel</LoadingButton>
                         <LoadingButton loading={loading} onClick={submitCheckout}>Pay</LoadingButton>
-                    </div>
-                </div>
-            </Modal>
-
-            {/* Freeze Request Dialog */}
-            <Modal isOpen={freezeOpen} onClose={() => setFreezeOpen(false)} title="Request Freeze" description="Request to freeze your subscription">
-                <div className="space-y-4">
-                    <Input
-                        label="Start Date"
-                        type="date"
-                        value={freezeForm.startDate}
-                        onChange={e => setFreezeForm(f => ({ ...f, startDate: e.target.value }))}
-                    />
-                    <Input
-                        label="End Date"
-                        type="date"
-                        value={freezeForm.endDate}
-                        onChange={e => setFreezeForm(f => ({ ...f, endDate: e.target.value }))}
-                    />
-                    <Textarea
-                        label="Reason"
-                        placeholder="Reason for freeze"
-                        value={freezeForm.reason}
-                        onChange={e => setFreezeForm(f => ({ ...f, reason: e.target.value }))}
-                    />
-                    <div className="flex justify-end gap-3 pt-2">
-                        <LoadingButton variant="secondary" onClick={() => setFreezeOpen(false)}>Cancel</LoadingButton>
-                        <LoadingButton loading={loading} onClick={handleFreeze}>Submit Request</LoadingButton>
                     </div>
                 </div>
             </Modal>

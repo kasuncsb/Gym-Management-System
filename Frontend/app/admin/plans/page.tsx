@@ -42,7 +42,6 @@ export default function AdminPlansPage() {
         billing: 'monthly' as 'monthly' | 'annual',
         features: '',
         planType: 'individual' as 'individual' | 'couple' | 'student' | 'corporate' | 'daily_pass',
-        includedPtSessions: '0',
     });
     const [submitLoading, setSubmitLoading] = useState(false);
     const [pageLoading, setPageLoading] = useState(true);
@@ -71,7 +70,7 @@ export default function AdminPlansPage() {
 
     const openAdd = () => {
         setEditingPlan(null);
-        setFormData({ name: '', price: '', billing: 'monthly', features: '', planType: 'individual', includedPtSessions: '0' });
+        setFormData({ name: '', price: '', billing: 'monthly', features: '', planType: 'individual' });
         setModalOpen(true);
     };
 
@@ -83,7 +82,6 @@ export default function AdminPlansPage() {
             billing: plan.durationDays >= 360 ? 'annual' : 'monthly',
             features: plan.features.join('\n'),
             planType: plan.planType ?? 'individual',
-            includedPtSessions: '0',
         });
         setModalOpen(true);
     };
@@ -115,7 +113,6 @@ export default function AdminPlansPage() {
                     planType: formData.planType,
                     price,
                     durationDays: formData.billing === 'annual' ? 365 : formData.planType === 'daily_pass' ? 1 : 30,
-                    includedPtSessions: Number(formData.includedPtSessions) || 0,
                 });
                 toast.success('Plan Created', `${formData.name} has been added successfully`);
             }
@@ -251,13 +248,6 @@ export default function AdminPlansPage() {
                                 ]}
                                 value={formData.planType}
                                 onChange={e => setFormData(prev => ({ ...prev, planType: e.target.value as typeof formData.planType }))}
-                            />
-                            <Input
-                                label="Included PT Sessions"
-                                type="number"
-                                value={formData.includedPtSessions}
-                                onChange={e => setFormData(prev => ({ ...prev, includedPtSessions: e.target.value }))}
-                                min="0"
                             />
                         </>
                     )}

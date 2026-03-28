@@ -65,7 +65,7 @@ export default function MemberDashboard() {
 
     const greeting = currentTime.getHours() < 12 ? 'Morning' : currentTime.getHours() < 18 ? 'Afternoon' : 'Evening';
     const firstName = user?.fullName?.split(' ')[0] ?? 'Member';
-    const activeSub = mySubscriptions.find((s) => ['active', 'grace_period', 'frozen'].includes(s.status)) ?? mySubscriptions[0];
+    const activeSub = mySubscriptions.find((s) => ['active', 'grace_period'].includes(s.status)) ?? mySubscriptions[0];
 
     const stats = [
         { label: 'This Week',  value: String(weekActivity.reduce((n, v) => n + v, 0)), sub: 'workouts', icon: Dumbbell, color: 'from-red-600 to-red-700' },
@@ -102,7 +102,6 @@ export default function MemberDashboard() {
                     <span className={`text-xs px-3 py-1 rounded-full font-semibold ${
                         activeSub.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' :
                         activeSub.status === 'grace_period' ? 'bg-yellow-500/20 text-yellow-400' :
-                        activeSub.status === 'frozen' ? 'bg-blue-500/20 text-blue-400' :
                         'bg-red-500/20 text-red-400'
                     }`}>{activeSub.status?.replace('_', ' ') ?? 'unknown'}</span>
                 ) : (

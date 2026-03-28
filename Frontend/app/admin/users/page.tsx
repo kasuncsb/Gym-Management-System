@@ -77,8 +77,6 @@ export default function AdminUsersPage() {
         emergencyRelation: '',
         specialization: '',
         designation: '',
-        certName: '',
-        certBody: '',
     });
     const [submitLoading, setSubmitLoading] = useState(false);
     const [pageLoading, setPageLoading] = useState(true);
@@ -95,7 +93,9 @@ export default function AdminUsersPage() {
             status: u.role === 'member'
                 ? (u.memberStatus ?? 'inactive')
                 : (u.isActive === false ? 'inactive' : 'active'),
-            joined: u.joinDate ? String(u.joinDate).slice(0, 10) : (u.createdAt ? String(u.createdAt).slice(0, 10) : null),
+            joined: u.joinDate
+                ? String(u.joinDate).slice(0, 10)
+                : (u.accountCreatedAt ? String(u.accountCreatedAt).slice(0, 10) : null),
         }));
         setUsers(mapped);
     };
@@ -126,8 +126,6 @@ export default function AdminUsersPage() {
             emergencyRelation: '',
             specialization: '',
             designation: '',
-            certName: '',
-            certBody: '',
         });
         setModalOpen(true);
     };
@@ -146,8 +144,6 @@ export default function AdminUsersPage() {
             emergencyRelation: '',
             specialization: '',
             designation: '',
-            certName: '',
-            certBody: '',
         });
         setModalOpen(true);
     };
@@ -193,9 +189,6 @@ export default function AdminUsersPage() {
                         role: 'trainer',
                         designation: formData.designation.trim() || undefined,
                         specialization: formData.specialization.trim() || undefined,
-                        certification: formData.certName.trim()
-                            ? { name: formData.certName.trim(), issuingBody: formData.certBody.trim() || undefined }
-                            : undefined,
                     });
                 }
                 toast.success('User Added', `${formData.name} has been added successfully`);
@@ -346,7 +339,7 @@ export default function AdminUsersPage() {
                 description={
                     editingUser
                         ? `Editing ${editingUser.name}`
-                        : 'Admins may only create members or trainers. Collect emergency contact for members and certification for trainers.'
+                        : 'Admins may only create members or trainers. Collect emergency contact for new members.'
                 }
                 size="lg"
             >
@@ -414,19 +407,6 @@ export default function AdminUsersPage() {
                                 placeholder="e.g. Strength & Conditioning"
                                 value={formData.specialization}
                                 onChange={(e) => setFormData((prev) => ({ ...prev, specialization: e.target.value }))}
-                            />
-                            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide">Primary certification</p>
-                            <Input
-                                label="Certification name"
-                                placeholder="e.g. NASM CPT"
-                                value={formData.certName}
-                                onChange={(e) => setFormData((prev) => ({ ...prev, certName: e.target.value }))}
-                            />
-                            <Input
-                                label="Issuing body"
-                                placeholder="Optional"
-                                value={formData.certBody}
-                                onChange={(e) => setFormData((prev) => ({ ...prev, certBody: e.target.value }))}
                             />
                         </>
                     )}

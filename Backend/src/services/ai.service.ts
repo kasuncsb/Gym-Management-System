@@ -9,7 +9,9 @@ import {
 } from './ops.service.js';
 import { db } from '../config/database.js';
 import { aiChatMessages, aiChatSessions, aiInteractions } from '../db/schema.js';
+import { aiChatMsgLc } from '../db/lifecycleAliases.js';
 import { ids } from '../utils/id.js';
+import { insertLifecycleRow } from '../utils/lifecycle.js';
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,7 +37,7 @@ type TrainingDoc = {
     durationWeeks?: number;
   };
   businessRule?: {
-    area: 'subscriptions' | 'freezes' | 'revenue' | 'attendance' | 'equipment' | 'staffing' | 'other';
+    area: 'subscriptions' | 'revenue' | 'attendance' | 'equipment' | 'staffing' | 'other';
     rule: string;
   };
 };
@@ -116,8 +118,10 @@ async function ensureChatSession(user: AuthUser, role: 'member' | 'manager', ses
     if (existing) return existing.id;
   }
   const id = ids.uuid();
+  const lc = await insertLifecycleRow();
   await db.insert(aiChatSessions).values({
     id,
+    lifecycleId: lc,
     userId: user.id,
     role,
     title: role === 'manager' ? 'Manager assistant' : 'Member assistant',
@@ -127,14 +131,15 @@ async function ensureChatSession(user: AuthUser, role: 'member' | 'manager', ses
 }
 
 async function appendChatMessage(sessionId: string, userId: string, role: 'user' | 'assistant', content: string, source: ChatSource) {
+  const msgLc = await insertLifecycleRow();
   await db.insert(aiChatMessages).values({
     id: ids.uuid(),
+    lifecycleId: msgLc,
     sessionId,
     userId,
     role,
     content,
     source,
-    createdAt: new Date(),
   });
   await db.update(aiChatSessions).set({ lastMessageAt: new Date() }).where(eq(aiChatSessions.id, sessionId));
 }
@@ -143,8 +148,9 @@ async function getRecentSessionMessages(sessionId: string, limit = 12): Promise<
   const rows = await db
     .select({ role: aiChatMessages.role, content: aiChatMessages.content })
     .from(aiChatMessages)
+    .innerJoin(aiChatMsgLc, eq(aiChatMessages.lifecycleId, aiChatMsgLc.id))
     .where(eq(aiChatMessages.sessionId, sessionId))
-    .orderBy(desc(aiChatMessages.createdAt))
+    .orderBy(desc(aiChatMsgLc.createdAt))
     .limit(limit);
   return rows.reverse();
 }
@@ -432,8 +438,10 @@ async function logInteraction(
   },
 ): Promise<void> {
   try {
+    const intLc = await insertLifecycleRow();
     await db.insert(aiInteractions).values({
       id: ids.uuid(),
+      lifecycleId: intLc,
       userId: user.id,
       userRole: user.role as UserRole,
       interactionType: input.interactionType,
@@ -441,7 +449,6 @@ async function logInteraction(
       responseText: input.responseText ?? null,
       source: input.source,
       metadataJson: input.metadata ? JSON.stringify(input.metadata) : null,
-      createdAt: new Date(),
     });
   } catch {
     // non-blocking logging for compatibility
