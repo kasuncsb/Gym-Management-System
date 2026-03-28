@@ -227,6 +227,17 @@ export interface OpsDashboard {
   systemAlertCount?: number;
 }
 
+/** Body shape for POST /ai/workout-plan and /ops/workouts/plans/generate */
+export type AiWorkoutPlanPreferencesPayload = {
+  primaryFocus?: string;
+  daysPerWeek?: string;
+  sessionLength?: string;
+  equipmentAccess?: string;
+  emphasis?: string;
+  avoidOrInjuries?: string;
+  extraNotes?: string;
+};
+
 export const opsAPI = {
   // dashboards/reports
   dashboard: (role: 'admin' | 'manager' | 'trainer' | 'member') =>
@@ -309,7 +320,7 @@ export const opsAPI = {
     apiClient.delete(`/ops/workouts/plans/me/${planId}`).then(r => r.data.data),
   assignWorkoutPlan: (payload: { memberId: string; name: string; description?: string; difficulty?: 'beginner' | 'intermediate' | 'advanced'; durationWeeks: number; daysPerWeek: number; libraryPlanId?: string }) =>
     apiClient.post('/ops/workouts/plans/assign', payload).then(r => r.data.data),
-  generateAiWorkoutPlan: (payload?: { memberId?: string }) =>
+  generateAiWorkoutPlan: (payload?: { memberId?: string; preferences?: AiWorkoutPlanPreferencesPayload }) =>
     apiClient.post('/ops/workouts/plans/generate', payload ?? {}).then(r => r.data.data),
   myWorkoutLogs: () =>
     apiClient.get('/ops/workouts/logs/me').then(r => r.data.data as any[]),
@@ -491,7 +502,13 @@ export const aiAPI = {
   health: () => apiClient.get('/ai/health').then(r => r.data.data),
   chat: (message: string, sessionId?: string) => apiClient.post('/ai/chat', { message, sessionId }).then(r => r.data.data as { answer: string; source: 'rag' | 'gemini' | 'fallback'; sessionId: string }),
   insights: (question?: string) => apiClient.post('/ai/insights', { question }).then(r => r.data.data as { summary: string; insights: string[]; generatedBy: 'gemini' | 'fallback' }),
-  workoutPlan: (memberId?: string) => apiClient.post('/ai/workout-plan', memberId ? { memberId } : {}).then(r => r.data.data as { id?: string | null; name?: string | null; source?: string | null }),
+  workoutPlan: (opts?: { memberId?: string; preferences?: AiWorkoutPlanPreferencesPayload }) =>
+    apiClient
+      .post('/ai/workout-plan', {
+        ...(opts?.memberId ? { memberId: opts.memberId } : {}),
+        ...(opts?.preferences ? { preferences: opts.preferences } : {}),
+      })
+      .then(r => r.data.data as { id?: string | null; name?: string | null; source?: string | null }),
 };
 
 /** Safely read API error message; handles HTML, nginx/proxy bodies, and rate-limit JSON. */

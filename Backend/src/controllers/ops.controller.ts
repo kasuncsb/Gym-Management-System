@@ -6,6 +6,7 @@ import * as opsService from '../services/ops.service.js';
 import * as auditService from '../services/audit.service.js';
 import { errors } from '../utils/errors.js';
 import type { WorkoutProgramJson } from '../validators/workoutProgram.js';
+import { parseWorkoutPlanPreferences } from '../validators/aiWorkoutPlanPreferences.js';
 
 type Role = 'admin' | 'manager' | 'trainer' | 'member';
 type RoleOrGuest = Role | 'guest';
@@ -183,7 +184,8 @@ export const generateAiWorkoutPlan = asyncHandler(async (req: AuthRequest, res: 
   const user = requireUser(req);
   const memberId = user.role === 'member' ? user.id : String(req.body?.memberId ?? '').trim();
   if (!memberId) throw errors.badRequest('memberId is required');
-  res.json(response.success(await opsService.generateAiWorkoutPlan(memberId, user.id, user.role as Role), 'AI workout plan generated'));
+  const preferences = parseWorkoutPlanPreferences(req.body?.preferences);
+  res.json(response.success(await opsService.generateAiWorkoutPlan(memberId, user.id, user.role as Role, preferences), 'AI workout plan generated'));
 });
 
 export const getMyMetrics = asyncHandler(async (req: AuthRequest, res: Response) => {

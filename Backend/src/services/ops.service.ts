@@ -56,6 +56,11 @@ import {
   stringifyProgram,
   type WorkoutProgramJson,
 } from '../validators/workoutProgram.js';
+import {
+  type AiWorkoutPlanPreferences,
+  workoutPreferencesToFocusSuffix,
+  workoutPreferencesToPromptBlock,
+} from '../validators/aiWorkoutPlanPreferences.js';
 
 type Role = 'admin' | 'manager' | 'trainer' | 'member';
 
@@ -1297,6 +1302,7 @@ export async function generateAiWorkoutPlan(
   memberId: string,
   requesterId: string,
   requesterRole: Role,
+  preferences?: AiWorkoutPlanPreferences,
 ) {
   const [member] = await db
     .select({
@@ -1320,15 +1326,18 @@ export async function generateAiWorkoutPlan(
   const goals = profile?.fitnessGoals ?? 'general fitness';
   const level = profile?.experienceLevel ?? 'beginner';
   const conditions = profile?.medicalConditions ?? 'none';
+  const prefsBlock = preferences ? workoutPreferencesToPromptBlock(preferences) : '';
+  const prefsFocus = preferences ? workoutPreferencesToFocusSuffix(preferences) : '';
+  const combinedFocusForProgram = [goals, prefsFocus].filter(Boolean).join(' | ');
 
   const prompt = `
 You are a fitness trainer AI at PowerWorld Gyms Kiribathgoda.
-Create a UNIQUE, personalised workout plan for this member. Vary exercise selection and order—do not repeat the same plan.
-- Experience level: ${level}
-- Fitness goals: ${goals}
-- Medical conditions: ${conditions}
+Coach voice: you already asked the member a few short questions — they answered below. Create a UNIQUE, personalised workout plan that reflects those answers. Vary exercise selection and order—do not repeat the same plan as generic templates.
+- Experience level (from profile): ${level}
+- Fitness goals (from profile): ${goals}
+- Medical conditions / notes (from profile): ${conditions}
 - Request timestamp: ${new Date().toISOString()} (use to vary output)
-
+${prefsBlock}
 Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
 {
   "name": "<plan name>",
@@ -1397,7 +1406,8 @@ Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
 
   // Fallback: use template exercises from training data when Gemini fails or returns no exercises
   if (planData.exerciseList.length === 0) {
-    const fallbackExercises = getFallbackExercisesFromTemplates(goals, level);
+    const fallbackGoals = [goals, prefsFocus].filter(Boolean).join('; ') || goals;
+    const fallbackExercises = getFallbackExercisesFromTemplates(fallbackGoals, level);
     planData = {
       ...planData,
       exerciseList: fallbackExercises,
@@ -1411,7 +1421,7 @@ Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
   const program = buildProgramFromAiExercises({
     durationWeeks: planData.durationWeeks,
     daysPerWeek: planData.daysPerWeek,
-    focus: goals,
+    focus: combinedFocusForProgram,
     locale: 'LK',
     exercises: planData.exerciseList.map((ex) => ({
       day: safeInt(ex.day, 1),

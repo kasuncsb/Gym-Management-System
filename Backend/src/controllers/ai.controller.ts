@@ -4,6 +4,7 @@ import * as response from '../utils/response.js';
 import type { AuthRequest } from '../middleware/auth.js';
 import { errors } from '../utils/errors.js';
 import * as aiService from '../services/ai.service.js';
+import { parseWorkoutPlanPreferences } from '../validators/aiWorkoutPlanPreferences.js';
 
 function requireUser(req: AuthRequest) {
   if (!req.user) throw errors.unauthorized();
@@ -49,7 +50,8 @@ export const insights = asyncHandler(async (req: AuthRequest, res: Response) => 
 export const workoutPlan = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   const memberId = req.body?.memberId ? String(req.body.memberId) : undefined;
-  const data = await aiService.createAiWorkoutPlan(user, { memberId });
+  const preferences = parseWorkoutPlanPreferences(req.body?.preferences);
+  const data = await aiService.createAiWorkoutPlan(user, { memberId, preferences });
   res.json(response.success(data, 'AI workout plan generated'));
 });
 

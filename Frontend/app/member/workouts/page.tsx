@@ -3,10 +3,23 @@
 import { useEffect, useState } from 'react';
 import { Play, Clock, Flame, Sparkles, ChevronDown, ChevronUp, Dumbbell, Library, Trash2, ClipboardCheck } from 'lucide-react';
 import { PageHeader, Card, LoadingButton, Input, Modal } from '@/components/ui/SharedComponents';
-import { aiAPI, getErrorMessage, opsAPI } from '@/lib/api';
+import { aiAPI, getErrorMessage, opsAPI, type AiWorkoutPlanPreferencesPayload } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 
 type DifficultyFilter = 'beginner' | 'intermediate' | 'advanced';
+
+const selectFieldClass =
+    'w-full bg-zinc-900 text-white border border-zinc-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-red-600 focus:border-red-600';
+
+const AI_PLAN_PREF_DEFAULTS: AiWorkoutPlanPreferencesPayload = {
+    primaryFocus: 'General fitness & health',
+    daysPerWeek: '3 days per week',
+    sessionLength: '45–55 minutes',
+    equipmentAccess: 'Full gym — machines & free weights',
+    emphasis: 'Balanced full body',
+    avoidOrInjuries: '',
+    extraNotes: '',
+};
 
 interface Plan {
     id: string;
@@ -176,6 +189,8 @@ export default function WorkoutsPage() {
     const [logMood, setLogMood] = useState<'great' | 'good' | 'okay' | 'tired' | 'poor'>('good');
     const [logging, setLogging] = useState(false);
     const [heroImageError, setHeroImageError] = useState(false);
+    const [aiPlanModalOpen, setAiPlanModalOpen] = useState(false);
+    const [aiPrefs, setAiPrefs] = useState<AiWorkoutPlanPreferencesPayload>(() => ({ ...AI_PLAN_PREF_DEFAULTS }));
 
     const loadPlans = () => {
         opsAPI.myWorkoutPlans()
@@ -244,14 +259,20 @@ export default function WorkoutsPage() {
     const handleGenerateAiPlan = async () => {
         setGenerating(true);
         try {
-            await aiAPI.workoutPlan();
+            await aiAPI.workoutPlan({ preferences: aiPrefs });
             toast.success('Plan ready', 'New programme added to My programmes.');
             loadPlans();
+            setAiPlanModalOpen(false);
         } catch (err) {
             toast.error('Error', getErrorMessage(err));
         } finally {
             setGenerating(false);
         }
+    };
+
+    const openAiPlanModal = () => {
+        setAiPrefs({ ...AI_PLAN_PREF_DEFAULTS });
+        setAiPlanModalOpen(true);
     };
 
     const days = active?.program?.days ?? [];
@@ -346,7 +367,7 @@ export default function WorkoutsPage() {
                     size="sm"
                     variant="secondary"
                     loading={generating}
-                    onClick={handleGenerateAiPlan}
+                    onClick={openAiPlanModal}
                 >
                     Generate plan
                 </LoadingButton>
@@ -666,6 +687,106 @@ export default function WorkoutsPage() {
                 </div>
             </div>
             )}
+
+            <Modal
+                isOpen={aiPlanModalOpen}
+                onClose={() => { if (!generating) setAiPlanModalOpen(false); }}
+                title="Quick questions from your AI coach"
+                description="Answer below — each new plan uses your latest answers so training stays relevant."
+                size="lg"
+            >
+                <div className="space-y-5">
+                    <div>
+                        <p className="text-xs font-medium text-zinc-400 mb-1.5">What should we focus on in this block?</p>
+                        <select
+                            className={selectFieldClass}
+                            value={aiPrefs.primaryFocus ?? ''}
+                            onChange={(e) => setAiPrefs((p) => ({ ...p, primaryFocus: e.target.value }))}
+                        >
+                            <option>General fitness & health</option>
+                            <option>Fat loss & conditioning</option>
+                            <option>Muscle & size (hypertrophy)</option>
+                            <option>Strength</option>
+                            <option>Athletic performance & power</option>
+                            <option>Moving better / mobility support</option>
+                        </select>
+                    </div>
+                    <div>
+                        <p className="text-xs font-medium text-zinc-400 mb-1.5">How many days per week can you train?</p>
+                        <select
+                            className={selectFieldClass}
+                            value={aiPrefs.daysPerWeek ?? ''}
+                            onChange={(e) => setAiPrefs((p) => ({ ...p, daysPerWeek: e.target.value }))}
+                        >
+                            <option>3 days per week</option>
+                            <option>4 days per week</option>
+                            <option>5 days per week</option>
+                        </select>
+                    </div>
+                    <div>
+                        <p className="text-xs font-medium text-zinc-400 mb-1.5">Typical session length?</p>
+                        <select
+                            className={selectFieldClass}
+                            value={aiPrefs.sessionLength ?? ''}
+                            onChange={(e) => setAiPrefs((p) => ({ ...p, sessionLength: e.target.value }))}
+                        >
+                            <option>~30–40 minutes</option>
+                            <option>45–55 minutes</option>
+                            <option>60+ minutes</option>
+                        </select>
+                    </div>
+                    <div>
+                        <p className="text-xs font-medium text-zinc-400 mb-1.5">What equipment will you use at the club?</p>
+                        <select
+                            className={selectFieldClass}
+                            value={aiPrefs.equipmentAccess ?? ''}
+                            onChange={(e) => setAiPrefs((p) => ({ ...p, equipmentAccess: e.target.value }))}
+                        >
+                            <option>Full gym — machines & free weights</option>
+                            <option>Mostly machines & cables</option>
+                            <option>Dumbbells & cables / busy floor</option>
+                            <option>Minimal kit — small space or travel days</option>
+                        </select>
+                    </div>
+                    <div>
+                        <p className="text-xs font-medium text-zinc-400 mb-1.5">Where do you want a little extra emphasis?</p>
+                        <select
+                            className={selectFieldClass}
+                            value={aiPrefs.emphasis ?? ''}
+                            onChange={(e) => setAiPrefs((p) => ({ ...p, emphasis: e.target.value }))}
+                        >
+                            <option>Balanced full body</option>
+                            <option>Upper body</option>
+                            <option>Lower body & glutes</option>
+                            <option>Core & conditioning</option>
+                        </select>
+                    </div>
+                    <Input
+                        label="Injuries, pain, or movements to avoid? (optional)"
+                        placeholder="e.g. sore shoulder — limit overhead pressing"
+                        value={aiPrefs.avoidOrInjuries ?? ''}
+                        onChange={(e) => setAiPrefs((p) => ({ ...p, avoidOrInjuries: e.target.value }))}
+                    />
+                    <Input
+                        label="Anything else the coach should know? (optional)"
+                        placeholder="e.g. prefer machines after leg day"
+                        value={aiPrefs.extraNotes ?? ''}
+                        onChange={(e) => setAiPrefs((p) => ({ ...p, extraNotes: e.target.value }))}
+                    />
+                    <div className="flex flex-wrap justify-end gap-3 pt-2">
+                        <LoadingButton variant="secondary" disabled={generating} onClick={() => setAiPlanModalOpen(false)}>
+                            Cancel
+                        </LoadingButton>
+                        <LoadingButton
+                            icon={Sparkles}
+                            loading={generating}
+                            onClick={() => void handleGenerateAiPlan()}
+                        >
+                            Generate my plan
+                        </LoadingButton>
+                    </div>
+                </div>
+            </Modal>
 
             <Modal
                 isOpen={!!planToRemove}

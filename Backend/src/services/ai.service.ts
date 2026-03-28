@@ -1,4 +1,5 @@
 import type { AuthUser } from '../middleware/auth.js';
+import type { AiWorkoutPlanPreferences } from '../validators/aiWorkoutPlanPreferences.js';
 import {
   getDashboard,
   getMySubscriptions,
@@ -923,17 +924,21 @@ Return:
 
 export async function createAiWorkoutPlan(
   user: AuthUser,
-  input?: { memberId?: string },
+  input?: { memberId?: string; preferences?: AiWorkoutPlanPreferences },
 ): Promise<{ id?: string | null; name?: string | null; source?: string | null }> {
   const targetMemberId = input?.memberId && user.role !== 'member' ? input.memberId : user.id;
-  const plan = await generateAiWorkoutPlan(targetMemberId, user.id, user.role as UserRole);
+  const preferences = input?.preferences;
+  const plan = await generateAiWorkoutPlan(targetMemberId, user.id, user.role as UserRole, preferences);
   const interactionSource = plan?.source === 'ai_generated' ? 'gemini' : 'fallback';
+  const prefSummary = preferences ? JSON.stringify(preferences) : '';
   await logInteraction(user, {
     interactionType: 'workout_plan',
-    promptText: `Generate AI workout plan for member ${targetMemberId}`,
+    promptText: prefSummary
+      ? `Generate AI workout plan for member ${targetMemberId}\nPreferences: ${prefSummary}`
+      : `Generate AI workout plan for member ${targetMemberId}`,
     responseText: `Created plan ${plan?.name ?? ''} (${plan?.id ?? ''})`,
     source: interactionSource,
-    metadata: { targetMemberId, planId: plan?.id ?? null, planSource: plan?.source ?? null },
+    metadata: { targetMemberId, planId: plan?.id ?? null, planSource: plan?.source ?? null, preferences: preferences ?? null },
   });
   return { id: plan?.id ?? null, name: plan?.name ?? null, source: plan?.source ?? null };
 }
