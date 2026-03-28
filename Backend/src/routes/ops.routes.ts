@@ -21,6 +21,9 @@ router.get('/public/subscription-plans', ops.listPublicSubscriptionPlans);
 
 // Workout library & plan detail: no login required for library templates; optional cookie for member plans
 router.get('/workouts/library', optionalAuthenticate, ops.listWorkoutLibrary);
+// Literal paths MUST be registered before `/workouts/plans/:planId` or Express treats `me` / `member` as IDs
+router.get('/workouts/plans/me', authenticate, authorize('member'), ops.listMyWorkoutPlans);
+router.get('/workouts/plans/member/:memberId', authenticate, authorize('trainer', 'manager', 'admin'), ops.getMemberWorkoutPlans);
 router.get('/workouts/plans/:planId', optionalAuthenticate, ops.getWorkoutPlanDetail);
 
 router.use(authenticate);
@@ -57,9 +60,7 @@ router.get('/pt-sessions', authorize('admin', 'manager', 'trainer'), ops.listAll
 router.post('/pt-sessions', authorize('member', 'trainer', 'manager', 'admin'), ops.createPtSession);
 router.patch('/pt-sessions/:id', authorize('member', 'trainer', 'manager', 'admin'), ops.updatePtSession);
 
-// Workouts
-router.get('/workouts/plans/me', authorize('member'), ops.listMyWorkoutPlans);
-router.get('/workouts/plans/member/:memberId', authorize('trainer', 'manager', 'admin'), ops.getMemberWorkoutPlans);
+// Workouts (GET /workouts/plans/me and .../member/:id are above — before :planId)
 router.post('/workouts/plans/assign', authorize('trainer', 'manager', 'admin'), ops.assignWorkoutPlan);
 router.post('/workouts/plans/generate', authorize('member', 'trainer', 'manager', 'admin'), ops.generateAiWorkoutPlan);
 router.patch('/workouts/plans/:planId', authorize('trainer', 'manager', 'admin'), ops.patchWorkoutPlan);
