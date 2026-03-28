@@ -5,7 +5,24 @@ import { Calendar, Clock, User, Plus, X, CheckCircle, Star } from 'lucide-react'
 import { PageHeader, Card, Modal, Input, Select, Textarea, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
 import axios from 'axios';
-import { getErrorMessage, opsAPI } from '@/lib/api';
+import { getErrorMessage, opsAPI, type TrainerPtAvailability } from '@/lib/api';
+
+function timeToMinutes(t: string): number {
+    const [h, m] = t.split(':').map((x) => Number(x));
+    return (h || 0) * 60 + (m || 0);
+}
+
+/** [slotStart, slotEnd) vs [busyStart, busyEnd) overlap, times HH:MM */
+function slotOverlapsBusy(slotStart: string, slotEnd: string, busyStart: string, busyEnd: string): boolean {
+    return timeToMinutes(slotStart) < timeToMinutes(busyEnd) && timeToMinutes(busyStart) < timeToMinutes(slotEnd);
+}
+
+function slotInsideWorkingHours(slotStart: string, slotEnd: string, windows: TrainerPtAvailability['workingWindows']): boolean {
+    if (!windows.length) return true;
+    const a = timeToMinutes(slotStart);
+    const b = timeToMinutes(slotEnd);
+    return windows.some((w) => a >= timeToMinutes(w.start) && b <= timeToMinutes(w.end));
+}
 
 interface Session {
     id: string;
@@ -52,6 +69,8 @@ export default function AppointmentsPage() {
     const [rateStars, setRateStars] = useState(5);
     const [rateComment, setRateComment] = useState('');
     const [rateLoading, setRateLoading] = useState(false);
+    const [availability, setAvailability] = useState<TrainerPtAvailability | null>(null);
+    const [availabilityLoading, setAvailabilityLoading] = useState(false);
 
     const loadSessions = async () => {
         try {
@@ -79,6 +98,50 @@ export default function AppointmentsPage() {
     };
 
     useEffect(() => { loadSessions(); }, []);
+
+    useEffect(() => {
+        if (!showModal || !form.trainer || !form.date) {
+            setAvailability(null);
+            return;
+        }
+        let cancelled = false;
+        setAvailabilityLoading(true);
+        opsAPI
+            .trainerPtAvailability(form.trainer, form.date)
+            .then((data) => {
+                if (!cancelled) setAvailability(data);
+            })
+            .catch(() => {
+                if (!cancelled) setAvailability(null);
+            })
+            .finally(() => {
+                if (!cancelled) setAvailabilityLoading(false);
+            });
+        return () => { cancelled = true; };
+    }, [showModal, form.trainer, form.date]);
+
+    const slotPreview = (() => {
+        if (!form.time) return null;
+        const parts = form.time.split(':');
+        const h = Number(parts[0]);
+        const m = (parts[1] ?? '00').slice(0, 2);
+        if (!Number.isFinite(h)) return null;
+        const startShort = `${String(h).padStart(2, '0')}:${m.padStart(2, '0')}`;
+        const endHour = Math.min(23, h + 1);
+        const endShort = `${String(endHour).padStart(2, '0')}:${m.padStart(2, '0')}`;
+        return { startShort, endShort };
+    })();
+
+    const slotCheck = (() => {
+        if (!availability || !slotPreview) return null;
+        const { startShort, endShort } = slotPreview;
+        const clashes = availability.busySlots.some((b) => slotOverlapsBusy(startShort, endShort, b.startTime, b.endTime));
+        const inHours = slotInsideWorkingHours(startShort, endShort, availability.workingWindows);
+        if (clashes) return { tone: 'bad' as const, message: 'This time overlaps another booking for this trainer. Pick a different slot.' };
+        if (availability.hasShift && !inHours) return { tone: 'warn' as const, message: 'Outside this trainer’s listed shift for that day—they may still confirm manually.' };
+        if (!availability.hasShift) return { tone: 'warn' as const, message: 'No shift on file for this day; you can still request a session and the trainer will confirm.' };
+        return { tone: 'ok' as const, message: 'This time is inside their shift and does not overlap existing bookings.' };
+    })();
 
     const isUpcoming = (s: Session) => ['booked', 'confirmed'].includes(s.status);
     const filtered = filter === 'all' ? sessions : sessions.filter(s => s.status === filter);
@@ -245,15 +308,54 @@ export default function AppointmentsPage() {
             </div>
 
             {/* Book modal */}
-            <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Book a Session" description="Schedule a personal training or consultation" size="md">
+            <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Book a Session" description="See the trainer’s shift and existing bookings, then pick a time." size="lg">
                 <div className="space-y-4">
                     <Select id="appointments-trainer" label="Trainer" options={trainerOptions} value={form.trainer} onChange={e => setForm(f => ({ ...f, trainer: e.target.value }))} placeholder="Select trainer" />
                     <Select id="appointments-type" label="Session Type" options={SESSION_OPTIONS} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} placeholder="Select type" />
                     <Input id="appointments-date" label="Date" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-                    <Input id="appointments-time" label="Time" type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} />
+                    {form.trainer && form.date && (
+                        <div className="rounded-xl border border-zinc-700/80 bg-zinc-900/40 p-4 text-sm">
+                            <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-2">Trainer availability — {form.date}</p>
+                            {availabilityLoading && <p className="text-zinc-500">Loading schedule…</p>}
+                            {!availabilityLoading && availability && (
+                                <div className="space-y-3">
+                                    <div>
+                                        <p className="text-zinc-500 text-xs mb-1">Shift on this day</p>
+                                        {availability.workingWindows.length === 0 ? (
+                                            <p className="text-amber-400/90 text-sm">No published shift. You can still book; the trainer confirms when they see it.</p>
+                                        ) : (
+                                            <ul className="text-zinc-300 text-sm space-y-1">
+                                                {availability.workingWindows.map((w, i) => (
+                                                    <li key={i}>{w.start}–{w.end} <span className="text-zinc-600">({w.shiftType.replace('_', ' ')})</span></li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="text-zinc-500 text-xs mb-1">Already booked (not available)</p>
+                                        {availability.busySlots.length === 0 ? (
+                                            <p className="text-zinc-400 text-sm">No overlapping sessions — full day open aside from shift boundaries.</p>
+                                        ) : (
+                                            <ul className="text-zinc-300 text-sm space-y-1">
+                                                {availability.busySlots.map((b, i) => (
+                                                    <li key={i}>{b.startTime}–{b.endTime} <span className="text-zinc-600 capitalize">({b.status})</span></li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    <Input id="appointments-time" label="Start time (1 hour session)" type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} />
+                    {slotCheck && (
+                        <p className={`text-sm ${slotCheck.tone === 'ok' ? 'text-emerald-400' : slotCheck.tone === 'warn' ? 'text-amber-400' : 'text-rose-400'}`}>
+                            {slotCheck.message}
+                        </p>
+                    )}
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setShowModal(false)}>Cancel</LoadingButton>
-                        <LoadingButton loading={submitLoading} onClick={handleBook}>Confirm Booking</LoadingButton>
+                        <LoadingButton loading={submitLoading} disabled={slotCheck?.tone === 'bad'} onClick={handleBook}>Confirm Booking</LoadingButton>
                     </div>
                 </div>
             </Modal>

@@ -123,6 +123,17 @@ export const listTrainerPtSessions = asyncHandler(async (req: AuthRequest, res: 
 export const listAllPtSessions = asyncHandler(async (_req: AuthRequest, res: Response) => {
   res.json(response.success(await opsService.listAllPtSessions()));
 });
+
+export const getTrainerPtAvailability = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  const trainerId = String(req.query.trainerId ?? '').trim();
+  const date = String(req.query.date ?? '').trim();
+  if (!trainerId || !date) throw errors.badRequest('trainerId and date query parameters are required');
+  res.json(
+    response.success(await opsService.getTrainerPtAvailability(trainerId, date, user.id, user.role as Role)),
+  );
+});
+
 export const createPtSession = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   const payload = { ...req.body } as { memberId?: string; trainerId: string; sessionDate: string; startTime: string; endTime: string };

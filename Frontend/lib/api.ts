@@ -227,6 +227,15 @@ export interface OpsDashboard {
   systemAlertCount?: number;
 }
 
+export type TrainerPtAvailability = {
+  trainerId: string;
+  trainerName: string;
+  date: string;
+  hasShift: boolean;
+  workingWindows: Array<{ start: string; end: string; shiftType: string; status: string }>;
+  busySlots: Array<{ startTime: string; endTime: string; status: string }>;
+};
+
 /** Body shape for POST /ai/workout-plan and /ops/workouts/plans/generate */
 export type AiWorkoutPlanPreferencesPayload = {
   primaryFocus?: string;
@@ -297,6 +306,11 @@ export const opsAPI = {
     apiClient.get('/ops/pt-sessions/me').then(r => r.data.data as any[]),
   trainerPtSessions: () =>
     apiClient.get('/ops/pt-sessions/trainer').then(r => r.data.data as any[]),
+  /** Shift windows + booked/confirmed blocks for a trainer on a given date (booking helper). */
+  trainerPtAvailability: (trainerId: string, date: string) =>
+    apiClient
+      .get('/ops/pt-sessions/availability', { params: { trainerId, date } })
+      .then((r) => r.data.data as TrainerPtAvailability),
   allPtSessions: () =>
     apiClient.get('/ops/pt-sessions').then(r => r.data.data as any[]),
   createPtSession: (payload: { memberId: string; trainerId: string; sessionDate: string; startTime: string; endTime: string }) =>
@@ -500,8 +514,15 @@ export const opsAPI = {
 // ── AI API ────────────────────────────────────────────────────────────────────
 export const aiAPI = {
   health: () => apiClient.get('/ai/health').then(r => r.data.data),
-  chat: (message: string, sessionId?: string) => apiClient.post('/ai/chat', { message, sessionId }).then(r => r.data.data as { answer: string; source: 'rag' | 'gemini' | 'fallback'; sessionId: string }),
-  insights: (question?: string) => apiClient.post('/ai/insights', { question }).then(r => r.data.data as { summary: string; insights: string[]; generatedBy: 'gemini' | 'fallback' }),
+  /** Longer timeout: Gemini may take >15s for full chat replies after raising output token budget. */
+  chat: (message: string, sessionId?: string) =>
+    apiClient
+      .post('/ai/chat', { message, sessionId }, { timeout: 90_000 })
+      .then(r => r.data.data as { answer: string; source: 'rag' | 'gemini' | 'fallback'; sessionId: string }),
+  insights: (question?: string) =>
+    apiClient
+      .post('/ai/insights', { question }, { timeout: 90_000 })
+      .then(r => r.data.data as { summary: string; insights: string[]; generatedBy: 'gemini' | 'fallback' }),
   workoutPlan: (opts?: { memberId?: string; preferences?: AiWorkoutPlanPreferencesPayload }) =>
     apiClient
       .post('/ai/workout-plan', {

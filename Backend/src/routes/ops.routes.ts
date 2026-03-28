@@ -56,6 +56,11 @@ router.get('/visits', authorize('admin', 'manager', 'trainer'), ops.listVisits);
 // PT sessions
 router.get('/pt-sessions/me', authorize('member'), ops.listMyPtSessions);
 router.get('/pt-sessions/trainer', authorize('trainer'), ops.listTrainerPtSessions);
+router.get(
+  '/pt-sessions/availability',
+  authorize('member', 'trainer', 'manager', 'admin'),
+  ops.getTrainerPtAvailability,
+);
 router.get('/pt-sessions', authorize('admin', 'manager', 'trainer'), ops.listAllPtSessions);
 router.post('/pt-sessions', authorize('member', 'trainer', 'manager', 'admin'), ops.createPtSession);
 router.patch('/pt-sessions/:id', authorize('member', 'trainer', 'manager', 'admin'), ops.updatePtSession);

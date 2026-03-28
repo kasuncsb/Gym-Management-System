@@ -209,17 +209,30 @@ async function fetchTextWithTimeout(url: string, init: RequestInit, timeoutMs: n
   }
 }
 
-async function callGemini(prompt: string): Promise<string> {
+/** Gemini chat was capped at 700 tokens, cutting answers mid-sentence; chat/insights use higher budgets. */
+const GEMINI_CHAT_MAX_OUTPUT_TOKENS = 4096;
+const GEMINI_INSIGHTS_MAX_OUTPUT_TOKENS = 2048;
+
+type GeminiCallOptions = {
+  maxOutputTokens?: number;
+  temperature?: number;
+  topP?: number;
+};
+
+async function callGemini(prompt: string, options?: GeminiCallOptions): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
   const model = process.env.GEMINI_MODEL ?? GEMINI_MODEL_DEFAULT;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const maxOutputTokens = options?.maxOutputTokens ?? GEMINI_CHAT_MAX_OUTPUT_TOKENS;
+  const temperature = options?.temperature ?? 0.4;
+  const topP = options?.topP ?? 0.9;
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.4, topP: 0.9, maxOutputTokens: 700 },
+      generationConfig: { temperature, topP, maxOutputTokens },
     }),
   });
   if (!resp.ok) {
@@ -227,7 +240,14 @@ async function callGemini(prompt: string): Promise<string> {
     throw new Error(`Gemini request failed: ${resp.status} ${text}`);
   }
   const json = await resp.json() as any;
-  return json?.candidates?.[0]?.content?.parts?.[0]?.text ?? 'No response generated.';
+  const candidate = json?.candidates?.[0];
+  const textOut: string = candidate?.content?.parts?.[0]?.text ?? '';
+  if (!textOut.trim()) return 'No response generated.';
+  const finishReason = candidate?.finishReason as string | undefined;
+  if (String(finishReason ?? '').includes('MAX_TOKENS')) {
+    return `${textOut.trim()}\n\n(Reply stopped at the model length limit—you can ask a shorter follow-up for more detail.)`;
+  }
+  return textOut;
 }
 
 async function embedText(text: string): Promise<number[]> {
@@ -600,7 +620,7 @@ Using the branch context and RAG snippets above, answer in 1–3 short paragraph
   const prompt = `${systemPrompt}\n${ragContext}\n${userPrompt}`;
 
   try {
-    const answer = await callGemini(prompt);
+    const answer = await callGemini(prompt, { maxOutputTokens: GEMINI_CHAT_MAX_OUTPUT_TOKENS });
     await appendChatMessage(resolvedSessionId, user, 'assistant', answer, 'gemini');
     await logInteraction(user, {
       interactionType: 'chat',
@@ -705,7 +725,7 @@ Return concise guidance with:
 `;
 
   try {
-    const answer = await callGemini(prompt);
+    const answer = await callGemini(prompt, { maxOutputTokens: GEMINI_CHAT_MAX_OUTPUT_TOKENS });
     await appendChatMessage(resolvedSessionId, user, 'assistant', answer, 'gemini');
     await logInteraction(user, { interactionType: 'chat', promptText: message, responseText: answer, source: 'gemini', metadata: { route: 'manager_chat' } });
     return { answer, source: 'gemini', sessionId: resolvedSessionId };
@@ -879,7 +899,7 @@ Return:
 `;
 
   try {
-    const answer = await callGemini(prompt);
+    const answer = await callGemini(prompt, { maxOutputTokens: GEMINI_INSIGHTS_MAX_OUTPUT_TOKENS });
     const parsed = parseManagerInsightsAnswer(answer);
     await logInteraction(user, {
       interactionType: 'insight',

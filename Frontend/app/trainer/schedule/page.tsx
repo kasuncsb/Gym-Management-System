@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Calendar, Clock, Plus, CheckCircle, XCircle, AlertCircle, User, Star } from 'lucide-react';
+import { Calendar, Clock, Plus, XCircle, User, Star } from 'lucide-react';
 import { PageHeader, Card, Modal, Input, Select, Textarea, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
 import { getErrorMessage, opsAPI } from '@/lib/api';
@@ -48,6 +48,7 @@ export default function TrainerSchedulePage() {
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [cancelModal, setCancelModal] = useState<string | null>(null);
     const [cancelReason, setCancelReason] = useState('');
+    const [cancelSubmitting, setCancelSubmitting] = useState(false);
 
     const loadSchedule = async () => {
         const [pt, myShiftRows] = await Promise.all([
@@ -91,7 +92,7 @@ export default function TrainerSchedulePage() {
     }, []);
 
     const handleStatusUpdate = async (id: string, status: 'confirmed' | 'completed' | 'cancelled' | 'no_show', reason?: string) => {
-        setActionLoading(id + status);
+        setActionLoading(`${id}:${status}`);
         try {
             await opsAPI.updatePtSession(id, { status, cancelReason: reason });
             toast.success('Updated', `Session marked as ${status.replace('_', ' ')}.`);
@@ -105,9 +106,14 @@ export default function TrainerSchedulePage() {
 
     const handleCancel = async () => {
         if (!cancelModal) return;
-        await handleStatusUpdate(cancelModal, 'cancelled', cancelReason.trim() || 'Cancelled by trainer');
-        setCancelModal(null);
-        setCancelReason('');
+        setCancelSubmitting(true);
+        try {
+            await handleStatusUpdate(cancelModal, 'cancelled', cancelReason.trim() || 'Cancelled by trainer');
+            setCancelModal(null);
+            setCancelReason('');
+        } finally {
+            setCancelSubmitting(false);
+        }
     };
 
     const handleRequestOverride = async () => {
@@ -191,50 +197,54 @@ export default function TrainerSchedulePage() {
                                     <p className="text-zinc-500 text-sm">{s.sessionDate} · {s.startTime}–{s.endTime}</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span className={`text-xs px-2 py-1 rounded-full font-semibold capitalize ${statusStyles[s.status]}`}>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2">
+                                <span className={`text-xs px-2 py-1 rounded-full font-semibold capitalize w-fit ${statusStyles[s.status]}`}>
                                     {s.status}
                                 </span>
-                                {/* Confirm */}
+                                <div className="flex flex-wrap items-center gap-1.5 justify-end">
                                 {s.status === 'booked' && (
-                                    <button
+                                    <LoadingButton
+                                        size="sm"
+                                        variant="secondary"
+                                        className="!py-1 !px-2 text-[11px]"
+                                        loading={actionLoading === `${s.id}:confirmed`}
                                         disabled={!!actionLoading}
                                         onClick={() => handleStatusUpdate(s.id, 'confirmed')}
-                                        title="Confirm session"
-                                        className="p-1.5 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50"
                                     >
-                                        <CheckCircle size={15} />
-                                    </button>
+                                        Confirm
+                                    </LoadingButton>
                                 )}
-                                {/* Complete */}
-                                {s.status === 'confirmed' && (
-                                    <button
+                                {(s.status === 'booked' || s.status === 'confirmed') && (
+                                    <LoadingButton
+                                        size="sm"
+                                        className="!py-1 !px-2 text-[11px]"
+                                        loading={actionLoading === `${s.id}:completed`}
                                         disabled={!!actionLoading}
                                         onClick={() => handleStatusUpdate(s.id, 'completed')}
-                                        title="Mark completed"
-                                        className="p-1.5 rounded-lg bg-zinc-500/10 text-zinc-400 hover:bg-zinc-500/20 transition-colors disabled:opacity-50"
                                     >
-                                        <CheckCircle size={15} />
-                                    </button>
+                                        Mark completed
+                                    </LoadingButton>
                                 )}
-                                {/* No-show */}
-                                <button
+                                <LoadingButton
+                                    size="sm"
+                                    variant="secondary"
+                                    className="!py-1 !px-2 text-[11px] border-orange-500/30 text-orange-300"
+                                    loading={actionLoading === `${s.id}:no_show`}
                                     disabled={!!actionLoading}
                                     onClick={() => handleStatusUpdate(s.id, 'no_show')}
-                                    title="Mark no-show"
-                                    className="p-1.5 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-colors disabled:opacity-50"
                                 >
-                                    <AlertCircle size={15} />
-                                </button>
-                                {/* Cancel */}
+                                    No-show
+                                </LoadingButton>
                                 <button
+                                    type="button"
                                     disabled={!!actionLoading}
                                     onClick={() => setCancelModal(s.id)}
                                     title="Cancel session"
-                                    className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                                    className="text-[11px] px-2 py-1 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50 inline-flex items-center gap-1"
                                 >
-                                    <XCircle size={15} />
+                                    <XCircle size={12} /> Cancel
                                 </button>
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -322,7 +332,7 @@ export default function TrainerSchedulePage() {
                         </LoadingButton>
                         <LoadingButton
                             variant="danger"
-                            loading={actionLoading === cancelModal + 'cancelled'}
+                            loading={cancelSubmitting}
                             onClick={handleCancel}
                         >
                             Cancel Session

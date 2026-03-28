@@ -909,6 +909,85 @@ export async function createPtSession(
   return session;
 }
 
+/** Published shift + existing PT bookings for a trainer on a calendar day (member booking preview). */
+export async function getTrainerPtAvailability(
+  trainerId: string,
+  sessionDateRaw: string,
+  _requesterId: string,
+  requesterRole: Role,
+) {
+  if (requesterRole === 'trainer' && trainerId !== _requesterId) {
+    throw errors.forbidden('You can only view your own availability');
+  }
+
+  const [trainer] = await db
+    .select({ id: users.id, fullName: users.fullName, role: users.role })
+    .from(users)
+    .where(eq(users.id, trainerId))
+    .limit(1);
+  if (!trainer || trainer.role !== 'trainer') throw errors.notFound('Trainer');
+
+  const sessionDateObj = safeDate(sessionDateRaw);
+  const dateStr = dateOnlyIso(sessionDateObj);
+
+  const dayShifts = await db
+    .select({
+      startTime: shifts.startTime,
+      endTime: shifts.endTime,
+      status: shifts.status,
+      shiftType: shifts.shiftType,
+    })
+    .from(shifts)
+    .innerJoin(shiftLc, eq(shifts.lifecycleId, shiftLc.id))
+    .where(
+      and(
+        eq(shifts.staffId, trainerId),
+        sql`date(${shifts.shiftDate}) = ${dateStr}`,
+        sql`${shifts.status} IN ('scheduled','active','completed')`,
+      ),
+    )
+    .orderBy(shifts.startTime);
+
+  const busyRows = await db
+    .select({
+      startTime: ptSessions.startTime,
+      endTime: ptSessions.endTime,
+      status: ptSessions.status,
+    })
+    .from(ptSessions)
+    .innerJoin(ptLc, eq(ptSessions.lifecycleId, ptLc.id))
+    .where(
+      and(
+        eq(ptSessions.trainerId, trainerId),
+        sql`date(${ptSessions.sessionDate}) = ${dateStr}`,
+        sql`${ptSessions.status} IN ('booked','confirmed')`,
+      ),
+    )
+    .orderBy(ptSessions.startTime);
+
+  const workingWindows = dayShifts.map((s) => ({
+    start: String(s.startTime).slice(0, 5),
+    end: String(s.endTime).slice(0, 5),
+    shiftType: s.shiftType,
+    status: s.status,
+  }));
+
+  const busySlots = busyRows.map((b) => ({
+    startTime: String(b.startTime).slice(0, 5),
+    endTime: String(b.endTime).slice(0, 5),
+    status: b.status,
+  }));
+
+  return {
+    trainerId,
+    trainerName: trainer.fullName,
+    date: dateStr,
+    hasShift: workingWindows.length > 0,
+    workingWindows,
+    busySlots,
+  };
+}
+
 export async function updatePtSession(
   sessionId: string,
   actorId: string,
