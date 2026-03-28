@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Play, Clock, Flame, Sparkles, ChevronDown, ChevronUp, Dumbbell, Library, Trash2, ClipboardCheck } from 'lucide-react';
-import { PageHeader, Card, LoadingButton, Input } from '@/components/ui/SharedComponents';
+import { PageHeader, Card, LoadingButton, Input, Modal } from '@/components/ui/SharedComponents';
 import { aiAPI, getErrorMessage, opsAPI } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 
@@ -73,6 +73,7 @@ export default function WorkoutsPage() {
     const [expandedDay, setExpandedDay] = useState<number | null>(null);
     const [activeSession, setActiveSession] = useState<any | null>(null);
     const [removing, setRemoving] = useState(false);
+    const [planToRemove, setPlanToRemove] = useState<{ id: string; name: string } | null>(null);
     const [logOpen, setLogOpen] = useState(false);
     const [logDuration, setLogDuration] = useState('');
     const [logMood, setLogMood] = useState<'great' | 'good' | 'okay' | 'tired' | 'poor'>('good');
@@ -157,16 +158,16 @@ export default function WorkoutsPage() {
 
     const days = active?.program?.days ?? [];
 
-    const handleRemovePlan = async () => {
-        if (!active || !isAssignedPlan) return;
-        if (!globalThis.confirm(`Remove “${active.name}” from My programmes? You can ask your trainer to assign it again later.`)) return;
+    const confirmRemovePlan = async () => {
+        if (!planToRemove) return;
         setRemoving(true);
         try {
-            await opsAPI.removeMyWorkoutPlan(active.id);
+            await opsAPI.removeMyWorkoutPlan(planToRemove.id);
             toast.success('Plan removed', 'This programme is no longer in My programmes.');
-            if (selected === active.id) setSelected(null);
+            if (selected === planToRemove.id) setSelected(null);
             loadPlans();
             setPlanDetail(null);
+            setPlanToRemove(null);
         } catch (err) {
             toast.error('Error', getErrorMessage(err));
         } finally {
@@ -352,8 +353,7 @@ export default function WorkoutsPage() {
                                     icon={Trash2}
                                     size="sm"
                                     variant="secondary"
-                                    loading={removing}
-                                    onClick={handleRemovePlan}
+                                    onClick={() => setPlanToRemove({ id: active.id, name: active.name })}
                                 >
                                     Remove
                                 </LoadingButton>
@@ -512,6 +512,27 @@ export default function WorkoutsPage() {
                 )}
             </div>
             )}
+
+            <Modal
+                isOpen={!!planToRemove}
+                onClose={() => { if (!removing) setPlanToRemove(null); }}
+                title="Remove programme?"
+                description={
+                    planToRemove
+                        ? `“${planToRemove.name}” will be removed from My programmes. You can ask your trainer to assign it again later.`
+                        : undefined
+                }
+                size="sm"
+            >
+                <div className="flex flex-wrap justify-end gap-3 pt-2">
+                    <LoadingButton variant="secondary" disabled={removing} onClick={() => setPlanToRemove(null)}>
+                        Cancel
+                    </LoadingButton>
+                    <LoadingButton variant="danger" loading={removing} onClick={() => void confirmRemovePlan()}>
+                        Remove
+                    </LoadingButton>
+                </div>
+            </Modal>
         </div>
     );
 }

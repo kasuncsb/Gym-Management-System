@@ -282,7 +282,7 @@ export function Modal({ isOpen, open, onClose, title, description, children, siz
     if (!(isOpen ?? open)) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
             {/* Overlay */}
             <div
                 className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
