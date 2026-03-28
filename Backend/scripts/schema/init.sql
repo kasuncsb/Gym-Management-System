@@ -29,6 +29,8 @@ INSERT INTO `config` (`key`, `value`) VALUES
   ('db_backup_frequency', 'daily'),
   ('ai_chat_rate_limit_per_minute', '20'),
   ('pt_booking_advance_days_max', '60'),
+  ('gym_open_time',   '06:00'),
+  ('gym_close_time',  '22:00'),
   ('session_idle_timeout_minutes', '30'),
   ('email_queue_max_attempts', '5'),
   ('maintenance_mode', 'false'),

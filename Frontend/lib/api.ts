@@ -227,6 +227,17 @@ export interface OpsDashboard {
   systemAlertCount?: number;
 }
 
+/** Branch PT booking constraints (config + calendar day context when returned from availability). */
+export type PtBookingRules = {
+  timezone: string;
+  gymOpen: string;
+  gymClose: string;
+  minBookDate: string;
+  maxBookDate: string;
+  advanceDaysMax: number;
+  isClosedDay?: boolean;
+};
+
 export type TrainerPtAvailability = {
   trainerId: string;
   trainerName: string;
@@ -234,6 +245,7 @@ export type TrainerPtAvailability = {
   hasShift: boolean;
   workingWindows: Array<{ start: string; end: string; shiftType: string; status: string }>;
   busySlots: Array<{ startTime: string; endTime: string; status: string }>;
+  bookingRules: PtBookingRules;
 };
 
 /** Body shape for POST /ai/workout-plan and /ops/workouts/plans/generate */
@@ -311,6 +323,8 @@ export const opsAPI = {
     apiClient
       .get('/ops/pt-sessions/availability', { params: { trainerId, date } })
       .then((r) => r.data.data as TrainerPtAvailability),
+  ptBookingRules: () =>
+    apiClient.get('/ops/pt-sessions/booking-rules').then((r) => r.data.data as PtBookingRules),
   allPtSessions: () =>
     apiClient.get('/ops/pt-sessions').then(r => r.data.data as any[]),
   createPtSession: (payload: { memberId: string; trainerId: string; sessionDate: string; startTime: string; endTime: string }) =>

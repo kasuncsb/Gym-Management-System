@@ -61,6 +61,11 @@ router.get(
   authorize('member', 'trainer', 'manager', 'admin'),
   ops.getTrainerPtAvailability,
 );
+router.get(
+  '/pt-sessions/booking-rules',
+  authorize('member', 'trainer', 'manager', 'admin'),
+  ops.getPtBookingRules,
+);
 router.get('/pt-sessions', authorize('admin', 'manager', 'trainer'), ops.listAllPtSessions);
 router.post('/pt-sessions', authorize('member', 'trainer', 'manager', 'admin'), ops.createPtSession);
 router.patch('/pt-sessions/:id', authorize('member', 'trainer', 'manager', 'admin'), ops.updatePtSession);

@@ -3,23 +3,14 @@
 import { useEffect, useState } from 'react';
 import { Play, Clock, Flame, Sparkles, ChevronDown, ChevronUp, Dumbbell, Library, Trash2, ClipboardCheck } from 'lucide-react';
 import { PageHeader, Card, LoadingButton, Input, Modal } from '@/components/ui/SharedComponents';
-import { aiAPI, getErrorMessage, opsAPI, type AiWorkoutPlanPreferencesPayload } from '@/lib/api';
+import { getErrorMessage, opsAPI } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 
 type DifficultyFilter = 'beginner' | 'intermediate' | 'advanced';
 
-const selectFieldClass =
-    'w-full bg-zinc-900 text-white border border-zinc-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-red-600 focus:border-red-600';
-
-const AI_PLAN_PREF_DEFAULTS: AiWorkoutPlanPreferencesPayload = {
-    primaryFocus: 'General fitness & health',
-    daysPerWeek: '3 days per week',
-    sessionLength: '45–55 minutes',
-    equipmentAccess: 'Full gym — machines & free weights',
-    emphasis: 'Balanced full body',
-    avoidOrInjuries: '',
-    extraNotes: '',
-};
+/** Opens the member AI chat to co-design a plan; user says "Save my workout plan" when ready (server persists to DB). */
+const AI_WORKOUT_PLAN_CHAT_INTRO =
+    'I want a new personalised workout plan saved to My programmes at PowerWorld Kiribathgoda. Ask me short questions (goals, days per week, session length, equipment, injuries, what to emphasise). When we are aligned, I will say: Save my workout plan — please create and save it then. Start with your first question.';
 
 interface Plan {
     id: string;
@@ -179,7 +170,6 @@ export default function WorkoutsPage() {
     const [loadingDetail, setLoadingDetail] = useState(false);
     const [filter, setFilter] = useState<DifficultyFilter | 'all'>('all');
     const [starting, setStarting] = useState(false);
-    const [generating, setGenerating] = useState(false);
     const [expandedDay, setExpandedDay] = useState<number | null>(null);
     const [activeSession, setActiveSession] = useState<any | null>(null);
     const [removing, setRemoving] = useState(false);
@@ -189,8 +179,6 @@ export default function WorkoutsPage() {
     const [logMood, setLogMood] = useState<'great' | 'good' | 'okay' | 'tired' | 'poor'>('good');
     const [logging, setLogging] = useState(false);
     const [heroImageError, setHeroImageError] = useState(false);
-    const [aiPlanModalOpen, setAiPlanModalOpen] = useState(false);
-    const [aiPrefs, setAiPrefs] = useState<AiWorkoutPlanPreferencesPayload>(() => ({ ...AI_PLAN_PREF_DEFAULTS }));
 
     const loadPlans = () => {
         opsAPI.myWorkoutPlans()
@@ -208,6 +196,14 @@ export default function WorkoutsPage() {
         opsAPI.workoutLibrary()
             .then((d) => setLibraryPlans((d ?? []) as Plan[]))
             .catch(() => setLibraryPlans([]));
+    }, []);
+
+    useEffect(() => {
+        const onRefresh = () => {
+            loadPlans();
+        };
+        window.addEventListener('pw:workout-plans-refresh', onRefresh);
+        return () => window.removeEventListener('pw:workout-plans-refresh', onRefresh);
     }, []);
 
     useEffect(() => {
@@ -256,23 +252,13 @@ export default function WorkoutsPage() {
     const active = planDetail;
     const isAssignedPlan = plans.some(p => p.id === selected);
 
-    const handleGenerateAiPlan = async () => {
-        setGenerating(true);
-        try {
-            await aiAPI.workoutPlan({ preferences: aiPrefs });
-            toast.success('Plan ready', 'New programme added to My programmes.');
-            loadPlans();
-            setAiPlanModalOpen(false);
-        } catch (err) {
-            toast.error('Error', getErrorMessage(err));
-        } finally {
-            setGenerating(false);
-        }
-    };
-
-    const openAiPlanModal = () => {
-        setAiPrefs({ ...AI_PLAN_PREF_DEFAULTS });
-        setAiPlanModalOpen(true);
+    const openAiPlanChat = () => {
+        window.dispatchEvent(
+            new CustomEvent('pw:ai-chat-prefill', {
+                detail: { role: 'member' as const, message: AI_WORKOUT_PLAN_CHAT_INTRO, resetSession: true },
+            }),
+        );
+        toast.success('Assistant opened', 'Chat there to shape your plan — say “Save my workout plan” when you are ready.');
     };
 
     const days = active?.program?.days ?? [];
@@ -366,8 +352,7 @@ export default function WorkoutsPage() {
                     icon={Sparkles}
                     size="sm"
                     variant="secondary"
-                    loading={generating}
-                    onClick={openAiPlanModal}
+                    onClick={openAiPlanChat}
                 >
                     Generate plan
                 </LoadingButton>
@@ -387,7 +372,7 @@ export default function WorkoutsPage() {
                         {filterExcludesAll
                             ? 'Switch to All Levels or pick another difficulty to see programmes again.'
                             : listTab === 'mine'
-                                ? 'Use Generate plan above or ask your trainer to assign one.'
+                                ? 'Use Generate plan to open the AI assistant, or ask your trainer to assign one.'
                                 : 'Try again later or contact support if programmes should appear here.'}
                     </p>
                 </Card>
@@ -687,106 +672,6 @@ export default function WorkoutsPage() {
                 </div>
             </div>
             )}
-
-            <Modal
-                isOpen={aiPlanModalOpen}
-                onClose={() => { if (!generating) setAiPlanModalOpen(false); }}
-                title="Quick questions from your AI coach"
-                description="Answer below — each new plan uses your latest answers so training stays relevant."
-                size="lg"
-            >
-                <div className="space-y-5">
-                    <div>
-                        <p className="text-xs font-medium text-zinc-400 mb-1.5">What should we focus on in this block?</p>
-                        <select
-                            className={selectFieldClass}
-                            value={aiPrefs.primaryFocus ?? ''}
-                            onChange={(e) => setAiPrefs((p) => ({ ...p, primaryFocus: e.target.value }))}
-                        >
-                            <option>General fitness & health</option>
-                            <option>Fat loss & conditioning</option>
-                            <option>Muscle & size (hypertrophy)</option>
-                            <option>Strength</option>
-                            <option>Athletic performance & power</option>
-                            <option>Moving better / mobility support</option>
-                        </select>
-                    </div>
-                    <div>
-                        <p className="text-xs font-medium text-zinc-400 mb-1.5">How many days per week can you train?</p>
-                        <select
-                            className={selectFieldClass}
-                            value={aiPrefs.daysPerWeek ?? ''}
-                            onChange={(e) => setAiPrefs((p) => ({ ...p, daysPerWeek: e.target.value }))}
-                        >
-                            <option>3 days per week</option>
-                            <option>4 days per week</option>
-                            <option>5 days per week</option>
-                        </select>
-                    </div>
-                    <div>
-                        <p className="text-xs font-medium text-zinc-400 mb-1.5">Typical session length?</p>
-                        <select
-                            className={selectFieldClass}
-                            value={aiPrefs.sessionLength ?? ''}
-                            onChange={(e) => setAiPrefs((p) => ({ ...p, sessionLength: e.target.value }))}
-                        >
-                            <option>~30–40 minutes</option>
-                            <option>45–55 minutes</option>
-                            <option>60+ minutes</option>
-                        </select>
-                    </div>
-                    <div>
-                        <p className="text-xs font-medium text-zinc-400 mb-1.5">What equipment will you use at the club?</p>
-                        <select
-                            className={selectFieldClass}
-                            value={aiPrefs.equipmentAccess ?? ''}
-                            onChange={(e) => setAiPrefs((p) => ({ ...p, equipmentAccess: e.target.value }))}
-                        >
-                            <option>Full gym — machines & free weights</option>
-                            <option>Mostly machines & cables</option>
-                            <option>Dumbbells & cables / busy floor</option>
-                            <option>Minimal kit — small space or travel days</option>
-                        </select>
-                    </div>
-                    <div>
-                        <p className="text-xs font-medium text-zinc-400 mb-1.5">Where do you want a little extra emphasis?</p>
-                        <select
-                            className={selectFieldClass}
-                            value={aiPrefs.emphasis ?? ''}
-                            onChange={(e) => setAiPrefs((p) => ({ ...p, emphasis: e.target.value }))}
-                        >
-                            <option>Balanced full body</option>
-                            <option>Upper body</option>
-                            <option>Lower body & glutes</option>
-                            <option>Core & conditioning</option>
-                        </select>
-                    </div>
-                    <Input
-                        label="Injuries, pain, or movements to avoid? (optional)"
-                        placeholder="e.g. sore shoulder — limit overhead pressing"
-                        value={aiPrefs.avoidOrInjuries ?? ''}
-                        onChange={(e) => setAiPrefs((p) => ({ ...p, avoidOrInjuries: e.target.value }))}
-                    />
-                    <Input
-                        label="Anything else the coach should know? (optional)"
-                        placeholder="e.g. prefer machines after leg day"
-                        value={aiPrefs.extraNotes ?? ''}
-                        onChange={(e) => setAiPrefs((p) => ({ ...p, extraNotes: e.target.value }))}
-                    />
-                    <div className="flex flex-wrap justify-end gap-3 pt-2">
-                        <LoadingButton variant="secondary" disabled={generating} onClick={() => setAiPlanModalOpen(false)}>
-                            Cancel
-                        </LoadingButton>
-                        <LoadingButton
-                            icon={Sparkles}
-                            loading={generating}
-                            onClick={() => void handleGenerateAiPlan()}
-                        >
-                            Generate my plan
-                        </LoadingButton>
-                    </div>
-                </div>
-            </Modal>
 
             <Modal
                 isOpen={!!planToRemove}

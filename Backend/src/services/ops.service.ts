@@ -46,7 +46,7 @@ import { errors } from '../utils/errors.js';
 import { hashPassword } from '../utils/password.js';
 import { assertMemberCanPurchaseSubscription } from './auth.service.js';
 import * as audit from './audit.service.js';
-import { getConfigValue } from './config.service.js';
+import { getConfigValue, getConfigInt } from './config.service.js';
 import { generateInvoiceEmailHTML, sendEmail } from '../utils/email.js';
 import {
   buildProgramFromAiExercises,
@@ -91,6 +91,154 @@ function safeDate(v: unknown): Date {
   const d = new Date(v as string);
   if (isNaN(d.getTime())) throw errors.badRequest(`Invalid date: ${String(v)}`);
   return d;
+}
+
+const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseClockToMinutes(raw: string): number | null {
+  const s = raw.trim();
+  const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(s);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(min) || h < 0 || h > 23 || min < 0 || min > 59) return null;
+  return h * 60 + min;
+}
+
+function formatMinutesAsHHMM(total: number): string {
+  const h = Math.floor(total / 60);
+  const min = total % 60;
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+}
+
+function getZonedYmdAndMinutes(timeZone: string, d = new Date()): { ymd: string; minutes: number } {
+  const tz = (timeZone || 'UTC').trim() || 'UTC';
+  try {
+    const dtf = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
+    const parts = dtf.formatToParts(d);
+    const y = parts.find((p) => p.type === 'year')?.value;
+    const mo = parts.find((p) => p.type === 'month')?.value;
+    const da = parts.find((p) => p.type === 'day')?.value;
+    const ymd = `${y}-${mo}-${da}`;
+    const tf = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false });
+    const tp = tf.formatToParts(d);
+    const hh = Number(tp.find((p) => p.type === 'hour')?.value ?? '0');
+    const mm = Number(tp.find((p) => p.type === 'minute')?.value ?? '0');
+    return { ymd, minutes: hh * 60 + mm };
+  } catch {
+    return getZonedYmdAndMinutes('UTC', d);
+  }
+}
+
+function addCalendarDaysFromYmd(ymd: string, days: number): string {
+  const [y, mo, d] = ymd.split('-').map((x) => Number(x));
+  if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return ymd;
+  const u = Date.UTC(y, mo - 1, d) + days * 86_400_000;
+  return new Date(u).toISOString().slice(0, 10);
+}
+
+type PtBookingRulesInternal = {
+  timezone: string;
+  gymOpen: string;
+  gymClose: string;
+  gymOpenMinutes: number;
+  gymCloseMinutes: number;
+  minBookDate: string;
+  maxBookDate: string;
+  todayYmd: string;
+  nowMinutes: number;
+  advanceDaysMax: number;
+};
+
+async function loadPtBookingRules(): Promise<PtBookingRulesInternal> {
+  const timezone = (await getConfigValue('timezone', 'Asia/Colombo')).trim() || 'Asia/Colombo';
+  const openRaw = await getConfigValue('gym_open_time', '06:00');
+  const closeRaw = await getConfigValue('gym_close_time', '22:00');
+  const advanceDaysMax = await getConfigInt('pt_booking_advance_days_max', 60);
+  let openM = parseClockToMinutes(openRaw);
+  let closeM = parseClockToMinutes(closeRaw);
+  if (openM == null) openM = 6 * 60;
+  if (closeM == null) closeM = 22 * 60;
+  if (openM >= closeM) {
+    throw errors.badRequest('Gym opening hours are misconfigured (open time must be before close time).');
+  }
+  const { ymd: todayYmd, minutes: nowMinutes } = getZonedYmdAndMinutes(timezone);
+  const maxBookDate = addCalendarDaysFromYmd(todayYmd, Math.max(0, advanceDaysMax));
+  return {
+    timezone,
+    gymOpen: formatMinutesAsHHMM(openM),
+    gymClose: formatMinutesAsHHMM(closeM),
+    gymOpenMinutes: openM,
+    gymCloseMinutes: closeM,
+    minBookDate: todayYmd,
+    maxBookDate,
+    todayYmd,
+    nowMinutes,
+    advanceDaysMax,
+  };
+}
+
+export async function getPtBookingRules() {
+  const r = await loadPtBookingRules();
+  return {
+    timezone: r.timezone,
+    gymOpen: r.gymOpen,
+    gymClose: r.gymClose,
+    minBookDate: r.minBookDate,
+    maxBookDate: r.maxBookDate,
+    advanceDaysMax: r.advanceDaysMax,
+  };
+}
+
+async function isBranchClosedOnDate(dateStr: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: branchClosures.id })
+    .from(branchClosures)
+    .innerJoin(bcLc, eq(branchClosures.lifecycleId, bcLc.id))
+    .where(and(sql`date(${branchClosures.closureDate}) = ${dateStr}`, isNull(bcLc.deletedAt)))
+    .limit(1);
+  return rows.length > 0;
+}
+
+async function assertPtSessionWithinBranchRules(
+  dateStr: string,
+  startTime: string,
+  endTime: string,
+) {
+  const rules = await loadPtBookingRules();
+  if (!YMD_RE.test(dateStr)) throw errors.badRequest('Invalid session date');
+
+  if (dateStr < rules.minBookDate) {
+    throw errors.badRequest('Cannot book sessions on past dates.');
+  }
+  if (dateStr > rules.maxBookDate) {
+    throw errors.badRequest(
+      `Bookings can only be made up to ${rules.advanceDaysMax} days in advance (last day: ${rules.maxBookDate}).`,
+    );
+  }
+
+  if (await isBranchClosedOnDate(dateStr)) {
+    throw errors.badRequest('The gym is closed on this date; choose another day.');
+  }
+
+  const startM = parseClockToMinutes(startTime);
+  const endM = parseClockToMinutes(endTime);
+  if (startM == null || endM == null) {
+    throw errors.badRequest('startTime and endTime must be valid HH:MM or HH:MM:SS values.');
+  }
+  if (startM >= endM) {
+    throw errors.badRequest('Session end time must be after start time.');
+  }
+
+  if (dateStr === rules.todayYmd && startM < rules.nowMinutes) {
+    throw errors.badRequest('Cannot book a session that has already started.');
+  }
+
+  if (startM < rules.gymOpenMinutes || endM > rules.gymCloseMinutes) {
+    throw errors.badRequest(
+      `Session must fall entirely within gym hours (${rules.gymOpen}–${rules.gymClose}, ${rules.timezone}).`,
+    );
+  }
 }
 
 export function hashPaymentInstrument(pan: string): { fullHash: string; lastFour: string | null } {
@@ -862,12 +1010,15 @@ export async function listAllPtSessions() {
 export async function createPtSession(
   input: { memberId: string; trainerId: string; sessionDate: string; startTime: string; endTime: string },
 ) {
-  const sessionDateObj = safeDate(input.sessionDate);
+  const dateStr = String(input.sessionDate ?? '').trim().slice(0, 10);
+  if (!YMD_RE.test(dateStr)) throw errors.badRequest('sessionDate must be YYYY-MM-DD');
+  const sessionDateObj = safeDate(dateStr);
+  await assertPtSessionWithinBranchRules(dateStr, input.startTime, input.endTime);
 
   // Trainer overlap check
   const trainerConflict = await db.select({ id: ptSessions.id }).from(ptSessions).where(and(
     eq(ptSessions.trainerId, input.trainerId),
-    sql`date(${ptSessions.sessionDate}) = ${dateOnlyIso(sessionDateObj)}`,
+    sql`date(${ptSessions.sessionDate}) = ${dateStr}`,
     sql`${ptSessions.status} IN ('booked','confirmed')`,
     sql`${ptSessions.startTime} < ${input.endTime} AND ${ptSessions.endTime} > ${input.startTime}`,
   )).limit(1);
@@ -876,7 +1027,7 @@ export async function createPtSession(
   // Member double-booking check
   const memberConflict = await db.select({ id: ptSessions.id }).from(ptSessions).where(and(
     eq(ptSessions.memberId, input.memberId),
-    sql`date(${ptSessions.sessionDate}) = ${dateOnlyIso(sessionDateObj)}`,
+    sql`date(${ptSessions.sessionDate}) = ${dateStr}`,
     sql`${ptSessions.status} IN ('booked','confirmed')`,
     sql`${ptSessions.startTime} < ${input.endTime} AND ${ptSessions.endTime} > ${input.startTime}`,
   )).limit(1);
@@ -927,8 +1078,10 @@ export async function getTrainerPtAvailability(
     .limit(1);
   if (!trainer || trainer.role !== 'trainer') throw errors.notFound('Trainer');
 
-  const sessionDateObj = safeDate(sessionDateRaw);
-  const dateStr = dateOnlyIso(sessionDateObj);
+  const rawDate = String(sessionDateRaw ?? '').trim();
+  const dateStr = YMD_RE.test(rawDate.slice(0, 10)) ? rawDate.slice(0, 10) : dateOnlyIso(safeDate(sessionDateRaw));
+
+  const [rules, isClosedDay] = await Promise.all([loadPtBookingRules(), isBranchClosedOnDate(dateStr)]);
 
   const dayShifts = await db
     .select({
@@ -985,6 +1138,15 @@ export async function getTrainerPtAvailability(
     hasShift: workingWindows.length > 0,
     workingWindows,
     busySlots,
+    bookingRules: {
+      timezone: rules.timezone,
+      gymOpen: rules.gymOpen,
+      gymClose: rules.gymClose,
+      minBookDate: rules.minBookDate,
+      maxBookDate: rules.maxBookDate,
+      advanceDaysMax: rules.advanceDaysMax,
+      isClosedDay,
+    },
   };
 }
 

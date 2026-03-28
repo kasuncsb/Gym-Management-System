@@ -5,7 +5,7 @@ import { Calendar, Clock, User, Plus, X, CheckCircle, Star } from 'lucide-react'
 import { PageHeader, Card, Modal, Input, Select, Textarea, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
 import axios from 'axios';
-import { getErrorMessage, opsAPI, type TrainerPtAvailability } from '@/lib/api';
+import { getErrorMessage, opsAPI, type PtBookingRules, type TrainerPtAvailability } from '@/lib/api';
 
 function timeToMinutes(t: string): number {
     const [h, m] = t.split(':').map((x) => Number(x));
@@ -22,6 +22,12 @@ function slotInsideWorkingHours(slotStart: string, slotEnd: string, windows: Tra
     const a = timeToMinutes(slotStart);
     const b = timeToMinutes(slotEnd);
     return windows.some((w) => a >= timeToMinutes(w.start) && b <= timeToMinutes(w.end));
+}
+
+function slotInsideGymHours(slotStart: string, slotEnd: string, gymOpen: string, gymClose: string): boolean {
+    const a = timeToMinutes(slotStart);
+    const b = timeToMinutes(slotEnd);
+    return a >= timeToMinutes(gymOpen) && b <= timeToMinutes(gymClose);
 }
 
 interface Session {
@@ -71,6 +77,7 @@ export default function AppointmentsPage() {
     const [rateLoading, setRateLoading] = useState(false);
     const [availability, setAvailability] = useState<TrainerPtAvailability | null>(null);
     const [availabilityLoading, setAvailabilityLoading] = useState(false);
+    const [bookingRules, setBookingRules] = useState<PtBookingRules | null>(null);
 
     const loadSessions = async () => {
         try {
@@ -98,6 +105,24 @@ export default function AppointmentsPage() {
     };
 
     useEffect(() => { loadSessions(); }, []);
+
+    useEffect(() => {
+        if (!showModal) {
+            return;
+        }
+        let cancelled = false;
+        opsAPI
+            .ptBookingRules()
+            .then((r) => {
+                if (!cancelled) setBookingRules(r);
+            })
+            .catch(() => {
+                if (!cancelled) setBookingRules(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [showModal]);
 
     useEffect(() => {
         if (!showModal || !form.trainer || !form.date) {
@@ -133,14 +158,33 @@ export default function AppointmentsPage() {
     })();
 
     const slotCheck = (() => {
+        const rules = availability?.bookingRules ?? bookingRules;
+        if (form.date && rules) {
+            if (form.date < rules.minBookDate || form.date > rules.maxBookDate) {
+                return {
+                    tone: 'bad' as const,
+                    message: `Pick a date between ${rules.minBookDate} and ${rules.maxBookDate} (branch ${rules.timezone}).`,
+                };
+            }
+        }
+        if (availability?.bookingRules?.isClosedDay) {
+            return { tone: 'bad' as const, message: 'The gym is closed on this date. Choose another day.' };
+        }
         if (!availability || !slotPreview) return null;
         const { startShort, endShort } = slotPreview;
+        const br = availability.bookingRules;
+        if (!slotInsideGymHours(startShort, endShort, br.gymOpen, br.gymClose)) {
+            return {
+                tone: 'bad' as const,
+                message: `Your one-hour session must fit within gym hours (${br.gymOpen}–${br.gymClose}, ${br.timezone}).`,
+            };
+        }
         const clashes = availability.busySlots.some((b) => slotOverlapsBusy(startShort, endShort, b.startTime, b.endTime));
         const inHours = slotInsideWorkingHours(startShort, endShort, availability.workingWindows);
         if (clashes) return { tone: 'bad' as const, message: 'This time overlaps another booking for this trainer. Pick a different slot.' };
         if (availability.hasShift && !inHours) return { tone: 'warn' as const, message: 'Outside this trainer’s listed shift for that day—they may still confirm manually.' };
         if (!availability.hasShift) return { tone: 'warn' as const, message: 'No shift on file for this day; you can still request a session and the trainer will confirm.' };
-        return { tone: 'ok' as const, message: 'This time is inside their shift and does not overlap existing bookings.' };
+        return { tone: 'ok' as const, message: 'This time is inside their shift, within gym hours, and does not overlap existing bookings.' };
     })();
 
     const isUpcoming = (s: Session) => ['booked', 'confirmed'].includes(s.status);
@@ -149,6 +193,10 @@ export default function AppointmentsPage() {
     const handleBook = async () => {
         if (!form.trainer || !form.date || !form.time || !form.type) {
             toast.error('Validation Error', 'Please fill all fields');
+            return;
+        }
+        if (slotCheck?.tone === 'bad') {
+            toast.error('Cannot book', slotCheck.message);
             return;
         }
         setSubmitLoading(true);
@@ -169,6 +217,8 @@ export default function AppointmentsPage() {
         } catch (err) {
             if (axios.isAxiosError(err) && err.response?.status === 409) {
                 toast.error('Time Slot Unavailable', 'This time slot is already booked — please choose a different time.');
+            } else if (axios.isAxiosError(err) && err.response?.status === 400) {
+                toast.error('Cannot book session', getErrorMessage(err));
             } else {
                 toast.error('Error', getErrorMessage(err));
             }
@@ -312,7 +362,20 @@ export default function AppointmentsPage() {
                 <div className="space-y-4">
                     <Select id="appointments-trainer" label="Trainer" options={trainerOptions} value={form.trainer} onChange={e => setForm(f => ({ ...f, trainer: e.target.value }))} placeholder="Select trainer" />
                     <Select id="appointments-type" label="Session Type" options={SESSION_OPTIONS} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} placeholder="Select type" />
-                    <Input id="appointments-date" label="Date" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+                    <Input
+                        id="appointments-date"
+                        label="Date"
+                        type="date"
+                        value={form.date}
+                        min={bookingRules?.minBookDate}
+                        max={bookingRules?.maxBookDate}
+                        onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                    />
+                    {bookingRules && (
+                        <p className="text-zinc-500 text-xs -mt-2">
+                            Branch hours {bookingRules.gymOpen}–{bookingRules.gymClose} ({bookingRules.timezone}). Book up to {bookingRules.advanceDaysMax} days ahead.
+                        </p>
+                    )}
                     {form.trainer && form.date && (
                         <div className="rounded-xl border border-zinc-700/80 bg-zinc-900/40 p-4 text-sm">
                             <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-2">Trainer availability — {form.date}</p>
@@ -355,7 +418,21 @@ export default function AppointmentsPage() {
                     )}
                     <div className="flex justify-end gap-3 pt-2">
                         <LoadingButton variant="secondary" onClick={() => setShowModal(false)}>Cancel</LoadingButton>
-                        <LoadingButton loading={submitLoading} disabled={slotCheck?.tone === 'bad'} onClick={handleBook}>Confirm Booking</LoadingButton>
+                        <LoadingButton
+                            loading={submitLoading}
+                            disabled={
+                                slotCheck?.tone === 'bad'
+                                || !form.trainer
+                                || !form.date
+                                || !form.time
+                                || !form.type
+                                || availabilityLoading
+                                || !!(form.trainer && form.date && !availability && !availabilityLoading)
+                            }
+                            onClick={handleBook}
+                        >
+                            Confirm Booking
+                        </LoadingButton>
                     </div>
                 </div>
             </Modal>

@@ -134,6 +134,10 @@ export const getTrainerPtAvailability = asyncHandler(async (req: AuthRequest, re
   );
 });
 
+export const getPtBookingRules = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  res.json(response.success(await opsService.getPtBookingRules()));
+});
+
 export const createPtSession = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   const payload = { ...req.body } as { memberId?: string; trainerId: string; sessionDate: string; startTime: string; endTime: string };

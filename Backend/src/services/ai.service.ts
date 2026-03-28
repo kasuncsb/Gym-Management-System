@@ -1,5 +1,6 @@
 import type { AuthUser } from '../middleware/auth.js';
-import type { AiWorkoutPlanPreferences } from '../validators/aiWorkoutPlanPreferences.js';
+import { parseWorkoutPlanPreferences, type AiWorkoutPlanPreferences } from '../validators/aiWorkoutPlanPreferences.js';
+import { AppError } from '../utils/errors.js';
 import {
   getDashboard,
   getMySubscriptions,
@@ -171,6 +172,32 @@ function renderHistoryForPrompt(history: Array<{ role: 'user' | 'assistant'; con
     .join('\n');
 }
 
+function formatHistoryTranscript(history: Array<{ role: 'user' | 'assistant'; content: string }>): string {
+  return history
+    .map((m) => `${m.role === 'user' ? 'Member' : 'Assistant'}: ${m.content}`.trim())
+    .filter(Boolean)
+    .join('\n');
+}
+
+/** Member asks to persist a new AI plan from the current chat (after Q&A in the assistant). */
+function memberRequestsWorkoutPlanSave(message: string): boolean {
+  const t = message.trim().toLowerCase();
+  if (t.length < 6) return false;
+  const phrases = [
+    'save my workout plan',
+    'save this workout plan',
+    'save this plan',
+    'create and save my plan',
+    'save my plan',
+    'generate and save my workout plan',
+    'save the plan to my programmes',
+    'save it to my programmes',
+    'add this plan to my programmes',
+    'add the plan to my programmes',
+  ];
+  return phrases.some((p) => t.includes(p));
+}
+
 function scoreDoc(message: string, doc: TrainingDoc): number {
   const text = message.toLowerCase();
   let score = 0;
@@ -248,6 +275,60 @@ async function callGemini(prompt: string, options?: GeminiCallOptions): Promise<
     return `${textOut.trim()}\n\n(Reply stopped at the model length limit—you can ask a shorter follow-up for more detail.)`;
   }
   return textOut;
+}
+
+async function extractWorkoutPreferencesFromChatTranscript(transcript: string): Promise<AiWorkoutPlanPreferences | undefined> {
+  if (!transcript.trim() || !process.env.GEMINI_API_KEY) return undefined;
+  try {
+    const prompt = `Extract workout plan preferences from this gym chat. Return ONLY valid JSON with optional string fields:
+primaryFocus, daysPerWeek, sessionLength, equipmentAccess, emphasis, avoidOrInjuries, extraNotes.
+Use concise phrases. Omit a key if unknown. No markdown.
+
+Transcript:
+${transcript.slice(0, 14_000)}`;
+    const raw = await callGemini(prompt, { maxOutputTokens: 900, temperature: 0.1 });
+    const clean = raw.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(clean) as unknown;
+    return parseWorkoutPlanPreferences(parsed);
+  } catch {
+    return undefined;
+  }
+}
+
+async function handleMemberWorkoutPlanSaveFromChat(
+  user: AuthUser,
+  message: string,
+  resolvedSessionId: string,
+  history: Array<{ role: 'user' | 'assistant'; content: string }>,
+): Promise<{ answer: string; source: 'gemini' | 'fallback'; sessionId: string }> {
+  try {
+    const transcript = formatHistoryTranscript(history);
+    const preferences = await extractWorkoutPreferencesFromChatTranscript(transcript);
+    const plan = await createAiWorkoutPlan(user, { preferences });
+    const title = plan.name?.trim() || 'Your new plan';
+    const answer = `All set — **${title}** is saved under **Workouts → My programmes**. Open it there to review each day and start training when you are ready.`;
+    await appendChatMessage(resolvedSessionId, user, 'assistant', answer, 'gemini');
+    await logInteraction(user, {
+      interactionType: 'chat',
+      promptText: message,
+      responseText: answer,
+      source: 'gemini',
+      metadata: { route: 'member_chat_workout_plan_saved', planId: plan.id ?? null },
+    });
+    return { answer, source: 'gemini', sessionId: resolvedSessionId };
+  } catch (err) {
+    const msg = err instanceof AppError ? err.message : err instanceof Error ? err.message : 'Could not create your plan.';
+    const answer = `I could not save your plan: ${msg}`;
+    await appendChatMessage(resolvedSessionId, user, 'assistant', answer, 'fallback');
+    await logInteraction(user, {
+      interactionType: 'chat',
+      promptText: message,
+      responseText: answer,
+      source: 'fallback',
+      metadata: { route: 'member_chat_workout_plan_save_failed', error: String(msg).slice(0, 500) },
+    });
+    return { answer, source: 'fallback', sessionId: resolvedSessionId };
+  }
 }
 
 async function embedText(text: string): Promise<number[]> {
@@ -567,8 +648,33 @@ async function buildManagerTrendContext(userId: string): Promise<string> {
 
 export async function memberChat(user: AuthUser, message: string, sessionId?: string): Promise<{ answer: string; source: 'rag' | 'gemini' | 'fallback'; sessionId: string }> {
   const resolvedSessionId = await ensureChatSession(user, 'member', sessionId);
+  try {
+    return await runMemberChat(user, message, resolvedSessionId);
+  } catch (err) {
+    console.error('[ai] memberChat unhandled', err);
+    const answer =
+      'Sorry — something went wrong while processing that. Please try again in a moment. If it keeps happening, mention this to staff.';
+    try {
+      await appendChatMessage(resolvedSessionId, user, 'assistant', answer, 'fallback');
+    } catch {
+      /* ignore secondary failures */
+    }
+    return { answer, source: 'fallback', sessionId: resolvedSessionId };
+  }
+}
+
+async function runMemberChat(
+  user: AuthUser,
+  message: string,
+  resolvedSessionId: string,
+): Promise<{ answer: string; source: 'rag' | 'gemini' | 'fallback'; sessionId: string }> {
   await appendChatMessage(resolvedSessionId, user, 'user', message, 'system');
   const history = await getRecentSessionMessages(resolvedSessionId, 12);
+
+  if (user.role === 'member' && memberRequestsWorkoutPlanSave(message)) {
+    return handleMemberWorkoutPlanSaveFromChat(user, message, resolvedSessionId, history);
+  }
+
   const ragAnswer = await callExternalRag(user, message);
   if (ragAnswer) {
     await appendChatMessage(resolvedSessionId, user, 'assistant', ragAnswer, 'rag');
@@ -598,6 +704,7 @@ You are the Member AI assistant for PowerWorld Kiribathgoda.
 - Capabilities: explain workout plans, suggest safe starting points, clarify subscriptions/check-ins, and guide on using the app.
 - Safety: never give medical diagnosis; suggest consulting a doctor for health concerns.
 - Use the RAG knowledge context as ground truth for policies and workout templates.
+- When a member wants a new programme saved to **My programmes**, ask short practical questions (goals, days/week, time available, equipment, injuries, emphasis). When they are ready, they should say **Save my workout plan** — that phrase triggers the save on their account.
 `;
 
   const ragContext = contextBlocks.length
@@ -671,6 +778,25 @@ Using the branch context and RAG snippets above, answer in 1–3 short paragraph
 
 export async function managerChat(user: AuthUser, message: string, sessionId?: string): Promise<{ answer: string; source: 'rag' | 'gemini' | 'fallback'; sessionId: string }> {
   const resolvedSessionId = await ensureChatSession(user, 'manager', sessionId);
+  try {
+    return await runManagerChat(user, message, resolvedSessionId);
+  } catch (err) {
+    console.error('[ai] managerChat unhandled', err);
+    const answer = 'Sorry — I could not complete that request. Please try again shortly.';
+    try {
+      await appendChatMessage(resolvedSessionId, user, 'assistant', answer, 'fallback');
+    } catch {
+      /* ignore */
+    }
+    return { answer, source: 'fallback', sessionId: resolvedSessionId };
+  }
+}
+
+async function runManagerChat(
+  user: AuthUser,
+  message: string,
+  resolvedSessionId: string,
+): Promise<{ answer: string; source: 'rag' | 'gemini' | 'fallback'; sessionId: string }> {
   await appendChatMessage(resolvedSessionId, user, 'user', message, 'system');
   const history = await getRecentSessionMessages(resolvedSessionId, 12);
   const [dashboard, report] = await Promise.all([

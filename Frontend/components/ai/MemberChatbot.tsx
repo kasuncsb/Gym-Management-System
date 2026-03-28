@@ -15,7 +15,7 @@ interface MemberChatbotProps {
   role?: ChatbotRole;
 }
 
-type PrefillEventDetail = { message?: string; role?: ChatbotRole };
+type PrefillEventDetail = { message?: string; role?: ChatbotRole; resetSession?: boolean };
 
 export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
   const [open, setOpen] = useState(false);
@@ -62,6 +62,10 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
       const answer = (res?.answer ?? '').trim() || 'I could not generate a response. Please try rephrasing your question.';
       if (res?.sessionId && res.sessionId !== sessionId) setSessionId(res.sessionId);
       setMessages((m) => [...m, { role: 'assistant', text: answer }]);
+      const a = answer.toLowerCase();
+      if (a.includes('my programmes') && (a.includes('saved') || a.includes('all set'))) {
+        window.dispatchEvent(new CustomEvent('pw:workout-plans-refresh'));
+      }
     } catch (err) {
       setMessages((m) => [...m, { role: 'assistant', text: `I could not answer right now: ${getErrorMessage(err)}` }]);
     } finally {
@@ -75,6 +79,7 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
       if (custom.detail?.role && custom.detail.role !== role) return;
       const msg = (custom.detail?.message ?? '').trim();
       if (!msg) return;
+      if (custom.detail?.resetSession) setSessionId(null);
       setOpen(true);
       setInput(msg);
       window.requestAnimationFrame(() => {

@@ -132,6 +132,8 @@ async function seed() {
     { key: 'db_backup_frequency', value: 'daily' },
     { key: 'ai_chat_rate_limit_per_minute', value: '20' },
     { key: 'pt_booking_advance_days_max', value: '60' },
+    { key: 'gym_open_time', value: '06:00' },
+    { key: 'gym_close_time', value: '22:00' },
     { key: 'session_idle_timeout_minutes', value: '30' },
     { key: 'email_queue_max_attempts', value: '5' },
     { key: 'maintenance_mode', value: 'false' },
