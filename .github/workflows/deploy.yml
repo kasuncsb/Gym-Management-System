@@ -49,10 +49,6 @@ jobs:
             # Stop and remove old containers and orphans
             docker compose down --remove-orphans || true
 
-            # Clear stuck BuildKit / buildx layers ("parent snapshot does not exist" on image export)
-            docker builder prune -f || true
-            docker buildx prune -f 2>/dev/null || true
-
             # Build and start — exit immediately on failure so the step turns red
             if ! docker compose up --build -d --remove-orphans; then
               echo "❌ docker compose up failed. Container logs:"
