@@ -8,9 +8,9 @@ import { useToast } from '@/components/ui/Toast';
 
 type DifficultyFilter = 'beginner' | 'intermediate' | 'advanced';
 
-/** Opens the member AI chat to co-design a plan; user says "Save my workout plan" when ready (server persists to DB). */
+/** Opens the member AI chat to co-design a plan; when ready, user sends only a short save line (see assistant; backend rejects long “mentions”). */
 const AI_WORKOUT_PLAN_CHAT_INTRO =
-    'I want a new personalised workout plan saved to My programmes at PowerWorld Kiribathgoda. Ask me short questions (goals, days per week, session length, equipment, injuries, what to emphasise). When we are aligned, I will say: Save my workout plan — please create and save it then. Start with your first question.';
+    'I want a new personalised workout plan added to My programmes at PowerWorld Kiribathgoda. Please ask me short questions first (goals, days per week, session length, equipment, injuries, what to emphasise). When we are done discussing, I will send a short save command on its own. Start with your first question.';
 
 interface Plan {
     id: string;
@@ -258,7 +258,7 @@ export default function WorkoutsPage() {
                 detail: { role: 'member' as const, message: AI_WORKOUT_PLAN_CHAT_INTRO, resetSession: true },
             }),
         );
-        toast.success('Assistant opened', 'Chat there to shape your plan — say “Save my workout plan” when you are ready.');
+        toast.success('Assistant opened', 'Answer the coach in chat; when done, send only: Save my workout plan');
     };
 
     const days = active?.program?.days ?? [];

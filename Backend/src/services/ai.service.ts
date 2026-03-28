@@ -179,23 +179,27 @@ function formatHistoryTranscript(history: Array<{ role: 'user' | 'assistant'; co
     .join('\n');
 }
 
-/** Member asks to persist a new AI plan from the current chat (after Q&A in the assistant). */
+/**
+ * Member explicitly asks to persist the plan (after Q&A in chat).
+ * Must be a short command only — long messages can mention "save my workout plan" as instructions
+ * (e.g. Generate-plan intro) and must NOT trigger an immediate DB write.
+ */
 function memberRequestsWorkoutPlanSave(message: string): boolean {
-  const t = message.trim().toLowerCase();
-  if (t.length < 6) return false;
-  const phrases = [
-    'save my workout plan',
-    'save this workout plan',
-    'save this plan',
-    'create and save my plan',
-    'save my plan',
-    'generate and save my workout plan',
-    'save the plan to my programmes',
-    'save it to my programmes',
-    'add this plan to my programmes',
-    'add the plan to my programmes',
+  const t = message.trim().replace(/\*+/g, '').replace(/\s+/g, ' ').trim();
+  if (t.length < 8 || t.length > 120) return false;
+  const patterns = [
+    /^please\s+save\s+(my\s+)?workout\s+plan[.!]*$/i,
+    /^save\s+(my\s+)?workout\s+plan[.!]*$/i,
+    /^save\s+this\s+workout\s+plan[.!]*$/i,
+    /^save\s+this\s+plan[.!]*$/i,
+    /^save\s+my\s+plan[.!]*$/i,
+    /^create\s+and\s+save\s+my\s+plan[.!]*$/i,
+    /^generate\s+and\s+save\s+(my\s+)?workout\s+plan[.!]*$/i,
+    /^save\s+(the\s+)?plan\s+to\s+my\s+programmes[.!]*$/i,
+    /^save\s+it\s+to\s+my\s+programmes[.!]*$/i,
+    /^add\s+(this\s+|the\s+)?plan\s+to\s+my\s+programmes[.!]*$/i,
   ];
-  return phrases.some((p) => t.includes(p));
+  return patterns.some((re) => re.test(t));
 }
 
 function scoreDoc(message: string, doc: TrainingDoc): number {
@@ -704,7 +708,7 @@ You are the Member AI assistant for PowerWorld Kiribathgoda.
 - Capabilities: explain workout plans, suggest safe starting points, clarify subscriptions/check-ins, and guide on using the app.
 - Safety: never give medical diagnosis; suggest consulting a doctor for health concerns.
 - Use the RAG knowledge context as ground truth for policies and workout templates.
-- When a member wants a new programme saved to **My programmes**, ask short practical questions (goals, days/week, time available, equipment, injuries, emphasis). When they are ready, they should say **Save my workout plan** — that phrase triggers the save on their account.
+- When a member wants a new programme saved to **My programmes**, ask short practical questions (goals, days/week, time available, equipment, injuries, emphasis). When they are ready, they must send **only** a short command such as **Save my workout plan** (that line alone, not embedded in a long paragraph)—that triggers the save on their account.
 `;
 
   const ragContext = contextBlocks.length
