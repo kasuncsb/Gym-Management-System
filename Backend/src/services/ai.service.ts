@@ -317,7 +317,7 @@ async function fetchTextWithTimeout(url: string, init: RequestInit, timeoutMs: n
 
 /** Gemini chat was capped at 700 tokens, cutting answers mid-sentence; chat/insights use higher budgets. */
 const GEMINI_CHAT_MAX_OUTPUT_TOKENS = 4096;
-const GEMINI_INSIGHTS_MAX_OUTPUT_TOKENS = 2048;
+const GEMINI_INSIGHTS_MAX_OUTPUT_TOKENS = 4096;
 
 type GeminiCallOptions = {
   maxOutputTokens?: number;
@@ -1006,7 +1006,7 @@ function parseManagerInsightsAnswer(answer: string): { summary: string; insights
 
   const insights: string[] = [];
   if (firstBullet >= 0) {
-    for (let i = firstBullet; i < lines.length && insights.length < 6; i++) {
+    for (let i = firstBullet; i < lines.length && insights.length < 12; i++) {
       if (!isBulletLine(lines[i])) continue;
       const c = stripDecor(lines[i]);
       if (c && !isPromptEcho(c)) insights.push(c);
@@ -1050,11 +1050,16 @@ function parseManagerInsightsAnswer(answer: string): { summary: string; insights
 
   return {
     summary,
-    insights: insights.slice(0, 4),
+    insights: insights.slice(0, 10),
   };
 }
 
-export async function managerInsights(user: AuthUser, question?: string): Promise<{ summary: string; insights: string[]; generatedBy: 'gemini' | 'fallback' }> {
+export async function managerInsights(user: AuthUser, question?: string): Promise<{
+  content: string;
+  summary: string;
+  insights: string[];
+  generatedBy: 'gemini' | 'fallback';
+}> {
   const [dashboard, report] = await Promise.all([
     getDashboard('manager', user.id),
     getReportSummary(),
@@ -1090,6 +1095,7 @@ Open incidents: ${report.openEquipmentIncidents}
 ${BRANCH_CONTEXT}
 You are the Manager Insights AI for PowerWorld Kiribathgoda.
 Use the numeric data snapshot and, where available, the RAG knowledge base as ground truth for operational best practices.
+Never fabricate numbers—only use values from the snapshot, trends, and RAG text.
 
 Data snapshot:
 ${baseFacts}
@@ -1098,10 +1104,20 @@ ${trendFacts}
 ${ragSnippet}
 Manager question: ${question ?? 'Provide the top operational insights and next actions.'}
 
-Return:
-1) One short summary sentence
-2) 3 bullet insights with actionable recommendations tailored to this single branch.
-3) Mention trend direction (improving/flat/declining) and any anomaly signal only if data supports it.
+Respond in **Markdown** with clear headings, for example:
+## Executive summary
+(2–4 sentences)
+
+## Priority actions
+(5–7 concrete bullets—owners, timelines, or measurable outcomes where sensible)
+
+## Risks & anomalies
+(bullets only if the data supports them; otherwise state that none are notable)
+
+## Metrics to watch
+(2–4 bullets)
+
+Mention trend direction (improving / flat / declining) only when the trend snapshot supports it.
 `;
 
   try {
@@ -1116,6 +1132,7 @@ Return:
     });
     return {
       generatedBy: 'gemini',
+      content: answer,
       ...parsed,
     };
   } catch (err) {
@@ -1129,6 +1146,12 @@ Return:
     const fallbackSummary = parsed.rateLimited
       ? 'AI insights are temporarily rate-limited due to quota usage. Please retry shortly.'
       : `Today there are ${dashboard.todayVisits} visits with ${dashboard.openIssues} open operational issues.`;
+    const fallbackInsights = [
+      'Prioritize unresolved equipment incidents before peak evening hours.',
+      'Monitor subscription renewals and follow up with inactive members.',
+      'Use check-in peaks to align trainer staffing and reduce waiting times.',
+    ];
+    const fallbackContent = `${fallbackSummary}\n\n## Suggested actions\n${fallbackInsights.map((line) => `- ${line}`).join('\n')}`;
     await logInteraction(user, {
       interactionType: 'insight',
       promptText: question ?? 'Provide the top operational insights and next actions.',
@@ -1138,12 +1161,9 @@ Return:
     });
     return {
       generatedBy: 'fallback',
+      content: fallbackContent,
       summary: fallbackSummary,
-      insights: [
-        'Prioritize unresolved equipment incidents before peak evening hours.',
-        'Monitor subscription renewals and follow up with inactive members.',
-        'Use check-in peaks to align trainer staffing and reduce waiting times.',
-      ],
+      insights: fallbackInsights,
     };
   }
 }

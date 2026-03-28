@@ -2,8 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, Lightbulb, ArrowUp } from 'lucide-react';
-import { LoadingButton, PageHeader, Card, Input } from '@/components/ui/SharedComponents';
+import { PageHeader, Card } from '@/components/ui/SharedComponents';
+import { ChatMarkdown } from '@/components/ai/ChatMarkdown';
 import { aiAPI, getErrorMessage, opsAPI } from '@/lib/api';
+import { MANAGER_INSIGHT_ACTIONS } from '@/lib/managerInsightsPrompts';
+import { useStreamedText } from '@/hooks/useStreamedText';
 import { useToast } from '@/components/ui/Toast';
 
 const impactColor: Record<string, string> = {
@@ -14,9 +17,16 @@ const impactColor: Record<string, string> = {
 
 export default function ManagerInsightsPage() {
     const toast = useToast();
-    const [question, setQuestion] = useState('');
     const [loading, setLoading] = useState(false);
-    const [aiResult, setAiResult] = useState<{ summary: string; insights: string[]; generatedBy: string } | null>(null);
+    const [aiResult, setAiResult] = useState<{
+        content: string;
+        summary: string;
+        insights: string[];
+        generatedBy: string;
+    } | null>(null);
+    const streamedContent = useStreamedText(aiResult?.content ?? null);
+    const streamDone =
+        Boolean(aiResult?.content) && streamedContent.length >= (aiResult?.content?.length ?? 0);
     const [summary, setSummary] = useState<any>(null);
     const [visits, setVisits] = useState<any[]>([]);
 
@@ -29,11 +39,17 @@ export default function ManagerInsightsPage() {
             .catch(() => toast.error('Error', 'Failed to load insight data'));
     }, []);
 
-    const runAi = async () => {
+    const runAi = async (prompt: string) => {
         setLoading(true);
+        setAiResult(null);
         try {
-            const data = await aiAPI.insights(question || undefined);
-            setAiResult(data);
+            const data = await aiAPI.insights(prompt);
+            setAiResult({
+                content: data.content ?? '',
+                summary: data.summary,
+                insights: Array.isArray(data.insights) ? data.insights : [],
+                generatedBy: data.generatedBy,
+            });
         } catch (err) {
             toast.error('AI Insight Error', getErrorMessage(err));
         } finally {
@@ -98,14 +114,59 @@ export default function ManagerInsightsPage() {
             </Card>
 
             <Card padding="md">
-                <div className="flex gap-3 items-end">
-                    <Input label="Ask AI for branch insight" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="e.g. Which trends should I act on this week?" />
-                    <LoadingButton loading={loading} onClick={runAi}>Generate</LoadingButton>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h2 className="text-base font-semibold text-white">AI branch briefing</h2>
+                    <button
+                        type="button"
+                        onClick={() =>
+                            window.dispatchEvent(
+                                new CustomEvent('pw:ai-chat-prefill', {
+                                    detail: { role: 'manager', message: 'I need a deeper dive on branch operations—ask me one clarifying question, then advise.' },
+                                }),
+                            )
+                        }
+                        className="text-xs px-3 py-1.5 rounded-full border border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                    >
+                        Open AI Chat
+                    </button>
                 </div>
-                {aiResult && (
-                    <div className="mt-4 space-y-2">
-                        <p className="text-zinc-300 text-sm whitespace-pre-wrap leading-relaxed">{aiResult.summary}</p>
-                        <p className="text-xs text-zinc-500">Source: {aiResult.generatedBy}</p>
+                <p className="mt-1 text-xs text-zinc-500">
+                    Run a preset analysis—the full response streams in below. Use chat for follow-ups.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                    {MANAGER_INSIGHT_ACTIONS.map(({ label, prompt }) => (
+                        <button
+                            key={label}
+                            type="button"
+                            disabled={loading}
+                            onClick={() => runAi(prompt)}
+                            className="text-xs px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-700 text-zinc-300 hover:bg-zinc-800 disabled:opacity-60"
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+                {(loading || streamedContent) && (
+                    <div className="mt-4 rounded-xl border border-violet-500/20 bg-violet-950/25 px-4 py-3 max-h-[32rem] overflow-y-auto">
+                        {loading && !streamedContent && (
+                            <p className="text-sm text-violet-200/90 animate-pulse">Generating briefing…</p>
+                        )}
+                        {streamedContent ? (
+                            <div className="text-sm text-zinc-300 leading-relaxed">
+                                <ChatMarkdown text={streamedContent} />
+                                {!streamDone && (
+                                    <span
+                                        className="inline-block w-0.5 h-4 bg-violet-400 align-middle ml-0.5 animate-pulse"
+                                        aria-hidden
+                                    />
+                                )}
+                            </div>
+                        ) : null}
+                        {aiResult && streamDone ? (
+                            <p className="mt-3 text-[10px] text-zinc-600 uppercase tracking-wide">
+                                Source: {aiResult.generatedBy}
+                            </p>
+                        ) : null}
                     </div>
                 )}
             </Card>
@@ -116,7 +177,9 @@ export default function ManagerInsightsPage() {
                 </h2>
                 <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
                     {(!aiResult?.insights || aiResult.insights.length === 0) && (
-                        <p className="text-zinc-500 text-sm">Run <strong className="text-zinc-400">Generate</strong> above to add AI recommendations here.</p>
+                        <p className="text-zinc-500 text-sm">
+                            Choose an action above to populate parsed action bullets here (in addition to the full briefing).
+                        </p>
                     )}
                     {(aiResult?.insights ?? []).map((line, i) => (
                         <Card key={i} padding="md" className="hover:border-zinc-700/50 transition-colors border-violet-500/15 bg-violet-950/20">

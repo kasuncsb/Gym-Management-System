@@ -37,11 +37,14 @@ interface Session {
     sessionDate: string;
     startTime: string;
     endTime: string;
+    durationMinutes?: number;
     status: 'booked' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
     cancelReason?: string | null;
     reviewRating?: number | null;
     reviewComment?: string | null;
 }
+
+const SESSION_DURATION_CHOICES = [30, 45, 60, 90, 120] as const;
 
 const SESSION_OPTIONS = [
     { value: 'Personal Training', label: 'Personal Training' },
@@ -66,7 +69,13 @@ export default function AppointmentsPage() {
     const [showModal, setShowModal] = useState(false);
     const [cancelModal, setCancelModal] = useState<{ id: string; trainerName: string } | null>(null);
     const [cancelReason, setCancelReason] = useState('');
-    const [form, setForm] = useState({ trainer: '', date: '', time: '', type: '' });
+    const [form, setForm] = useState({
+        trainer: '',
+        date: '',
+        time: '',
+        type: '',
+        durationMinutes: 60,
+    });
     const [submitLoading, setSubmitLoading] = useState(false);
     const [cancelLoading, setCancelLoading] = useState(false);
     const [sessions, setSessions] = useState<Session[]>([]);
@@ -93,6 +102,10 @@ export default function AppointmentsPage() {
                 sessionDate: String(s.sessionDate).slice(0, 10),
                 startTime: String(s.startTime).slice(0, 5),
                 endTime: String(s.endTime).slice(0, 5),
+                durationMinutes:
+                    s.durationMinutes != null && Number.isFinite(Number(s.durationMinutes))
+                        ? Number(s.durationMinutes)
+                        : Math.max(0, timeToMinutes(String(s.endTime).slice(0, 5)) - timeToMinutes(String(s.startTime).slice(0, 5))),
                 status: s.status,
                 cancelReason: s.cancelReason ?? null,
                 reviewRating: s.reviewRating ?? null,
@@ -149,11 +162,14 @@ export default function AppointmentsPage() {
         if (!form.time) return null;
         const parts = form.time.split(':');
         const h = Number(parts[0]);
-        const m = (parts[1] ?? '00').slice(0, 2);
-        if (!Number.isFinite(h)) return null;
-        const startShort = `${String(h).padStart(2, '0')}:${m.padStart(2, '0')}`;
-        const endHour = Math.min(23, h + 1);
-        const endShort = `${String(endHour).padStart(2, '0')}:${m.padStart(2, '0')}`;
+        const m = Number((parts[1] ?? '00').slice(0, 2));
+        if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+        const startShort = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        const endTotal = h * 60 + m + form.durationMinutes;
+        if (endTotal > 24 * 60) return null;
+        const eh = Math.floor(endTotal / 60);
+        const em = endTotal % 60;
+        const endShort = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
         return { startShort, endShort };
     })();
 
@@ -170,13 +186,22 @@ export default function AppointmentsPage() {
         if (availability?.bookingRules?.isClosedDay) {
             return { tone: 'bad' as const, message: 'The gym is closed on this date. Choose another day.' };
         }
+        if (form.time) {
+            const sm = timeToMinutes(form.time.slice(0, 5));
+            if (Number.isFinite(sm) && sm + form.durationMinutes > 24 * 60) {
+                return {
+                    tone: 'bad' as const,
+                    message: 'Session extends past midnight; choose an earlier start or shorter duration.',
+                };
+            }
+        }
         if (!availability || !slotPreview) return null;
         const { startShort, endShort } = slotPreview;
         const br = availability.bookingRules;
         if (!slotInsideGymHours(startShort, endShort, br.gymOpen, br.gymClose)) {
             return {
                 tone: 'bad' as const,
-                message: `Your one-hour session must fit within gym hours (${br.gymOpen}–${br.gymClose}, ${br.timezone}).`,
+                message: `Your ${form.durationMinutes}-minute session must fit within gym hours (${br.gymOpen}–${br.gymClose}, ${br.timezone}).`,
             };
         }
         const clashes = availability.busySlots.some((b) => slotOverlapsBusy(startShort, endShort, b.startTime, b.endTime));
@@ -201,18 +226,16 @@ export default function AppointmentsPage() {
         }
         setSubmitLoading(true);
         try {
-            const endHour = Math.min(23, Number(form.time.slice(0, 2)) + 1);
-            const endTime = `${String(endHour).padStart(2, '0')}:${form.time.slice(3, 5)}:00`;
             await opsAPI.createPtSession({
                 memberId: 'self',
                 trainerId: form.trainer,
                 sessionDate: form.date,
                 startTime: `${form.time}:00`,
-                endTime,
+                durationMinutes: form.durationMinutes,
             });
-            toast.success('Booking Confirmed', `Session booked on ${form.date} at ${form.time}`);
+            toast.success('Booking Confirmed', `Session booked on ${form.date} at ${form.time} (${form.durationMinutes} min)`);
             setShowModal(false);
-            setForm({ trainer: '', date: '', time: '', type: '' });
+            setForm({ trainer: '', date: '', time: '', type: '', durationMinutes: 60 });
             await loadSessions();
         } catch (err) {
             if (axios.isAxiosError(err) && err.response?.status === 409) {
@@ -317,6 +340,9 @@ export default function AppointmentsPage() {
                                 </p>
                                 <p className="text-zinc-500 text-xs flex items-center gap-1 justify-end">
                                     <Clock size={11} /> {s.startTime} – {s.endTime}
+                                    {s.durationMinutes != null ? (
+                                        <span className="text-zinc-600 ml-1">({s.durationMinutes} min)</span>
+                                    ) : null}
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">
@@ -410,7 +436,27 @@ export default function AppointmentsPage() {
                             )}
                         </div>
                     )}
-                    <Input id="appointments-time" label="Start time (1 hour session)" type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Input
+                            id="appointments-time"
+                            label="Start time"
+                            type="time"
+                            value={form.time}
+                            onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
+                        />
+                        <Select
+                            id="appointments-duration"
+                            label="Duration"
+                            options={SESSION_DURATION_CHOICES.map((n) => ({ value: String(n), label: `${n} minutes` }))}
+                            value={String(form.durationMinutes)}
+                            onChange={e => setForm(f => ({ ...f, durationMinutes: Number(e.target.value) || 60 }))}
+                        />
+                    </div>
+                    {slotPreview ? (
+                        <p className="text-zinc-500 text-xs -mt-2">
+                            Ends at {slotPreview.endShort} (within the same calendar day).
+                        </p>
+                    ) : null}
                     {slotCheck && (
                         <p className={`text-sm ${slotCheck.tone === 'ok' ? 'text-emerald-400' : slotCheck.tone === 'warn' ? 'text-amber-400' : 'text-rose-400'}`}>
                             {slotCheck.message}

@@ -111,6 +111,30 @@ function formatMinutesAsHHMM(total: number): string {
   return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
 }
 
+/** Normalise to HH:MM:SS for MySQL TIME / varchar storage. */
+function normalizeClockToHMS(raw: string): string {
+  const m = parseClockToMinutes(raw);
+  if (m == null) throw errors.badRequest('Time must be a valid HH:MM or HH:MM:SS value.');
+  const h = Math.floor(m / 60);
+  const min = m % 60;
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}:00`;
+}
+
+function endHMSFromStartAndDurationMinutes(startHMS: string, durationMin: number): string {
+  const startM = parseClockToMinutes(startHMS);
+  if (startM == null) throw errors.badRequest('Invalid start time.');
+  const endM = startM + durationMin;
+  if (endM > 24 * 60) {
+    throw errors.badRequest('Session cannot extend past midnight; choose an earlier start or shorter duration.');
+  }
+  const h = Math.floor(endM / 60);
+  const min = endM % 60;
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}:00`;
+}
+
+const PT_SESSION_DURATION_MIN = 15;
+const PT_SESSION_DURATION_MAX = 240;
+
 function getZonedYmdAndMinutes(timeZone: string, d = new Date()): { ymd: string; minutes: number } {
   const tz = (timeZone || 'UTC').trim() || 'UTC';
   try {
@@ -947,6 +971,7 @@ export async function listMyPtSessions(userId: string) {
       sessionDate: ptSessions.sessionDate,
       startTime: ptSessions.startTime,
       endTime: ptSessions.endTime,
+      durationMinutes: ptSessions.durationMinutes,
       status: ptSessions.status,
       cancelReason: ptSessions.cancelReason,
       reviewRating: ptSessions.reviewRating,
@@ -971,6 +996,7 @@ export async function listTrainerPtSessions(userId: string) {
       sessionDate: ptSessions.sessionDate,
       startTime: ptSessions.startTime,
       endTime: ptSessions.endTime,
+      durationMinutes: ptSessions.durationMinutes,
       status: ptSessions.status,
       cancelReason: ptSessions.cancelReason,
       reviewRating: ptSessions.reviewRating,
@@ -994,6 +1020,7 @@ export async function listAllPtSessions() {
       sessionDate: ptSessions.sessionDate,
       startTime: ptSessions.startTime,
       endTime: ptSessions.endTime,
+      durationMinutes: ptSessions.durationMinutes,
       status: ptSessions.status,
       cancelReason: ptSessions.cancelReason,
       reviewRating: ptSessions.reviewRating,
@@ -1008,19 +1035,61 @@ export async function listAllPtSessions() {
 }
 
 export async function createPtSession(
-  input: { memberId: string; trainerId: string; sessionDate: string; startTime: string; endTime: string },
+  input: {
+    memberId: string;
+    trainerId: string;
+    sessionDate: string;
+    startTime: string;
+    endTime?: string;
+    durationMinutes?: number;
+  },
 ) {
   const dateStr = String(input.sessionDate ?? '').trim().slice(0, 10);
   if (!YMD_RE.test(dateStr)) throw errors.badRequest('sessionDate must be YYYY-MM-DD');
   const sessionDateObj = safeDate(dateStr);
-  await assertPtSessionWithinBranchRules(dateStr, input.startTime, input.endTime);
+
+  const startHMS = normalizeClockToHMS(String(input.startTime ?? '').trim());
+
+  let durationMin: number;
+  if (input.durationMinutes !== undefined && input.durationMinutes !== null) {
+    const n = Number(input.durationMinutes);
+    if (!Number.isFinite(n)) throw errors.badRequest('durationMinutes must be a number.');
+    durationMin = Math.round(n);
+  } else if (input.endTime != null && String(input.endTime).trim() !== '') {
+    const parsedEnd = normalizeClockToHMS(String(input.endTime).trim());
+    const sm = parseClockToMinutes(startHMS);
+    const em = parseClockToMinutes(parsedEnd);
+    if (sm == null || em == null) throw errors.badRequest('Could not parse start or end time.');
+    durationMin = em - sm;
+    if (durationMin <= 0) {
+      throw errors.badRequest('Session end time must be after start time.');
+    }
+  } else {
+    durationMin = 60;
+  }
+
+  if (durationMin < PT_SESSION_DURATION_MIN || durationMin > PT_SESSION_DURATION_MAX) {
+    throw errors.badRequest(
+      `Session duration must be between ${PT_SESSION_DURATION_MIN} and ${PT_SESSION_DURATION_MAX} minutes.`,
+    );
+  }
+
+  const endHMS = endHMSFromStartAndDurationMinutes(startHMS, durationMin);
+  if (input.endTime != null && String(input.endTime).trim() !== '') {
+    const clientEnd = normalizeClockToHMS(String(input.endTime).trim());
+    if (clientEnd !== endHMS) {
+      throw errors.badRequest('endTime does not match startTime and durationMinutes.');
+    }
+  }
+
+  await assertPtSessionWithinBranchRules(dateStr, startHMS, endHMS);
 
   // Trainer overlap check
   const trainerConflict = await db.select({ id: ptSessions.id }).from(ptSessions).where(and(
     eq(ptSessions.trainerId, input.trainerId),
     sql`date(${ptSessions.sessionDate}) = ${dateStr}`,
     sql`${ptSessions.status} IN ('booked','confirmed')`,
-    sql`${ptSessions.startTime} < ${input.endTime} AND ${ptSessions.endTime} > ${input.startTime}`,
+    sql`${ptSessions.startTime} < ${endHMS} AND ${ptSessions.endTime} > ${startHMS}`,
   )).limit(1);
   if (trainerConflict.length) throw errors.conflict('Trainer already has a session at this time');
 
@@ -1029,7 +1098,7 @@ export async function createPtSession(
     eq(ptSessions.memberId, input.memberId),
     sql`date(${ptSessions.sessionDate}) = ${dateStr}`,
     sql`${ptSessions.status} IN ('booked','confirmed')`,
-    sql`${ptSessions.startTime} < ${input.endTime} AND ${ptSessions.endTime} > ${input.startTime}`,
+    sql`${ptSessions.startTime} < ${endHMS} AND ${ptSessions.endTime} > ${startHMS}`,
   )).limit(1);
   if (memberConflict.length) throw errors.conflict('Member already has a session at this time');
 
@@ -1041,12 +1110,13 @@ export async function createPtSession(
     memberId: input.memberId,
     trainerId: input.trainerId,
     sessionDate: sessionDateObj,
-    startTime: input.startTime,
-    endTime: input.endTime,
+    startTime: startHMS,
+    endTime: endHMS,
+    durationMinutes: durationMin,
     status: 'booked',
   });
 
-  const when = `${input.sessionDate} ${input.startTime} - ${input.endTime}`;
+  const when = `${input.sessionDate} ${startHMS} - ${endHMS}`;
   await audit.appendAudit({
     actorId: input.memberId,
     action: 'pt_session_booked',

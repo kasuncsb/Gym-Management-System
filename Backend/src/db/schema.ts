@@ -221,6 +221,8 @@ export const ptSessions = mysqlTable('pt_sessions', {
   sessionDate: date('session_date').notNull(),
   startTime: varchar('start_time', { length: 8 }).notNull(),
   endTime: varchar('end_time', { length: 8 }).notNull(),
+  /** Length of session in minutes (drives end_time together with start_time). */
+  durationMinutes: smallint('duration_minutes').notNull().default(60),
   status: mysqlEnum('status', ['booked', 'confirmed', 'completed', 'cancelled', 'no_show']).notNull(),
   cancelReason: varchar('cancel_reason', { length: 255 }),
   reviewRating: tinyint('review_rating'),

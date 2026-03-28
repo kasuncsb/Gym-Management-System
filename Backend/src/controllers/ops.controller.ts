@@ -140,10 +140,17 @@ export const getPtBookingRules = asyncHandler(async (_req: AuthRequest, res: Res
 
 export const createPtSession = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
-  const payload = { ...req.body } as { memberId?: string; trainerId: string; sessionDate: string; startTime: string; endTime: string };
+  const payload = { ...req.body } as {
+    memberId?: string;
+    trainerId: string;
+    sessionDate: string;
+    startTime: string;
+    endTime?: string;
+    durationMinutes?: number;
+  };
   if (user.role === 'member') payload.memberId = user.id;
   if (!payload.memberId) throw errors.badRequest('memberId is required');
-  res.json(response.success(await opsService.createPtSession(payload as { memberId: string; trainerId: string; sessionDate: string; startTime: string; endTime: string }), 'PT session created'));
+  res.json(response.success(await opsService.createPtSession(payload as Parameters<typeof opsService.createPtSession>[0]), 'PT session created'));
 });
 export const updatePtSession = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);

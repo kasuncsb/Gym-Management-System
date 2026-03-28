@@ -5,8 +5,11 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Users, TrendingUp, UserCheck, BarChart3, Star, Lightbulb } from 'lucide-react';
 import { PageHeader, Card } from '@/components/ui/SharedComponents';
+import { ChatMarkdown } from '@/components/ai/ChatMarkdown';
 import { aiAPI, getErrorMessage, opsAPI } from '@/lib/api';
+import { MANAGER_INSIGHT_ACTIONS } from '@/lib/managerInsightsPrompts';
 import { useRealtimePolling } from '@/hooks/useRealtimePolling';
+import { useStreamedText } from '@/hooks/useStreamedText';
 import { useToast } from '@/components/ui/Toast';
 
 type Impact = 'high' | 'medium' | 'low' | 'positive';
@@ -31,11 +34,18 @@ export default function ManagerDashboard() {
     const [period, setPeriod] = useState<'week' | 'month' | 'year'>('week');
     const [dashboard, setDashboard] = useState<any>(null);
     const [branchInsights, setBranchInsights] = useState<Array<{ title: string; description: string; impact: Impact; rec: string }>>([]);
-    const [latestAi, setLatestAi] = useState<{ summary: string; insights: string[] } | null>(null);
+    const [latestAi, setLatestAi] = useState<{
+        content: string;
+        summary: string;
+        insights: string[];
+        generatedBy: string;
+    } | null>(null);
     const [tasks, setTasks] = useState<Array<{ task: string; priority: Priority; due: string; assignee: string }>>([]);
     const [occupancyData, setOccupancyData] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
-    const [aiSummary, setAiSummary] = useState<string>('');
     const [aiLoading, setAiLoading] = useState(false);
+    const streamedBriefing = useStreamedText(latestAi?.content ?? null);
+    const briefingComplete =
+        Boolean(latestAi?.content) && streamedBriefing.length >= (latestAi?.content?.length ?? 0);
 
     useEffect(() => {
         const t = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -102,12 +112,14 @@ export default function ManagerDashboard() {
 
     const askAi = async (q: string) => {
         setAiLoading(true);
+        setLatestAi(null);
         try {
             const result = await aiAPI.insights(q);
-            setAiSummary(result.summary);
             setLatestAi({
+                content: result.content ?? '',
                 summary: result.summary,
                 insights: Array.isArray(result.insights) ? result.insights : [],
+                generatedBy: result.generatedBy,
             });
         } catch (err) {
             toast.error('AI Insight Error', getErrorMessage(err));
@@ -170,24 +182,45 @@ export default function ManagerDashboard() {
                         Open AI Chat
                     </button>
                 </div>
+                <p className="mt-2 text-xs text-zinc-500 leading-relaxed">
+                    Choose a briefing—full Markdown is generated in place with a live reveal. Follow up in chat anytime.
+                </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                    {[
-                        'Forecast next month revenue trend',
-                        'Identify churn risk from current activity',
-                        'Recommend staffing adjustments for peak periods',
-                    ].map((q) => (
+                    {MANAGER_INSIGHT_ACTIONS.map(({ label, prompt }) => (
                         <button
-                            key={q}
+                            key={label}
                             type="button"
-                            onClick={() => askAi(q)}
+                            onClick={() => askAi(prompt)}
                             disabled={aiLoading}
                             className="text-xs px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-700 text-zinc-300 hover:bg-zinc-800 disabled:opacity-60"
                         >
-                            {q}
+                            {label}
                         </button>
                     ))}
                 </div>
-                {aiSummary && <p className="mt-3 text-sm text-zinc-300 whitespace-pre-wrap">{aiSummary}</p>}
+                {(aiLoading || streamedBriefing) && (
+                    <div className="mt-4 rounded-xl border border-violet-500/20 bg-violet-950/25 px-4 py-3 max-h-[28rem] overflow-y-auto">
+                        {aiLoading && !streamedBriefing && (
+                            <p className="text-sm text-violet-200/90 animate-pulse">Generating briefing…</p>
+                        )}
+                        {streamedBriefing ? (
+                            <div className="text-sm text-zinc-300 leading-relaxed relative">
+                                <ChatMarkdown text={streamedBriefing} />
+                                {!briefingComplete && (
+                                    <span
+                                        className="inline-block w-0.5 h-4 bg-violet-400 align-middle ml-0.5 animate-pulse"
+                                        aria-hidden
+                                    />
+                                )}
+                            </div>
+                        ) : null}
+                        {latestAi && briefingComplete ? (
+                            <p className="mt-3 text-[10px] text-zinc-600 uppercase tracking-wide">
+                                Source: {latestAi.generatedBy}
+                            </p>
+                        ) : null}
+                    </div>
+                )}
             </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

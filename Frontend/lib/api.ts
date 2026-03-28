@@ -327,8 +327,14 @@ export const opsAPI = {
     apiClient.get('/ops/pt-sessions/booking-rules').then((r) => r.data.data as PtBookingRules),
   allPtSessions: () =>
     apiClient.get('/ops/pt-sessions').then(r => r.data.data as any[]),
-  createPtSession: (payload: { memberId: string; trainerId: string; sessionDate: string; startTime: string; endTime: string }) =>
-    apiClient.post('/ops/pt-sessions', payload).then(r => r.data.data),
+  createPtSession: (payload: {
+    memberId: string;
+    trainerId: string;
+    sessionDate: string;
+    startTime: string;
+    endTime?: string;
+    durationMinutes?: number;
+  }) => apiClient.post('/ops/pt-sessions', payload).then(r => r.data.data),
   updatePtSession: (
     id: string,
     payload: {
@@ -543,7 +549,15 @@ export const aiAPI = {
   insights: (question?: string) =>
     apiClient
       .post('/ai/insights', { question }, { timeout: 90_000 })
-      .then(r => r.data.data as { summary: string; insights: string[]; generatedBy: 'gemini' | 'fallback' }),
+      .then(
+        r =>
+          r.data.data as {
+            content: string;
+            summary: string;
+            insights: string[];
+            generatedBy: 'gemini' | 'fallback';
+          },
+      ),
   workoutPlan: (opts?: { memberId?: string; preferences?: AiWorkoutPlanPreferencesPayload }) =>
     apiClient
       .post('/ai/workout-plan', {

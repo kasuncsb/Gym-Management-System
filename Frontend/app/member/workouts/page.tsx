@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Play, Clock, Flame, Sparkles, ChevronDown, ChevronUp, Dumbbell, Library, Trash2, ClipboardCheck } from 'lucide-react';
 import { PageHeader, Card, LoadingButton, Input, Modal } from '@/components/ui/SharedComponents';
 import { getErrorMessage, opsAPI } from '@/lib/api';
@@ -162,6 +162,8 @@ function PlanCardWithHero({
 
 export default function WorkoutsPage() {
     const toast = useToast();
+    const toastRef = useRef(toast);
+    toastRef.current = toast;
     const [plans, setPlans] = useState<Plan[]>([]);
     const [libraryPlans, setLibraryPlans] = useState<Plan[]>([]);
     const [listTab, setListTab] = useState<'mine' | 'library'>('mine');
@@ -180,23 +182,21 @@ export default function WorkoutsPage() {
     const [logging, setLogging] = useState(false);
     const [heroImageError, setHeroImageError] = useState(false);
 
-    const loadPlans = () => {
+    const loadPlans = useCallback(() => {
         opsAPI.myWorkoutPlans()
             .then((d) => {
                 const items = (d ?? []) as Plan[];
                 setPlans(items);
-                if (items.length === 0 && listTab === 'mine') setSelected(null);
-                if (items[0] && listTab === 'mine' && !selected) setSelected(items[0].id);
             })
-            .catch(() => toast.error('Error', 'Failed to load workout plans'));
-    };
+            .catch(() => toastRef.current.error('Error', 'Failed to load workout plans'));
+    }, []);
 
     useEffect(() => {
         loadPlans();
         opsAPI.workoutLibrary()
             .then((d) => setLibraryPlans((d ?? []) as Plan[]))
             .catch(() => setLibraryPlans([]));
-    }, []);
+    }, [loadPlans]);
 
     useEffect(() => {
         const onRefresh = () => {
@@ -204,7 +204,7 @@ export default function WorkoutsPage() {
         };
         window.addEventListener('pw:workout-plans-refresh', onRefresh);
         return () => window.removeEventListener('pw:workout-plans-refresh', onRefresh);
-    }, []);
+    }, [loadPlans]);
 
     useEffect(() => {
         opsAPI.activeWorkoutSession().then(setActiveSession).catch(() => setActiveSession(null));
@@ -327,14 +327,24 @@ export default function WorkoutsPage() {
                 <div className="flex gap-2 flex-wrap items-center">
                     <button
                         type="button"
-                        onClick={() => { setListTab('mine'); const p = plans[0]; if (p) setSelected(p.id); }}
+                        onClick={() => {
+                            setFilter('all');
+                            setListTab('mine');
+                            const p = plans[0];
+                            if (p) setSelected(p.id);
+                        }}
                         className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${listTab === 'mine' ? 'bg-red-600 text-white border border-red-500' : 'bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:bg-zinc-800/50'}`}
                     >
                         My programmes
                     </button>
                     <button
                         type="button"
-                        onClick={() => { setListTab('library'); const p = libraryPlans[0]; if (p) setSelected(p.id); }}
+                        onClick={() => {
+                            setFilter('all');
+                            setListTab('library');
+                            const p = libraryPlans[0];
+                            if (p) setSelected(p.id);
+                        }}
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${listTab === 'library' ? 'bg-red-600 text-white border border-red-500' : 'bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:bg-zinc-800/50'}`}
                     >
                         <Library size={14} /> Library
