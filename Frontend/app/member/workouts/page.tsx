@@ -47,17 +47,23 @@ const difficultyColor: Record<string, string> = {
     advanced:     'bg-red-500/20 text-red-400',
 };
 
-const sourceLabel: Record<string, string> = {
-    trainer_created: 'Trainer',
-    ai_generated:    'AI Generated',
-    library:         'Library',
-};
-
-const sourceBadge: Record<string, string> = {
+const sourceBadgeClass: Record<string, string> = {
     trainer_created: 'bg-blue-500/20 text-blue-400',
-    ai_generated:    'bg-purple-500/20 text-purple-400',
     library:         'bg-amber-500/20 text-amber-300',
 };
+
+/** Shown only when it adds context; AI-generated plans omit a label to avoid repetition. */
+function PlanSourceTag({ source, listTab }: { source: Plan['source']; listTab: 'mine' | 'library' }) {
+    if (source === 'ai_generated') return null;
+    if (listTab === 'mine' && source === 'library') return null;
+    const label = source === 'trainer_created' ? 'Trainer' : 'Library';
+    const cls = sourceBadgeClass[source] ?? 'bg-zinc-700 text-zinc-300';
+    return (
+        <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full font-semibold mt-0.5 ${cls}`}>
+            {label}
+        </span>
+    );
+}
 
 export default function WorkoutsPage() {
     const toast = useToast();
@@ -147,7 +153,7 @@ export default function WorkoutsPage() {
         setGenerating(true);
         try {
             await aiAPI.workoutPlan();
-            toast.success('Plan Generated', 'Your AI workout plan is ready! Check your notifications.');
+            toast.success('Plan ready', 'New programme added to My programmes.');
             loadPlans();
         } catch (err) {
             toast.error('Error', getErrorMessage(err));
@@ -206,7 +212,7 @@ export default function WorkoutsPage() {
         <div className="space-y-8">
             <PageHeader
                 title="Workout Plans"
-                subtitle="Your programmes and the PowerWorld Kiribathgoda library — day-by-day sessions with media"
+                subtitle="Day-by-day programmes, exercises, and progress at PowerWorld Kiribathgoda"
             />
 
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -240,7 +246,7 @@ export default function WorkoutsPage() {
                     loading={generating}
                     onClick={handleGenerateAiPlan}
                 >
-                    Generate AI Plan
+                    Generate plan
                 </LoadingButton>
             </div>
 
@@ -257,18 +263,13 @@ export default function WorkoutsPage() {
                         {filterExcludesAll
                             ? 'Switch to All Levels or pick another difficulty to see programmes again.'
                             : listTab === 'mine'
-                                ? 'Use Generate AI Plan or ask your trainer to assign a programme. Library templates are available under Library when you want ideas.'
+                                ? 'Use Generate plan above or ask your trainer to assign one.'
                                 : 'Try again later or contact support if programmes should appear here.'}
                     </p>
                 </Card>
             ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="space-y-4">
-                    {listTab === 'library' && (
-                        <p className="text-zinc-500 text-xs leading-relaxed px-1">
-                            Preview club programmes. Ask your trainer to assign one to your account for tracking and sessions.
-                        </p>
-                    )}
                     {filtered.map(plan => (
                         <div key={plan.id} onClick={() => setSelected(plan.id)}>
                             <Card padding="md"
@@ -276,9 +277,7 @@ export default function WorkoutsPage() {
                                 <div className="flex items-start justify-between mb-3">
                                     <div className="flex-1 min-w-0 mr-2">
                                         <p className="text-white font-semibold truncate">{plan.name}</p>
-                                        <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full font-semibold mt-0.5 ${sourceBadge[plan.source] ?? 'bg-zinc-700 text-zinc-300'}`}>
-                                            {sourceLabel[plan.source] ?? plan.source}
-                                        </span>
+                                        <PlanSourceTag source={plan.source} listTab={listTab} />
                                     </div>
                                     <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-semibold capitalize ${difficultyColor[plan.difficulty ?? 'beginner']}`}>
                                         {plan.difficulty ?? 'beginner'}
@@ -308,9 +307,9 @@ export default function WorkoutsPage() {
                                         <span> · {active.program.meta.focus}</span>
                                     )}
                                 </p>
-                                <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full font-semibold mt-1 ${sourceBadge[active.source] ?? ''}`}>
-                                    {sourceLabel[active.source] ?? active.source}
-                                </span>
+                                <div className="mt-1">
+                                    <PlanSourceTag source={active.source} listTab={listTab} />
+                                </div>
                             </div>
                             <div className="flex flex-wrap gap-2 justify-end">
                             {isAssignedPlan && (
@@ -395,12 +394,6 @@ export default function WorkoutsPage() {
                             </div>
                         )}
 
-                        {listTab === 'library' && (
-                            <p className="text-amber-200/80 text-xs mb-4 border border-amber-500/20 bg-amber-500/5 rounded-lg px-3 py-2">
-                                Library preview — start sessions from <strong className="text-white">My programmes</strong> after your trainer assigns a plan.
-                            </p>
-                        )}
-
                         <div className="mb-6 flex flex-wrap gap-2">
                             <button
                                 type="button"
@@ -410,7 +403,7 @@ export default function WorkoutsPage() {
                                 }}
                                 className="text-xs px-3 py-1.5 rounded-full border border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
                             >
-                                Ask AI About This Plan
+                                Ask about this plan
                             </button>
                         </div>
 
