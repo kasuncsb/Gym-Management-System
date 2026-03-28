@@ -29,17 +29,20 @@ export default function AdminDashboard() {
         return () => clearInterval(t);
     }, []);
     const refresh = async () => {
-        const [dash, messages, recent, subscriptions] = await Promise.all([
+        const [dash, events, recent, subscriptions] = await Promise.all([
             opsAPI.dashboard('admin'),
-            opsAPI.messages(),
+            opsAPI.equipmentEvents(),
             opsAPI.recentReports(),
             opsAPI.plans(),
         ]);
         setDashboard(dash);
-        setAlerts((messages ?? []).slice(0, 3).map((m: any) => ({
-            type: m.priority === 'critical' ? 'error' : m.priority === 'high' ? 'warning' : 'info',
-            message: m.subject || m.body || 'System notification',
-            priority: m.priority ?? 'normal',
+        const criticalOpen = (events ?? []).filter(
+            (e: any) => e.status !== 'resolved' && (e.severity === 'high' || e.severity === 'critical'),
+        );
+        setAlerts(criticalOpen.slice(0, 3).map((e: any) => ({
+            type: e.severity === 'critical' ? 'error' : 'warning',
+            message: e.description || e.equipmentName || 'Equipment issue',
+            priority: e.severity ?? 'high',
         })));
         setActivities((recent ?? []).map((r: any) => ({
             action: r.title ?? r.kind ?? 'Activity',

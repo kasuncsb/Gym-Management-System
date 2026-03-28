@@ -92,9 +92,7 @@ router.get('/inventory/transactions', authorize('manager', 'admin', 'trainer'), 
 router.post('/inventory/transactions', authorize('manager', 'admin', 'trainer'), ops.addInventoryTransaction);
 
 // Messages / notifications
-router.get('/messages', ops.listMessages);
-router.patch('/messages/:id/read', ops.markMessageRead);
-router.post('/messages', authorize('admin', 'manager'), ops.broadcastMessage);
+router.post('/staff-broadcast', authorize('admin', 'manager', 'trainer'), ops.staffBroadcast);
 
 router.get('/trainers', ops.listTrainers);
 

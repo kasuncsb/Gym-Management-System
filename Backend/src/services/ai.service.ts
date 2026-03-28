@@ -8,14 +8,13 @@ import {
   generateAiWorkoutPlan,
 } from './ops.service.js';
 import { db } from '../config/database.js';
-import { aiChatMessages, aiChatSessions, aiInteractions } from '../db/schema.js';
-import { aiChatMsgLc } from '../db/lifecycleAliases.js';
+import { aiInteractions } from '../db/schema.js';
 import { ids } from '../utils/id.js';
 import { insertLifecycleRow } from '../utils/lifecycle.js';
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
 
 const BRANCH_CONTEXT = `
 PowerWorld Gyms - Kiribathgoda branch.
@@ -108,51 +107,60 @@ async function loadTrainingDocs(): Promise<TrainingDoc[]> {
   return trainingCache;
 }
 
-async function ensureChatSession(user: AuthUser, role: 'member' | 'manager', sessionId?: string): Promise<string> {
-  if (sessionId) {
-    const [existing] = await db
-      .select({ id: aiChatSessions.id })
-      .from(aiChatSessions)
-      .where(and(eq(aiChatSessions.id, sessionId), eq(aiChatSessions.userId, user.id)))
-      .limit(1);
-    if (existing) return existing.id;
-  }
-  const id = ids.uuid();
-  const lc = await insertLifecycleRow();
-  await db.insert(aiChatSessions).values({
-    id,
-    lifecycleId: lc,
-    userId: user.id,
-    role,
-    title: role === 'manager' ? 'Manager assistant' : 'Member assistant',
-    lastMessageAt: new Date(),
-  });
-  return id;
+async function ensureChatSession(_user: AuthUser, _role: 'member' | 'manager', sessionId?: string): Promise<string> {
+  if (sessionId?.trim()) return sessionId.trim();
+  return ids.uuid();
 }
 
-async function appendChatMessage(sessionId: string, userId: string, role: 'user' | 'assistant', content: string, source: ChatSource) {
+async function nextChatSeq(chatSessionId: string): Promise<number> {
+  const [row] = await db
+    .select({ m: sql<number>`coalesce(max(${aiInteractions.seq}), 0)` })
+    .from(aiInteractions)
+    .where(eq(aiInteractions.chatSessionId, chatSessionId));
+  return Number(row?.m ?? 0) + 1;
+}
+
+async function appendChatMessage(sessionId: string, user: AuthUser, role: 'user' | 'assistant', content: string, source: ChatSource) {
   const msgLc = await insertLifecycleRow();
-  await db.insert(aiChatMessages).values({
+  const seq = await nextChatSeq(sessionId);
+  const isUser = role === 'user';
+  await db.insert(aiInteractions).values({
     id: ids.uuid(),
     lifecycleId: msgLc,
-    sessionId,
-    userId,
-    role,
-    content,
-    source,
+    userId: user.id,
+    userRole: user.role as UserRole,
+    interactionType: 'chat',
+    promptText: isUser ? content : null,
+    responseText: isUser ? null : content,
+    source: source === 'system' ? 'system' : source,
+    metadataJson: null,
+    chatSessionId: sessionId,
+    chatMessageRole: isUser ? 'user' : 'assistant',
+    seq,
   });
-  await db.update(aiChatSessions).set({ lastMessageAt: new Date() }).where(eq(aiChatSessions.id, sessionId));
 }
 
 async function getRecentSessionMessages(sessionId: string, limit = 12): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
   const rows = await db
-    .select({ role: aiChatMessages.role, content: aiChatMessages.content })
-    .from(aiChatMessages)
-    .innerJoin(aiChatMsgLc, eq(aiChatMessages.lifecycleId, aiChatMsgLc.id))
-    .where(eq(aiChatMessages.sessionId, sessionId))
-    .orderBy(desc(aiChatMsgLc.createdAt))
+    .select({
+      role: aiInteractions.chatMessageRole,
+      promptText: aiInteractions.promptText,
+      responseText: aiInteractions.responseText,
+      seq: aiInteractions.seq,
+    })
+    .from(aiInteractions)
+    .where(and(eq(aiInteractions.chatSessionId, sessionId), isNotNull(aiInteractions.chatMessageRole)))
+    .orderBy(desc(aiInteractions.seq))
     .limit(limit);
-  return rows.reverse();
+  return rows
+    .reverse()
+    .map((r) => {
+      const isUser = r.role === 'user';
+      return {
+        role: (isUser ? 'user' : 'assistant') as 'user' | 'assistant',
+        content: (isUser ? r.promptText : r.responseText) ?? '',
+      };
+    });
 }
 
 function renderHistoryForPrompt(history: Array<{ role: 'user' | 'assistant'; content: string }>): string {
@@ -313,8 +321,14 @@ export async function getAiDiagnostics(): Promise<{
   let chatSessions = 0;
   let chatMessages = 0;
   try {
-    const [s] = await db.select({ c: sql<number>`count(*)` }).from(aiChatSessions);
-    const [m] = await db.select({ c: sql<number>`count(*)` }).from(aiChatMessages);
+    const [s] = await db
+      .select({ c: sql<number>`count(distinct ${aiInteractions.chatSessionId})` })
+      .from(aiInteractions)
+      .where(isNotNull(aiInteractions.chatSessionId));
+    const [m] = await db
+      .select({ c: sql<number>`count(*)` })
+      .from(aiInteractions)
+      .where(isNotNull(aiInteractions.chatMessageRole));
     chatSessions = Number(s?.c ?? 0);
     chatMessages = Number(m?.c ?? 0);
   } catch {
@@ -532,11 +546,11 @@ async function buildManagerTrendContext(userId: string): Promise<string> {
 
 export async function memberChat(user: AuthUser, message: string, sessionId?: string): Promise<{ answer: string; source: 'rag' | 'gemini' | 'fallback'; sessionId: string }> {
   const resolvedSessionId = await ensureChatSession(user, 'member', sessionId);
-  await appendChatMessage(resolvedSessionId, user.id, 'user', message, 'system');
+  await appendChatMessage(resolvedSessionId, user, 'user', message, 'system');
   const history = await getRecentSessionMessages(resolvedSessionId, 12);
   const ragAnswer = await callExternalRag(user, message);
   if (ragAnswer) {
-    await appendChatMessage(resolvedSessionId, user.id, 'assistant', ragAnswer, 'rag');
+    await appendChatMessage(resolvedSessionId, user, 'assistant', ragAnswer, 'rag');
     await logInteraction(user, { interactionType: 'chat', promptText: message, responseText: ragAnswer, source: 'rag', metadata: { route: 'external_rag' } });
     return { answer: ragAnswer, source: 'rag', sessionId: resolvedSessionId };
   }
@@ -551,7 +565,7 @@ export async function memberChat(user: AuthUser, message: string, sessionId?: st
   } catch {
     const local = await localRag(message);
     if (local) {
-      await appendChatMessage(resolvedSessionId, user.id, 'assistant', local, 'rag');
+      await appendChatMessage(resolvedSessionId, user, 'assistant', local, 'rag');
       return { answer: local, source: 'rag', sessionId: resolvedSessionId };
     }
   }
@@ -586,7 +600,7 @@ Using the branch context and RAG snippets above, answer in 1–3 short paragraph
 
   try {
     const answer = await callGemini(prompt);
-    await appendChatMessage(resolvedSessionId, user.id, 'assistant', answer, 'gemini');
+    await appendChatMessage(resolvedSessionId, user, 'assistant', answer, 'gemini');
     await logInteraction(user, {
       interactionType: 'chat',
       promptText: message,
@@ -625,7 +639,7 @@ Using the branch context and RAG snippets above, answer in 1–3 short paragraph
         geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
       },
     });
-    await appendChatMessage(resolvedSessionId, user.id, 'assistant', fallbackText, 'fallback');
+    await appendChatMessage(resolvedSessionId, user, 'assistant', fallbackText, 'fallback');
     return {
       source: 'fallback',
       answer: fallbackText,
@@ -636,7 +650,7 @@ Using the branch context and RAG snippets above, answer in 1–3 short paragraph
 
 export async function managerChat(user: AuthUser, message: string, sessionId?: string): Promise<{ answer: string; source: 'rag' | 'gemini' | 'fallback'; sessionId: string }> {
   const resolvedSessionId = await ensureChatSession(user, 'manager', sessionId);
-  await appendChatMessage(resolvedSessionId, user.id, 'user', message, 'system');
+  await appendChatMessage(resolvedSessionId, user, 'user', message, 'system');
   const history = await getRecentSessionMessages(resolvedSessionId, 12);
   const [dashboard, report] = await Promise.all([
     getDashboard('manager', user.id),
@@ -691,7 +705,7 @@ Return concise guidance with:
 
   try {
     const answer = await callGemini(prompt);
-    await appendChatMessage(resolvedSessionId, user.id, 'assistant', answer, 'gemini');
+    await appendChatMessage(resolvedSessionId, user, 'assistant', answer, 'gemini');
     await logInteraction(user, { interactionType: 'chat', promptText: message, responseText: answer, source: 'gemini', metadata: { route: 'manager_chat' } });
     return { answer, source: 'gemini', sessionId: resolvedSessionId };
   } catch (err) {
@@ -706,7 +720,7 @@ Return concise guidance with:
       ? 'AI is temporarily rate-limited due to quota usage. Please retry in about a minute.'
       : `Current snapshot: ${dashboard.todayVisits} visits today, ${dashboard.openIssues} open issues, and Rs. ${dashboard.monthlyRevenue} monthly revenue. Prioritize unresolved incidents, monitor low-visit members nearing expiry, and balance trainer coverage during peak hours.`;
     await logInteraction(user, { interactionType: 'chat', promptText: message, responseText: fallbackText, source: 'fallback', metadata: { route: 'manager_chat' } });
-    await appendChatMessage(resolvedSessionId, user.id, 'assistant', fallbackText, 'fallback');
+    await appendChatMessage(resolvedSessionId, user, 'assistant', fallbackText, 'fallback');
     return { answer: fallbackText, source: 'fallback', sessionId: resolvedSessionId };
   }
 }

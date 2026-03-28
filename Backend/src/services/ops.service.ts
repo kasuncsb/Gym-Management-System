@@ -14,13 +14,11 @@ import {
   ptSessions,
   workoutPlans,
   workoutSessions,
-  workoutSessionEvents,
   memberMetrics,
   equipment,
   equipmentEvents,
   inventoryItems,
   inventoryTransactions,
-  messages,
   branchClosures,
   shifts,
 } from '../db/schema.js';
@@ -34,13 +32,11 @@ import {
   ptLc,
   wpLc,
   wsLc,
-  wseLc,
   mmLc,
   eqLc,
   eeLc,
   iiLc,
   itLc,
-  msgLc,
   bcLc,
   shiftLc,
 } from '../db/lifecycleAliases.js';
@@ -330,15 +326,17 @@ export async function getDashboard(role: Role, userId: string) {
       .innerJoin(userLc, eq(users.lifecycleId, userLc.id))
       .innerJoin(members, eq(members.userId, users.id))
       .where(and(eq(users.role, 'member'), eq(members.idVerificationStatus, 'pending'), isNull(userLc.deletedAt)));
-    const [systemAlerts] = await db
+    const [criticalEquipment] = await db
       .select({ count: sql<number>`count(*)` })
-      .from(messages)
-      .innerJoin(msgLc, eq(messages.lifecycleId, msgLc.id))
-      .where(and(eq(messages.status, 'sent'), sql`${messages.priority} in ('high','critical')`));
+      .from(equipmentEvents)
+      .where(and(
+        eq(equipmentEvents.status, 'open'),
+        sql`${equipmentEvents.severity} in ('high','critical')`,
+      ));
     return {
       ...base,
       pendingIdVerifications: Number(pendingId?.count ?? 0),
-      systemAlertCount: Number(systemAlerts?.count ?? 0),
+      systemAlertCount: Number(criticalEquipment?.count ?? 0),
     };
   }
 
@@ -798,6 +796,7 @@ export async function listMyPtSessions(userId: string) {
       status: ptSessions.status,
       cancelReason: ptSessions.cancelReason,
       reviewRating: ptSessions.reviewRating,
+      reviewComment: ptSessions.reviewComment,
       createdAt: ptLc.createdAt,
       trainerName: users.fullName,
     })
@@ -821,6 +820,7 @@ export async function listTrainerPtSessions(userId: string) {
       status: ptSessions.status,
       cancelReason: ptSessions.cancelReason,
       reviewRating: ptSessions.reviewRating,
+      reviewComment: ptSessions.reviewComment,
       createdAt: ptLc.createdAt,
       memberName: memberAlias.fullName,
     })
@@ -843,6 +843,7 @@ export async function listAllPtSessions() {
       status: ptSessions.status,
       cancelReason: ptSessions.cancelReason,
       reviewRating: ptSessions.reviewRating,
+      reviewComment: ptSessions.reviewComment,
       createdAt: ptLc.createdAt,
       memberName: sql<string>`(SELECT full_name FROM users WHERE id = ${ptSessions.memberId})`,
       trainerName: sql<string>`(SELECT full_name FROM users WHERE id = ${ptSessions.trainerId})`,
@@ -889,34 +890,14 @@ export async function createPtSession(
   });
 
   const when = `${input.sessionDate} ${input.startTime} - ${input.endTime}`;
-  const m1 = ids.uuid();
-  const m2 = ids.uuid();
-  const ml1 = await insertLifecycleRow();
-  const ml2 = await insertLifecycleRow();
-  await db.insert(messages).values([
-    {
-      id: m1,
-      lifecycleId: ml1,
-      type: 'notification',
-      channel: 'in_app',
-      toPersonId: input.trainerId,
-      subject: 'New PT session booked',
-      body: `A new PT session has been scheduled for ${when}.`,
-      priority: 'high',
-      status: 'sent',
-    },
-    {
-      id: m2,
-      lifecycleId: ml2,
-      type: 'notification',
-      channel: 'in_app',
-      toPersonId: input.memberId,
-      subject: 'PT session confirmed',
-      body: `Your PT session is booked for ${when}.`,
-      priority: 'normal',
-      status: 'sent',
-    },
-  ]);
+  await audit.appendAudit({
+    actorId: input.memberId,
+    action: 'pt_session_booked',
+    category: 'trainer',
+    entityType: 'pt_session',
+    entityId: id,
+    detail: `Booked ${when} trainer=${input.trainerId}`.slice(0, 500),
+  });
 
   const [session] = await db.select().from(ptSessions).where(eq(ptSessions.id, id));
   return session;
@@ -926,76 +907,98 @@ export async function updatePtSession(
   sessionId: string,
   actorId: string,
   actorRole: Role,
-  input: { status: 'confirmed' | 'completed' | 'cancelled' | 'no_show'; cancelReason?: string },
+  input: Record<string, unknown>,
 ) {
   const [session] = await db.select().from(ptSessions).where(eq(ptSessions.id, sessionId)).limit(1);
   if (!session) throw errors.notFound('PT session');
 
+  const hasReviewFields = 'reviewRating' in input || 'reviewComment' in input;
+  const status = input.status as 'confirmed' | 'completed' | 'cancelled' | 'no_show' | undefined;
+  const cancelReason = typeof input.cancelReason === 'string' ? input.cancelReason : undefined;
+
+  if (hasReviewFields) {
+    if (actorRole !== 'member') throw errors.forbidden('Only members can submit session reviews');
+    if (session.memberId !== actorId) throw errors.forbidden('You can only review your own sessions');
+    if (session.status !== 'completed') throw errors.badRequest('You can only review completed sessions');
+    if (session.reviewRating != null) throw errors.badRequest('This session has already been rated');
+
+    const rawRating = input.reviewRating;
+    const rating = typeof rawRating === 'number' ? rawRating : typeof rawRating === 'string' ? Number(rawRating) : NaN;
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) throw errors.badRequest('reviewRating must be between 1 and 5');
+
+    let comment: string | null = null;
+    if (input.reviewComment != null) {
+      const c = String(input.reviewComment).trim();
+      comment = c.length ? c.slice(0, 4000) : null;
+    }
+
+    await db.update(ptSessions).set({
+      reviewRating: Math.round(rating),
+      reviewComment: comment,
+    }).where(eq(ptSessions.id, sessionId));
+
+    await audit.appendAudit({
+      actorId,
+      action: 'pt_session_review',
+      category: 'trainer',
+      entityType: 'pt_session',
+      entityId: sessionId,
+      detail: `rating=${Math.round(rating)}`.slice(0, 500),
+    });
+
+    const [updated] = await db.select().from(ptSessions).where(eq(ptSessions.id, sessionId));
+    return updated!;
+  }
+
+  if (!status) throw errors.badRequest('status or review fields are required');
+
   // Access control: members can only cancel their own sessions; trainers can confirm/complete/no-show their sessions
   if (actorRole === 'member') {
     if (session.memberId !== actorId) throw errors.forbidden('You can only manage your own sessions');
-    if (input.status !== 'cancelled') throw errors.forbidden('Members can only cancel sessions');
+    if (status !== 'cancelled') throw errors.forbidden('Members can only cancel sessions');
   } else if (actorRole === 'trainer') {
     if (session.trainerId !== actorId) throw errors.forbidden('You can only manage sessions assigned to you');
-    if (input.status === 'cancelled' && !input.cancelReason) throw errors.badRequest('Cancel reason is required');
+    if (status === 'cancelled' && !cancelReason) throw errors.badRequest('Cancel reason is required');
   }
 
   await db.update(ptSessions).set({
-    status: input.status,
-    cancelReason: input.cancelReason ?? null,
+    status,
+    cancelReason: cancelReason ?? null,
   }).where(eq(ptSessions.id, sessionId));
 
   const when = `${String(session.sessionDate).slice(0, 10)} ${session.startTime} - ${session.endTime}`;
 
-  // Cross-role notification on status change
-  const notifyMap: Record<string, { toId: string; subject: string; body: string; priority: 'normal' | 'high' }> = {
+  const notifyMap: Record<string, { detail: string }> = {
     confirmed: {
-      toId: session.memberId,
-      subject: 'PT session confirmed',
-      body: `Your PT session on ${when} has been confirmed by your trainer.`,
-      priority: 'normal',
+      detail: `PT confirmed for member ${session.memberId}: ${when}`,
     },
     completed: {
-      toId: session.memberId,
-      subject: 'PT session completed',
-      body: `Your PT session on ${when} has been marked as completed. Great work!`,
-      priority: 'normal',
+      detail: `PT completed for member ${session.memberId}: ${when}`,
     },
     no_show: {
-      toId: session.memberId,
-      subject: 'PT session no-show recorded',
-      body: `You were marked as no-show for your PT session on ${when}. Contact a trainer to reschedule.`,
-      priority: 'high',
+      detail: `PT no-show for member ${session.memberId}: ${when}`,
     },
     cancelled: {
-      toId: actorRole === 'member' ? session.trainerId : session.memberId,
-      subject: 'PT session cancelled',
-      body: actorRole === 'member'
-        ? `Your PT session scheduled for ${when} was cancelled by the member.`
-        : `Your PT session on ${when} was cancelled. Reason: ${input.cancelReason ?? 'Not specified'}.`,
-      priority: 'high',
+      detail: actorRole === 'member'
+        ? `PT cancelled by member ${session.memberId}: ${when}`
+        : `PT cancelled for member ${session.memberId}: ${when}. Reason: ${cancelReason ?? '—'}`,
     },
   };
 
-  const n = notifyMap[input.status];
+  const n = notifyMap[status];
   if (n) {
-    const mid = ids.uuid();
-    const msgLcId = await insertLifecycleRow();
-    await db.insert(messages).values({
-      id: mid,
-      lifecycleId: msgLcId,
-      type: 'notification',
-      channel: 'in_app',
-      toPersonId: n.toId,
-      subject: n.subject,
-      body: n.body,
-      priority: n.priority,
-      status: 'sent',
+    await audit.appendAudit({
+      actorId,
+      action: `pt_session_${status}`,
+      category: 'trainer',
+      entityType: 'pt_session',
+      entityId: sessionId,
+      detail: n.detail.slice(0, 500),
     });
   }
 
   const [updated] = await db.select().from(ptSessions).where(eq(ptSessions.id, sessionId));
-  return updated;
+  return updated!;
 }
 
 // ── Workout Plans & Logs ──────────────────────────────────────────────────────
@@ -1102,15 +1105,6 @@ export async function startWorkoutSession(userId: string, input: { planId?: stri
     startedAt: new Date(),
     notes: input.notes ?? null,
   });
-  const wseLid = await insertLifecycleRow();
-  await db.insert(workoutSessionEvents).values({
-    id: ids.uuid(),
-    lifecycleId: wseLid,
-    sessionId: id,
-    personId: userId,
-    eventType: 'started',
-    payloadJson: input.planId ? JSON.stringify({ planId: input.planId }) : null,
-  });
   const [row] = await db.select().from(workoutSessions).where(eq(workoutSessions.id, id)).limit(1);
   return row!;
 }
@@ -1123,20 +1117,15 @@ export async function addWorkoutSessionEvent(userId: string, sessionId: string, 
     ? await db.select().from(workoutSessions).where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.personId, userId))).limit(1)
     : await db.select().from(workoutSessions).where(eq(workoutSessions.id, sessionId)).limit(1);
   if (!session) throw errors.notFound('Workout session');
-  const eventActorId = actorRole === 'member' ? userId : session.personId;
-  const evLc = await insertLifecycleRow();
-  await db.insert(workoutSessionEvents).values({
-    id: ids.uuid(),
-    lifecycleId: evLc,
-    sessionId,
-    personId: eventActorId,
-    eventType: input.eventType,
-    payloadJson: input.payload ? JSON.stringify(input.payload) : null,
-  });
   if (input.eventType === 'paused') {
     await db.update(workoutSessions).set({ status: 'paused' }).where(eq(workoutSessions.id, sessionId));
   } else if (input.eventType === 'resumed') {
     await db.update(workoutSessions).set({ status: 'active' }).where(eq(workoutSessions.id, sessionId));
+  } else if (input.eventType === 'simulated') {
+    const p = input.payload as { workoutDate?: string } | undefined;
+    const line = p?.workoutDate ? `Manual log date: ${p.workoutDate}` : 'Manual log';
+    const merged = [session.notes, line].filter(Boolean).join('\n').slice(0, 8000);
+    await db.update(workoutSessions).set({ notes: merged }).where(eq(workoutSessions.id, sessionId));
   }
   const [updated] = await db.select().from(workoutSessions).where(eq(workoutSessions.id, sessionId)).limit(1);
   return updated!;
@@ -1166,15 +1155,6 @@ export async function stopWorkoutSession(
     mood: input.mood ?? null,
     notes: input.notes ?? session.notes ?? null,
   }).where(eq(workoutSessions.id, sessionId));
-  const evLc2 = await insertLifecycleRow();
-  await db.insert(workoutSessionEvents).values({
-    id: ids.uuid(),
-    lifecycleId: evLc2,
-    sessionId,
-    personId: session.personId,
-    eventType: input.complete ? 'completed' : 'stopped',
-    payloadJson: JSON.stringify({ durationMin }),
-  });
   const [updated] = await db.select().from(workoutSessions).where(eq(workoutSessions.id, sessionId)).limit(1);
   return updated!;
 }
@@ -1233,17 +1213,13 @@ export async function assignWorkoutPlanToMember(
     programJson,
   });
 
-  const assignMsgLc = await insertLifecycleRow();
-  await db.insert(messages).values({
-    id: ids.uuid(),
-    lifecycleId: assignMsgLc,
-    type: 'notification',
-    channel: 'in_app',
-    toPersonId: input.memberId,
-    subject: 'New workout plan assigned',
-    body: `Your trainer assigned "${input.name}" (${input.daysPerWeek} days/week for ${input.durationWeeks} weeks).`,
-    priority: 'normal',
-    status: 'sent',
+  await audit.appendAudit({
+    actorId: trainerId,
+    action: 'workout_plan_assigned',
+    category: 'trainer',
+    entityType: 'workout_plan',
+    entityId: id,
+    detail: `Assigned "${input.name}" to member ${input.memberId}`.slice(0, 500),
   });
 
   const [row] = await db.select().from(workoutPlans).where(eq(workoutPlans.id, id));
@@ -1438,17 +1414,13 @@ Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
     programJson: stringifyProgram(program),
   });
 
-  const aiMsgLc = await insertLifecycleRow();
-  await db.insert(messages).values({
-    id: ids.uuid(),
-    lifecycleId: aiMsgLc,
-    type: 'notification',
-    channel: 'in_app',
-    toPersonId: memberId,
-    subject: 'Your AI workout plan is ready',
-    body: `Your personalised workout plan "${planData.name}" (${planData.daysPerWeek} days/week for ${planData.durationWeeks} weeks) has been created.`,
-    priority: 'normal',
-    status: 'sent',
+  await audit.appendAudit({
+    actorId: requesterId,
+    action: 'ai_workout_plan_created',
+    category: 'system',
+    entityType: 'workout_plan',
+    entityId: id,
+    detail: `AI plan "${planData.name}" for member ${memberId}`.slice(0, 500),
   });
 
   const [row] = await db.select().from(workoutPlans).where(eq(workoutPlans.id, id));
@@ -1510,17 +1482,13 @@ export async function addMetricForMember(
     notes: input.notes ?? null,
   });
 
-  const metricMsgLc = await insertLifecycleRow();
-  await db.insert(messages).values({
-    id: ids.uuid(),
-    lifecycleId: metricMsgLc,
-    type: 'notification',
-    channel: 'in_app',
-    toPersonId: memberId,
-    subject: 'New body metrics recorded',
-    body: `A trainer updated your metrics. ${input.notes ? `Note: ${input.notes}` : ''}`.trim(),
-    priority: 'normal',
-    status: 'sent',
+  await audit.appendAudit({
+    actorId: trainerId,
+    action: 'member_metrics_recorded',
+    category: 'trainer',
+    entityType: 'member_metric',
+    entityId: id,
+    detail: `Trainer recorded metrics for member ${memberId}`.slice(0, 500),
   });
 
   const [row] = await db.select().from(memberMetrics).where(eq(memberMetrics.id, id));
@@ -1652,17 +1620,13 @@ export async function createShift(input: {
     createdBy: input.createdBy,
   });
 
-  const shiftMsgLc = await insertLifecycleRow();
-  await db.insert(messages).values({
-    id: ids.uuid(),
-    lifecycleId: shiftMsgLc,
-    type: 'notification',
-    channel: 'in_app',
-    toPersonId: input.staffId,
-    subject: 'New shift scheduled',
-    body: `You have a ${input.shiftType} shift on ${input.shiftDate} (${input.startTime} – ${input.endTime}).`,
-    priority: 'normal',
-    status: 'sent',
+  await audit.appendAudit({
+    actorId: input.createdBy,
+    action: 'shift_created',
+    category: 'system',
+    entityType: 'shift',
+    entityId: id,
+    detail: `Shift ${input.shiftType} ${input.shiftDate} ${input.startTime}-${input.endTime} staff=${input.staffId}`.slice(0, 500),
   });
 
   const [row] = await db.select().from(shifts).where(eq(shifts.id, id));
@@ -1884,70 +1848,8 @@ export async function addInventoryTransaction(
   return txn;
 }
 
-// ── Messages ──────────────────────────────────────────────────────────────────
-
-export async function listMessagesForUser(userId: string, role: Role) {
-  return db
-    .select({
-      id: messages.id,
-      type: messages.type,
-      channel: messages.channel,
-      toPersonId: messages.toPersonId,
-      targetRole: messages.targetRole,
-      subject: messages.subject,
-      body: messages.body,
-      priority: messages.priority,
-      status: messages.status,
-      createdAt: msgLc.createdAt,
-    })
-    .from(messages)
-    .innerJoin(msgLc, eq(messages.lifecycleId, msgLc.id))
-    .where(sql`(${messages.toPersonId} = ${userId}) or (${messages.targetRole} = ${role}) or (${messages.toPersonId} is null and ${messages.targetRole} is null)`)
-    .orderBy(desc(msgLc.createdAt));
-}
-
-export async function markMessageRead(messageId: string, userId: string, role: Role) {
-  const [msg] = await db
-    .select({
-      id: messages.id,
-      toPersonId: messages.toPersonId,
-      targetRole: messages.targetRole,
-      status: messages.status,
-    })
-    .from(messages)
-    .where(eq(messages.id, messageId))
-    .limit(1);
-  if (!msg) throw errors.notFound('Message');
-
-  const canAccess = msg.toPersonId === userId
-    || msg.targetRole === role
-    || (msg.toPersonId == null && msg.targetRole == null);
-  if (!canAccess) throw errors.forbidden('You do not have access to this message');
-
-  if (msg.status !== 'read') {
-    await db.update(messages).set({ status: 'read' }).where(eq(messages.id, messageId));
-  }
-  const [updated] = await db
-    .select({
-      id: messages.id,
-      type: messages.type,
-      channel: messages.channel,
-      toPersonId: messages.toPersonId,
-      targetRole: messages.targetRole,
-      subject: messages.subject,
-      body: messages.body,
-      priority: messages.priority,
-      status: messages.status,
-      createdAt: msgLc.createdAt,
-    })
-    .from(messages)
-    .innerJoin(msgLc, eq(messages.lifecycleId, msgLc.id))
-    .where(eq(messages.id, messageId))
-    .limit(1);
-  return updated!;
-}
-
-export async function broadcastMessage(
+/** Log-only replacement for legacy in-app broadcast (audit trail). */
+export async function logStaffBroadcast(
   senderId: string,
   input: {
     subject: string;
@@ -1958,45 +1860,15 @@ export async function broadcastMessage(
   },
 ) {
   const id = ids.uuid();
-  const bcMsgLc = await insertLifecycleRow();
-  await db.insert(messages).values({
-    id,
-    lifecycleId: bcMsgLc,
-    type: 'announcement',
-    channel: 'in_app',
-    toPersonId: input.toPersonId ?? null,
-    targetRole: input.targetRole ?? null,
-    subject: input.subject,
-    body: input.body,
-    priority: input.priority ?? 'normal',
-    status: 'sent',
-    sentBy: senderId,
-  });
-  const [row] = await db
-    .select({
-      id: messages.id,
-      type: messages.type,
-      channel: messages.channel,
-      toPersonId: messages.toPersonId,
-      targetRole: messages.targetRole,
-      subject: messages.subject,
-      body: messages.body,
-      priority: messages.priority,
-      status: messages.status,
-      createdAt: msgLc.createdAt,
-    })
-    .from(messages)
-    .innerJoin(msgLc, eq(messages.lifecycleId, msgLc.id))
-    .where(eq(messages.id, id));
   await audit.appendAudit({
     actorId: senderId,
-    action: 'message_broadcast',
+    action: 'staff_broadcast',
     category: 'system',
-    entityType: 'message',
+    entityType: 'broadcast',
     entityId: id,
-    detail: `${input.subject} → ${input.targetRole ?? 'all'}`.slice(0, 500),
+    detail: `[${input.priority ?? 'normal'}] ${input.subject}: ${input.body} → ${input.targetRole ?? 'all'}`.slice(0, 500),
   });
-  return row;
+  return { id, subject: input.subject, createdAt: new Date().toISOString() };
 }
 
 // ── Reports ───────────────────────────────────────────────────────────────────
@@ -2416,11 +2288,28 @@ export async function createClosure(
     closedBy: userId,
   });
   const [row] = await db.select().from(branchClosures).where(eq(branchClosures.id, id));
+  await audit.appendAudit({
+    actorId: userId,
+    action: 'branch_closure_created',
+    category: 'config',
+    entityType: 'branch_closure',
+    entityId: id,
+    detail: `${String(row?.closureDate).slice(0, 10)} ${row?.isEmergency ? 'emergency' : 'planned'} ${row?.reason ?? ''}`.slice(0, 500),
+  });
   return row;
 }
 
-export async function deleteClosure(id: string) {
+export async function deleteClosure(id: string, actorId: string) {
+  const [existing] = await db.select().from(branchClosures).where(eq(branchClosures.id, id)).limit(1);
   await db.delete(branchClosures).where(eq(branchClosures.id, id));
+  await audit.appendAudit({
+    actorId,
+    action: 'branch_closure_deleted',
+    category: 'config',
+    entityType: 'branch_closure',
+    entityId: id,
+    detail: existing ? `Removed ${String(existing.closureDate).slice(0, 10)}`.slice(0, 500) : id,
+  });
 }
 
 // ── Simulation Helpers ────────────────────────────────────────────────────────

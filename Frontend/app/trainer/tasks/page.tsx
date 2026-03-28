@@ -17,7 +17,7 @@ interface Task {
     eta: string;
     status: TaskStatus;
     category: string;
-    source: 'equipment' | 'inventory' | 'message';
+    source: 'equipment' | 'inventory';
 }
 
 const priorityColor: Record<Priority, string> = {
@@ -33,10 +33,9 @@ export default function TrainerTasksPage() {
     const [resolving, setResolving] = useState<string | null>(null);
 
     const loadTasks = async () => {
-        const [events, items, messages] = await Promise.all([
+        const [events, items] = await Promise.all([
             opsAPI.equipmentEvents(),
             opsAPI.inventoryItems(),
-            opsAPI.messages(),
         ]);
 
         const fromEvents: Task[] = (events ?? [])
@@ -67,21 +66,7 @@ export default function TrainerTasksPage() {
                 source: 'inventory' as const,
             }));
 
-        const fromMessages: Task[] = (messages ?? [])
-            .filter((m: any) => m.status !== 'read')
-            .slice(0, 5)
-            .map((m: any, idx: number) => ({
-                id: m.id,
-                displayId: 500 + idx,
-                task: m.subject ?? 'Review member request',
-                priority: (m.priority === 'critical' ? 'high' : m.priority ?? 'low') as Priority,
-                eta: '10 min',
-                status: 'pending' as TaskStatus,
-                category: 'Member Care',
-                source: 'message' as const,
-            }));
-
-        setTasks([...fromEvents, ...fromInventory, ...fromMessages]);
+        setTasks([...fromEvents, ...fromInventory]);
     };
 
     useEffect(() => {
@@ -96,12 +81,6 @@ export default function TrainerTasksPage() {
                 await opsAPI.resolveEquipmentEvent(task.id);
                 toast.success('Resolved', 'Equipment issue marked as resolved.');
                 await loadTasks(); // reload from DB
-                return;
-            }
-            if (task.source === 'message') {
-                await opsAPI.markMessageRead(task.id);
-                toast.success('Done', 'Task marked as complete.');
-                await loadTasks();
                 return;
             }
             // For inventory restock tasks, call the API

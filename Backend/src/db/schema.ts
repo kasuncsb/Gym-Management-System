@@ -317,24 +317,7 @@ export const inventoryTransactions = mysqlTable('inventory_transactions', {
 });
 
 // ============================================================================
-// MESSAGES
-// ============================================================================
-export const messages = mysqlTable('messages', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
-  type: mysqlEnum('type', ['notification', 'announcement', 'email']).notNull(),
-  channel: mysqlEnum('channel', ['in_app', 'email', 'sms']).notNull(),
-  toPersonId: varchar('to_person_id', { length: 36 }),
-  targetRole: mysqlEnum('target_role', ['admin', 'manager', 'trainer', 'member']),
-  subject: varchar('subject', { length: 255 }),
-  body: text('body').notNull(),
-  priority: mysqlEnum('priority', ['low', 'normal', 'high', 'critical']).notNull(),
-  status: mysqlEnum('status', ['pending', 'sent', 'read', 'failed']).notNull(),
-  sentBy: varchar('sent_by', { length: 36 }),
-});
-
-// ============================================================================
-// AI_INTERACTIONS
+// AI_INTERACTIONS (aggregate logs + per-message chat rows via chat_session_id / seq)
 // ============================================================================
 export const aiInteractions = mysqlTable('ai_interactions', {
   id: varchar('id', { length: 36 }).primaryKey(),
@@ -344,40 +327,17 @@ export const aiInteractions = mysqlTable('ai_interactions', {
   interactionType: mysqlEnum('interaction_type', ['chat', 'workout_plan', 'insight']).notNull(),
   promptText: text('prompt_text'),
   responseText: text('response_text'),
-  source: mysqlEnum('source', ['rag', 'gemini', 'fallback']).notNull(),
+  source: mysqlEnum('source', ['rag', 'gemini', 'fallback', 'system']).notNull(),
   metadataJson: text('metadata_json'),
-});
-
-// ============================================================================
-// AI_CHAT_SESSIONS / AI_CHAT_MESSAGES
-// ============================================================================
-export const aiChatSessions = mysqlTable('ai_chat_sessions', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
-  userId: varchar('user_id', { length: 36 }).notNull(),
-  role: mysqlEnum('role', ['member', 'manager']).notNull(),
-  title: varchar('title', { length: 140 }),
-  lastMessageAt: timestamp('last_message_at').notNull().defaultNow(),
+  chatSessionId: varchar('chat_session_id', { length: 36 }),
+  chatMessageRole: mysqlEnum('chat_message_role', ['user', 'assistant', 'system']),
+  seq: smallint('seq'),
 }, (t) => ({
-  userRoleIdx: index('idx_ai_chat_sessions_user_role').on(t.userId, t.role),
-  lastMessageIdx: index('idx_ai_chat_sessions_last_message').on(t.lastMessageAt),
-}));
-
-export const aiChatMessages = mysqlTable('ai_chat_messages', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
-  sessionId: varchar('session_id', { length: 36 }).notNull(),
-  userId: varchar('user_id', { length: 36 }).notNull(),
-  role: mysqlEnum('role', ['user', 'assistant']).notNull(),
-  source: mysqlEnum('source', ['rag', 'gemini', 'fallback', 'system']).notNull().default('system'),
-  content: text('content').notNull(),
-}, (t) => ({
-  sessionCreatedIdx: index('idx_ai_chat_messages_session_created').on(t.sessionId),
-  userCreatedIdx: index('idx_ai_chat_messages_user_created').on(t.userId),
+  chatSessionSeqIdx: index('idx_ai_interactions_chat_session_seq').on(t.chatSessionId, t.seq),
 }));
 
 // ============================================================================
-// WORKOUT_SESSIONS / WORKOUT_SESSION_EVENTS
+// WORKOUT_SESSIONS
 // ============================================================================
 export const workoutSessions = mysqlTable('workout_sessions', {
   id: varchar('id', { length: 36 }).primaryKey(),
@@ -394,19 +354,6 @@ export const workoutSessions = mysqlTable('workout_sessions', {
 }, (t) => ({
   personStatusIdx: index('idx_workout_sessions_person_status').on(t.personId, t.status),
   startedIdx: index('idx_workout_sessions_started').on(t.startedAt),
-}));
-
-export const workoutSessionEvents = mysqlTable('workout_session_events', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  lifecycleId: varchar('lifecycle_id', { length: 36 }).notNull().unique().references(() => entityLifecycle.id),
-  sessionId: varchar('session_id', { length: 36 }).notNull(),
-  personId: varchar('person_id', { length: 36 }).notNull(),
-  eventType: mysqlEnum('event_type', ['started', 'paused', 'resumed', 'exercise_started', 'set_completed', 'exercise_completed', 'stopped', 'completed', 'simulated']).notNull(),
-  payloadJson: text('payload_json'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, (t) => ({
-  sessionIdx: index('idx_workout_session_events_session').on(t.sessionId, t.createdAt),
-  personIdx: index('idx_workout_session_events_person').on(t.personId, t.createdAt),
 }));
 
 // ============================================================================
@@ -491,12 +438,8 @@ export type MemberMetric = typeof memberMetrics.$inferSelect;
 export type Equipment = typeof equipment.$inferSelect;
 export type EquipmentEvent = typeof equipmentEvents.$inferSelect;
 export type InventoryItem = typeof inventoryItems.$inferSelect;
-export type Message = typeof messages.$inferSelect;
 export type AiInteraction = typeof aiInteractions.$inferSelect;
-export type AiChatSession = typeof aiChatSessions.$inferSelect;
-export type AiChatMessage = typeof aiChatMessages.$inferSelect;
 export type WorkoutSession = typeof workoutSessions.$inferSelect;
-export type WorkoutSessionEvent = typeof workoutSessionEvents.$inferSelect;
 export type Shift = typeof shifts.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type EntityLifecycle = typeof entityLifecycle.$inferSelect;

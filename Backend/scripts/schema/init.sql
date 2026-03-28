@@ -461,33 +461,7 @@ CREATE TABLE IF NOT EXISTS `inventory_transactions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
--- 18. MESSAGES
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS `messages` (
-  `id`             VARCHAR(36)  NOT NULL,
-  `lifecycle_id`   VARCHAR(36)  NOT NULL,
-  `type`           ENUM('notification','announcement','email') NOT NULL,
-  `channel`        ENUM('in_app','email','sms') NOT NULL DEFAULT 'in_app',
-  `to_person_id`   VARCHAR(36)  DEFAULT NULL,
-  `target_role`    ENUM('admin','manager','trainer','member') DEFAULT NULL,
-  `subject`        VARCHAR(255) DEFAULT NULL,
-  `body`           TEXT         NOT NULL,
-  `priority`       ENUM('low','normal','high','critical') NOT NULL DEFAULT 'normal',
-  `status`         ENUM('pending','sent','read','failed') NOT NULL DEFAULT 'pending',
-  `sent_by`        VARCHAR(36)  DEFAULT NULL,
-
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_msg_lifecycle` (`lifecycle_id`),
-  INDEX `idx_msg_person`    (`to_person_id`),
-  INDEX `idx_msg_status`    (`status`),
-  CONSTRAINT `fk_msg_lifecycle` FOREIGN KEY (`lifecycle_id`) REFERENCES `entity_lifecycle`(`id`) ON DELETE RESTRICT,
-  CONSTRAINT `fk_msg_person`  FOREIGN KEY (`to_person_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_msg_sender`  FOREIGN KEY (`sent_by`)      REFERENCES `users`(`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- 19. AUDIT_LOGS
+-- 18. AUDIT_LOGS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS `audit_logs` (
@@ -505,7 +479,7 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
--- 20. AI_INTERACTIONS
+-- 19. AI_INTERACTIONS (chat lines: chat_session_id + seq + chat_message_role)
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS `ai_interactions` (
@@ -516,57 +490,23 @@ CREATE TABLE IF NOT EXISTS `ai_interactions` (
   `interaction_type` ENUM('chat','workout_plan','insight') NOT NULL,
   `prompt_text`      TEXT         DEFAULT NULL,
   `response_text`    TEXT         DEFAULT NULL,
-  `source`           ENUM('rag','gemini','fallback') NOT NULL DEFAULT 'fallback',
+  `source`           ENUM('rag','gemini','fallback','system') NOT NULL DEFAULT 'fallback',
   `metadata_json`    TEXT         DEFAULT NULL,
+  `chat_session_id`  VARCHAR(36)  DEFAULT NULL,
+  `chat_message_role` ENUM('user','assistant','system') DEFAULT NULL,
+  `seq`              SMALLINT     DEFAULT NULL,
 
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_ai_lifecycle` (`lifecycle_id`),
   INDEX `idx_ai_user` (`user_id`),
   INDEX `idx_ai_type` (`interaction_type`),
+  INDEX `idx_ai_interactions_chat_session_seq` (`chat_session_id`, `seq`),
   CONSTRAINT `fk_ai_lifecycle` FOREIGN KEY (`lifecycle_id`) REFERENCES `entity_lifecycle`(`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_ai_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
--- 21. AI_CHAT_SESSIONS / AI_CHAT_MESSAGES
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS `ai_chat_sessions` (
-  `id`              VARCHAR(36)   NOT NULL,
-  `lifecycle_id`    VARCHAR(36)   NOT NULL,
-  `user_id`         VARCHAR(36)   NOT NULL,
-  `role`            ENUM('member','manager') NOT NULL,
-  `title`           VARCHAR(140)  DEFAULT NULL,
-  `last_message_at` TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_ai_chat_sess_lifecycle` (`lifecycle_id`),
-  INDEX `idx_ai_chat_sessions_user_role` (`user_id`, `role`),
-  INDEX `idx_ai_chat_sessions_last_message` (`last_message_at`),
-  CONSTRAINT `fk_ai_chat_sess_lifecycle` FOREIGN KEY (`lifecycle_id`) REFERENCES `entity_lifecycle`(`id`) ON DELETE RESTRICT,
-  CONSTRAINT `fk_ai_chat_sessions_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `ai_chat_messages` (
-  `id`             VARCHAR(36)   NOT NULL,
-  `lifecycle_id`   VARCHAR(36)   NOT NULL,
-  `session_id`     VARCHAR(36)   NOT NULL,
-  `user_id`        VARCHAR(36)   NOT NULL,
-  `role`           ENUM('user','assistant') NOT NULL,
-  `source`         ENUM('rag','gemini','fallback','system') NOT NULL DEFAULT 'system',
-  `content`        TEXT          NOT NULL,
-
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_ai_chat_msg_lifecycle` (`lifecycle_id`),
-  INDEX `idx_ai_chat_messages_session_created` (`session_id`),
-  INDEX `idx_ai_chat_messages_user_created` (`user_id`),
-  CONSTRAINT `fk_ai_chat_msg_lifecycle` FOREIGN KEY (`lifecycle_id`) REFERENCES `entity_lifecycle`(`id`) ON DELETE RESTRICT,
-  CONSTRAINT `fk_ai_chat_messages_session` FOREIGN KEY (`session_id`) REFERENCES `ai_chat_sessions`(`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_ai_chat_messages_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- 22. WORKOUT_SESSIONS / WORKOUT_SESSION_EVENTS
+-- 20. WORKOUT_SESSIONS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS `workout_sessions` (
@@ -591,26 +531,8 @@ CREATE TABLE IF NOT EXISTS `workout_sessions` (
   CONSTRAINT `fk_workout_sessions_plan` FOREIGN KEY (`plan_id`) REFERENCES `workout_plans`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `workout_session_events` (
-  `id`             VARCHAR(36)  NOT NULL,
-  `lifecycle_id`   VARCHAR(36)  NOT NULL,
-  `session_id`     VARCHAR(36)  NOT NULL,
-  `person_id`      VARCHAR(36)  NOT NULL,
-  `event_type`     ENUM('started','paused','resumed','exercise_started','set_completed','exercise_completed','stopped','completed','simulated') NOT NULL,
-  `payload_json`   TEXT         DEFAULT NULL,
-  `created_at`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_wse_lifecycle` (`lifecycle_id`),
-  INDEX `idx_workout_session_events_session` (`session_id`, `created_at`),
-  INDEX `idx_workout_session_events_person` (`person_id`, `created_at`),
-  CONSTRAINT `fk_wse_lifecycle` FOREIGN KEY (`lifecycle_id`) REFERENCES `entity_lifecycle`(`id`) ON DELETE RESTRICT,
-  CONSTRAINT `fk_workout_session_events_session` FOREIGN KEY (`session_id`) REFERENCES `workout_sessions`(`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_workout_session_events_person` FOREIGN KEY (`person_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- ============================================================================
--- 23. BRANCH_CLOSURES
+-- 21. BRANCH_CLOSURES
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS `branch_closures` (
@@ -629,7 +551,7 @@ CREATE TABLE IF NOT EXISTS `branch_closures` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
--- 24. SHIFTS
+-- 22. SHIFTS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS `shifts` (

@@ -25,6 +25,7 @@ import {
   ptSessions,
   memberMetrics,
   workoutPlans,
+  shifts,
 } from '../src/db/schema.js';
 import { ids } from '../src/utils/id.js';
 import { hashPassword } from '../src/utils/password.js';
@@ -110,6 +111,7 @@ async function removeSeedUsers() {
     .where(or(inArray(ptSessions.memberId, userIds), inArray(ptSessions.trainerId, userIds)));
   await db.delete(memberMetrics).where(inArray(memberMetrics.personId, userIds));
   await db.delete(workoutPlans).where(inArray(workoutPlans.memberId, userIds));
+  await db.delete(shifts).where(inArray(shifts.staffId, userIds));
 
   await db.delete(users).where(inArray(users.id, userIds));
 }
@@ -223,6 +225,29 @@ async function seed() {
   }
 
   console.log('✅ 4 users created (admin, manager, trainer, member)');
+
+  const [trainerRow] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, 'kasuncsb+trainer@gmail.com'))
+    .limit(1);
+  if (trainerRow) {
+    const shiftId = ids.uuid();
+    const shiftLc = await insertLifecycleRow();
+    await db.insert(shifts).values({
+      id: shiftId,
+      lifecycleId: shiftLc,
+      staffId: trainerRow.id,
+      shiftType: 'morning',
+      shiftDate: dateAtNoon('2026-03-29'),
+      startTime: '06:00:00',
+      endTime: '14:00:00',
+      status: 'scheduled',
+      notes: 'Seed shift — trainer weekly grid',
+      createdBy: trainerRow.id,
+    });
+    console.log('✅ Sample shift seeded for trainer (kasuncsb+trainer@gmail.com)');
+  }
 
   const SEED_PLANS = [
     {

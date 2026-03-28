@@ -25,10 +25,15 @@ export const health = asyncHandler(async (_req: AuthRequest, res: Response) => {
   }));
 });
 
+const AI_CHAT_MESSAGE_MAX = 8000;
+
 export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   const message = String(req.body?.message ?? '').trim();
   if (!message) throw errors.badRequest('message is required');
+  if (message.length > AI_CHAT_MESSAGE_MAX) {
+    throw errors.badRequest(`message must be at most ${AI_CHAT_MESSAGE_MAX} characters`);
+  }
   const sessionId = req.body?.sessionId ? String(req.body.sessionId) : undefined;
   const data = await aiService.chatForUser(user, message, sessionId);
   res.json(response.success(data));

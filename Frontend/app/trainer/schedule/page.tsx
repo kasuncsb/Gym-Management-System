@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Calendar, Clock, Plus, CheckCircle, XCircle, AlertCircle, User } from 'lucide-react';
+import { Calendar, Clock, Plus, CheckCircle, XCircle, AlertCircle, User, Star } from 'lucide-react';
 import { PageHeader, Card, Modal, Input, Select, Textarea, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
 import { getErrorMessage, opsAPI } from '@/lib/api';
@@ -18,6 +18,8 @@ interface PTSession {
     endTime: string;
     status: SessionStatus;
     cancelReason?: string | null;
+    reviewRating?: number | null;
+    reviewComment?: string | null;
 }
 
 type ShiftRow = { day: string; start: string; end: string; type: 'shift' | 'off' };
@@ -61,6 +63,8 @@ export default function TrainerSchedulePage() {
             endTime: String(s.endTime).slice(0, 5),
             status: s.status,
             cancelReason: s.cancelReason ?? null,
+            reviewRating: s.reviewRating ?? null,
+            reviewComment: s.reviewComment ?? null,
         })));
 
         const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -114,7 +118,7 @@ export default function TrainerSchedulePage() {
         setOverrideLoading(true);
         try {
             // Send override request as an in-app message to managers
-            await opsAPI.broadcastMessage({
+            await opsAPI.staffBroadcast({
                 subject: `Schedule Override Request — ${overrideForm.date}`,
                 body: `Trainer requested override on ${overrideForm.date}: ${overrideForm.type.replace('_', ' ')}. ${overrideForm.notes ? `Notes: ${overrideForm.notes}` : ''}`,
                 targetRole: 'manager',
@@ -243,14 +247,26 @@ export default function TrainerSchedulePage() {
                     <h2 className="text-lg font-semibold text-white mb-4">Recent Sessions</h2>
                     <div className="space-y-2">
                         {past.slice(0, 6).map(s => (
-                            <div key={s.id} className="flex items-center justify-between bg-zinc-800/20 rounded-xl p-3 gap-4">
-                                <div>
-                                    <p className="text-zinc-300 text-sm font-semibold">{s.memberName}</p>
-                                    <p className="text-zinc-500 text-xs">{s.sessionDate} · {s.startTime}–{s.endTime}</p>
+                            <div key={s.id} className="bg-zinc-800/20 rounded-xl p-3 gap-2">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div>
+                                        <p className="text-zinc-300 text-sm font-semibold">{s.memberName}</p>
+                                        <p className="text-zinc-500 text-xs">{s.sessionDate} · {s.startTime}–{s.endTime}</p>
+                                    </div>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold capitalize shrink-0 ${statusStyles[s.status]}`}>
+                                        {s.status.replace('_', ' ')}
+                                    </span>
                                 </div>
-                                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold capitalize ${statusStyles[s.status]}`}>
-                                    {s.status.replace('_', ' ')}
-                                </span>
+                                {s.status === 'completed' && s.reviewRating != null && (
+                                    <div className="mt-2 pt-2 border-t border-zinc-700/40 text-xs text-zinc-500">
+                                        <span className="text-amber-400 flex items-center gap-0.5">
+                                            {Array.from({ length: 5 }, (_, i) => (
+                                                <Star key={i} size={12} className={i < (s.reviewRating ?? 0) ? 'fill-amber-400 text-amber-400' : 'text-zinc-600'} />
+                                            ))}
+                                        </span>
+                                        {s.reviewComment ? <p className="mt-1 text-zinc-400">{s.reviewComment}</p> : null}
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>

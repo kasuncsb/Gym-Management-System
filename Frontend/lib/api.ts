@@ -287,8 +287,15 @@ export const opsAPI = {
     apiClient.get('/ops/pt-sessions').then(r => r.data.data as any[]),
   createPtSession: (payload: { memberId: string; trainerId: string; sessionDate: string; startTime: string; endTime: string }) =>
     apiClient.post('/ops/pt-sessions', payload).then(r => r.data.data),
-  updatePtSession: (id: string, payload: { status: 'confirmed' | 'completed' | 'cancelled' | 'no_show'; cancelReason?: string }) =>
-    apiClient.patch(`/ops/pt-sessions/${id}`, payload).then(r => r.data.data),
+  updatePtSession: (
+    id: string,
+    payload: {
+      status?: 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+      cancelReason?: string;
+      reviewRating?: number;
+      reviewComment?: string | null;
+    },
+  ) => apiClient.patch(`/ops/pt-sessions/${id}`, payload).then(r => r.data.data),
 
   // workouts / metrics
   myWorkoutPlans: () =>
@@ -359,13 +366,9 @@ export const opsAPI = {
   addInventoryTxn: (payload: { itemId: string; txnType: 'restock' | 'sale' | 'adjustment' | 'waste'; qtyChange: number; reference?: string }) =>
     apiClient.post('/ops/inventory/transactions', payload).then(r => r.data.data),
 
-  // messaging / users / closures / config
-  messages: () =>
-    apiClient.get('/ops/messages').then(r => r.data.data as any[]),
-  markMessageRead: (id: string) =>
-    apiClient.patch(`/ops/messages/${id}/read`).then(r => r.data.data),
-  broadcastMessage: (payload: { subject: string; body: string; targetRole?: string | null; toPersonId?: string | null; priority?: 'low' | 'normal' | 'high' | 'critical' }) =>
-    apiClient.post('/ops/messages', payload).then(r => r.data.data),
+  // staff broadcast (audit trail only; replaces legacy in-app messages)
+  staffBroadcast: (payload: { subject: string; body: string; targetRole?: string | null; toPersonId?: string | null; priority?: 'low' | 'normal' | 'high' | 'critical' }) =>
+    apiClient.post('/ops/staff-broadcast', payload).then(r => r.data.data),
   trainers: () =>
     apiClient.get('/ops/trainers').then(r => r.data.data as Array<{ id: string; fullName: string }>),
   users: (role?: 'admin' | 'manager' | 'trainer' | 'member') =>

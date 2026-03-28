@@ -19,7 +19,7 @@ interface Alert {
     status: AlertStatus;
     link?: string;
     createdAt: string;
-    source: 'message' | 'equipment';
+    source: 'equipment' | 'audit';
 }
 
 const typeIcon: Record<AlertType, React.ElementType> = {
@@ -42,21 +42,10 @@ export default function AdminAlertsPage() {
     const [actionId, setActionId] = useState<string | null>(null);
 
     const loadAlerts = async () => {
-        const [messages, events, audits] = await Promise.all([
-            opsAPI.messages(),
+        const [events, audits] = await Promise.all([
             opsAPI.equipmentEvents(),
             opsAPI.auditLogs(150).catch(() => []),
         ]);
-        const msgAlerts: Alert[] = (messages ?? []).map((m: any) => ({
-            id: m.id,
-            type: m.subject?.toLowerCase().includes('payment') ? 'payment' : 'system' as AlertType,
-            title: m.subject ?? 'System message',
-            message: m.body ?? '',
-            priority: m.priority === 'critical' ? 'high' : (m.priority ?? 'medium'),
-            status: m.status === 'read' ? 'acknowledged' : 'pending',
-            createdAt: String(m.createdAt ?? new Date().toISOString()),
-            source: 'message' as const,
-        }));
         const eqAlerts: Alert[] = (events ?? [])
             .filter((e: any) => e.status !== 'resolved')
             .map((e: any) => ({
@@ -71,18 +60,23 @@ export default function AdminAlertsPage() {
                 source: 'equipment' as const,
             }));
         const auditAlerts: Alert[] = (audits as any[])
-            .filter((r) => r.category === 'security' || r.category === 'access' || r.category === 'trainer')
+            .filter((r) =>
+                r.category === 'security'
+                || r.category === 'access'
+                || r.category === 'trainer'
+                || r.action === 'staff_broadcast',
+            )
             .map((r) => ({
                 id: `audit-${r.id}`,
                 type: 'system' as AlertType,
-                title: r.action ?? 'Security / access',
+                title: r.action ?? 'Audit',
                 message: [r.detail, r.actorLabel].filter(Boolean).join(' — ') || 'Audit event',
                 priority: 'high' as const,
                 status: 'pending' as AlertStatus,
                 createdAt: String(r.createdAt ?? new Date().toISOString()),
-                source: 'message' as const,
+                source: 'audit' as const,
             }));
-        setAlerts([...msgAlerts, ...eqAlerts, ...auditAlerts].sort(
+        setAlerts([...eqAlerts, ...auditAlerts].sort(
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         ));
     };
@@ -94,19 +88,15 @@ export default function AdminAlertsPage() {
     const filtered = filter === 'all' ? alerts : alerts.filter(a => a.status === filter);
 
     const acknowledge = async (a: Alert) => {
+        if (a.source === 'audit') {
+            toast.info('Audit entry', 'This is a read-only audit log line — nothing to acknowledge.');
+            return;
+        }
         setActionId(a.id + 'ack');
         try {
-            if (a.source === 'message') {
-                await opsAPI.markMessageRead(a.id);
-            } else {
-                // For equipment issues, mark as in_progress to acknowledge
-                await opsAPI.resolveEquipmentEvent(a.id);
-                toast.success('Acknowledged', 'Equipment alert acknowledged and marked in-progress.');
-                await loadAlerts();
-                return;
-            }
+            await opsAPI.resolveEquipmentEvent(a.id);
+            toast.success('Acknowledged', 'Equipment alert acknowledged and marked in-progress.');
             await loadAlerts();
-            toast.success('Acknowledged', 'Alert has been acknowledged');
         } catch (err) {
             toast.error('Error', getErrorMessage(err));
         } finally {
@@ -115,15 +105,14 @@ export default function AdminAlertsPage() {
     };
 
     const resolve = async (a: Alert) => {
+        if (a.source === 'audit') {
+            toast.info('Audit entry', 'Resolve equipment issues from the list above; audit rows are informational only.');
+            return;
+        }
         setActionId(a.id + 'res');
         try {
-            if (a.source === 'equipment') {
-                await opsAPI.resolveEquipmentEvent(a.id);
-                toast.success('Resolved', 'Equipment issue has been resolved.');
-            } else {
-                await opsAPI.markMessageRead(a.id);
-                toast.success('Resolved', 'Alert has been marked resolved.');
-            }
+            await opsAPI.resolveEquipmentEvent(a.id);
+            toast.success('Resolved', 'Equipment issue has been resolved.');
             await loadAlerts();
         } catch (err) {
             toast.error('Error', getErrorMessage(err));

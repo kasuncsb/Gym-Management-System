@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Calendar, Clock, User, Plus, X, CheckCircle } from 'lucide-react';
-import { PageHeader, Card, Modal, Input, Select, LoadingButton } from '@/components/ui/SharedComponents';
+import { Calendar, Clock, User, Plus, X, CheckCircle, Star } from 'lucide-react';
+import { PageHeader, Card, Modal, Input, Select, Textarea, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
 import axios from 'axios';
 import { getErrorMessage, opsAPI } from '@/lib/api';
@@ -16,6 +16,8 @@ interface Session {
     endTime: string;
     status: 'booked' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
     cancelReason?: string | null;
+    reviewRating?: number | null;
+    reviewComment?: string | null;
 }
 
 const SESSION_OPTIONS = [
@@ -46,6 +48,10 @@ export default function AppointmentsPage() {
     const [cancelLoading, setCancelLoading] = useState(false);
     const [sessions, setSessions] = useState<Session[]>([]);
     const [trainerOptions, setTrainerOptions] = useState<Array<{ value: string; label: string }>>([]);
+    const [rateModal, setRateModal] = useState<Session | null>(null);
+    const [rateStars, setRateStars] = useState(5);
+    const [rateComment, setRateComment] = useState('');
+    const [rateLoading, setRateLoading] = useState(false);
 
     const loadSessions = async () => {
         try {
@@ -63,6 +69,8 @@ export default function AppointmentsPage() {
                 endTime: String(s.endTime).slice(0, 5),
                 status: s.status,
                 cancelReason: s.cancelReason ?? null,
+                reviewRating: s.reviewRating ?? null,
+                reviewComment: s.reviewComment ?? null,
             })));
             setTrainerOptions((trainers ?? []).map((t: any) => ({ value: t.id, label: t.fullName })));
         } catch {
@@ -103,6 +111,30 @@ export default function AppointmentsPage() {
             }
         } finally {
             setSubmitLoading(false);
+        }
+    };
+
+    const openRate = (s: Session) => {
+        setRateStars(5);
+        setRateComment('');
+        setRateModal(s);
+    };
+
+    const handleSubmitReview = async () => {
+        if (!rateModal) return;
+        setRateLoading(true);
+        try {
+            await opsAPI.updatePtSession(rateModal.id, {
+                reviewRating: rateStars,
+                reviewComment: rateComment.trim() || null,
+            });
+            toast.success('Thanks!', 'Your session review was submitted.');
+            setRateModal(null);
+            await loadSessions();
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
+        } finally {
+            setRateLoading(false);
         }
     };
 
@@ -151,7 +183,8 @@ export default function AppointmentsPage() {
                     <div className="text-center py-12 text-zinc-600">No {displayFilter(filter)} appointments.</div>
                 )}
                 {filtered.map(s => (
-                    <Card key={s.id} padding="md" className="flex items-center justify-between hover:border-zinc-700/50 transition-colors gap-4">
+                    <Card key={s.id} padding="md" className="flex flex-col gap-3 hover:border-zinc-700/50 transition-colors">
+                        <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 bg-blue-600/20 rounded-full flex items-center justify-center shrink-0">
                                 <User size={20} className="text-blue-400" />
@@ -189,8 +222,24 @@ export default function AppointmentsPage() {
                                 {s.status === 'confirmed' && (
                                     <span title="Confirmed by trainer"><CheckCircle size={16} className="text-green-400" /></span>
                                 )}
+                                {s.status === 'completed' && s.reviewRating == null && (
+                                    <LoadingButton size="sm" variant="secondary" className="!py-1 !px-2 text-xs" onClick={() => openRate(s)}>
+                                        Rate session
+                                    </LoadingButton>
+                                )}
                             </div>
                         </div>
+                        </div>
+                        {s.status === 'completed' && s.reviewRating != null && (
+                            <div className="mt-3 pt-3 border-t border-zinc-800/80 text-sm text-zinc-400">
+                                <span className="text-amber-400 flex items-center gap-0.5">
+                                    {Array.from({ length: 5 }, (_, i) => (
+                                        <Star key={i} size={14} className={i < (s.reviewRating ?? 0) ? 'fill-amber-400 text-amber-400' : 'text-zinc-600'} />
+                                    ))}
+                                </span>
+                                {s.reviewComment ? <p className="mt-1 text-zinc-500">{s.reviewComment}</p> : null}
+                            </div>
+                        )}
                     </Card>
                 ))}
             </div>
@@ -232,6 +281,44 @@ export default function AppointmentsPage() {
                         <LoadingButton variant="danger" loading={cancelLoading} onClick={handleCancel}>
                             Cancel Session
                         </LoadingButton>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={!!rateModal}
+                onClose={() => { setRateModal(null); setRateComment(''); }}
+                title="Rate your session"
+                description={rateModal ? `How was your session with ${rateModal.trainerName}?` : undefined}
+                size="sm"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <p className="text-zinc-500 text-xs mb-2">Rating (required)</p>
+                        <div className="flex gap-1">
+                            {[1, 2, 3, 4, 5].map((n) => (
+                                <button
+                                    key={n}
+                                    type="button"
+                                    onClick={() => setRateStars(n)}
+                                    className="p-1 rounded-lg hover:bg-zinc-800/50 transition-colors"
+                                    aria-label={`${n} stars`}
+                                >
+                                    <Star size={22} className={n <= rateStars ? 'fill-amber-400 text-amber-400' : 'text-zinc-600'} />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <Textarea
+                        label="Comment (optional)"
+                        placeholder="Share feedback for your trainer…"
+                        value={rateComment}
+                        onChange={(e) => setRateComment(e.target.value)}
+                        rows={3}
+                    />
+                    <div className="flex justify-end gap-3">
+                        <LoadingButton variant="secondary" onClick={() => { setRateModal(null); setRateComment(''); }}>Cancel</LoadingButton>
+                        <LoadingButton loading={rateLoading} onClick={handleSubmitReview}>Submit review</LoadingButton>
                     </div>
                 </div>
             </Modal>

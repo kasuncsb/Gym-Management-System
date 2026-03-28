@@ -256,17 +256,10 @@ export const addInventoryTransaction = asyncHandler(async (req: AuthRequest, res
   res.json(response.success(await opsService.addInventoryTransaction(user.id, req.body), 'Inventory transaction recorded'));
 });
 
-export const listMessages = asyncHandler(async (req: AuthRequest, res: Response) => {
+/** Audit-only replacement for legacy in-app broadcast (managers/admins). */
+export const staffBroadcast = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
-  res.json(response.success(await opsService.listMessagesForUser(user.id, user.role)));
-});
-export const markMessageRead = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = requireUser(req);
-  res.json(response.success(await opsService.markMessageRead(req.params.id, user.id, user.role), 'Message marked as read'));
-});
-export const broadcastMessage = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = requireUser(req);
-  res.json(response.success(await opsService.broadcastMessage(user.id, req.body), 'Message broadcast'));
+  res.json(response.success(await opsService.logStaffBroadcast(user.id, req.body), 'Broadcast logged'));
 });
 
 export const getRecentReports = asyncHandler(async (_req: AuthRequest, res: Response) => {
@@ -327,7 +320,8 @@ export const createClosure = asyncHandler(async (req: AuthRequest, res: Response
   res.json(response.success(await opsService.createClosure(user.id, req.body), 'Closure created'));
 });
 export const deleteClosure = asyncHandler(async (req: AuthRequest, res: Response) => {
-  await opsService.deleteClosure(req.params.id);
+  const user = requireUser(req);
+  await opsService.deleteClosure(String(req.params.id ?? ''), user.id);
   res.json(response.success(null, 'Closure deleted'));
 });
 

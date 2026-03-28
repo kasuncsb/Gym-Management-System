@@ -30,12 +30,14 @@ COPY --from=builder /app/dist ./dist
 COPY entrypoint.sh ./
 COPY drizzle.config.ts ./
 COPY src/db/schema.ts ./src/db/
-# Schema init (final_schema.sql) and seed script
+# Schema init (final_schema.sql) and seed script (+ seed data + validators used by seed.ts)
 COPY scripts/init-schema.ts ./scripts/
 COPY scripts/schema/ ./scripts/schema/
+COPY scripts/data/ ./scripts/data/
 COPY scripts/seed.ts ./scripts/
 COPY src/config ./src/config/
 COPY src/utils ./src/utils/
+COPY src/validators ./src/validators/
 
 # Make entrypoint executable and ensure permissions
 USER root
