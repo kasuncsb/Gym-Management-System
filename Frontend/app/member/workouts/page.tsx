@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Play, Clock, Flame, Sparkles, ChevronDown, ChevronUp, Dumbbell, Library } from 'lucide-react';
-import { PageHeader, Card, LoadingButton } from '@/components/ui/SharedComponents';
+import { Play, Clock, Flame, Sparkles, ChevronDown, ChevronUp, Dumbbell, Library, Trash2, ClipboardCheck } from 'lucide-react';
+import { PageHeader, Card, LoadingButton, Input } from '@/components/ui/SharedComponents';
 import { aiAPI, getErrorMessage, opsAPI } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 
@@ -72,12 +72,18 @@ export default function WorkoutsPage() {
     const [generating, setGenerating] = useState(false);
     const [expandedDay, setExpandedDay] = useState<number | null>(null);
     const [activeSession, setActiveSession] = useState<any | null>(null);
+    const [removing, setRemoving] = useState(false);
+    const [logOpen, setLogOpen] = useState(false);
+    const [logDuration, setLogDuration] = useState('');
+    const [logMood, setLogMood] = useState<'great' | 'good' | 'okay' | 'tired' | 'poor'>('good');
+    const [logging, setLogging] = useState(false);
 
     const loadPlans = () => {
         opsAPI.myWorkoutPlans()
             .then((d) => {
                 const items = (d ?? []) as Plan[];
                 setPlans(items);
+                if (items.length === 0 && listTab === 'mine') setSelected(null);
                 if (items[0] && listTab === 'mine' && !selected) setSelected(items[0].id);
             })
             .catch(() => toast.error('Error', 'Failed to load workout plans'));
@@ -93,6 +99,21 @@ export default function WorkoutsPage() {
     useEffect(() => {
         opsAPI.activeWorkoutSession().then(setActiveSession).catch(() => setActiveSession(null));
     }, []);
+
+    useEffect(() => {
+        setLogOpen(false);
+    }, [selected]);
+
+    useEffect(() => {
+        const src = listTab === 'mine' ? plans : libraryPlans;
+        const ids = src.map(p => p.id);
+        if (ids.length === 0) {
+            setSelected(null);
+            return;
+        }
+        if (selected && ids.includes(selected)) return;
+        setSelected(ids[0]);
+    }, [listTab, plans, libraryPlans, selected]);
 
     useEffect(() => {
         if (!selected) {
@@ -115,6 +136,9 @@ export default function WorkoutsPage() {
         ? listSource
         : listSource.filter(p => (p.difficulty ?? 'beginner') === filter);
 
+    const noProgrammesInTab = listSource.length === 0;
+    const filterExcludesAll = listSource.length > 0 && filtered.length === 0;
+    const listEmpty = noProgrammesInTab || filterExcludesAll;
     const active = planDetail;
     const isAssignedPlan = plans.some(p => p.id === selected);
 
@@ -132,6 +156,50 @@ export default function WorkoutsPage() {
     };
 
     const days = active?.program?.days ?? [];
+
+    const handleRemovePlan = async () => {
+        if (!active || !isAssignedPlan) return;
+        if (!globalThis.confirm(`Remove “${active.name}” from My programmes? You can ask your trainer to assign it again later.`)) return;
+        setRemoving(true);
+        try {
+            await opsAPI.removeMyWorkoutPlan(active.id);
+            toast.success('Plan removed', 'This programme is no longer in My programmes.');
+            if (selected === active.id) setSelected(null);
+            loadPlans();
+            setPlanDetail(null);
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
+        } finally {
+            setRemoving(false);
+        }
+    };
+
+    const handleLogCompleted = async () => {
+        if (!active) return;
+        const today = new Date().toISOString().slice(0, 10);
+        const durationMin = logDuration.trim() ? Math.max(1, Number(logDuration)) : undefined;
+        if (logDuration.trim() && Number.isNaN(durationMin!)) {
+            toast.error('Error', 'Enter a valid duration in minutes.');
+            return;
+        }
+        setLogging(true);
+        try {
+            await opsAPI.addWorkoutLog({
+                planId: isAssignedPlan ? active.id : undefined,
+                workoutDate: today,
+                durationMin,
+                mood: logMood,
+                notes: `Completed workout — ${active.name}`,
+            });
+            toast.success('Workout logged', 'Your session was saved to your history.');
+            setLogOpen(false);
+            setLogDuration('');
+        } catch (err) {
+            toast.error('Error', getErrorMessage(err));
+        } finally {
+            setLogging(false);
+        }
+    };
 
     return (
         <div className="space-y-8">
@@ -175,18 +243,30 @@ export default function WorkoutsPage() {
                 </LoadingButton>
             </div>
 
+            {listEmpty ? (
+                <Card className="p-8 text-center max-w-xl mx-auto">
+                    <p className="text-white font-semibold mb-2">
+                        {filterExcludesAll
+                            ? 'No programmes match this difficulty'
+                            : listTab === 'mine'
+                                ? 'No programmes in My programmes'
+                                : 'No library programmes loaded'}
+                    </p>
+                    <p className="text-zinc-500 text-sm leading-relaxed">
+                        {filterExcludesAll
+                            ? 'Switch to All Levels or pick another difficulty to see programmes again.'
+                            : listTab === 'mine'
+                                ? 'Use Generate AI Plan or ask your trainer to assign a programme. Library templates are available under Library when you want ideas.'
+                                : 'Try again later or contact support if programmes should appear here.'}
+                    </p>
+                </Card>
+            ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="space-y-4">
                     {listTab === 'library' && (
                         <p className="text-zinc-500 text-xs leading-relaxed px-1">
                             Preview club programmes. Ask your trainer to assign one to your account for tracking and sessions.
                         </p>
-                    )}
-                    {filtered.length === 0 && (
-                        <div className="text-center py-10 text-zinc-500 text-sm">
-                            <p>{listTab === 'mine' ? 'No plans yet.' : 'No library programmes loaded.'}</p>
-                            {listTab === 'mine' && <p className="mt-1">Try &quot;Generate AI Plan&quot; or ask your trainer.</p>}
-                        </div>
                     )}
                     {filtered.map(plan => (
                         <div key={plan.id} onClick={() => setSelected(plan.id)}>
@@ -231,7 +311,9 @@ export default function WorkoutsPage() {
                                     {sourceLabel[active.source] ?? active.source}
                                 </span>
                             </div>
+                            <div className="flex flex-wrap gap-2 justify-end">
                             {isAssignedPlan && (
+                                <>
                                 <LoadingButton
                                     icon={Play}
                                     size="sm"
@@ -241,11 +323,12 @@ export default function WorkoutsPage() {
                                         try {
                                             if (activeSession?.id) {
                                                 await opsAPI.stopWorkoutSession(activeSession.id, { complete: true, mood: 'good' });
-                                                toast.success('Workout completed', 'Session stopped and logged.');
+                                                toast.success('Workout completed', 'Session saved — nice work.');
                                                 setActiveSession(null);
+                                                opsAPI.activeWorkoutSession().then(setActiveSession).catch(() => setActiveSession(null));
                                             } else {
                                                 const s = await opsAPI.startWorkoutSession({ planId: active.id, notes: `Started from plan: ${active.name}` });
-                                                toast.success('Workout started', 'Session is now active.');
+                                                toast.success('Workout started', 'Session is live — tap Complete when you are done.');
                                                 setActiveSession(s);
                                             }
                                         } catch (err) {
@@ -255,10 +338,62 @@ export default function WorkoutsPage() {
                                         }
                                     }}
                                 >
-                                    {activeSession?.id ? 'Stop Workout' : 'Start Workout'}
+                                    {activeSession?.id ? 'Complete session' : 'Start workout'}
                                 </LoadingButton>
+                                <LoadingButton
+                                    icon={ClipboardCheck}
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() => setLogOpen((o) => !o)}
+                                >
+                                    Log completed
+                                </LoadingButton>
+                                <LoadingButton
+                                    icon={Trash2}
+                                    size="sm"
+                                    variant="secondary"
+                                    loading={removing}
+                                    onClick={handleRemovePlan}
+                                >
+                                    Remove
+                                </LoadingButton>
+                                </>
                             )}
+                            </div>
                         </div>
+
+                        {isAssignedPlan && logOpen && (
+                            <div className="mb-4 rounded-xl border border-zinc-700/80 bg-zinc-900/50 p-4 space-y-3">
+                                <p className="text-white text-sm font-medium">Log a completed workout</p>
+                                <p className="text-zinc-500 text-xs">Saves to your history without using a live timer. Optional duration refines your log.</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <Input
+                                        label="Duration (minutes)"
+                                        type="number"
+                                        min={1}
+                                        value={logDuration}
+                                        onChange={(e) => setLogDuration(e.target.value)}
+                                        placeholder="e.g. 45"
+                                    />
+                                    <div>
+                                        <label className="block text-xs font-medium text-zinc-400 mb-1.5">How it felt</label>
+                                        <select
+                                            value={logMood}
+                                            onChange={(e) => setLogMood(e.target.value as typeof logMood)}
+                                            className="w-full bg-zinc-900 text-white border border-zinc-700 rounded-xl px-3 py-2.5 text-sm"
+                                        >
+                                            {(['great', 'good', 'okay', 'tired', 'poor'] as const).map((m) => (
+                                                <option key={m} value={m}>{m}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 flex-wrap">
+                                    <LoadingButton size="sm" loading={logging} onClick={handleLogCompleted}>Save log</LoadingButton>
+                                    <button type="button" onClick={() => setLogOpen(false)} className="text-xs px-3 py-2 text-zinc-400 hover:text-white">Cancel</button>
+                                </div>
+                            </div>
+                        )}
 
                         {listTab === 'library' && (
                             <p className="text-amber-200/80 text-xs mb-4 border border-amber-500/20 bg-amber-500/5 rounded-lg px-3 py-2">
@@ -371,11 +506,12 @@ export default function WorkoutsPage() {
                         </div>
                     </Card>
                 ) : (
-                    <div className="lg:col-span-2 flex flex-col items-center justify-center py-20 text-zinc-600 text-sm gap-2">
-                        <p>Select a programme to view day-by-day exercises</p>
-                    </div>
+                    <Card className="lg:col-span-2 flex flex-col items-center justify-center min-h-[280px] text-zinc-500 text-sm text-center px-6">
+                        <p className="text-zinc-400">Choose a programme from the list to see exercises and actions.</p>
+                    </Card>
                 )}
             </div>
+            )}
         </div>
     );
 }

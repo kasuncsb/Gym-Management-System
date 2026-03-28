@@ -145,6 +145,12 @@ export const getMemberWorkoutPlans = asyncHandler(async (req: AuthRequest, res: 
   if (!memberId) throw errors.badRequest('memberId is required');
   res.json(response.success(await opsService.getMemberWorkoutPlans(memberId)));
 });
+export const removeMyWorkoutPlan = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  const planId = String(req.params.planId ?? '').trim();
+  if (!planId) throw errors.badRequest('planId is required');
+  res.json(response.success(await opsService.removeMyWorkoutPlan(user.id, planId), 'Workout plan removed'));
+});
 export const listMyWorkoutLogs = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   res.json(response.success(await opsService.listMyWorkoutLogs(user.id)));

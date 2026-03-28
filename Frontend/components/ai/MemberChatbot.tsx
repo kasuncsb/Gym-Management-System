@@ -77,6 +77,9 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
       if (!msg) return;
       setOpen(true);
       setInput(msg);
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => inputRef.current?.focus());
+      });
       // Auto-send so user gets an immediate response
       setTimeout(() => send(msg), 100);
     };
@@ -86,9 +89,15 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
 
   useEffect(() => {
     if (!open) return;
-    const t = window.setTimeout(() => inputRef.current?.focus(), 60);
-    return () => window.clearTimeout(t);
+    const id = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => inputRef.current?.focus());
+    });
+    return () => window.cancelAnimationFrame(id);
   }, [open]);
+
+  const focusInput = useCallback(() => {
+    inputRef.current?.focus();
+  }, []);
 
   return (
     <div className="fixed bottom-6 right-6 z-[120] pointer-events-none">
@@ -108,7 +117,12 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
               Beta
             </span>
           </div>
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+          <div
+            className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) focusInput();
+            }}
+          >
             {messages.map((m, i) => (
               <div key={i} className={`text-sm px-3 py-2.5 rounded-2xl max-w-[82%] leading-relaxed ${
                 m.role === 'assistant'
@@ -134,20 +148,24 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
               </div>
             )}
           </div>
-          <div className="px-4 py-3 border-t border-zinc-800 bg-zinc-950/40">
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
-              placeholder="Ask about your training, plan, or schedule..."
-              className="w-full bg-zinc-900 text-white border border-zinc-700 rounded-2xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/70 pr-11"
-            />
-            <div className="relative -mt-9 flex justify-end pr-1">
+          <div className="px-4 py-3 border-t border-zinc-800 bg-zinc-950/40 shrink-0">
+            <div className="flex items-center gap-2">
+              <input
+                ref={inputRef}
+                type="text"
+                autoComplete="off"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
+                placeholder={role === 'manager' ? 'Ask about branch ops, revenue, staffing…' : 'Ask about your training, plan, or schedule…'}
+                className="flex-1 min-w-0 bg-zinc-900 text-white border border-zinc-700 rounded-2xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/70"
+              />
               <button
+                type="button"
                 onClick={() => send()}
                 disabled={loading}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-red-600 hover:bg-red-700 text-white disabled:opacity-60 shadow-md"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-600 hover:bg-red-700 text-white disabled:opacity-60 shadow-md"
+                aria-label="Send message"
               >
                 <Send size={15} />
               </button>
@@ -156,9 +174,10 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
         </div>
       )}
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
         className="pointer-events-auto w-14 h-14 rounded-full bg-zinc-800/95 hover:bg-zinc-700 text-white shadow-[0_12px_30px_rgba(0,0,0,0.7)] flex items-center justify-center transition-colors duration-150 border border-zinc-700/70"
-        aria-label={open ? 'Close member assistant' : 'Open member assistant'}
+        aria-label={open ? 'Close AI assistant' : 'Open AI assistant'}
       >
         {open ? <X size={20} /> : <MessageCircle size={20} />}
       </button>

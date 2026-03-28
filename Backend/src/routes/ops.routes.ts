@@ -61,6 +61,7 @@ router.post('/pt-sessions', authorize('member', 'trainer', 'manager', 'admin'), 
 router.patch('/pt-sessions/:id', authorize('member', 'trainer', 'manager', 'admin'), ops.updatePtSession);
 
 // Workouts (GET /workouts/plans/me and .../member/:id are above — before :planId)
+router.delete('/workouts/plans/me/:planId', authorize('member'), ops.removeMyWorkoutPlan);
 router.post('/workouts/plans/assign', authorize('trainer', 'manager', 'admin'), ops.assignWorkoutPlan);
 router.post('/workouts/plans/generate', authorize('member', 'trainer', 'manager', 'admin'), ops.generateAiWorkoutPlan);
 router.patch('/workouts/plans/:planId', authorize('trainer', 'manager', 'admin'), ops.patchWorkoutPlan);

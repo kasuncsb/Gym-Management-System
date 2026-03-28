@@ -732,6 +732,101 @@ export async function chatForUser(user: AuthUser, message: string, sessionId?: s
   return memberChat(user, message, sessionId);
 }
 
+/**
+ * Gemini often returns markdown, numbered instructions echoed from the prompt, or mixed paragraphs.
+ * Extract a short summary plus bullet insights for a stable API shape.
+ */
+function parseManagerInsightsAnswer(answer: string): { summary: string; insights: string[] } {
+  const raw = answer.replace(/\r\n/g, '\n').trim();
+  if (!raw) return { summary: 'Insights generated.', insights: [] };
+
+  const stripDecor = (s: string) =>
+    s
+      .replace(/^#{1,6}\s+/, '')
+      .replace(/^\*\*([^*]+)\*\*:?\s*/i, '$1')
+      .replace(/^[*_]+|[*_]+$/g, '')
+      .replace(/^([-*•]|\d+[.)]|\[\d+\])\s+/, '')
+      .trim();
+
+  const isPromptEcho = (s: string) => {
+    const t = s.toLowerCase();
+    return (
+      /^return\s*:/i.test(s)
+      || /^manager question\s*:/i.test(s)
+      || /^data snapshot\s*:/i.test(t)
+      || /^trend snapshot\s*:/i.test(t)
+      || /^one short summary/i.test(t)
+      || /^three bullet insights/i.test(t)
+      || /^\d+\)\s*(one short|three bullet|mention trend)/i.test(s)
+    );
+  };
+
+  const lines = raw
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0 && !isPromptEcho(l));
+
+  const isBulletLine = (l: string) =>
+    /^([-*•]|\d+[.)]|\[\d+\])\s+/.test(l);
+
+  let firstBullet = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (isBulletLine(lines[i])) {
+      firstBullet = i;
+      break;
+    }
+  }
+
+  const insights: string[] = [];
+  if (firstBullet >= 0) {
+    for (let i = firstBullet; i < lines.length && insights.length < 6; i++) {
+      if (!isBulletLine(lines[i])) continue;
+      const c = stripDecor(lines[i]);
+      if (c && !isPromptEcho(c)) insights.push(c);
+    }
+  }
+
+  let summary = '';
+  if (firstBullet > 0) {
+    summary = lines
+      .slice(0, firstBullet)
+      .map(stripDecor)
+      .filter((s) => s.length > 0 && !isPromptEcho(s))
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  if (!summary && firstBullet === -1) {
+    summary = stripDecor(lines[0] ?? '') || lines.join(' ').slice(0, 400);
+  } else if (!summary && lines.length) {
+    summary = stripDecor(lines[0]);
+  }
+
+  if (!summary) summary = stripDecor(lines[lines.length - 1] ?? '') || 'Insights generated.';
+
+  if (insights.length === 0) {
+    const tail = firstBullet >= 0 ? lines.slice(firstBullet) : lines.slice(1);
+    for (const line of tail) {
+      const c = stripDecor(line);
+      if (!c || isPromptEcho(c) || isBulletLine(line)) continue;
+      insights.push(c);
+      if (insights.length >= 3) break;
+    }
+    if (insights.length === 0 && lines.length > 1) {
+      for (const line of lines.slice(1, 4)) {
+        const c = stripDecor(line);
+        if (c && !isPromptEcho(c)) insights.push(c);
+      }
+    }
+  }
+
+  return {
+    summary,
+    insights: insights.slice(0, 4),
+  };
+}
+
 export async function managerInsights(user: AuthUser, question?: string): Promise<{ summary: string; insights: string[]; generatedBy: 'gemini' | 'fallback' }> {
   const [dashboard, report] = await Promise.all([
     getDashboard('manager', user.id),
@@ -784,7 +879,7 @@ Return:
 
   try {
     const answer = await callGemini(prompt);
-    const lines = answer.split('\n').map((s) => s.trim()).filter(Boolean);
+    const parsed = parseManagerInsightsAnswer(answer);
     await logInteraction(user, {
       interactionType: 'insight',
       promptText: question ?? 'Provide the top operational insights and next actions.',
@@ -794,8 +889,7 @@ Return:
     });
     return {
       generatedBy: 'gemini',
-      summary: lines[0] ?? 'Insights generated.',
-      insights: lines.slice(1, 4),
+      ...parsed,
     };
   } catch (err) {
     const parsed = parseGeminiHttpError(err);

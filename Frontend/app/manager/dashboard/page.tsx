@@ -30,7 +30,8 @@ export default function ManagerDashboard() {
     const [currentTime, setCurrentTime] = useState(new Date());
     const [period, setPeriod] = useState<'week' | 'month' | 'year'>('week');
     const [dashboard, setDashboard] = useState<any>(null);
-    const [insights, setInsights] = useState<Array<{ title: string; description: string; impact: Impact; rec: string }>>([]);
+    const [branchInsights, setBranchInsights] = useState<Array<{ title: string; description: string; impact: Impact; rec: string }>>([]);
+    const [latestAi, setLatestAi] = useState<{ summary: string; insights: string[] } | null>(null);
     const [tasks, setTasks] = useState<Array<{ task: string; priority: Priority; due: string; assignee: string }>>([]);
     const [occupancyData, setOccupancyData] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
     const [aiSummary, setAiSummary] = useState<string>('');
@@ -48,7 +49,7 @@ export default function ManagerDashboard() {
             opsAPI.visits(200),
         ]);
         setDashboard(dash);
-        setInsights([
+        setBranchInsights([
             { title: 'Visits Today', description: `${dash.todayVisits ?? 0} recorded check-ins today`, impact: 'high', rec: 'Optimize trainer staffing during peaks' },
             { title: 'Open Issues', description: `${dash.openIssues ?? 0} unresolved incidents`, impact: dash.openIssues > 0 ? 'medium' : 'positive', rec: 'Review equipment incident queue daily' },
             { title: 'Revenue', description: `Rs. ${Number(summary.monthlyRevenue ?? 0).toLocaleString()} this month`, impact: 'positive', rec: 'Track conversion from trial to paid plans' },
@@ -104,14 +105,10 @@ export default function ManagerDashboard() {
         try {
             const result = await aiAPI.insights(q);
             setAiSummary(result.summary);
-            if (result.insights?.length) {
-                setInsights(result.insights.map((line, i) => ({
-                    title: `AI Insight ${i + 1}`,
-                    description: line,
-                    impact: (i === 0 ? 'high' : i === 1 ? 'medium' : 'low') as Impact,
-                    rec: 'Review in manager insights and assign owners.',
-                })));
-            }
+            setLatestAi({
+                summary: result.summary,
+                insights: Array.isArray(result.insights) ? result.insights : [],
+            });
         } catch (err) {
             toast.error('AI Insight Error', getErrorMessage(err));
         } finally {
@@ -190,7 +187,7 @@ export default function ManagerDashboard() {
                         </button>
                     ))}
                 </div>
-                {aiSummary && <p className="mt-3 text-sm text-zinc-300">{aiSummary}</p>}
+                {aiSummary && <p className="mt-3 text-sm text-zinc-300 whitespace-pre-wrap">{aiSummary}</p>}
             </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -200,8 +197,8 @@ export default function ManagerDashboard() {
                         <Link href="/manager/insights" className="text-sm text-red-500 hover:text-red-400">View All</Link>
                     </div>
                     <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-                        {insights.map((ins, i) => (
-                            <div key={i} className="bg-zinc-800/30 rounded-xl p-4">
+                        {branchInsights.map((ins, i) => (
+                            <div key={`kpi-${i}`} className="bg-zinc-800/30 rounded-xl p-4">
                                 <div className="flex justify-between mb-1">
                                     <p className="text-white text-sm font-semibold">{ins.title}</p>
                                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${impactColor[ins.impact]}`}>{ins.impact}</span>
@@ -210,6 +207,20 @@ export default function ManagerDashboard() {
                                 <p className="text-zinc-600 text-xs italic">→ {ins.rec}</p>
                             </div>
                         ))}
+                        {latestAi && latestAi.insights.length > 0 && (
+                            <>
+                                <p className="text-[11px] text-zinc-500 uppercase tracking-wide pt-2">AI recommendations</p>
+                                {latestAi.insights.map((line, i) => (
+                                    <div key={`ai-${i}`} className="bg-violet-950/40 border border-violet-500/20 rounded-xl p-4">
+                                        <div className="flex justify-between mb-1">
+                                            <p className="text-violet-200 text-sm font-semibold">Action {i + 1}</p>
+                                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${impactColor[(i === 0 ? 'high' : i === 1 ? 'medium' : 'low') as Impact]}`}>AI</span>
+                                        </div>
+                                        <p className="text-zinc-300 text-xs whitespace-pre-wrap leading-relaxed">{line}</p>
+                                    </div>
+                                ))}
+                            </>
+                        )}
                     </div>
                 </Card>
 

@@ -1026,6 +1026,26 @@ export async function getMemberWorkoutPlans(memberId: string) {
     .then((rows) => rows.map((r) => r.plan));
 }
 
+/** Member removes a plan from their account (soft-deactivate). Library templates are unaffected. */
+export async function removeMyWorkoutPlan(userId: string, planId: string) {
+  const [plan] = await db
+    .select()
+    .from(workoutPlans)
+    .where(and(eq(workoutPlans.id, planId), eq(workoutPlans.memberId, userId)))
+    .limit(1);
+  if (!plan) throw errors.notFound('Workout plan');
+  await db.update(workoutPlans).set({ isActive: false }).where(eq(workoutPlans.id, planId));
+  await audit.appendAudit({
+    actorId: userId,
+    action: 'workout_plan_removed',
+    category: 'member',
+    entityType: 'workout_plan',
+    entityId: planId,
+    detail: `Member removed plan from My programmes: ${plan.name ?? planId}`.slice(0, 500),
+  });
+  return { id: planId, removed: true };
+}
+
 export async function listMyWorkoutLogs(userId: string) {
   return db
     .select({
