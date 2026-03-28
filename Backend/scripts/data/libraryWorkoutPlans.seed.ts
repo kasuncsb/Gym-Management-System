@@ -15,8 +15,12 @@ export type LibraryPlanSeed = {
 
 type Ex = WorkoutProgramJson['days'][0]['exercises'][0];
 
-/** Wide hero for cards + detail header */
-const H = (path: string) => `https://images.unsplash.com/${path}?auto=format&fit=crop&w=1400&q=85`;
+/**
+ * Programme hero (detail view only — library list uses text cards).
+ * Pexels CDN with verified photo IDs (HTTP 200); license: https://www.pexels.com/license/
+ */
+const px = (id: number) =>
+  `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=1400&h=788&fit=crop`;
 const YT = (id: string) => `https://www.youtube.com/watch?v=${id}`;
 
 function prog(p: Omit<WorkoutProgramJson, 'schemaVersion'>): WorkoutProgramJson {
@@ -82,7 +86,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       4,
       3,
       'General fitness',
-      H('photo-1534438327276-14e5300c3a48'),
+      px(1552242),
       'Train three non-consecutive days (e.g. Mon/Wed/Fri). Leave at least one rest day between sessions. Prioritise smooth reps over weight: add load only when every rep looks identical to the first.',
       {
         title: 'Day A — legs & core',
@@ -114,7 +118,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       6,
       4,
       'Fat loss',
-      H('photo-1576678927484-cc907957088c'),
+      px(2294363),
       'Aim for a conversational-but-working effort on cardio blocks (RPE ~6/10). If joint pain appears, substitute cycling or incline walk. Pair this plan with consistent protein and sleep for best results.',
       {
         title: 'Circuit 1 — cardio + legs + core',
@@ -145,7 +149,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       8,
       3,
       'PPL',
-      H('photo-1583454110551-21f2fa2afe61'),
+      px(416475),
       'Run Push → Pull → Legs (or rotate as your schedule allows). Add 2.5–5 lb to main lifts weekly only when all target reps are clean. Stop 1–2 reps short of failure on compounds until week 5+.',
       {
         title: 'Push — chest, shoulders, triceps',
@@ -177,7 +181,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       8,
       4,
       'Upper/Lower',
-      H('photo-1581009146145-b5ef050c2e1e'),
+      px(3775166),
       'Alternate Upper A / Lower A / Upper B / Lower B across the week. Match paired muscle fatigues: if lower back feels fried, reduce hinge volume next session. Deload on week 9 if you extend—cut sets by ~30%.',
       {
         title: 'Upper — horizontal push & pull',
@@ -209,7 +213,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       4,
       3,
       'Cardio',
-      H('photo-1538805060514-97d9cc17730c'),
+      px(260352),
       'Use “talk test” for steady cardio: you should speak in short sentences. Progress by +5% time or small resistance bumps weekly, not both at once.',
       {
         title: 'Session A — bike & anti-extension',
@@ -240,7 +244,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       8,
       3,
       'Strength',
-      H('photo-1517836357463-d25dfeac3438'),
+      px(1547248),
       'Use RPE 7–8 on working sets: you could do 2 more reps with perfect form if forced. Video your squats occasionally to check depth and bar path. If lower back rounds on deadlifts, lower weight until hinge pattern is crisp.',
       {
         title: 'Heavy A — squat & hinge',
@@ -270,7 +274,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       6,
       3,
       'Lower body',
-      H('photo-1434682881908-b43d0467b798'),
+      px(1552241),
       'Place a “walking” day between sessions or upper-body work. Foam-roll quads/IT band lightly if you’re new to high leg volume. Eat sufficient carbs around these workouts.',
       {
         title: 'Quad focus',
@@ -300,7 +304,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       6,
       3,
       'Upper',
-      H('photo-1583454156274-4c48f42e4d1b'),
+      px(1552105),
       'If bench causes sharp shoulder pain, substitute neutral-grip machine press. Pull slightly more volume than push over the week when possible.',
       {
         title: 'Chest emphasis',
@@ -330,7 +334,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       4,
       3,
       'Arms',
-      H('photo-1598971639058-fab3c3109a00'),
+      px(703016),
       'Keep rests strict to create metabolic stress without heavy joint load. Stop any exercise that causes sharp elbow or wrist pain—swap cable for dumbbell angles.',
       {
         title: 'Shoulders',
@@ -360,7 +364,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       6,
       3,
       'HIIT',
-      H('photo-1540497077202-7c8a3999166f'),
+      px(3757376),
       'If you feel dizzy or heart rate won’t come down between rounds, end the session. Beginners should halve work intervals for two weeks. HIIT is supplement, not replacement for easy movement on other days.',
       {
         title: 'Round 1 — rowing & ballistic hinge',
@@ -390,7 +394,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       4,
       3,
       'Mobility',
-      H('photo-1518611012118-696072aa579a'),
+      px(3757949),
       'Treat this as active recovery: never push into sharp pain—only comfortable stretch + breath. Pair with easy walks on off days.',
       {
         title: 'Flow A — spine and hips',
@@ -421,7 +425,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       6,
       3,
       'Minimal',
-      H('photo-1574680096145-d05b474e2155'),
+      px(3838950),
       'If dumbbells are limited, use tempo (3 sec lowering) and higher reps before chasing heavier pairs. Log workouts—progress beats random variety.',
       {
         title: 'Day 1 — squat, push, pull',
@@ -452,7 +456,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       10,
       4,
       'Hypertrophy',
-      H('photo-1517832207060-4e900a6e0c8b'),
+      px(3838961),
       'Eat at a slight surplus with ~1.6–2.2 g protein/kg bodyweight if gaining. Sleep 7+ hours—muscle is built away from the gym. Track loads and beat logbook small amounts weekly.',
       {
         title: 'Volume upper',
@@ -482,7 +486,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       8,
       3,
       'Athletic',
-      H('photo-1571019614242-c5c5dee9f50b'),
+      px(3838970),
       'Jump volumes are small but intense—land quietly. Full recovery between explosive sets. If sore Achilles or knees, replace jumps with low box step-ups.',
       {
         title: 'Power',
@@ -512,7 +516,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       6,
       3,
       'Low impact',
-      H('photo-1571019614242-c5c5dee9f50b'),
+      px(3839010),
       'Effort should feel sustainable (6–7/10). Increase resistance only when you can complete all reps without compensating—heel lifting, neck straining, or grip dying.',
       {
         title: 'Session 1 — bike & legs',
@@ -542,7 +546,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       4,
       3,
       'Core',
-      H('photo-1566241141449-7f1e8a4a4f2d'),
+      px(3839020),
       'Breathe: exhale on hardest moment of each rep to maintain pressure. Low back pain with flexion? Limit crunch-style volume and favour planks and Pallof.',
       {
         title: 'Anti-extension',
@@ -575,7 +579,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
         daysPerWeek: 2,
         focus: 'Recovery',
         locale: 'LK',
-        coverImageUrl: H('photo-1540497077202-7c8a3999166f'),
+        coverImageUrl: px(3839040),
         programIntro: 'Effort stays easy—you should finish feeling better than you started. Use this instead of sitting still on rest days when you wake up stiff.',
       },
       days: [
@@ -611,7 +615,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       6,
       3,
       'Rotation',
-      H('photo-1593077139839-4ed15d4e3cec'),
+      px(3839090),
       'Match skill work to pre-season timing: heavy gym days not the day before a match. Prioritise sleep and fuel—repeat sprints demand glycogen.',
       {
         title: 'Rotation & hinge',

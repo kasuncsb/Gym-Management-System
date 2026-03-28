@@ -88,8 +88,14 @@ function PlanCardWithHero({
     selected: boolean;
     onSelect: () => void;
 }) {
+    const [coverFailed, setCoverFailed] = useState(false);
     const cover = plan.coverImageUrl?.trim();
-    if (cover) {
+    useEffect(() => {
+        setCoverFailed(false);
+    }, [plan.id, cover]);
+
+    /** Library tab: text-only list; hero image only on detail. My programmes may show hero in list when assigned plan has cover. */
+    if (cover && listTab === 'mine' && !coverFailed) {
         return (
             <div onClick={onSelect} className="cursor-pointer">
                 <Card
@@ -99,7 +105,12 @@ function PlanCardWithHero({
                     }`}
                 >
                     <div className="relative h-44 sm:h-48">
-                        <img src={cover} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+                        <img
+                            src={cover}
+                            alt=""
+                            className="absolute inset-0 h-full w-full object-cover object-center"
+                            onError={() => setCoverFailed(true)}
+                        />
                         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/5" />
                         <div className="absolute bottom-0 left-0 right-0 p-4 pt-14">
                             <p className="text-xl sm:text-2xl font-bold text-white leading-snug drop-shadow-md">{plan.name}</p>
@@ -164,6 +175,7 @@ export default function WorkoutsPage() {
     const [logDuration, setLogDuration] = useState('');
     const [logMood, setLogMood] = useState<'great' | 'good' | 'okay' | 'tired' | 'poor'>('good');
     const [logging, setLogging] = useState(false);
+    const [heroImageError, setHeroImageError] = useState(false);
 
     const loadPlans = () => {
         opsAPI.myWorkoutPlans()
@@ -244,7 +256,12 @@ export default function WorkoutsPage() {
 
     const days = active?.program?.days ?? [];
     const detailCoverUrl = active?.program?.meta?.coverImageUrl?.trim() ?? '';
-    const useProgramHero = Boolean(detailCoverUrl);
+
+    useEffect(() => {
+        setHeroImageError(false);
+    }, [selected, detailCoverUrl]);
+
+    const useProgramHero = Boolean(detailCoverUrl) && !heroImageError;
     const hideExerciseThumbs = useProgramHero;
     const programIntro = active?.program?.meta?.programIntro?.trim();
 
@@ -352,8 +369,8 @@ export default function WorkoutsPage() {
                     </p>
                 </Card>
             ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-start lg:min-h-0">
+                <div className="space-y-4 lg:max-h-[min(100vh-10.5rem,56rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-1 lg:overscroll-contain [scrollbar-gutter:stable]">
                     {filtered.map(plan => (
                         <PlanCardWithHero
                             key={plan.id}
@@ -365,15 +382,21 @@ export default function WorkoutsPage() {
                     ))}
                 </div>
 
+                <div className="lg:col-span-2 lg:min-h-0 lg:max-h-[min(100vh-10.5rem,56rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-1 lg:overscroll-contain [scrollbar-gutter:stable]">
                 {loadingDetail && selected ? (
-                    <Card className="lg:col-span-2 flex items-center justify-center min-h-[320px] text-zinc-500 text-sm">
+                    <Card className="flex items-center justify-center min-h-[320px] text-zinc-500 text-sm">
                         Loading programme…
                     </Card>
                 ) : active ? (
-                    <Card className="lg:col-span-2 overflow-hidden p-0">
+                    <Card className="overflow-hidden p-0">
                         {useProgramHero ? (
                             <div className="relative min-h-[220px] sm:min-h-[280px] md:min-h-[300px]">
-                                <img src={detailCoverUrl} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+                                <img
+                                    src={detailCoverUrl}
+                                    alt=""
+                                    className="absolute inset-0 h-full w-full object-cover object-center"
+                                    onError={() => setHeroImageError(true)}
+                                />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
                                 <div className="absolute bottom-0 left-0 right-0 p-5 md:p-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                                     <div className="min-w-0 pr-2">
@@ -632,10 +655,11 @@ export default function WorkoutsPage() {
                         </div>
                     </Card>
                 ) : (
-                    <Card className="lg:col-span-2 flex flex-col items-center justify-center min-h-[280px] text-zinc-500 text-sm text-center px-6">
+                    <Card className="flex flex-col items-center justify-center min-h-[280px] text-zinc-500 text-sm text-center px-6">
                         <p className="text-zinc-400">Choose a programme from the list to see exercises and actions.</p>
                     </Card>
                 )}
+                </div>
             </div>
             )}
 
