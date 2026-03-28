@@ -258,7 +258,6 @@ export default function WorkoutsPage() {
                 detail: { role: 'member' as const, message: AI_WORKOUT_PLAN_CHAT_INTRO, resetSession: true },
             }),
         );
-        toast.success('Assistant opened', 'Answer the coach in chat; when done, send only: Save my workout plan');
     };
 
     const days = active?.program?.days ?? [];
