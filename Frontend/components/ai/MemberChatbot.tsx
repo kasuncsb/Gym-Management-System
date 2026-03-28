@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, MessageCircle, Send, X } from 'lucide-react';
 import { aiAPI, getErrorMessage } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 interface Msg {
   role: 'user' | 'assistant';
@@ -18,12 +19,16 @@ interface MemberChatbotProps {
 type PrefillEventDetail = { message?: string; role?: ChatbotRole; resetSession?: boolean };
 
 export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
+  const { user } = useAuth();
+  /** Bumps when we must ignore stale chatHistory responses (e.g. new thread from Generate plan). */
+  const historyEpochRef = useRef(0);
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [historyReady, setHistoryReady] = useState(false);
 
   const greeting = useMemo(
     () => role === 'manager'
@@ -48,30 +53,68 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
   );
 
   useEffect(() => {
-    setMessages([{ role: 'assistant', text: greeting }]);
-  }, [greeting]);
-
-  const send = useCallback(async (overrideText?: string) => {
-    const text = (overrideText ?? input).trim();
-    if (!text || loading) return;
-    setInput('');
-    setMessages((m) => [...m, { role: 'user', text }]);
-    setLoading(true);
-    try {
-      const res = await aiAPI.chat(text, sessionId ?? undefined);
-      const answer = (res?.answer ?? '').trim() || 'I could not generate a response. Please try rephrasing your question.';
-      if (res?.sessionId && res.sessionId !== sessionId) setSessionId(res.sessionId);
-      setMessages((m) => [...m, { role: 'assistant', text: answer }]);
-      const a = answer.toLowerCase();
-      if (a.includes('my programmes') && (a.includes('saved') || a.includes('all set'))) {
-        window.dispatchEvent(new CustomEvent('pw:workout-plans-refresh'));
-      }
-    } catch (err) {
-      setMessages((m) => [...m, { role: 'assistant', text: `I could not answer right now: ${getErrorMessage(err)}` }]);
-    } finally {
-      setLoading(false);
+    if (!user?.id) {
+      historyEpochRef.current += 1;
+      setSessionId(null);
+      setMessages([{ role: 'assistant', text: greeting }]);
+      setHistoryReady(true);
+      return;
     }
-  }, [input, loading, sessionId]);
+
+    let cancelled = false;
+    const fetchEpoch = historyEpochRef.current;
+    setHistoryReady(false);
+    aiAPI
+      .chatHistory()
+      .then((h) => {
+        if (cancelled || fetchEpoch !== historyEpochRef.current) return;
+        if (h.sessionId) setSessionId(h.sessionId);
+        else setSessionId(null);
+        if (h.messages.length > 0) {
+          setMessages(h.messages.map((m) => ({ role: m.role, text: m.text })));
+        } else {
+          setMessages([{ role: 'assistant', text: greeting }]);
+        }
+      })
+      .catch(() => {
+        if (cancelled || fetchEpoch !== historyEpochRef.current) return;
+        setSessionId(null);
+        setMessages([{ role: 'assistant', text: greeting }]);
+      })
+      .finally(() => {
+        if (!cancelled && fetchEpoch === historyEpochRef.current) setHistoryReady(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, greeting]);
+
+  const send = useCallback(
+    async (overrideText?: string, explicitSession?: string | null) => {
+      const text = (overrideText ?? input).trim();
+      if (!text || loading) return;
+      setInput('');
+      setMessages((m) => [...m, { role: 'user', text }]);
+      setLoading(true);
+      const apiSessionId = explicitSession === null ? undefined : explicitSession ?? sessionId ?? undefined;
+      try {
+        const res = await aiAPI.chat(text, apiSessionId);
+        const answer = (res?.answer ?? '').trim() || 'I could not generate a response. Please try rephrasing your question.';
+        if (res?.sessionId && res.sessionId !== sessionId) setSessionId(res.sessionId);
+        setMessages((m) => [...m, { role: 'assistant', text: answer }]);
+        const a = answer.toLowerCase();
+        if (a.includes('my programmes') && (a.includes('saved') || a.includes('all set'))) {
+          window.dispatchEvent(new CustomEvent('pw:workout-plans-refresh'));
+        }
+      } catch (err) {
+        setMessages((m) => [...m, { role: 'assistant', text: `I could not answer right now: ${getErrorMessage(err)}` }]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [input, loading, sessionId],
+  );
 
   useEffect(() => {
     const onPrefill = (evt: Event) => {
@@ -79,18 +122,22 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
       if (custom.detail?.role && custom.detail.role !== role) return;
       const msg = (custom.detail?.message ?? '').trim();
       if (!msg) return;
-      if (custom.detail?.resetSession) setSessionId(null);
+      if (custom.detail?.resetSession) {
+        historyEpochRef.current += 1;
+        setSessionId(null);
+        setMessages([{ role: 'assistant', text: greeting }]);
+      }
       setOpen(true);
       setInput(msg);
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => inputRef.current?.focus());
       });
-      // Auto-send so user gets an immediate response
-      setTimeout(() => send(msg), 100);
+      const sess = custom.detail?.resetSession ? null : undefined;
+      setTimeout(() => void send(msg, sess), 100);
     };
     window.addEventListener('pw:ai-chat-prefill', onPrefill as EventListener);
     return () => window.removeEventListener('pw:ai-chat-prefill', onPrefill as EventListener);
-  }, [role, send]);
+  }, [role, greeting, send]);
 
   useEffect(() => {
     if (!open) return;
@@ -128,7 +175,10 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
               if (e.target === e.currentTarget) focusInput();
             }}
           >
-            {messages.map((m, i) => (
+            {!historyReady && (
+              <div className="text-xs text-zinc-500">Loading your conversation…</div>
+            )}
+            {historyReady && messages.map((m, i) => (
               <div key={i} className={`text-sm px-3 py-2.5 rounded-2xl max-w-[82%] leading-relaxed ${
                 m.role === 'assistant'
                   ? 'bg-zinc-800 text-zinc-100 border border-zinc-700/70 shadow-sm'
@@ -137,8 +187,8 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
                 {m.text}
               </div>
             ))}
-            {loading && <div className="text-xs text-zinc-500">Assistant is typing...</div>}
-            {!loading && (
+            {historyReady && loading && <div className="text-xs text-zinc-500">Assistant is typing...</div>}
+            {historyReady && !loading && (
               <div className="pt-1 flex flex-wrap gap-2">
                 {quickPrompts.map((q) => (
                   <button
@@ -162,13 +212,14 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
+                disabled={!historyReady || loading}
                 placeholder={role === 'manager' ? 'Ask about branch ops, revenue, staffing…' : 'Ask about your training, plan, or schedule…'}
-                className="flex-1 min-w-0 bg-zinc-900 text-white border border-zinc-700 rounded-2xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/70"
+                className="flex-1 min-w-0 bg-zinc-900 text-white border border-zinc-700 rounded-2xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/70 disabled:opacity-50"
               />
               <button
                 type="button"
                 onClick={() => send()}
-                disabled={loading}
+                disabled={!historyReady || loading}
                 className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-600 hover:bg-red-700 text-white disabled:opacity-60 shadow-md"
                 aria-label="Send message"
               >
@@ -189,4 +240,3 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
     </div>
   );
 }
-

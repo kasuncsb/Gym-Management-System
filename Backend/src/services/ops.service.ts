@@ -1614,7 +1614,7 @@ Respond with ONLY valid JSON in this exact format (no markdown, no extra text):
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey) {
-      const model = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
+      const model = process.env.GEMINI_MODEL ?? 'gemini-3.1-flash-lite-preview';
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
       const resp = await fetch(url, {
         method: 'POST',

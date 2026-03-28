@@ -526,8 +526,15 @@ export const opsAPI = {
 };
 
 // ── AI API ────────────────────────────────────────────────────────────────────
+export type AiChatHistoryMessage = { role: 'user' | 'assistant'; text: string };
+
 export const aiAPI = {
   health: () => apiClient.get('/ai/health').then(r => r.data.data),
+  /** Latest session transcript for the logged-in user (persisted server-side). */
+  chatHistory: (sessionId?: string) =>
+    apiClient
+      .get('/ai/chat/history', { params: sessionId ? { sessionId } : undefined })
+      .then((r) => r.data.data as { sessionId: string | null; messages: AiChatHistoryMessage[] }),
   /** Longer timeout: Gemini may take >15s for full chat replies after raising output token budget. */
   chat: (message: string, sessionId?: string) =>
     apiClient

@@ -18,7 +18,7 @@ export const health = asyncHandler(async (_req: AuthRequest, res: Response) => {
     status: 'ok',
     ai: true,
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
-    geminiModel: process.env.GEMINI_MODEL ?? 'gemini-2.5-flash',
+    geminiModel: process.env.GEMINI_MODEL ?? 'gemini-3.1-flash-lite-preview',
     geminiEmbeddingModel: process.env.GEMINI_EMBEDDING_MODEL ?? 'gemini-embedding-001',
     ragServiceConfigured: Boolean(process.env.RAG_SERVICE_URL),
     geminiSelfTest: test,
@@ -27,6 +27,13 @@ export const health = asyncHandler(async (_req: AuthRequest, res: Response) => {
 });
 
 const AI_CHAT_MESSAGE_MAX = 8000;
+
+export const chatHistory = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  const q = req.query?.sessionId;
+  const sessionId = typeof q === 'string' && q.trim() ? q.trim() : undefined;
+  res.json(response.success(await aiService.getChatHistoryForUser(user, sessionId)));
+});
 
 export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);

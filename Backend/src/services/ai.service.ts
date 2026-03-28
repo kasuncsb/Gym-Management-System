@@ -10,13 +10,13 @@ import {
   generateAiWorkoutPlan,
 } from './ops.service.js';
 import { db } from '../config/database.js';
-import { aiInteractions } from '../db/schema.js';
+import { aiInteractions, entityLifecycle } from '../db/schema.js';
 import { ids } from '../utils/id.js';
 import { insertLifecycleRow } from '../utils/lifecycle.js';
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, sql } from 'drizzle-orm';
 
 const BRANCH_CONTEXT = `
 PowerWorld Gyms - Kiribathgoda branch.
@@ -50,8 +50,8 @@ let embeddingCache: { docId: string; vector: number[] }[] | null = null;
 let embeddingCooldownUntil = 0;
 let embeddingCooldownReason = '';
 
-// Note (2026): gemini-2.0-flash is being deprecated; prefer 2.5 flash as default.
-const GEMINI_MODEL_DEFAULT = 'gemini-2.5-flash';
+// Default text model: Gemini 3.1 Flash-Lite (preview). See https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite-preview
+const GEMINI_MODEL_DEFAULT = 'gemini-3.1-flash-lite-preview';
 // Note (2026): text-embedding-004 is being deprecated; prefer gemini-embedding-001.
 const GEMINI_EMBEDDING_MODEL_DEFAULT = 'gemini-embedding-001';
 type UserRole = 'admin' | 'manager' | 'trainer' | 'member';
@@ -163,6 +163,81 @@ async function getRecentSessionMessages(sessionId: string, limit = 12): Promise<
         content: (isUser ? r.promptText : r.responseText) ?? '',
       };
     });
+}
+
+const CHAT_HISTORY_API_MAX = 200;
+
+/** Most recent chat session for this user + full transcript (for UI hydrate). */
+export async function getChatHistoryForUser(
+  user: AuthUser,
+  requestedSessionId?: string | null,
+): Promise<{ sessionId: string | null; messages: Array<{ role: 'user' | 'assistant'; text: string }> }> {
+  let sid = requestedSessionId?.trim() || null;
+
+  if (sid) {
+    const [owns] = await db
+      .select({ id: aiInteractions.id })
+      .from(aiInteractions)
+      .where(
+        and(
+          eq(aiInteractions.chatSessionId, sid),
+          eq(aiInteractions.userId, user.id),
+          isNotNull(aiInteractions.chatMessageRole),
+        ),
+      )
+      .limit(1);
+    if (!owns) sid = null;
+  }
+
+  if (!sid) {
+    const [latest] = await db
+      .select({ sid: aiInteractions.chatSessionId })
+      .from(aiInteractions)
+      .innerJoin(entityLifecycle, eq(aiInteractions.lifecycleId, entityLifecycle.id))
+      .where(
+        and(
+          eq(aiInteractions.userId, user.id),
+          eq(aiInteractions.interactionType, 'chat'),
+          isNotNull(aiInteractions.chatSessionId),
+          isNotNull(aiInteractions.chatMessageRole),
+        ),
+      )
+      .orderBy(desc(entityLifecycle.createdAt))
+      .limit(1);
+    sid = latest?.sid ?? null;
+  }
+
+  if (!sid) return { sessionId: null, messages: [] };
+
+  const rows = await db
+    .select({
+      role: aiInteractions.chatMessageRole,
+      promptText: aiInteractions.promptText,
+      responseText: aiInteractions.responseText,
+      seq: aiInteractions.seq,
+    })
+    .from(aiInteractions)
+    .where(
+      and(
+        eq(aiInteractions.chatSessionId, sid),
+        eq(aiInteractions.userId, user.id),
+        isNotNull(aiInteractions.chatMessageRole),
+      ),
+    )
+    .orderBy(asc(aiInteractions.seq));
+
+  const sliceStart = Math.max(0, rows.length - CHAT_HISTORY_API_MAX);
+  const sliced = rows.slice(sliceStart);
+
+  const messages = sliced
+    .map((r) => {
+      const isUser = r.role === 'user';
+      const text = (isUser ? r.promptText : r.responseText) ?? '';
+      return { role: isUser ? ('user' as const) : ('assistant' as const), text };
+    })
+    .filter((m) => m.text.trim().length > 0);
+
+  return { sessionId: sid, messages };
 }
 
 function renderHistoryForPrompt(history: Array<{ role: 'user' | 'assistant'; content: string }>): string {
