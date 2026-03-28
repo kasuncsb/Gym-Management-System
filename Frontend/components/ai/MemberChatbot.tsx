@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, MessageCircle, Send, X } from 'lucide-react';
 import { aiAPI, getErrorMessage } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
+import { ChatMarkdown } from '@/components/ai/ChatMarkdown';
 
 interface Msg {
   role: 'user' | 'assistant';
@@ -184,7 +185,7 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
                   ? 'bg-zinc-800 text-zinc-100 border border-zinc-700/70 shadow-sm'
                   : 'bg-red-600/25 text-zinc-50 ml-auto shadow-sm'
               }`}>
-                {m.text}
+                <ChatMarkdown text={m.text} variant={m.role === 'user' ? 'user' : 'assistant'} />
               </div>
             ))}
             {historyReady && loading && <div className="text-xs text-zinc-500">Assistant is typing...</div>}

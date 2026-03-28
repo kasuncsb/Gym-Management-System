@@ -1573,7 +1573,7 @@ export async function generateAiWorkoutPlan(
 
   const prompt = `
 You are a fitness trainer AI at PowerWorld Gyms Kiribathgoda.
-Coach voice: you already asked the member a few short questions — they answered below. Create a UNIQUE, personalised workout plan that reflects those answers. Vary exercise selection and order—do not repeat the same plan as generic templates.
+Coach voice: structured answers below may come from a relaxed chat (possibly incomplete fields)—infer sensible choices from whatever is given plus the profile. Create a UNIQUE, personalised workout plan; vary exercise selection and order—do not repeat generic templates.
 - Experience level (from profile): ${level}
 - Fitness goals (from profile): ${goals}
 - Medical conditions / notes (from profile): ${conditions}

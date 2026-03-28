@@ -359,9 +359,9 @@ async function callGemini(prompt: string, options?: GeminiCallOptions): Promise<
 async function extractWorkoutPreferencesFromChatTranscript(transcript: string): Promise<AiWorkoutPlanPreferences | undefined> {
   if (!transcript.trim() || !process.env.GEMINI_API_KEY) return undefined;
   try {
-    const prompt = `Extract workout plan preferences from this gym chat. Return ONLY valid JSON with optional string fields:
+    const prompt = `This is a multi-turn chat between a gym member and a coach (not a single form). Infer workout plan preferences from the **whole** thread—merge partial answers across turns. Return ONLY valid JSON with optional string fields:
 primaryFocus, daysPerWeek, sessionLength, equipmentAccess, emphasis, avoidOrInjuries, extraNotes.
-Use concise phrases. Omit a key if unknown. No markdown.
+Use concise phrases. Omit a key only if never implied. No markdown.
 
 Transcript:
 ${transcript.slice(0, 14_000)}`;
@@ -748,7 +748,7 @@ async function runMemberChat(
   resolvedSessionId: string,
 ): Promise<{ answer: string; source: 'rag' | 'gemini' | 'fallback'; sessionId: string }> {
   await appendChatMessage(resolvedSessionId, user, 'user', message, 'system');
-  const history = await getRecentSessionMessages(resolvedSessionId, 12);
+  const history = await getRecentSessionMessages(resolvedSessionId, 20);
 
   if (user.role === 'member' && memberRequestsWorkoutPlanSave(message)) {
     return handleMemberWorkoutPlanSaveFromChat(user, message, resolvedSessionId, history);
@@ -780,10 +780,12 @@ async function runMemberChat(
 ${BRANCH_CONTEXT}
 You are the Member AI assistant for PowerWorld Kiribathgoda.
 - Audience: gym members only.
+- Voice: warm, conversational, and human—like a knowledgeable gym coach texting them. Ask **one or two** focused follow-ups at a time; never demand a long checklist in one message. Build on what they already said; if they only answer part of a question, acknowledge it and ask the next small thing naturally.
 - Capabilities: explain workout plans, suggest safe starting points, clarify subscriptions/check-ins, and guide on using the app.
 - Safety: never give medical diagnosis; suggest consulting a doctor for health concerns.
 - Use the RAG knowledge context as ground truth for policies and workout templates.
-- When a member wants a new programme saved to **My programmes**, ask short practical questions (goals, days/week, time available, equipment, injuries, emphasis). When they are ready, they must send **only** a short command such as **Save my workout plan** (that line alone, not embedded in a long paragraph)—that triggers the save on their account.
+- **Workout plan flow:** If they want a new programme saved under **My programmes**, have a relaxed back-and-forth (goals, days/week, time, equipment, injuries, emphasis)—gather details across several turns if needed. When you have enough to build a solid plan, say so briefly. They save it by sending a **single short line** on its own, e.g. \`Save my workout plan\`—remind them of that only when appropriate, not every reply.
+- **Formatting:** Use GitHub-flavoured **Markdown** in your replies (**bold** for key terms, short lists where helpful, \`code\` for short tokens). Keep paragraphs scannable; avoid walls of text.
 `;
 
   const ragContext = contextBlocks.length
@@ -799,9 +801,10 @@ Realtime member context:
 ${realtime}
 Recent conversation:
 ${historyText || '- none'}
-Question: ${message}
+Latest message from member:
+${message}
 
-Using the branch context and RAG snippets above, answer in 1–3 short paragraphs or bullet points. Be concrete and practical.`;
+Reply naturally using the branch context and RAG snippets. Be concrete and practical; match the length to the question (short questions get concise answers). Use Markdown.`;
 
   const prompt = `${systemPrompt}\n${ragContext}\n${userPrompt}`;
 
@@ -877,7 +880,7 @@ async function runManagerChat(
   resolvedSessionId: string,
 ): Promise<{ answer: string; source: 'rag' | 'gemini' | 'fallback'; sessionId: string }> {
   await appendChatMessage(resolvedSessionId, user, 'user', message, 'system');
-  const history = await getRecentSessionMessages(resolvedSessionId, 12);
+  const history = await getRecentSessionMessages(resolvedSessionId, 20);
   const [dashboard, report] = await Promise.all([
     getDashboard('manager', user.id),
     getReportSummary(),
@@ -909,6 +912,7 @@ ${BRANCH_CONTEXT}
 You are the manager-facing AI assistant for PowerWorld Kiribathgoda.
 Use the KPI data for factual grounding and use RAG snippets for policy/best-practice context.
 Never fabricate numbers.
+Tone: professional but conversational—like a trusted ops partner, not a rigid report.
 
 KPI snapshot:
 ${kpis}
@@ -920,13 +924,10 @@ ${await buildManagerTrendContext(user.id)}
 Recent conversation:
 ${renderHistoryForPrompt(history.slice(0, -1)) || '- none'}
 
-Manager question:
+Latest message from manager:
 ${message}
 
-Return concise guidance with:
-1) direct answer
-2) 2-3 recommended actions
-3) one risk to monitor.
+Respond in **Markdown** (bold for emphasis, lists when useful). Structure flexibly: lead with the direct answer, then **recommended actions** (2–3 bullets if appropriate), and **risk to watch** when relevant—skip rigid numbering if a shorter reply fits better.
 `;
 
   try {

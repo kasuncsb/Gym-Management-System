@@ -8,9 +8,9 @@ import { useToast } from '@/components/ui/Toast';
 
 type DifficultyFilter = 'beginner' | 'intermediate' | 'advanced';
 
-/** Opens the member AI chat to co-design a plan; when ready, user sends only a short save line (see assistant; backend rejects long “mentions”). */
+/** Opens the member AI chat—natural back-and-forth; save with a single-line command when the coach confirms readiness. */
 const AI_WORKOUT_PLAN_CHAT_INTRO =
-    'I want a new personalised workout plan added to My programmes at PowerWorld Kiribathgoda. Please ask me short questions first (goals, days per week, session length, equipment, injuries, what to emphasise). When we are done discussing, I will send a short save command on its own. Start with your first question.';
+    'I’d like help building a new workout plan for PowerWorld Kiribathgoda that you can save to My programmes. Let’s chat through it—ask whatever you need, one thing at a time if you like. When we’re happy with the plan, I’ll send: Save my workout plan';
 
 interface Plan {
     id: string;
