@@ -49,11 +49,23 @@ jobs:
             # Stop and remove old containers and orphans
             docker compose down --remove-orphans || true
 
+            # Drop dangling BuildKit cache (cheap; reduces stale snapshot refs without nuking all layers).
+            docker builder prune -f 2>/dev/null || true
+
             # Build and start — exit immediately on failure so the step turns red
             if ! docker compose up --build -d --remove-orphans; then
-              echo "❌ docker compose up failed. Container logs:"
-              docker compose logs --tail 50
-              exit 1
+              echo "⚠️ First build failed (often BuildKit snapshot corruption). Pruning and rebuilding frontend without cache..."
+              docker buildx prune -af 2>/dev/null || docker builder prune -af 2>/dev/null || true
+              if ! docker compose build --no-cache frontend; then
+                echo "❌ Frontend no-cache rebuild failed. Container logs:"
+                docker compose logs --tail 50
+                exit 1
+              fi
+              if ! docker compose up --build -d --remove-orphans; then
+                echo "❌ docker compose up failed after frontend rebuild. Container logs:"
+                docker compose logs --tail 50
+                exit 1
+              fi
             fi
 
             # Remove dangling images (best-effort, never fail the deploy over this)
