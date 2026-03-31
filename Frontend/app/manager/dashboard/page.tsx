@@ -11,6 +11,7 @@ import { MANAGER_INSIGHT_ACTIONS } from '@/lib/managerInsightsPrompts';
 import { useRealtimePolling } from '@/hooks/useRealtimePolling';
 import { useStreamedText } from '@/hooks/useStreamedText';
 import { useToast } from '@/components/ui/Toast';
+import { ThemedLineChart } from '@/components/charts/ThemedLineChart';
 
 type Impact = 'high' | 'medium' | 'low' | 'positive';
 type Priority = 'high' | 'medium' | 'low';
@@ -41,7 +42,17 @@ export default function ManagerDashboard() {
         generatedBy: string;
     } | null>(null);
     const [tasks, setTasks] = useState<Array<{ task: string; priority: Priority; due: string; assignee: string }>>([]);
-    const [occupancyData, setOccupancyData] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
+    const [analytics, setAnalytics] = useState<{
+        occupancyTrend: Array<{ label: string; value: number }>;
+        avgHourlyOccupancy: Array<{ label: string; value: number }>;
+        revenueTrend: Array<{ label: string; value: number }>;
+        activityOverview: Array<{ label: string; visits: number; workouts: number; ptSessions: number }>;
+    }>({
+        occupancyTrend: [],
+        avgHourlyOccupancy: [],
+        revenueTrend: [],
+        activityOverview: [],
+    });
     const [aiLoading, setAiLoading] = useState(false);
     const streamedBriefing = useStreamedText(latestAi?.content ?? null);
     const briefingComplete =
@@ -52,11 +63,11 @@ export default function ManagerDashboard() {
         return () => clearInterval(t);
     }, []);
     const refresh = async () => {
-        const [dash, summary, reports, visits] = await Promise.all([
+        const [dash, summary, reports, chartData] = await Promise.all([
             opsAPI.dashboard('manager'),
             opsAPI.reportSummary(),
             opsAPI.recentReports(),
-            opsAPI.visits(200),
+            opsAPI.dashboardAnalytics('manager') as Promise<any>,
         ]);
         setDashboard(dash);
         setBranchInsights([
@@ -70,19 +81,12 @@ export default function ManagerDashboard() {
             due: String(r.createdAt).slice(0, 10),
             assignee: 'Manager',
         })));
-        const buckets = period === 'week' ? 7 : 12;
-        const out = Array.from({ length: buckets }, () => 0);
-        (visits ?? []).forEach((v: any) => {
-            const d = new Date(v.checkInAt);
-            if (period === 'week') {
-                const day = d.getDay();
-                const idx = (day + 6) % 7;
-                out[idx] += 1;
-            } else {
-                out[d.getMonth()] += 1;
-            }
+        setAnalytics({
+            occupancyTrend: chartData?.occupancyTrend ?? [],
+            avgHourlyOccupancy: chartData?.avgHourlyOccupancy ?? [],
+            revenueTrend: chartData?.revenueTrend ?? [],
+            activityOverview: chartData?.activityOverview ?? [],
         });
-        setOccupancyData(out);
     };
     useRealtimePolling(() => { refresh().catch(() => undefined); }, 15000);
 
@@ -102,13 +106,7 @@ export default function ManagerDashboard() {
         { label: 'Members',  href: '/manager/members',   icon: Users },
     ];
 
-    const data   = occupancyData;
-    const maxVal = Math.max(...data, 1);
-    const labels: Record<string, string[]> = {
-        week:  ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
-        month: ['Week 1','Week 2','Week 3','Week 4','Week 5','Week 6','Week 7','Week 8','Week 9','Week 10','Week 11','Week 12'],
-        year:  ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
-    };
+    const occupancyPoints = analytics.occupancyTrend.slice(period === 'week' ? -7 : period === 'month' ? -12 : -14);
 
     const askAi = async (q: string) => {
         setAiLoading(true);
@@ -273,18 +271,44 @@ export default function ManagerDashboard() {
                 </Card>
             </div>
 
-            <Card padding="lg">
-                <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2"><BarChart3 size={18} className="text-red-500" /> Gym Occupancy Trend</h2>
-                <div className="flex items-end gap-1 h-48 min-h-[12rem]">
-                    {data.map((val, i) => (
-                        <div key={i} className="flex flex-col items-center gap-1 flex-1">
-                            <div className="w-full rounded-t-lg bg-gradient-to-t from-red-700 to-red-500 transition-all"
-                                style={{ height: `${(val / maxVal) * 100}%` }} />
-                            <span className="text-zinc-500 text-[10px]">{labels[period][i]}</span>
-                        </div>
-                    ))}
-                </div>
-            </Card>
+            <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6">
+                <Card padding="lg">
+                    <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2"><BarChart3 size={18} className="text-red-500" /> Occupancy Trend</h2>
+                    <ThemedLineChart
+                        labels={occupancyPoints.map((p) => p.label)}
+                        series={[{ name: 'Visits', color: '#ef4444', values: occupancyPoints.map((p) => Number(p.value ?? 0)) }]}
+                        height={220}
+                    />
+                </Card>
+                <Card padding="lg">
+                    <h2 className="text-lg font-semibold text-white mb-4">Avg. Hourly Occupancy</h2>
+                    <ThemedLineChart
+                        labels={analytics.avgHourlyOccupancy.map((p) => p.label)}
+                        series={[{ name: 'Avg check-ins/hour', color: '#a855f7', values: analytics.avgHourlyOccupancy.map((p) => Number(p.value ?? 0)) }]}
+                        height={220}
+                    />
+                </Card>
+                <Card padding="lg">
+                    <h2 className="text-lg font-semibold text-white mb-4">Revenue Trend</h2>
+                    <ThemedLineChart
+                        labels={analytics.revenueTrend.map((p) => p.label)}
+                        series={[{ name: 'Revenue (LKR)', color: '#22c55e', values: analytics.revenueTrend.map((p) => Number(p.value ?? 0)) }]}
+                        height={220}
+                    />
+                </Card>
+                <Card padding="lg">
+                    <h2 className="text-lg font-semibold text-white mb-4">Activity Overview</h2>
+                    <ThemedLineChart
+                        labels={analytics.activityOverview.map((p) => p.label)}
+                        series={[
+                            { name: 'Visits', color: '#ef4444', values: analytics.activityOverview.map((p) => Number(p.visits ?? 0)) },
+                            { name: 'Workouts', color: '#3b82f6', values: analytics.activityOverview.map((p) => Number(p.workouts ?? 0)) },
+                            { name: 'PT Sessions', color: '#f59e0b', values: analytics.activityOverview.map((p) => Number(p.ptSessions ?? 0)) },
+                        ]}
+                        height={220}
+                    />
+                </Card>
+            </div>
         </div>
     );
 }

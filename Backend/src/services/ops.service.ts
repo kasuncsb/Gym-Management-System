@@ -521,6 +521,185 @@ export async function getDashboard(role: Role, userId: string) {
   return base;
 }
 
+type LinePoint = { label: string; value: number };
+type MultiLinePoint = { label: string; visits: number; workouts: number; ptSessions: number };
+
+function ymdUtc(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function dayLabel(d: Date): string {
+  return d.toLocaleDateString('en-US', { weekday: 'short' });
+}
+
+function weekLabel(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
+function bucketDays(days: number): Date[] {
+  const out: Date[] = [];
+  const now = new Date();
+  for (let i = days - 1; i >= 0; i -= 1) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    out.push(d);
+  }
+  return out;
+}
+
+function bucketWeeks(weeks: number): Date[] {
+  const out: Date[] = [];
+  const now = new Date();
+  for (let i = weeks - 1; i >= 0; i -= 1) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i * 7);
+    out.push(d);
+  }
+  return out;
+}
+
+export async function getDashboardAnalytics(role: Role, userId: string) {
+  if (role === 'member') {
+    const dayBuckets = bucketDays(7);
+    const dayStart = ymdUtc(dayBuckets[0]!);
+    const dayRows = await db
+      .select({
+        day: sql<string>`date(${workoutSessions.endedAt})`,
+        count: sql<number>`count(*)`,
+      })
+      .from(workoutSessions)
+      .where(and(
+        eq(workoutSessions.personId, userId),
+        sql`date(${workoutSessions.endedAt}) >= ${dayStart}`,
+        sql`${workoutSessions.status} in ('completed','stopped')`,
+      ))
+      .groupBy(sql`date(${workoutSessions.endedAt})`);
+    const dayMap = new Map(dayRows.map((r) => [String(r.day), Number(r.count)]));
+    const weeklyWorkoutActivity: LinePoint[] = dayBuckets.map((d) => {
+      const key = ymdUtc(d);
+      return { label: dayLabel(d), value: dayMap.get(key) ?? 0 };
+    });
+
+    const weekBuckets = bucketWeeks(8);
+    const weekStart = ymdUtc(weekBuckets[0]!);
+    const weekRows = await db
+      .select({
+        wk: sql<string>`date_sub(date(${workoutSessions.endedAt}), interval weekday(${workoutSessions.endedAt}) day)`,
+        count: sql<number>`count(*)`,
+      })
+      .from(workoutSessions)
+      .where(and(
+        eq(workoutSessions.personId, userId),
+        sql`date(${workoutSessions.endedAt}) >= ${weekStart}`,
+        sql`${workoutSessions.status} in ('completed','stopped')`,
+      ))
+      .groupBy(sql`date_sub(date(${workoutSessions.endedAt}), interval weekday(${workoutSessions.endedAt}) day)`);
+    const weekMap = new Map(weekRows.map((r) => [String(r.wk), Number(r.count)]));
+    const workoutFrequency: LinePoint[] = weekBuckets.map((d, i) => {
+      const monday = new Date(d);
+      monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+      const key = ymdUtc(monday);
+      return { label: `W${i + 1}`, value: weekMap.get(key) ?? 0 };
+    });
+
+    return { weeklyWorkoutActivity, workoutFrequency };
+  }
+
+  if (role === 'manager') {
+    const occBuckets = bucketDays(14);
+    const occStart = ymdUtc(occBuckets[0]!);
+    const occRows = await db
+      .select({
+        day: sql<string>`date(${visits.checkInAt})`,
+        count: sql<number>`count(*)`,
+      })
+      .from(visits)
+      .where(sql`date(${visits.checkInAt}) >= ${occStart}`)
+      .groupBy(sql`date(${visits.checkInAt})`);
+    const occMap = new Map(occRows.map((r) => [String(r.day), Number(r.count)]));
+    const occupancyTrend: LinePoint[] = occBuckets.map((d) => {
+      const key = ymdUtc(d);
+      return { label: dayLabel(d), value: occMap.get(key) ?? 0 };
+    });
+
+    const hourlyRows = await db
+      .select({
+        hour: sql<number>`hour(${visits.checkInAt})`,
+        count: sql<number>`count(*)`,
+      })
+      .from(visits)
+      .where(sql`date(${visits.checkInAt}) >= date_sub(curdate(), interval 30 day)`)
+      .groupBy(sql`hour(${visits.checkInAt})`);
+    const hourlyMap = new Map(hourlyRows.map((r) => [Number(r.hour), Number(r.count)]));
+    const avgHourlyOccupancy: LinePoint[] = Array.from({ length: 24 }, (_, h) => {
+      const raw = hourlyMap.get(h) ?? 0;
+      const label = `${h === 0 ? 12 : h > 12 ? h - 12 : h}${h < 12 ? 'a' : 'p'}`;
+      return { label, value: Number((raw / 30).toFixed(2)) };
+    });
+
+    const revBuckets = bucketWeeks(12);
+    const revStart = ymdUtc(revBuckets[0]!);
+    const revRows = await db
+      .select({
+        wk: sql<string>`date_sub(date(${payments.paymentDate}), interval weekday(${payments.paymentDate}) day)`,
+        total: sql<string>`coalesce(sum(${payments.amount}), 0)`,
+      })
+      .from(payments)
+      .where(sql`date(${payments.paymentDate}) >= ${revStart}`)
+      .groupBy(sql`date_sub(date(${payments.paymentDate}), interval weekday(${payments.paymentDate}) day)`);
+    const revMap = new Map(revRows.map((r) => [String(r.wk), Number(r.total)]));
+    const revenueTrend: LinePoint[] = revBuckets.map((d, i) => {
+      const monday = new Date(d);
+      monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+      const key = ymdUtc(monday);
+      return { label: `W${i + 1}`, value: revMap.get(key) ?? 0 };
+    });
+
+    const actBuckets = bucketDays(14);
+    const actStart = ymdUtc(actBuckets[0]!);
+    const visitRows = await db
+      .select({ day: sql<string>`date(${visits.checkInAt})`, count: sql<number>`count(*)` })
+      .from(visits)
+      .where(sql`date(${visits.checkInAt}) >= ${actStart}`)
+      .groupBy(sql`date(${visits.checkInAt})`);
+    const workoutRows = await db
+      .select({ day: sql<string>`date(${workoutSessions.endedAt})`, count: sql<number>`count(*)` })
+      .from(workoutSessions)
+      .where(and(
+        sql`date(${workoutSessions.endedAt}) >= ${actStart}`,
+        sql`${workoutSessions.status} in ('completed','stopped')`,
+      ))
+      .groupBy(sql`date(${workoutSessions.endedAt})`);
+    const ptRows = await db
+      .select({ day: sql<string>`date(${ptSessions.sessionDate})`, count: sql<number>`count(*)` })
+      .from(ptSessions)
+      .where(and(
+        sql`date(${ptSessions.sessionDate}) >= ${actStart}`,
+        sql`${ptSessions.status} in ('booked','confirmed','completed')`,
+      ))
+      .groupBy(sql`date(${ptSessions.sessionDate})`);
+    const visitMap = new Map(visitRows.map((r) => [String(r.day), Number(r.count)]));
+    const workoutMap = new Map(workoutRows.map((r) => [String(r.day), Number(r.count)]));
+    const ptMap = new Map(ptRows.map((r) => [String(r.day), Number(r.count)]));
+    const activityOverview: MultiLinePoint[] = actBuckets.map((d) => {
+      const key = ymdUtc(d);
+      return {
+        label: dayLabel(d),
+        visits: visitMap.get(key) ?? 0,
+        workouts: workoutMap.get(key) ?? 0,
+        ptSessions: ptMap.get(key) ?? 0,
+      };
+    });
+
+    return { occupancyTrend, avgHourlyOccupancy, revenueTrend, activityOverview };
+  }
+
+  throw errors.badRequest('Analytics are only available for member and manager dashboards');
+}
+
 // ── Subscription Plans ────────────────────────────────────────────────────────
 
 export async function listPlans(options?: { includeInactive?: boolean }) {

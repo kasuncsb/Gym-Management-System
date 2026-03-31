@@ -29,6 +29,7 @@ router.get('/workouts/plans/:planId', optionalAuthenticate, ops.getWorkoutPlanDe
 router.use(authenticate);
 
 router.get('/dashboard/:role', ops.getDashboard);
+router.get('/dashboard/:role/analytics', ops.getDashboardAnalytics);
 
 // Subscription plans
 router.get('/subscriptions/plans', ops.listPlans);

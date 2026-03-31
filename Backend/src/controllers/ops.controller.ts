@@ -24,6 +24,14 @@ export const getDashboard = asyncHandler(async (req: AuthRequest, res: Response)
   res.json(response.success(data));
 });
 
+export const getDashboardAnalytics = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  const role = (req.params.role as Role) || user.role;
+  if (role !== user.role) throw errors.forbidden('Dashboard role mismatch');
+  const data = await opsService.getDashboardAnalytics(role, user.id);
+  res.json(response.success(data));
+});
+
 export const listPlans = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   const includeInactive = String(req.query.includeInactive ?? '').toLowerCase();

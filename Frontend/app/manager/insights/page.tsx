@@ -8,6 +8,7 @@ import { aiAPI, getErrorMessage, opsAPI } from '@/lib/api';
 import { MANAGER_INSIGHT_ACTIONS } from '@/lib/managerInsightsPrompts';
 import { useStreamedText } from '@/hooks/useStreamedText';
 import { useToast } from '@/components/ui/Toast';
+import { ThemedLineChart } from '@/components/charts/ThemedLineChart';
 
 const impactColor: Record<string, string> = {
     high:   'text-red-400 bg-red-500/20',
@@ -28,13 +29,13 @@ export default function ManagerInsightsPage() {
     const streamDone =
         Boolean(aiResult?.content) && streamedContent.length >= (aiResult?.content?.length ?? 0);
     const [summary, setSummary] = useState<any>(null);
-    const [visits, setVisits] = useState<any[]>([]);
+    const [analytics, setAnalytics] = useState<any>(null);
 
     useEffect(() => {
-        Promise.all([opsAPI.reportSummary(), opsAPI.visits(500)])
-            .then(([s, v]) => {
+        Promise.all([opsAPI.reportSummary(), opsAPI.dashboardAnalytics('manager')])
+            .then(([s, a]) => {
                 setSummary(s);
-                setVisits(v ?? []);
+                setAnalytics(a ?? null);
             })
             .catch(() => toast.error('Error', 'Failed to load insight data'));
     }, []);
@@ -64,17 +65,9 @@ export default function ManagerInsightsPage() {
         { label: 'Open Incidents', value: String(summary?.openEquipmentIncidents ?? 0), delta: 'needs attention', good: false },
     ];
 
-    const occupancyByHour = useMemo(() => {
-        const arr = Array.from({ length: 24 }, () => 0);
-        visits.forEach((v: any) => {
-            const d = new Date(v.checkInAt);
-            arr[d.getHours()] += 1;
-        });
-        return arr;
-    }, [visits]);
-
-    const maxOcc = Math.max(...occupancyByHour) || 1;
-    const hours  = Array.from({ length: 24 }, (_, i) => `${i === 0 ? 12 : i > 12 ? i - 12 : i}${i < 12 ? 'a' : 'p'}`);
+    const occupancyTrend = useMemo(() => analytics?.occupancyTrend ?? [], [analytics]);
+    const occupancyByHour = useMemo(() => analytics?.avgHourlyOccupancy ?? [], [analytics]);
+    const revenueTrend = useMemo(() => analytics?.revenueTrend ?? [], [analytics]);
 
     return (
         <div className="space-y-8">
@@ -95,23 +88,32 @@ export default function ManagerInsightsPage() {
                 ))}
             </div>
 
-            <Card padding="lg">
-                <h2 className="text-lg font-semibold text-white mb-6">Average Hourly Occupancy</h2>
-                <div className="flex items-end gap-px h-48 min-h-[12rem]">
-                    {occupancyByHour.map((v, i) => (
-                        <div key={i} className="flex flex-col items-center flex-1">
-                            <div className={`w-full rounded-t-sm transition-all ${v > 60 ? 'bg-red-500' : v > 40 ? 'bg-orange-500' : 'bg-purple-700'}`}
-                                style={{ height: `${(v / maxOcc) * 100}%`, minHeight: '4px' }} />
-                            {i % 4 === 0 && <span className="text-zinc-500 text-[9px] mt-1">{hours[i]}</span>}
-                        </div>
-                    ))}
-                </div>
-                <div className="flex gap-4 mt-3 text-xs">
-                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-500" /> Peak</span>
-                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-orange-500" /> Moderate</span>
-                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-purple-700" /> Low</span>
-                </div>
-            </Card>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <Card padding="lg">
+                    <h2 className="text-lg font-semibold text-white mb-4">Occupancy Trend</h2>
+                    <ThemedLineChart
+                        labels={occupancyTrend.map((p: any) => p.label)}
+                        series={[{ name: 'Visits', color: '#ef4444', values: occupancyTrend.map((p: any) => Number(p.value ?? 0)) }]}
+                        height={210}
+                    />
+                </Card>
+                <Card padding="lg">
+                    <h2 className="text-lg font-semibold text-white mb-4">Average Hourly Occupancy</h2>
+                    <ThemedLineChart
+                        labels={occupancyByHour.map((p: any) => p.label)}
+                        series={[{ name: 'Avg check-ins/hour', color: '#a855f7', values: occupancyByHour.map((p: any) => Number(p.value ?? 0)) }]}
+                        height={210}
+                    />
+                </Card>
+                <Card padding="lg" className="xl:col-span-2">
+                    <h2 className="text-lg font-semibold text-white mb-4">Revenue Trend</h2>
+                    <ThemedLineChart
+                        labels={revenueTrend.map((p: any) => p.label)}
+                        series={[{ name: 'Revenue (LKR)', color: '#22c55e', values: revenueTrend.map((p: any) => Number(p.value ?? 0)) }]}
+                        height={210}
+                    />
+                </Card>
+            </div>
 
             <Card padding="md">
                 <div className="flex flex-wrap items-center justify-between gap-3">

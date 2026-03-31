@@ -227,6 +227,21 @@ export interface OpsDashboard {
   systemAlertCount?: number;
 }
 
+export type DashboardLinePoint = { label: string; value: number };
+export type ManagerActivityPoint = { label: string; visits: number; workouts: number; ptSessions: number };
+
+export type MemberDashboardAnalytics = {
+  weeklyWorkoutActivity: DashboardLinePoint[];
+  workoutFrequency: DashboardLinePoint[];
+};
+
+export type ManagerDashboardAnalytics = {
+  occupancyTrend: DashboardLinePoint[];
+  avgHourlyOccupancy: DashboardLinePoint[];
+  revenueTrend: DashboardLinePoint[];
+  activityOverview: ManagerActivityPoint[];
+};
+
 /** Branch PT booking constraints (config + calendar day context when returned from availability). */
 export type PtBookingRules = {
   timezone: string;
@@ -263,6 +278,10 @@ export const opsAPI = {
   // dashboards/reports
   dashboard: (role: 'admin' | 'manager' | 'trainer' | 'member') =>
     apiClient.get<{ success: boolean; data: OpsDashboard }>(`/ops/dashboard/${role}`).then(r => r.data.data),
+  dashboardAnalytics: (role: 'manager' | 'member') =>
+    apiClient
+      .get<{ success: boolean; data: MemberDashboardAnalytics | ManagerDashboardAnalytics }>(`/ops/dashboard/${role}/analytics`)
+      .then((r) => r.data.data),
   reportSummary: (params?: { type?: string; fromDate?: string; toDate?: string }) =>
     apiClient.get('/ops/reports/summary', { params }).then(r => r.data.data),
   recentReports: () =>

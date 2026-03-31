@@ -7,6 +7,7 @@ import { Dumbbell, Calendar, TrendingUp, QrCode, Clock, Flame, Award, Activity }
 import { PageHeader, Card } from '@/components/ui/SharedComponents';
 import { opsAPI } from '@/lib/api';
 import { useRealtimePolling } from '@/hooks/useRealtimePolling';
+import { ThemedLineChart } from '@/components/charts/ThemedLineChart';
 
 export default function MemberDashboard() {
     const { user } = useAuth();
@@ -15,7 +16,10 @@ export default function MemberDashboard() {
     const [mySubscriptions, setMySubscriptions] = useState<any[]>([]);
     const [appointments, setAppointments] = useState<Array<{ trainer: string; date: string; time: string; type: string }>>([]);
     const [activities, setActivities] = useState<Array<{ text: string; time: string; date: string }>>([]);
-    const [weekActivity, setWeekActivity] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
+    const [analytics, setAnalytics] = useState<{ weeklyWorkoutActivity: Array<{ label: string; value: number }>; workoutFrequency: Array<{ label: string; value: number }> }>({
+        weeklyWorkoutActivity: [],
+        workoutFrequency: [],
+    });
 
     useEffect(() => {
         const t = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -23,13 +27,14 @@ export default function MemberDashboard() {
     }, []);
 
     const refresh = async () => {
-        const [dash, subs, pt, visits, logs, trainerList] = await Promise.all([
+        const [dash, subs, pt, visits, logs, trainerList, chartData] = await Promise.all([
             opsAPI.dashboard('member'),
             opsAPI.mySubscriptions(),
             opsAPI.myPtSessions(),
             opsAPI.myVisits(6),
             opsAPI.myWorkoutLogs(),
             opsAPI.trainers(),
+            opsAPI.dashboardAnalytics('member') as Promise<any>,
         ]);
         setDashboard(dash);
         setMySubscriptions((subs ?? []) as any[]);
@@ -52,14 +57,10 @@ export default function MemberDashboard() {
             date: String(l.workoutDate).slice(0, 10),
         }));
         setActivities([...recentVisits, ...recentLogs].slice(0, 6));
-        const buckets = Array.from({ length: 7 }, () => 0);
-        const now = new Date();
-        (logs ?? []).forEach((l: any) => {
-            const d = new Date(l.workoutDate);
-            const delta = Math.floor((now.getTime() - d.getTime()) / (24 * 3600 * 1000));
-            if (delta >= 0 && delta < 7) buckets[6 - delta] += 1;
+        setAnalytics({
+            weeklyWorkoutActivity: chartData?.weeklyWorkoutActivity ?? [],
+            workoutFrequency: chartData?.workoutFrequency ?? [],
         });
-        setWeekActivity(buckets);
     };
     useRealtimePolling(() => { refresh().catch(() => undefined); }, 15000);
 
@@ -68,7 +69,7 @@ export default function MemberDashboard() {
     const activeSub = mySubscriptions.find((s) => ['active', 'grace_period'].includes(s.status)) ?? mySubscriptions[0];
 
     const stats = [
-        { label: 'This Week',  value: String(weekActivity.reduce((n, v) => n + v, 0)), sub: 'workouts', icon: Dumbbell, color: 'from-red-600 to-red-700' },
+        { label: 'This Week',  value: String((analytics.weeklyWorkoutActivity ?? []).reduce((n, p) => n + Number(p.value ?? 0), 0)), sub: 'workouts', icon: Dumbbell, color: 'from-red-600 to-red-700' },
         { label: 'Visits',     value: String(dashboard.myVisits ?? 0), sub: 'total', icon: Flame, color: 'from-orange-500 to-orange-600' },
         { label: 'Workouts', value: String(dashboard.myWorkouts ?? 0), sub: 'sessions', icon: Activity, color: 'from-blue-600 to-blue-700' },
         { label: 'Gym Traffic', value: String(dashboard.todayVisits), sub: 'today', icon: Clock, color: 'from-purple-600 to-purple-700' },
@@ -80,8 +81,6 @@ export default function MemberDashboard() {
         { label: 'View Progress', href: '/member/progress',     icon: TrendingUp },
         { label: 'Workouts',      href: '/member/workouts',     icon: Dumbbell   },
     ];
-
-    const dayLabels    = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     return (
         <div className="space-y-8">
@@ -175,18 +174,24 @@ export default function MemberDashboard() {
                 </Card>
             </div>
 
-            <Card padding="lg">
-                <h2 className="text-lg font-semibold text-white mb-6">Weekly Workout Activity</h2>
-                <div className="flex items-end gap-2 h-40 min-h-[10rem]">
-                    {dayLabels.map((day, i) => (
-                        <div key={day} className="flex flex-col items-center gap-2 flex-1">
-                            <div className={`w-full rounded-t-xl transition-all ${weekActivity[i] > 0 ? 'bg-gradient-to-t from-red-700 to-red-500' : 'bg-zinc-800'}`}
-                                style={{ height: weekActivity[i] > 0 ? '80%' : '20%' }} />
-                            <span className="text-zinc-500 text-xs">{day}</span>
-                        </div>
-                    ))}
-                </div>
-            </Card>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <Card padding="lg">
+                    <h2 className="text-lg font-semibold text-white mb-4">Weekly Workout Activity</h2>
+                    <ThemedLineChart
+                        labels={(analytics.weeklyWorkoutActivity ?? []).map((p) => p.label)}
+                        series={[{ name: 'Sessions', color: '#ef4444', values: (analytics.weeklyWorkoutActivity ?? []).map((p) => Number(p.value ?? 0)) }]}
+                        height={210}
+                    />
+                </Card>
+                <Card padding="lg">
+                    <h2 className="text-lg font-semibold text-white mb-4">Workout Frequency</h2>
+                    <ThemedLineChart
+                        labels={(analytics.workoutFrequency ?? []).map((p) => p.label)}
+                        series={[{ name: 'Sessions / week', color: '#f97316', values: (analytics.workoutFrequency ?? []).map((p) => Number(p.value ?? 0)) }]}
+                        height={210}
+                    />
+                </Card>
+            </div>
         </div>
     );
 }
