@@ -200,7 +200,9 @@ export default function ManagerInsightsPage() {
                         <Card key={i} padding="md" className="hover:border-zinc-700/50 transition-colors border-violet-500/15 bg-violet-950/20">
                             <div className="flex items-start justify-between mb-2">
                                 <p className="text-white font-semibold">Recommendation {i + 1}</p>
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${impactColor[i === 0 ? 'high' : i === 1 ? 'medium' : 'low']}`}>AI</span>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${impactColor[i === 0 ? 'high' : i === 1 ? 'medium' : 'low']}`}>
+                                    {i === 0 ? 'High' : i === 1 ? 'Medium' : 'Low'}
+                                </span>
                             </div>
                             <div className="text-zinc-300 text-sm leading-relaxed">
                                 <ChatMarkdown text={String(line ?? '')} />

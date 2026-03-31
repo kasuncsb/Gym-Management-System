@@ -240,12 +240,14 @@ export default function ManagerDashboard() {
                         ))}
                         {latestAi && latestAi.insights.length > 0 && (
                             <>
-                                <p className="text-[11px] text-zinc-500 uppercase tracking-wide pt-2">AI recommendations</p>
+                                <p className="text-[11px] text-zinc-500 uppercase tracking-wide pt-2">Recommendations</p>
                                 {latestAi.insights.map((line, i) => (
                                     <div key={`ai-${i}`} className="bg-violet-950/40 border border-violet-500/20 rounded-xl p-4">
                                         <div className="flex justify-between mb-1">
                                             <p className="text-violet-200 text-sm font-semibold">Action {i + 1}</p>
-                                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${impactColor[(i === 0 ? 'high' : i === 1 ? 'medium' : 'low') as Impact]}`}>AI</span>
+                                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${impactColor[(i === 0 ? 'high' : i === 1 ? 'medium' : 'low') as Impact]}`}>
+                                                {i === 0 ? 'High' : i === 1 ? 'Medium' : 'Low'}
+                                            </span>
                                         </div>
                                         <div className="text-zinc-300 text-xs leading-relaxed">
                                             <ChatMarkdown text={String(line ?? '')} />
