@@ -202,7 +202,9 @@ export default function ManagerInsightsPage() {
                                 <p className="text-white font-semibold">Recommendation {i + 1}</p>
                                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${impactColor[i === 0 ? 'high' : i === 1 ? 'medium' : 'low']}`}>AI</span>
                             </div>
-                            <p className="text-zinc-300 text-sm whitespace-pre-wrap leading-relaxed">{line}</p>
+                            <div className="text-zinc-300 text-sm leading-relaxed">
+                                <ChatMarkdown text={String(line ?? '')} />
+                            </div>
                         </Card>
                     ))}
                 </div>

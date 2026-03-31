@@ -247,7 +247,9 @@ export default function ManagerDashboard() {
                                             <p className="text-violet-200 text-sm font-semibold">Action {i + 1}</p>
                                             <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${impactColor[(i === 0 ? 'high' : i === 1 ? 'medium' : 'low') as Impact]}`}>AI</span>
                                         </div>
-                                        <p className="text-zinc-300 text-xs whitespace-pre-wrap leading-relaxed">{line}</p>
+                                        <div className="text-zinc-300 text-xs leading-relaxed">
+                                            <ChatMarkdown text={String(line ?? '')} />
+                                        </div>
                                     </div>
                                 ))}
                             </>
