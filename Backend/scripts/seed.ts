@@ -751,8 +751,9 @@ async function seed() {
   // 4) Shifts + Visits + PT Sessions + Subscriptions + Payments
   // Shifts for schedules and PT availability lookups
   const shiftTypeByIdx: Array<'morning' | 'afternoon' | 'evening'> = ['morning', 'afternoon', 'evening'];
-  const SHIFTS_FOR_DAYS = 7;
-  for (let dayOffset = 0; dayOffset < SHIFTS_FOR_DAYS; dayOffset++) {
+  const SHIFTS_PAST_DAYS = 30;
+  const SHIFTS_FUTURE_DAYS = 7;
+  for (let dayOffset = -SHIFTS_PAST_DAYS; dayOffset < SHIFTS_FUTURE_DAYS; dayOffset++) {
     const shiftDate = dateAtNoonFrom(new Date(now.getTime() + dayOffset * dayMs));
     for (let tIdx = 0; tIdx < trainerIds.length; tIdx++) {
       const staffId = trainerIds[tIdx];
@@ -772,77 +773,84 @@ async function seed() {
         shiftDate,
         startTime: shiftDef.startTime,
         endTime: shiftDef.endTime,
-        status: 'scheduled',
-        notes: 'Seed shift — recurring grid',
+        status: dayOffset < 0 ? 'completed' : dayOffset === 0 ? 'active' : 'scheduled',
+        notes: dayOffset < 0 ? 'Seed shift — historical coverage' : 'Seed shift — recurring grid',
         createdBy: managerId,
       });
     }
   }
 
-  // Visits for member dashboard + manager trainer-on-shift + trainer dashboard recent check-ins
-  // Clear prior seeded visits by seeded userIds (already handled by removeSeedUsers) so we can just insert.
-  const visitId = ids.uuid();
-  void visitId;
-  for (const m of memberSeedDefs) {
-    // One active "checked in" today
-    {
-      const id = ids.uuid();
-      const lc = await insertLifecycleRow();
-      await db.insert(visits).values({
-        id,
-        lifecycleId: lc,
-        personId: m.memberId,
-        checkInAt: new Date(now.getTime() - 35 * 60_000),
-        status: 'active',
-      });
+  // Visits (busy gym): 30-day series for members + trainers. Keep exactly one active visit per person today.
+  await db.delete(visits).where(inArray(visits.personId, [...memberIds, ...trainerIds]));
+
+  for (let dayAgo = 30; dayAgo >= 1; dayAgo--) {
+    const base = new Date(now.getTime() - dayAgo * dayMs);
+    // Members: 1–2 visits per day (busy gym despite small demo user set)
+    for (let mi = 0; mi < memberSeedDefs.length; mi++) {
+      const m = memberSeedDefs[mi]!;
+      const visitsTodayForMember = (dayAgo % 6 === 0 || mi % 2 === 0) ? 2 : 1;
+      for (let vi = 0; vi < visitsTodayForMember; vi++) {
+        const checkInAt = new Date(base.getTime() + (6 + vi * 7 + (mi % 3)) * 60 * 60_000); // morning/evening split
+        const durationMin = 60 + ((mi + vi + dayAgo) % 4) * 15; // 60–105
+        const checkOutAt = new Date(checkInAt.getTime() + durationMin * 60_000);
+        const id = ids.uuid();
+        const lc = await insertLifecycleRow();
+        await db.insert(visits).values({
+          id,
+          lifecycleId: lc,
+          personId: m.memberId,
+          checkInAt,
+          checkOutAt,
+          durationMin,
+          status: 'completed',
+        });
+      }
     }
-    // One completed visit in last week
-    {
+
+    // Trainers: completed "shift visit" for each day
+    for (let ti = 0; ti < trainerIds.length; ti++) {
+      const trId = trainerIds[ti]!;
+      const checkInAt = new Date(base.getTime() + (6 + (ti % 3) * 4) * 60 * 60_000);
+      const durationMin = 8 * 60; // 8h
+      const checkOutAt = new Date(checkInAt.getTime() + durationMin * 60_000);
       const id = ids.uuid();
       const lc = await insertLifecycleRow();
-      const checkInAt = new Date(now.getTime() - 5 * dayMs - 2 * 60_000);
-      const checkOutAt = new Date(checkInAt.getTime() + 60 * 60_000);
       await db.insert(visits).values({
         id,
         lifecycleId: lc,
-        personId: m.memberId,
+        personId: trId,
         checkInAt,
         checkOutAt,
-        durationMin: 60,
+        durationMin,
         status: 'completed',
       });
     }
   }
-  for (const trEmail of trainerEmails) {
-    const trId = trainerIdByEmail[trEmail]!;
-    // Active visit today (manager sees "trainersOnShift")
-    {
-      const id = ids.uuid();
-      const lc = await insertLifecycleRow();
-      await db.insert(visits).values({
-        id,
-        lifecycleId: lc,
-        personId: trId,
-        checkInAt: new Date(now.getTime() - 20 * 60_000),
-        status: 'active',
-      });
-    }
-    // Completed visit yesterday
-    {
-      const id = ids.uuid();
-      const lc = await insertLifecycleRow();
-      const checkInAt = new Date(now.getTime() - 2 * dayMs + 9 * 60_000);
-      const checkOutAt = new Date(checkInAt.getTime() + 45 * 60_000);
-      await db.insert(visits).values({
-        id,
-        lifecycleId: lc,
-        personId: trId,
-        checkInAt,
-        checkOutAt,
-        durationMin: 45,
-        status: 'completed',
-      });
-    }
+
+  // Today: one active visit per member + trainer (used by dashboards "on shift"/"active now")
+  for (let mi = 0; mi < memberSeedDefs.length; mi++) {
+    const m = memberSeedDefs[mi]!;
+    const id = ids.uuid();
+    const lc = await insertLifecycleRow();
+    await db.insert(visits).values({
+      id,
+      lifecycleId: lc,
+      personId: m.memberId,
+      checkInAt: new Date(now.getTime() - (25 + mi * 4) * 60_000),
+      status: 'active',
+    });
+  }
+  for (let ti = 0; ti < trainerIds.length; ti++) {
+    const trId = trainerIds[ti]!;
+    const id = ids.uuid();
+    const lc = await insertLifecycleRow();
+    await db.insert(visits).values({
+      id,
+      lifecycleId: lc,
+      personId: trId,
+      checkInAt: new Date(now.getTime() - (18 + ti * 6) * 60_000),
+      status: 'active',
+    });
   }
 
   // Subscription plans -> member subscriptions + payments for revenue + active subscription UI
@@ -908,17 +916,14 @@ async function seed() {
     });
   }
 
-  // PT Sessions (trainer schedule + member appointments)
-  // We'll create non-conflicting sessions per trainer with varied statuses.
-  const ptTimes = [
-    { start: '10:00:00', duration: 60 },
-    { start: '12:00:00', duration: 60 },
-    { start: '16:00:00', duration: 60 },
-  ];
-  const todaySessionDate = dateAtNoonFrom(now).toISOString().slice(0, 10);
-  const tomorrowSessionDate = dateAtNoonFrom(new Date(now.getTime() + 1 * dayMs)).toISOString().slice(0, 10);
-  const yesterdaySessionDate = dateAtNoonFrom(new Date(now.getTime() - 1 * dayMs)).toISOString().slice(0, 10);
+  // PT Sessions (busy gym): 30-day history + 7-day forward schedule, non-overlapping per trainer.
   await db.delete(ptSessions).where(or(inArray(ptSessions.memberId, memberIds), inArray(ptSessions.trainerId, trainerIds)));
+
+  const slotStarts: string[] = [
+    '06:30:00', '08:00:00', '09:30:00', '11:00:00', '12:30:00',
+    '14:00:00', '15:30:00', '17:00:00', '18:30:00', '20:00:00',
+  ];
+  const slotDurations = [45, 60, 75, 90];
 
   // Map member order per trainer so each trainer has some sessions.
   const membersByTrainer: Record<string, string[]> = {};
@@ -931,87 +936,57 @@ async function seed() {
 
   for (const tId of trainerIds) {
     const mems = membersByTrainer[tId] ?? memberIds;
-    const m1 = mems[0]!;
-    const m2 = mems[1] ?? mems[0]!;
-    const m3 = mems[2] ?? mems[0]!;
+    // 30 days past (mostly completed), 7 days future (booked/confirmed)
+    for (let dayOffset = -30; dayOffset <= 7; dayOffset++) {
+      const sessionDay = dateAtNoonFrom(new Date(now.getTime() + dayOffset * dayMs));
+      const slotsPerDay = dayOffset < 0 ? 4 : dayOffset === 0 ? 3 : 2;
+      for (let si = 0; si < slotsPerDay; si++) {
+        const start = slotStarts[(si + Math.abs(dayOffset) + (tId.charCodeAt(0) % 3)) % slotStarts.length]!;
+        const durationMinutes = slotDurations[(si + Math.abs(dayOffset)) % slotDurations.length]!;
+        const memberId = mems[(si + Math.abs(dayOffset)) % mems.length]!;
 
-    // Today: booked + confirmed
-    for (let idx = 0; idx < 2; idx++) {
-      const targetMember = idx === 0 ? m1 : m2;
-      const time = ptTimes[idx]!;
-      const id = ids.uuid();
-      const lc = await insertLifecycleRow();
-      await db.insert(ptSessions).values({
-        id,
-        lifecycleId: lc,
-        memberId: targetMember,
-        trainerId: tId,
-          sessionDate: dateAtNoon(todaySessionDate),
-        startTime: time.start,
-        endTime: endHMS(time.start, time.duration),
-        durationMinutes: time.duration,
-        status: idx === 0 ? 'booked' : 'confirmed',
-        cancelReason: null,
-        reviewRating: null,
-        reviewComment: null,
-      });
-    }
+        let status: any = 'confirmed';
+        let reviewRating: number | null = null;
+        let reviewComment: string | null = null;
+        let cancelReason: string | null = null;
 
-    // Tomorrow: confirmed
-    {
-      const time = ptTimes[2]!;
-      const id = ids.uuid();
-      const lc = await insertLifecycleRow();
-      await db.insert(ptSessions).values({
-        id,
-        lifecycleId: lc,
-        memberId: m2,
-        trainerId: tId,
-        sessionDate: dateAtNoon(tomorrowSessionDate),
-        startTime: time.start,
-        endTime: endHMS(time.start, time.duration),
-        durationMinutes: time.duration,
-        status: 'confirmed',
-      });
-    }
+        if (dayOffset < 0) {
+          // Past: mostly completed, some cancelled/no_show
+          const mod = (Math.abs(dayOffset) + si) % 10;
+          if (mod === 0) {
+            status = 'cancelled';
+            cancelReason = 'Seed cancellation — schedule conflict.';
+          } else if (mod === 1) {
+            status = 'no_show';
+            cancelReason = 'Seed no-show — member did not arrive.';
+          } else {
+            status = 'completed';
+            reviewRating = 4 + ((si + Math.abs(dayOffset)) % 2);
+            reviewComment = 'Solid session — progressive overload maintained.';
+          }
+        } else if (dayOffset === 0) {
+          status = si === 0 ? 'booked' : 'confirmed';
+        } else {
+          status = si % 2 === 0 ? 'confirmed' : 'booked';
+        }
 
-    // Yesterday: completed with review
-    {
-      const time = ptTimes[0]!;
-      const id = ids.uuid();
-      const lc = await insertLifecycleRow();
-      await db.insert(ptSessions).values({
-        id,
-        lifecycleId: lc,
-        memberId: m3,
-        trainerId: tId,
-        sessionDate: dateAtNoon(yesterdaySessionDate),
-        startTime: time.start,
-        endTime: endHMS(time.start, time.duration),
-        durationMinutes: time.duration,
-        status: 'completed',
-        reviewRating: 5,
-        reviewComment: `Great session — strong focus and clear cues.`,
-      });
-    }
-
-    // Older cancelled/no-show
-    {
-      const time = ptTimes[1]!;
-      const id = ids.uuid();
-      const lc = await insertLifecycleRow();
-      await db.insert(ptSessions).values({
-        id,
-        lifecycleId: lc,
-        memberId: m1,
-        trainerId: tId,
-        sessionDate: dateAtNoon(yesterdaySessionDate),
-        startTime: time.start,
-        endTime: endHMS(time.start, time.duration),
-        durationMinutes: time.duration,
-        status: 'cancelled',
-        cancelReason: 'Member requested to reschedule.',
-      });
+        const id = ids.uuid();
+        const lc = await insertLifecycleRow();
+        await db.insert(ptSessions).values({
+          id,
+          lifecycleId: lc,
+          memberId,
+          trainerId: tId,
+          sessionDate: sessionDay,
+          startTime: start,
+          endTime: endHMS(start, durationMinutes),
+          durationMinutes,
+          status,
+          cancelReason,
+          reviewRating,
+          reviewComment,
+        });
+      }
     }
   }
 
@@ -1056,12 +1031,15 @@ async function seed() {
     memberPlanDefs.set(m.memberId, id);
   }
 
-  // Workout sessions (member dashboard + progress charts)
+  // Workout sessions (busy gym): last 30 days per member.
   await db.delete(workoutSessions).where(inArray(workoutSessions.personId, memberIds));
   for (const [memberId, planId] of memberPlanDefs.entries()) {
-    for (let j = 0; j < 4; j++) {
-      const endedAt = new Date(now.getTime() - (j * 2 + 1) * dayMs);
-      const durationMin = 45 + (j % 3) * 15;
+    for (let dayAgo = 30; dayAgo >= 1; dayAgo--) {
+      const shouldWorkout = ((dayAgo + memberId.charCodeAt(0)) % 2 === 0) || (dayAgo % 7 === 0); // ~4–5x/week + weekends
+      if (!shouldWorkout) continue;
+      const endedAt = new Date(now.getTime() - dayAgo * dayMs + ((18 + (dayAgo % 3)) * 60) * 60_000); // evening
+      const durationMin = 40 + ((dayAgo + memberId.charCodeAt(1)) % 7) * 5; // 40–70
+      const caloriesBurned = 220 + ((dayAgo + memberId.charCodeAt(2)) % 9) * 35; // ~220–500
       const id = ids.uuid();
       const lc = await insertLifecycleRow();
       await db.insert(workoutSessions).values({
@@ -1069,13 +1047,13 @@ async function seed() {
         lifecycleId: lc,
         personId: memberId,
         planId,
-        status: j % 2 === 0 ? 'completed' : 'stopped',
+        status: dayAgo % 9 === 0 ? 'stopped' : 'completed',
         startedAt: new Date(endedAt.getTime() - durationMin * 60_000),
         endedAt,
         durationMin,
-        caloriesBurned: 250 + j * 60,
-        mood: j % 5 === 0 ? 'great' : j % 5 === 1 ? 'good' : j % 5 === 2 ? 'okay' : j % 5 === 3 ? 'tired' : 'poor',
-        notes: j % 2 === 0 ? 'Felt strong and consistent.' : 'Stopped due to schedule constraint.',
+        caloriesBurned,
+        mood: dayAgo % 10 === 0 ? 'tired' : dayAgo % 6 === 0 ? 'great' : 'good',
+        notes: dayAgo % 9 === 0 ? 'Stopped early — time constraint.' : 'Completed — steady pace.',
       });
     }
   }
@@ -1131,9 +1109,9 @@ async function seed() {
     } as any);
   }
 
-  await db.delete(auditLogs).where(inArray(auditLogs.actorId, memberIds));
   const auditActors = [managerId, trainer1, trainer2, trainer3].filter(Boolean) as string[];
-  for (let i = 0; i < 6; i++) {
+  await db.delete(auditLogs).where(inArray(auditLogs.actorId, auditActors));
+  for (let i = 0; i < 30; i++) {
     const actorId = auditActors[i % auditActors.length]!;
     await db.insert(auditLogs).values({
       id: ids.uuid(),
@@ -1143,7 +1121,7 @@ async function seed() {
       category: 'system',
       entityType: 'broadcast',
       entityId: null,
-      detail: `Seed broadcast #${i + 1}`,
+      detail: `Seed broadcast #${i + 1} — keep eyes on peak hours and equipment queue.`,
     });
   }
 

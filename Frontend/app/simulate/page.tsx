@@ -14,8 +14,6 @@ export default function SimulatePage() {
   const [countdownSec, setCountdownSec] = useState<number>(0);
   const [recentPayments, setRecentPayments] = useState<any[]>([]);
   const [processorStatus, setProcessorStatus] = useState('Awaiting payment request...');
-  const [members, setMembers] = useState<Array<{ id: string; fullName: string }>>([]);
-  const [workoutMemberId, setWorkoutMemberId] = useState('');
   const refreshingRef = useRef(false);
   const lastQrRetryAtRef = useRef(0);
   const countdownRef = useRef(0);
@@ -78,11 +76,7 @@ export default function SimulatePage() {
   useEffect(() => {
     opsAPI
       .publicSimulationBootstrap()
-      .then((b) => {
-        const m = Array.isArray((b as any)?.members) ? (b as any).members : [];
-        setMembers(m);
-        setWorkoutMemberId((prev) => prev || m[0]?.id || '');
-      })
+      .then(() => undefined)
       .catch(() => undefined);
     refreshQr().catch(() => undefined);
     const doorTimer = window.setInterval(() => {
@@ -250,67 +244,7 @@ export default function SimulatePage() {
           </div>
         </Card>
 
-        <Card padding="lg" className="space-y-5 bg-zinc-900/40 border-zinc-800">
-          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-            <CreditCard size={20} className="text-blue-400 shrink-0" />
-            Workout event simulator
-          </h2>
-          <p className="text-zinc-500 text-sm">
-            Generate workout lifecycle data into the same backend workout session pipeline.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-3 items-center">
-            <select
-              value={workoutMemberId}
-              onChange={(e) => setWorkoutMemberId(e.target.value)}
-              className="bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-white"
-            >
-              <option value="">Select member</option>
-              {members.map((m) => <option key={m.id} value={m.id}>{m.fullName}</option>)}
-            </select>
-            <LoadingButton
-              variant="secondary"
-              onClick={async () => {
-                if (!workoutMemberId) return toast.warning('Select member', 'Pick a member first.');
-                try {
-                  await opsAPI.publicSimulateWorkout({ memberId: workoutMemberId, action: 'start' });
-                  toast.success('Workout started', 'Simulated active session started.');
-                } catch (e) {
-                  toast.error('Start failed', getErrorMessage(e));
-                }
-              }}
-            >
-              Start
-            </LoadingButton>
-            <LoadingButton
-              variant="secondary"
-              onClick={async () => {
-                if (!workoutMemberId) return toast.warning('Select member', 'Pick a member first.');
-                try {
-                  await opsAPI.publicSimulateWorkout({ memberId: workoutMemberId, action: 'stop', durationMin: 42, caloriesBurned: 320 });
-                  toast.success('Workout stopped', 'Simulated session finalized.');
-                } catch (e) {
-                  toast.error('Stop failed', getErrorMessage(e));
-                }
-              }}
-            >
-              Stop
-            </LoadingButton>
-            <LoadingButton
-              variant="secondary"
-              onClick={async () => {
-                if (!workoutMemberId) return toast.warning('Select member', 'Pick a member first.');
-                try {
-                  await opsAPI.publicSimulateWorkout({ memberId: workoutMemberId, action: 'simulate', durationMin: 45, caloriesBurned: 300 });
-                  toast.success('Workout simulated', 'Session + events were generated.');
-                } catch (e) {
-                  toast.error('Simulation failed', getErrorMessage(e));
-                }
-              }}
-            >
-              Quick simulate
-            </LoadingButton>
-          </div>
-        </Card>
+        {/* Workout simulation removed — demo data is seeded via seed.ts */}
       </div>
     </div>
   );

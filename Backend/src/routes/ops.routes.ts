@@ -10,7 +10,6 @@ router.post('/simulate/public/door/otp', ops.publicSimulateGenerateDoorOtp);
 router.post('/simulate/public/door/scan', ops.publicSimulateDoorScan);
 router.post('/simulate/public/payment', ops.publicSimulatePayment);
 router.post('/simulate/public/payment/card', ops.publicSimulateCardPayment);
-router.post('/simulate/public/workout', ops.publicSimulateWorkout);
 router.post('/simulate/public/trainer-shift', ops.publicSimulateTrainerShift);
 router.post('/simulate/public/appointment', ops.publicSimulateAppointment);
 router.post('/simulate/public/vitals', ops.publicSimulateVitals);
@@ -141,7 +140,6 @@ router.delete('/closures/:id', authorize('admin', 'manager'), ops.deleteClosure)
 router.post('/simulate/door/otp', authorize('admin', 'manager', 'trainer'), ops.simulateGenerateDoorOtp);
 router.post('/simulate/door/scan', authorize('admin', 'manager', 'trainer', 'member'), ops.simulateDoorScan);
 router.post('/simulate/payment', authorize('admin', 'manager'), ops.simulatePayment);
-router.post('/simulate/workout', authorize('admin', 'manager', 'trainer'), ops.simulateWorkout);
 router.post('/simulate/trainer-shift', authorize('admin', 'manager'), ops.simulateTrainerShift);
 router.post('/simulate/appointment', authorize('admin', 'manager', 'trainer'), ops.simulateAppointment);
 router.post('/simulate/vitals', authorize('admin', 'manager', 'trainer'), ops.simulateVitals);

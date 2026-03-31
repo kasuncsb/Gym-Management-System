@@ -411,10 +411,6 @@ export const publicSimulateCardPayment = asyncHandler(async (req: AuthRequest, r
   res.json(response.success(await opsService.publicSimulateCardPayment(req.body), 'Card payment approved (simulator)'));
 });
 
-export const publicSimulateWorkout = asyncHandler(async (req: AuthRequest, res: Response) => {
-  res.json(response.success(await opsService.simulateWorkout(req.body), 'Workout simulation processed'));
-});
-
 export const publicSimulateTrainerShift = asyncHandler(async (req: AuthRequest, res: Response) => {
   res.json(response.success(await opsService.simulateTrainerShift(req.body), 'Trainer shift simulation processed'));
 });
@@ -444,10 +440,6 @@ export const simulateDoorScan = asyncHandler(async (req: AuthRequest, res: Respo
 
 export const simulatePayment = asyncHandler(async (req: AuthRequest, res: Response) => {
   res.json(response.success(await opsService.simulatePayment(req.body), 'Payment simulation processed'));
-});
-
-export const simulateWorkout = asyncHandler(async (req: AuthRequest, res: Response) => {
-  res.json(response.success(await opsService.simulateWorkout(req.body), 'Workout simulation processed'));
 });
 
 export const simulateTrainerShift = asyncHandler(async (req: AuthRequest, res: Response) => {

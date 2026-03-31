@@ -2937,37 +2937,6 @@ export async function publicSimulateCardPayment(input: {
   return { subscription: result.subscription, paymentId: result.paymentId, invoiceNumber: result.invoiceNumber };
 }
 
-export async function simulateWorkout(input: { memberId: string; durationMin?: number; caloriesBurned?: number; notes?: string; action?: 'simulate' | 'start' | 'stop' }) {
-  const action = input.action ?? 'simulate';
-  if (action === 'start') {
-    return startWorkoutSession(input.memberId, { notes: input.notes ?? 'Simulator workout start' });
-  }
-  if (action === 'stop') {
-    const active = await getActiveWorkoutSession(input.memberId);
-    if (!active) throw errors.notFound('Active workout session');
-    return stopWorkoutSession(input.memberId, active.id, {
-      complete: true,
-      durationMin: input.durationMin,
-      caloriesBurned: input.caloriesBurned ?? 300,
-      mood: 'good',
-      notes: input.notes ?? 'Simulated workout stop',
-    });
-  }
-  const existing = await getActiveWorkoutSession(input.memberId);
-  const session = existing ?? await startWorkoutSession(input.memberId, { notes: 'Simulated workout session' });
-  await addWorkoutSessionEvent(input.memberId, session.id, {
-    eventType: 'simulated',
-    payload: { source: 'simulate', durationMin: input.durationMin ?? 45, caloriesBurned: input.caloriesBurned ?? 300 },
-  });
-  return stopWorkoutSession(input.memberId, session.id, {
-    complete: true,
-    durationMin: input.durationMin,
-    caloriesBurned: input.caloriesBurned ?? 300,
-    mood: 'good',
-    notes: input.notes ?? 'Simulated workout log',
-  });
-}
-
 export async function simulateTrainerShift(input: { trainerId: string; action?: 'in' | 'out' }) {
   if (input.action === 'out') {
     const out = await checkOut(input.trainerId);
