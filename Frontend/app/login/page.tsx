@@ -45,6 +45,7 @@ function LoginForm() {
 
     // Clear 429 cooldown after 60s so submit button re-enables
     const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const submitInFlightRef = useRef(false);
     useEffect(() => {
         if (cooldownUntil <= 0) return;
         cooldownTimerRef.current = setTimeout(() => setCooldownUntil(0), 60_000);
@@ -55,6 +56,8 @@ function LoginForm() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (submitInFlightRef.current) return;
+        submitInFlightRef.current = true;
         setIsLoading(true);
         setError('');
 
@@ -84,6 +87,7 @@ function LoginForm() {
                 setCooldownUntil(Date.now() + 60_000); // 1 min
             }
         } finally {
+            submitInFlightRef.current = false;
             setIsLoading(false);
         }
     };

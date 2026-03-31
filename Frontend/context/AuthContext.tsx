@@ -67,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // mount to eliminate React hydration error #418 in production builds.
   const [mounted, setMounted] = useState(false);
   const lastProfileSuccessAt = useRef<number>(0);
+  const profileRequestRef = useRef<Promise<User | null> | null>(null);
   const [avatarMediaVersion, setAvatarMediaVersion] = useState(0);
   const [coverMediaVersion, setCoverMediaVersion] = useState(0);
   const router = useRouter();
@@ -83,6 +84,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => { setMounted(true); }, []);
+
+  const fetchProfileDeduped = useCallback(async (): Promise<User | null> => {
+    if (profileRequestRef.current) return profileRequestRef.current;
+    const req = authAPI.getProfile()
+      .then((res) => {
+        const d = res.data.data;
+        const freshUser: User = {
+          id: d.id,
+          fullName: d.fullName,
+          email: d.email,
+          role: d.role,
+          avatarKey: d.avatarKey ?? null,
+          coverKey: d.coverKey ?? null,
+          phone: d.phone,
+          emailVerified: d.emailVerified,
+          isOnboarded: d.profile?.isOnboarded,
+        };
+        lastProfileSuccessAt.current = Date.now();
+        setUser(freshUser);
+        setIsAuthenticated(true);
+        localStorage.setItem('user', JSON.stringify(freshUser));
+        return freshUser;
+      })
+      .catch((err) => {
+        // 429: keep cached session — do not log the user out on transient rate limits.
+        if (axios.isAxiosError(err) && err.response?.status === 429) {
+          lastProfileSuccessAt.current = Date.now();
+          setIsAuthenticated(true);
+          try {
+            const stored = localStorage.getItem('user');
+            if (stored) {
+              const u = JSON.parse(stored) as User;
+              setUser(u);
+              return u;
+            }
+          } catch {
+            // ignore and fall through
+          }
+          return null;
+        }
+        lastProfileSuccessAt.current = 0;
+        setUser(null);
+        setIsAuthenticated(false);
+        localStorage.removeItem('user');
+        return null;
+      })
+      .finally(() => {
+        profileRequestRef.current = null;
+      });
+    profileRequestRef.current = req;
+    return req;
+  }, []);
 
   useEffect(() => {
     // Guard: only run on client after mount. This is the fix for React hydration
@@ -116,39 +169,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    authAPI.getProfile()
-      .then(res => {
-        const d = res.data.data;
-        const freshUser: User = {
-          id: d.id,
-          fullName: d.fullName,
-          email: d.email,
-          role: d.role,
-          avatarKey: d.avatarKey ?? null,
-          coverKey: d.coverKey ?? null,
-          phone: d.phone,
-          emailVerified: d.emailVerified,
-          isOnboarded: d.profile?.isOnboarded,
-        };
-        lastProfileSuccessAt.current = Date.now();
-        setUser(freshUser);
-        setIsAuthenticated(true);
-        localStorage.setItem('user', JSON.stringify(freshUser));
-      })
-      .catch((err) => {
-        // 429: keep cached session — do not log the user out on transient rate limits.
-        if (axios.isAxiosError(err) && err.response?.status === 429) {
-          lastProfileSuccessAt.current = Date.now();
-          setIsAuthenticated(true);
-          return;
-        }
-        lastProfileSuccessAt.current = 0;
-        setUser(null);
-        setIsAuthenticated(false);
-        localStorage.removeItem('user');
-      })
+    fetchProfileDeduped()
       .finally(() => setIsLoading(false));
-  }, [mounted]);
+  }, [mounted, fetchProfileDeduped]);
 
   /** Call after login/register — user object from server response */
   const login = useCallback((newUser: User) => {
@@ -188,47 +211,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const refreshUser = useCallback(async (): Promise<User | null> => {
-    try {
-      const res = await authAPI.getProfile();
-      const d = res.data.data;
-      const freshUser: User = {
-        id: d.id,
-        fullName: d.fullName,
-        email: d.email,
-        role: d.role,
-        avatarKey: d.avatarKey ?? null,
-        coverKey: d.coverKey ?? null,
-        phone: d.phone,
-        emailVerified: d.emailVerified,
-        isOnboarded: d.profile?.isOnboarded,
-      };
-      lastProfileSuccessAt.current = Date.now();
-      setUser(freshUser);
-      localStorage.setItem('user', JSON.stringify(freshUser));
-      return freshUser;
-    } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 429) {
-        lastProfileSuccessAt.current = Date.now();
-        try {
-          const stored = localStorage.getItem('user');
-          if (stored) {
-            const u = JSON.parse(stored) as User;
-            setUser(u);
-            setIsAuthenticated(true);
-            return u;
-          }
-        } catch {
-          /* fall through */
-        }
-        return null;
-      }
-      lastProfileSuccessAt.current = 0;
-      setUser(null);
-      setIsAuthenticated(false);
-      localStorage.removeItem('user');
-      return null;
-    }
-  }, []);
+    return fetchProfileDeduped();
+  }, [fetchProfileDeduped]);
 
   return (
     <AuthContext.Provider value={{
