@@ -108,6 +108,15 @@ export default function MemberDashboard() {
                 )}
             </Card>
 
+            <Card padding="lg">
+                <h2 className="text-lg font-semibold text-white mb-4">Weekly Workout Activity</h2>
+                <ThemedLineChart
+                    labels={(analytics.weeklyWorkoutActivity ?? []).map((p) => p.label)}
+                    series={[{ name: 'Sessions', color: '#ef4444', values: (analytics.weeklyWorkoutActivity ?? []).map((p) => Number(p.value ?? 0)) }]}
+                    height={220}
+                />
+            </Card>
+
             {/* Quick Actions */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {quickActions.map(({ label, href, icon: Icon }) => (
@@ -174,24 +183,6 @@ export default function MemberDashboard() {
                 </Card>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <Card padding="lg">
-                    <h2 className="text-lg font-semibold text-white mb-4">Weekly Workout Activity</h2>
-                    <ThemedLineChart
-                        labels={(analytics.weeklyWorkoutActivity ?? []).map((p) => p.label)}
-                        series={[{ name: 'Sessions', color: '#ef4444', values: (analytics.weeklyWorkoutActivity ?? []).map((p) => Number(p.value ?? 0)) }]}
-                        height={210}
-                    />
-                </Card>
-                <Card padding="lg">
-                    <h2 className="text-lg font-semibold text-white mb-4">Workout Frequency</h2>
-                    <ThemedLineChart
-                        labels={(analytics.workoutFrequency ?? []).map((p) => p.label)}
-                        series={[{ name: 'Sessions / week', color: '#f97316', values: (analytics.workoutFrequency ?? []).map((p) => Number(p.value ?? 0)) }]}
-                        height={210}
-                    />
-                </Card>
-            </div>
         </div>
     );
 }

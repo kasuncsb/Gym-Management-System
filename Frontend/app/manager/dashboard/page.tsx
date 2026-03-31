@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { Users, TrendingUp, UserCheck, BarChart3, Star, Lightbulb } from 'lucide-react';
+import { Users, TrendingUp, UserCheck, Star, Lightbulb } from 'lucide-react';
 import { PageHeader, Card } from '@/components/ui/SharedComponents';
 import { ChatMarkdown } from '@/components/ai/ChatMarkdown';
 import { aiAPI, getErrorMessage, opsAPI } from '@/lib/api';
@@ -32,7 +32,6 @@ export default function ManagerDashboard() {
     const { user } = useAuth();
     const toast = useToast();
     const [currentTime, setCurrentTime] = useState(new Date());
-    const [period, setPeriod] = useState<'week' | 'month' | 'year'>('week');
     const [dashboard, setDashboard] = useState<any>(null);
     const [branchInsights, setBranchInsights] = useState<Array<{ title: string; description: string; impact: Impact; rec: string }>>([]);
     const [latestAi, setLatestAi] = useState<{
@@ -106,8 +105,6 @@ export default function ManagerDashboard() {
         { label: 'Members',  href: '/manager/members',   icon: Users },
     ];
 
-    const occupancyPoints = analytics.occupancyTrend.slice(period === 'week' ? -7 : period === 'month' ? -12 : -14);
-
     const askAi = async (q: string) => {
         setAiLoading(true);
         setLatestAi(null);
@@ -133,16 +130,6 @@ export default function ManagerDashboard() {
                 subtitle={`Welcome, ${firstName} · ${currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} · ${currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`}
             />
 
-            {/* Period toggle */}
-            <div className="flex gap-2">
-                {(['week','month','year'] as const).map(p => (
-                    <button key={p} onClick={() => setPeriod(p)}
-                        className={`px-4 py-1.5 rounded-xl text-sm font-medium capitalize transition-all ${period === p ? 'bg-red-600 text-white border border-red-500' : 'bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:bg-zinc-800/50'}`}>
-                        {p}
-                    </button>
-                ))}
-            </div>
-
             {/* KPIs */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {kpis.map(({ label, value, sub, icon: Icon, color }) => (
@@ -156,6 +143,19 @@ export default function ManagerDashboard() {
                     </Card>
                 ))}
             </div>
+
+            <Card padding="lg">
+                <h2 className="text-lg font-semibold text-white mb-4">Activity Overview</h2>
+                <ThemedLineChart
+                    labels={analytics.activityOverview.map((p) => p.label)}
+                    series={[
+                        { name: 'Visits', color: '#ef4444', values: analytics.activityOverview.map((p) => Number(p.visits ?? 0)) },
+                        { name: 'Workouts', color: '#3b82f6', values: analytics.activityOverview.map((p) => Number(p.workouts ?? 0)) },
+                        { name: 'PT Sessions', color: '#f59e0b', values: analytics.activityOverview.map((p) => Number(p.ptSessions ?? 0)) },
+                    ]}
+                    height={240}
+                />
+            </Card>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {quickActions.map(({ label, href, icon: Icon }) => (
@@ -271,44 +271,6 @@ export default function ManagerDashboard() {
                 </Card>
             </div>
 
-            <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6">
-                <Card padding="lg">
-                    <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2"><BarChart3 size={18} className="text-red-500" /> Occupancy Trend</h2>
-                    <ThemedLineChart
-                        labels={occupancyPoints.map((p) => p.label)}
-                        series={[{ name: 'Visits', color: '#ef4444', values: occupancyPoints.map((p) => Number(p.value ?? 0)) }]}
-                        height={220}
-                    />
-                </Card>
-                <Card padding="lg">
-                    <h2 className="text-lg font-semibold text-white mb-4">Avg. Hourly Occupancy</h2>
-                    <ThemedLineChart
-                        labels={analytics.avgHourlyOccupancy.map((p) => p.label)}
-                        series={[{ name: 'Avg check-ins/hour', color: '#a855f7', values: analytics.avgHourlyOccupancy.map((p) => Number(p.value ?? 0)) }]}
-                        height={220}
-                    />
-                </Card>
-                <Card padding="lg">
-                    <h2 className="text-lg font-semibold text-white mb-4">Revenue Trend</h2>
-                    <ThemedLineChart
-                        labels={analytics.revenueTrend.map((p) => p.label)}
-                        series={[{ name: 'Revenue (LKR)', color: '#22c55e', values: analytics.revenueTrend.map((p) => Number(p.value ?? 0)) }]}
-                        height={220}
-                    />
-                </Card>
-                <Card padding="lg">
-                    <h2 className="text-lg font-semibold text-white mb-4">Activity Overview</h2>
-                    <ThemedLineChart
-                        labels={analytics.activityOverview.map((p) => p.label)}
-                        series={[
-                            { name: 'Visits', color: '#ef4444', values: analytics.activityOverview.map((p) => Number(p.visits ?? 0)) },
-                            { name: 'Workouts', color: '#3b82f6', values: analytics.activityOverview.map((p) => Number(p.workouts ?? 0)) },
-                            { name: 'PT Sessions', color: '#f59e0b', values: analytics.activityOverview.map((p) => Number(p.ptSessions ?? 0)) },
-                        ]}
-                        height={220}
-                    />
-                </Card>
-            </div>
         </div>
     );
 }

@@ -1,25 +1,27 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { TrendingUp, Flame, Clock, Award, Activity, Plus } from 'lucide-react';
 import { PageHeader, Card, Modal, Input, LoadingButton } from '@/components/ui/SharedComponents';
 import { opsAPI, getErrorMessage } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
+import { ThemedLineChart } from '@/components/charts/ThemedLineChart';
 
 export default function ProgressPage() {
     const toast = useToast();
-    const [period, setPeriod] = useState<'week' | 'month' | '3month'>('month');
     const [metrics, setMetrics] = useState<any[]>([]);
     const [logs, setLogs] = useState<any[]>([]);
+    const [workoutFrequency, setWorkoutFrequency] = useState<Array<{ label: string; value: number }>>([]);
     const [vitalsOpen, setVitalsOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [vitalsForm, setVitalsForm] = useState({ weightKg: '', heightCm: '', bmi: '', restingHr: '', notes: '' });
 
     const loadData = () =>
-        Promise.all([opsAPI.myMetrics(), opsAPI.myWorkoutLogs()])
-            .then(([m, l]) => {
+        Promise.all([opsAPI.myMetrics(), opsAPI.myWorkoutLogs(), opsAPI.dashboardAnalytics('member') as Promise<any>])
+            .then(([m, l, a]) => {
                 setMetrics((m ?? []) as any[]);
                 setLogs((l ?? []) as any[]);
+                setWorkoutFrequency((a?.workoutFrequency ?? []) as Array<{ label: string; value: number }>);
             })
             .catch(() => toast.error('Error', 'Failed to load progress data'));
 
@@ -72,18 +74,6 @@ export default function ProgressPage() {
         { label: 'Personal Records', value: String(metrics.length), icon: Award, color: 'from-yellow-600 to-yellow-700' },
     ];
 
-    const data = useMemo(() => {
-        const buckets = period === 'week' ? 7 : period === 'month' ? 30 : 90;
-        const out = Array.from({ length: buckets }, () => 0);
-        const now = new Date();
-        logs.forEach((l) => {
-            const d = new Date(l.workoutDate);
-            const delta = Math.floor((now.getTime() - d.getTime()) / (24 * 3600 * 1000));
-            if (delta >= 0 && delta < buckets) out[buckets - 1 - delta] += 1;
-        });
-        return out;
-    }, [logs, period]);
-    const maxVal     = Math.max(...data, 1);
     // Distinct stats from metrics: latest weight, lowest BMI, best resting HR
     const latestWeight = metrics.find(m => m.weightKg != null);
     const lowestBmi = metrics.filter(m => m.bmi != null).sort((a, b) => Number(a.bmi) - Number(b.bmi))[0];
@@ -105,15 +95,6 @@ export default function ProgressPage() {
                     </LoadingButton>
                 }
             />
-
-            <div className="flex gap-2">
-                {(['week','month','3month'] as const).map(p => (
-                    <button key={p} onClick={() => setPeriod(p)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all ${period === p ? 'bg-red-600 text-white border border-red-500' : 'bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:bg-zinc-800/50'}`}>
-                        {p === '3month' ? '3 Months' : p.charAt(0).toUpperCase() + p.slice(1)}
-                    </button>
-                ))}
-            </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {vitals.map(v => (
@@ -143,14 +124,11 @@ export default function ProgressPage() {
 
             <Card padding="lg">
                 <h2 className="text-lg font-semibold text-white mb-6">Workout Frequency</h2>
-                <div className="flex items-end gap-1 h-24 overflow-hidden">
-                    {data.map((v, i) => (
-                        <div key={i} className="flex-1 min-w-0">
-                            <div className={`w-full rounded-t-sm transition-all ${v > 0 ? 'bg-gradient-to-t from-red-700 to-red-500' : 'bg-zinc-800'}`}
-                                style={{ height: `${(v / maxVal) * 100}%`, minHeight: '4px' }} />
-                        </div>
-                    ))}
-                </div>
+                <ThemedLineChart
+                    labels={workoutFrequency.map((p) => p.label)}
+                    series={[{ name: 'Sessions / week', color: '#f97316', values: workoutFrequency.map((p) => Number(p.value ?? 0)) }]}
+                    height={220}
+                />
             </Card>
 
             <Card padding="lg">

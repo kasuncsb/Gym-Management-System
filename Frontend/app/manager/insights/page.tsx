@@ -68,6 +68,7 @@ export default function ManagerInsightsPage() {
     const occupancyTrend = useMemo(() => analytics?.occupancyTrend ?? [], [analytics]);
     const occupancyByHour = useMemo(() => analytics?.avgHourlyOccupancy ?? [], [analytics]);
     const revenueTrend = useMemo(() => analytics?.revenueTrend ?? [], [analytics]);
+    const activityOverview = useMemo(() => analytics?.activityOverview ?? [], [analytics]);
 
     return (
         <div className="space-y-8">
@@ -110,6 +111,18 @@ export default function ManagerInsightsPage() {
                     <ThemedLineChart
                         labels={revenueTrend.map((p: any) => p.label)}
                         series={[{ name: 'Revenue (LKR)', color: '#22c55e', values: revenueTrend.map((p: any) => Number(p.value ?? 0)) }]}
+                        height={210}
+                    />
+                </Card>
+                <Card padding="lg" className="xl:col-span-2">
+                    <h2 className="text-lg font-semibold text-white mb-4">Activity Overview</h2>
+                    <ThemedLineChart
+                        labels={activityOverview.map((p: any) => p.label)}
+                        series={[
+                            { name: 'Visits', color: '#ef4444', values: activityOverview.map((p: any) => Number(p.visits ?? 0)) },
+                            { name: 'Workouts', color: '#3b82f6', values: activityOverview.map((p: any) => Number(p.workouts ?? 0)) },
+                            { name: 'PT Sessions', color: '#f59e0b', values: activityOverview.map((p: any) => Number(p.ptSessions ?? 0)) },
+                        ]}
                         height={210}
                     />
                 </Card>
