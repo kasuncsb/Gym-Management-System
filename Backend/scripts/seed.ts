@@ -26,6 +26,14 @@ import {
   memberMetrics,
   workoutPlans,
   shifts,
+  workoutSessions,
+  equipment,
+  equipmentEvents,
+  inventoryTransactions,
+  promotions,
+  branchClosures,
+  auditLogs,
+  aiInteractions,
 } from '../src/db/schema.js';
 import { ids } from '../src/utils/id.js';
 import { hashPassword } from '../src/utils/password.js';
@@ -40,11 +48,47 @@ function dateAtNoon(isoDate: string): Date {
   return new Date(`${isoDate}T12:00:00.000Z`);
 }
 
+const dayMs = 24 * 60 * 60 * 1000;
+const toYmd = (d: Date) => d.toISOString().slice(0, 10);
+const dateAtNoonFrom = (d: Date) => dateAtNoon(toYmd(d));
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+function parseHMSMinutes(raw: string): number | null {
+  const s = raw.trim();
+  const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(s);
+  if (!m) return null;
+  const hh = Number(m[1]);
+  const mm = Number(m[2]);
+  if (!Number.isFinite(hh) || !Number.isFinite(mm) || hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
+  return hh * 60 + mm;
+}
+
+function hmsFromMinutes(totalMins: number): string {
+  const hh = Math.floor(totalMins / 60);
+  const mm = totalMins % 60;
+  return `${pad2(hh)}:${pad2(mm)}:00`;
+}
+
+function endHMS(startHms: string, durationMinutes: number): string {
+  const startM = parseHMSMinutes(startHms);
+  if (startM == null) throw new Error(`Invalid start time: ${startHms}`);
+  return hmsFromMinutes(startM + durationMinutes);
+}
+
 const SEED_EMAILS = [
   'kasuncsb+admin@gmail.com',
   'kasuncsb+manager@gmail.com',
   'kasuncsb+trainer@gmail.com',
   'kasuncsb+member@gmail.com',
+  // Legacy seeded trainer/member accounts (removed during re-seed)
+  'kasuncsb+trainer1@gmail.com',
+  'kasuncsb+trainer2@gmail.com',
+  'kasuncsb+trainer3@gmail.com',
+  'kasuncsb+member1@gmail.com',
+  'kasuncsb+member2@gmail.com',
+  'kasuncsb+member3@gmail.com',
+  'kasuncsb+member4@gmail.com',
+  'kasuncsb+member5@gmail.com',
 ];
 
 const SEED_USERS = [
@@ -70,7 +114,7 @@ const SEED_USERS = [
   },
   {
     role: 'trainer' as const,
-    email: 'kasuncsb+trainer@gmail.com',
+    email: 'kasuncsb+trainer1@gmail.com',
     fullName: 'Chathurika Silva',
     employeeCode: 'PWG-TRN-001',
     designation: 'Head Trainer',
@@ -83,10 +127,75 @@ const SEED_USERS = [
   },
   {
     role: 'member' as const,
-    email: 'kasuncsb+member@gmail.com',
+    email: 'kasuncsb+member1@gmail.com',
     fullName: 'Nimal Perera',
     memberCode: 'PWG-KBG-2025001',
     memberStatus: 'active' as const,
+    assignedTrainerEmail: 'kasuncsb+trainer1@gmail.com',
+    idVerificationStatus: 'approved' as const,
+  },
+  {
+    role: 'trainer' as const,
+    email: 'kasuncsb+trainer2@gmail.com',
+    fullName: 'Rangana Perera',
+    employeeCode: 'PWG-TRN-002',
+    designation: 'Senior Trainer',
+    specialization: 'Sports Conditioning',
+    ptHourlyRate: '3200.00',
+    yearsExperience: 6,
+    hireDate: '2022-01-10',
+    baseSalary: '82000.00',
+    isKeyHolder: false,
+  },
+  {
+    role: 'member' as const,
+    email: 'kasuncsb+member2@gmail.com',
+    fullName: 'Ishantha Rodrigo',
+    memberCode: 'PWG-KBG-2025002',
+    memberStatus: 'active' as const,
+    assignedTrainerEmail: 'kasuncsb+trainer1@gmail.com',
+    idVerificationStatus: 'approved' as const,
+  },
+  {
+    role: 'trainer' as const,
+    email: 'kasuncsb+trainer3@gmail.com',
+    fullName: 'Sahan Jayasekara',
+    employeeCode: 'PWG-TRN-003',
+    designation: 'Trainer',
+    specialization: 'Weight Management',
+    ptHourlyRate: '3000.00',
+    yearsExperience: 4,
+    hireDate: '2022-09-01',
+    baseSalary: '76000.00',
+    isKeyHolder: false,
+  },
+  {
+    role: 'member' as const,
+    email: 'kasuncsb+member3@gmail.com',
+    fullName: 'Kavinda Weerasooriya',
+    memberCode: 'PWG-KBG-2025003',
+    memberStatus: 'active' as const,
+    assignedTrainerEmail: 'kasuncsb+trainer2@gmail.com',
+    idVerificationStatus: 'approved' as const,
+  },
+  {
+    role: 'member' as const,
+    email: 'kasuncsb+member4@gmail.com',
+    fullName: 'Thilina Kumara',
+    memberCode: 'PWG-KBG-2025004',
+    memberStatus: 'active' as const,
+    assignedTrainerEmail: 'kasuncsb+trainer3@gmail.com',
+    idVerificationStatus: 'approved' as const,
+  },
+  {
+    role: 'member' as const,
+    email: 'kasuncsb+member5@gmail.com',
+    fullName: 'Chamara Perera',
+    memberCode: 'PWG-KBG-2025005',
+    memberStatus: 'active' as const,
+    assignedTrainerEmail: 'kasuncsb+trainer2@gmail.com',
+    // Keep one member in pending state so manager/admin dashboards show pending ID verifications
+    idVerificationStatus: 'pending' as const,
   },
 ];
 
@@ -112,6 +221,13 @@ async function removeSeedUsers() {
   await db.delete(memberMetrics).where(inArray(memberMetrics.personId, userIds));
   await db.delete(workoutPlans).where(inArray(workoutPlans.memberId, userIds));
   await db.delete(shifts).where(inArray(shifts.staffId, userIds));
+  await db.delete(workoutSessions).where(inArray(workoutSessions.personId, userIds));
+  await db.delete(inventoryTransactions).where(inArray(inventoryTransactions.recordedBy, userIds));
+  await db
+    .delete(equipmentEvents)
+    .where(or(inArray(equipmentEvents.loggedBy, userIds), inArray(equipmentEvents.resolvedBy, userIds)));
+  await db.delete(auditLogs).where(inArray(auditLogs.actorId, userIds));
+  await db.delete(aiInteractions).where(inArray(aiInteractions.userId, userIds));
 
   await db.delete(users).where(inArray(users.id, userIds));
 }
@@ -151,9 +267,12 @@ async function seed() {
 
   const passwordHash = await hashPassword(SEED_PASSWORD);
 
+  const userIdByEmail = new Map<string, string>();
+
   for (const u of SEED_USERS) {
     const id = ids.uuid();
     const userLid = await insertLifecycleRow();
+    userIdByEmail.set(u.email, id);
 
     if (u.role === 'admin' || u.role === 'manager') {
       await db.insert(users).values({
@@ -223,33 +342,12 @@ async function seed() {
       joinDate: new Date(),
       isOnboarded: true,
       onboardedAt: new Date(),
+      assignedTrainerId: u.assignedTrainerEmail ? userIdByEmail.get(u.assignedTrainerEmail) ?? null : null,
+      idVerificationStatus: u.idVerificationStatus ?? 'approved',
     });
   }
 
-  console.log('✅ 4 users created (admin, manager, trainer, member)');
-
-  const [trainerRow] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.email, 'kasuncsb+trainer@gmail.com'))
-    .limit(1);
-  if (trainerRow) {
-    const shiftId = ids.uuid();
-    const shiftLc = await insertLifecycleRow();
-    await db.insert(shifts).values({
-      id: shiftId,
-      lifecycleId: shiftLc,
-      staffId: trainerRow.id,
-      shiftType: 'morning',
-      shiftDate: dateAtNoon('2026-03-29'),
-      startTime: '06:00:00',
-      endTime: '14:00:00',
-      status: 'scheduled',
-      notes: 'Seed shift — trainer weekly grid',
-      createdBy: trainerRow.id,
-    });
-    console.log('✅ Sample shift seeded for trainer (kasuncsb+trainer@gmail.com)');
-  }
+  console.log(`✅ ${SEED_USERS.length} users created (admin/manager + 3 trainers + 5 members)`);
 
   const SEED_PLANS = [
     {
@@ -380,11 +478,12 @@ async function seed() {
   console.log(`✅ Library workout plans seeded (${LIBRARY_WORKOUT_PLANS.length} programmes)`);
 
   const SEED_INVENTORY = [
-    { name: 'Treadmill', category: 'cardio', qtyInStock: 5, reorderThreshold: 2, isActive: true },
-    { name: 'Bench Press Station', category: 'strength', qtyInStock: 4, reorderThreshold: 1, isActive: true },
-    { name: 'Squat Rack', category: 'strength', qtyInStock: 3, reorderThreshold: 1, isActive: true },
-    { name: 'Dumbbell Set (5–50kg)', category: 'free_weights', qtyInStock: 2, reorderThreshold: 1, isActive: true },
-    { name: 'Rowing Machine', category: 'cardio', qtyInStock: 3, reorderThreshold: 1, isActive: true },
+    // Intentionally create low-stock items so trainer tasks + manager alerts have something to work on.
+    { name: 'Treadmill', category: 'cardio', qtyInStock: 1, reorderThreshold: 2, isActive: true },
+    { name: 'Bench Press Station', category: 'strength', qtyInStock: 4, reorderThreshold: 2, isActive: true },
+    { name: 'Squat Rack', category: 'strength', qtyInStock: 0, reorderThreshold: 1, isActive: true },
+    { name: 'Dumbbell Set (5–50kg)', category: 'free_weights', qtyInStock: 0, reorderThreshold: 2, isActive: true },
+    { name: 'Rowing Machine', category: 'cardio', qtyInStock: 2, reorderThreshold: 3, isActive: true },
   ];
 
   for (const item of SEED_INVENTORY) {
@@ -393,7 +492,15 @@ async function seed() {
       .from(inventoryItems)
       .where(eq(inventoryItems.name, item.name))
       .limit(1);
-    if (existing) continue;
+    if (existing) {
+      await db.update(inventoryItems).set({
+        category: item.category,
+        qtyInStock: item.qtyInStock,
+        reorderThreshold: item.reorderThreshold,
+        isActive: item.isActive,
+      }).where(eq(inventoryItems.id, existing.id));
+      continue;
+    }
     const itemId = ids.uuid();
     const ilc = await insertLifecycleRow();
     await db.insert(inventoryItems).values({
@@ -403,6 +510,644 @@ async function seed() {
     });
   }
   console.log('✅ Inventory items seeded (5 items)');
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Role coverage seeds (so every dashboard page has non-empty data)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  const now = new Date();
+
+  // Trainers / members IDs from seeded identities
+  const trainerEmails = SEED_USERS.filter((u: any) => u.role === 'trainer').map((u: any) => u.email as string);
+  const memberEmails = SEED_USERS.filter((u: any) => u.role === 'member').map((u: any) => u.email as string);
+
+  const trainerIds = trainerEmails.map((e) => userIdByEmail.get(e)!).filter(Boolean);
+  const memberIds = memberEmails.map((e) => userIdByEmail.get(e)!).filter(Boolean);
+
+  const trainerIdByEmail: Record<string, string> = {};
+  for (const e of trainerEmails) {
+    const id = userIdByEmail.get(e);
+    if (id) trainerIdByEmail[e] = id;
+  }
+  const memberSeedDefs = SEED_USERS.filter((u: any) => u.role === 'member').map((u: any) => ({
+    email: u.email as string,
+    memberId: userIdByEmail.get(u.email) as string,
+    assignedTrainerEmail: u.assignedTrainerEmail as string,
+    idVerificationStatus: (u.idVerificationStatus as string | undefined) ?? 'approved',
+  }));
+
+  // 1) Promotions + branch closures (manager/admin KPIs + lists)
+  await db.delete(promotions).where(or(eq(promotions.code, 'SEED-SAVE10'), eq(promotions.code, 'SEED-WELCOME5')));
+  {
+    const createdAt = dateAtNoonFrom(new Date(now.getTime() - 10 * dayMs));
+    const lc = await insertLifecycleRow();
+    await db.insert(promotions).values({
+      id: ids.uuid(),
+      lifecycleId: lc,
+      code: 'SEED-SAVE10',
+      name: 'Seed Save 10%',
+      discountType: 'percentage',
+      discountValue: '10.00' as any,
+      validFrom: createdAt,
+      validUntil: dateAtNoonFrom(new Date(now.getTime() + 40 * dayMs)),
+      isActive: true,
+      usedCount: 0,
+    });
+  }
+  {
+    const lc = await insertLifecycleRow();
+    await db.insert(promotions).values({
+      id: ids.uuid(),
+      lifecycleId: lc,
+      code: 'SEED-WELCOME5',
+      name: 'Seed Welcome 5%',
+      discountType: 'percentage',
+      discountValue: '5.00' as any,
+      validFrom: dateAtNoonFrom(new Date(now.getTime() - 5 * dayMs)),
+      validUntil: dateAtNoonFrom(new Date(now.getTime() + 35 * dayMs)),
+      isActive: true,
+      usedCount: 0,
+    });
+  }
+
+  await db.delete(branchClosures).where(or(eq(branchClosures.reason, 'Seed planned closure'), eq(branchClosures.reason, 'Seed emergency closure')));
+  {
+    const lc = await insertLifecycleRow();
+    await db.insert(branchClosures).values({
+      id: ids.uuid(),
+      lifecycleId: lc,
+      closureDate: dateAtNoonFrom(new Date(now.getTime() - 7 * dayMs)),
+      reason: 'Seed planned closure',
+      isEmergency: false,
+      closedBy: userIdByEmail.get('kasuncsb+manager@gmail.com') ?? null,
+    });
+  }
+  {
+    const lc = await insertLifecycleRow();
+    await db.insert(branchClosures).values({
+      id: ids.uuid(),
+      lifecycleId: lc,
+      closureDate: dateAtNoonFrom(new Date(now.getTime() - 20 * dayMs)),
+      reason: 'Seed emergency closure',
+      isEmergency: true,
+      closedBy: userIdByEmail.get('kasuncsb+manager@gmail.com') ?? null,
+    });
+  }
+
+  // 2) Equipment + equipment events (trainer tasks + manager/admin incidents)
+  const SEED_EQUIPMENT = [
+    { name: 'Treadmill X5', category: 'cardio', quantity: 5, status: 'operational' as const, zoneLabel: 'Floor 1 - North' },
+    { name: 'Bench Press Station', category: 'bench', quantity: 3, status: 'needs_maintenance' as const, zoneLabel: 'Floor 1 - West' },
+    { name: 'Squat Rack', category: 'strength_machine', quantity: 2, status: 'operational' as const, zoneLabel: 'Floor 1 - South' },
+    { name: 'Dumbbell Set 5-50kg', category: 'free_weight' as const, quantity: 4, status: 'operational' as const, zoneLabel: 'Floor 2 - Center' },
+    { name: 'Rowing Machine', category: 'cardio', quantity: 3, status: 'retired' as const, zoneLabel: 'Floor 1 - East' },
+  ];
+
+  // Upsert equipment (by name)
+  for (const item of SEED_EQUIPMENT) {
+    const [existing] = await db
+      .select({ id: equipment.id })
+      .from(equipment)
+      .where(eq(equipment.name, item.name))
+      .limit(1);
+    if (existing) {
+      await db.update(equipment).set({
+        category: item.category as any,
+        quantity: item.quantity as any,
+        status: item.status as any,
+        zoneLabel: item.zoneLabel,
+      }).where(eq(equipment.id, existing.id));
+    } else {
+      const eqId = ids.uuid();
+      const ilc = await insertLifecycleRow();
+      await db.insert(equipment).values({
+        id: eqId,
+        lifecycleId: ilc,
+        name: item.name,
+        category: item.category as any,
+        quantity: item.quantity as any,
+        status: item.status as any,
+        zoneLabel: item.zoneLabel,
+      });
+    }
+  }
+
+  const equipmentIdsByName: Record<string, string> = {};
+  const eqNameList = SEED_EQUIPMENT.map((e) => e.name);
+  const eqRows = await db
+    .select({ id: equipment.id, name: equipment.name })
+    .from(equipment)
+    .where(inArray(equipment.name, eqNameList));
+  for (const r of eqRows) equipmentIdsByName[r.name] = r.id;
+
+  // Recreate seeded equipment events (delete by our equipment IDs)
+  const seededEqIds = Object.values(equipmentIdsByName);
+  if (seededEqIds.length) {
+    await db.delete(equipmentEvents).where(inArray(equipmentEvents.equipmentId, seededEqIds));
+  }
+
+  const managerId = userIdByEmail.get('kasuncsb+manager@gmail.com')!;
+  const trainer1 = userIdByEmail.get('kasuncsb+trainer1@gmail.com') ?? trainerIds[0];
+  const trainer2 = userIdByEmail.get('kasuncsb+trainer2@gmail.com') ?? trainerIds[1];
+  const trainer3 = userIdByEmail.get('kasuncsb+trainer3@gmail.com') ?? trainerIds[2];
+
+  const SEED_EQUIPMENT_EVENTS: Array<{
+    equipmentName: string;
+    eventType: 'issue_reported' | 'maintenance_done';
+    severity: 'low' | 'medium' | 'high' | 'critical';
+    description: string;
+    status: 'open' | 'in_progress' | 'resolved';
+    loggedBy: string | null;
+    resolvedBy?: string | null;
+    resolvedAtMinutesAgo?: number;
+  }> = [
+    {
+      equipmentName: 'Bench Press Station',
+      eventType: 'issue_reported',
+      severity: 'critical',
+      description: 'Bench wobble reported; stop using until inspection.',
+      status: 'open',
+      loggedBy: trainer2 ?? null,
+    },
+    {
+      equipmentName: 'Squat Rack',
+      eventType: 'issue_reported',
+      severity: 'high',
+      description: 'Hydraulic leak suspected under the squat rack base.',
+      status: 'open',
+      loggedBy: trainer3 ?? null,
+    },
+    {
+      equipmentName: 'Treadmill X5',
+      eventType: 'issue_reported',
+      severity: 'medium',
+      description: 'Belt hesitates during warm-up; likely alignment issue.',
+      status: 'in_progress',
+      loggedBy: trainer1 ?? null,
+    },
+    {
+      equipmentName: 'Rowing Machine',
+      eventType: 'maintenance_done',
+      severity: 'low',
+      description: 'Seat rail cleaned and tightened; maintenance completed.',
+      status: 'resolved',
+      loggedBy: trainer1 ?? null,
+      resolvedBy: managerId,
+      resolvedAtMinutesAgo: 90,
+    },
+  ];
+
+  for (const e of SEED_EQUIPMENT_EVENTS) {
+    const eqId = equipmentIdsByName[e.equipmentName];
+    if (!eqId) continue;
+    const id = ids.uuid();
+    const lc = await insertLifecycleRow();
+    await db.insert(equipmentEvents).values({
+      id,
+      lifecycleId: lc,
+      equipmentId: eqId,
+      eventType: e.eventType,
+      severity: e.severity,
+      description: e.description,
+      status: e.status,
+      loggedBy: e.loggedBy ?? null,
+      resolvedBy: e.resolvedBy ?? null,
+      resolvedAt: e.resolvedAtMinutesAgo != null ? new Date(now.getTime() - e.resolvedAtMinutesAgo * 60_000) : null,
+    });
+  }
+
+  // 3) Inventory transactions (manager inventory history)
+  // Delete prior seeded transactions by reference prefix pattern.
+  await db.delete(inventoryTransactions).where(isNull(inventoryTransactions.reference));
+  // Seed a few transactions for our inventory item names.
+  const invNameList = SEED_INVENTORY.map((i) => i.name);
+  const invItemRows = await db.select({ id: inventoryItems.id, name: inventoryItems.name }).from(inventoryItems).where(inArray(inventoryItems.name, invNameList));
+  const invIdByName: Record<string, string> = {};
+  for (const r of invItemRows) invIdByName[r.name] = r.id;
+  const makeRef = (s: string) => `SEED-${s}`;
+  const SEED_INVENTORY_TXNS: Array<{ itemName: string; txnType: 'restock' | 'sale' | 'adjustment' | 'waste'; qtyChange: number; reference: string; recordedBy: string }> = [
+    { itemName: 'Treadmill', txnType: 'restock', qtyChange: 3, reference: makeRef('INV-TD-1'), recordedBy: managerId },
+    { itemName: 'Treadmill', txnType: 'waste', qtyChange: -1, reference: makeRef('INV-TD-2'), recordedBy: trainer1! },
+    { itemName: 'Squat Rack', txnType: 'restock', qtyChange: 1, reference: makeRef('INV-SQ-1'), recordedBy: trainer3! },
+    { itemName: 'Dumbbell Set (5–50kg)', txnType: 'restock', qtyChange: 1, reference: makeRef('INV-DB-1'), recordedBy: trainer2! },
+    { itemName: 'Rowing Machine', txnType: 'adjustment', qtyChange: 2, reference: makeRef('INV-RW-1'), recordedBy: managerId },
+  ];
+  for (const t of SEED_INVENTORY_TXNS) {
+    const itemId = invIdByName[t.itemName];
+    if (!itemId) continue;
+    const id = ids.uuid();
+    const lc = await insertLifecycleRow();
+    await db.insert(inventoryTransactions).values({
+      id,
+      lifecycleId: lc,
+      itemId,
+      txnType: t.txnType,
+      qtyChange: t.qtyChange,
+      reference: t.reference,
+      recordedBy: t.recordedBy,
+    });
+  }
+
+  // 4) Shifts + Visits + PT Sessions + Subscriptions + Payments
+  // Shifts for schedules and PT availability lookups
+  const shiftTypeByIdx: Array<'morning' | 'afternoon' | 'evening'> = ['morning', 'afternoon', 'evening'];
+  const SHIFTS_FOR_DAYS = 7;
+  for (let dayOffset = 0; dayOffset < SHIFTS_FOR_DAYS; dayOffset++) {
+    const shiftDate = dateAtNoonFrom(new Date(now.getTime() + dayOffset * dayMs));
+    for (let tIdx = 0; tIdx < trainerIds.length; tIdx++) {
+      const staffId = trainerIds[tIdx];
+      const st = shiftTypeByIdx[tIdx % shiftTypeByIdx.length];
+      const shiftDef = st === 'morning'
+        ? { startTime: '06:00:00', endTime: '14:00:00' }
+        : st === 'afternoon'
+          ? { startTime: '14:00:00', endTime: '18:00:00' }
+          : { startTime: '18:00:00', endTime: '22:00:00' };
+      const id = ids.uuid();
+      const lc = await insertLifecycleRow();
+      await db.insert(shifts).values({
+        id,
+        lifecycleId: lc,
+        staffId,
+        shiftType: st,
+        shiftDate,
+        startTime: shiftDef.startTime,
+        endTime: shiftDef.endTime,
+        status: 'scheduled',
+        notes: 'Seed shift — recurring grid',
+        createdBy: managerId,
+      });
+    }
+  }
+
+  // Visits for member dashboard + manager trainer-on-shift + trainer dashboard recent check-ins
+  // Clear prior seeded visits by seeded userIds (already handled by removeSeedUsers) so we can just insert.
+  const visitId = ids.uuid();
+  void visitId;
+  for (const m of memberSeedDefs) {
+    // One active "checked in" today
+    {
+      const id = ids.uuid();
+      const lc = await insertLifecycleRow();
+      await db.insert(visits).values({
+        id,
+        lifecycleId: lc,
+        personId: m.memberId,
+        checkInAt: new Date(now.getTime() - 35 * 60_000),
+        status: 'active',
+      });
+    }
+    // One completed visit in last week
+    {
+      const id = ids.uuid();
+      const lc = await insertLifecycleRow();
+      const checkInAt = new Date(now.getTime() - 5 * dayMs - 2 * 60_000);
+      const checkOutAt = new Date(checkInAt.getTime() + 60 * 60_000);
+      await db.insert(visits).values({
+        id,
+        lifecycleId: lc,
+        personId: m.memberId,
+        checkInAt,
+        checkOutAt,
+        durationMin: 60,
+        status: 'completed',
+      });
+    }
+  }
+  for (const trEmail of trainerEmails) {
+    const trId = trainerIdByEmail[trEmail]!;
+    // Active visit today (manager sees "trainersOnShift")
+    {
+      const id = ids.uuid();
+      const lc = await insertLifecycleRow();
+      await db.insert(visits).values({
+        id,
+        lifecycleId: lc,
+        personId: trId,
+        checkInAt: new Date(now.getTime() - 20 * 60_000),
+        status: 'active',
+      });
+    }
+    // Completed visit yesterday
+    {
+      const id = ids.uuid();
+      const lc = await insertLifecycleRow();
+      const checkInAt = new Date(now.getTime() - 2 * dayMs + 9 * 60_000);
+      const checkOutAt = new Date(checkInAt.getTime() + 45 * 60_000);
+      await db.insert(visits).values({
+        id,
+        lifecycleId: lc,
+        personId: trId,
+        checkInAt,
+        checkOutAt,
+        durationMin: 45,
+        status: 'completed',
+      });
+    }
+  }
+
+  // Subscription plans -> member subscriptions + payments for revenue + active subscription UI
+  const planCodesForMembers = memberSeedDefs.map((_, idx) => {
+    // Mix plan types so reports have variety
+    if (idx % 3 === 0) return 'KBG-WK1';
+    if (idx % 3 === 1) return 'KBG-M1';
+    return 'KBG-M3';
+  });
+  const desiredPlanCodes = ['KBG-WK1', 'KBG-M1', 'KBG-M3'];
+  const planRows = await db
+    .select({ id: subscriptionPlans.id, planCode: subscriptionPlans.planCode, price: subscriptionPlans.price, durationDays: subscriptionPlans.durationDays, name: subscriptionPlans.name })
+    .from(subscriptionPlans)
+    .where(inArray(subscriptionPlans.planCode, desiredPlanCodes));
+  const planByCode: Record<string, any> = {};
+  for (const r of planRows) {
+    if (!r.planCode) continue;
+    planByCode[r.planCode] = r;
+  }
+
+  // Clear prior subscriptions/payments for these members (removeSeedUsers already removed payments/subscriptions by memberId)
+  for (let i = 0; i < memberSeedDefs.length; i++) {
+    const m = memberSeedDefs[i];
+    const planCode = planCodesForMembers[i]!;
+    const plan = planByCode[planCode];
+    if (!plan) continue;
+
+    const subId = ids.uuid();
+    const subLc = await insertLifecycleRow();
+    const subStart = dateAtNoonFrom(new Date(now.getTime() - 20 * dayMs));
+    const subEnd = dateAtNoonFrom(new Date(now.getTime() + 25 * dayMs));
+    const status = m.idVerificationStatus === 'pending' ? ('active' as const) : ('active' as const);
+    await db.insert(subscriptions).values({
+      id: subId,
+      lifecycleId: subLc,
+      memberId: m.memberId,
+      planId: plan.id,
+      startDate: subStart,
+      endDate: subEnd,
+      status,
+      pricePaid: plan.price,
+      discountAmount: '0.00' as any,
+      promotionId: null,
+    });
+
+    const payId = ids.uuid();
+    const payLc = await insertLifecycleRow();
+    await db.insert(payments).values({
+      id: payId,
+      lifecycleId: payLc,
+      subscriptionId: subId,
+      amount: plan.price,
+      paymentMethod: 'online',
+      paymentDate: dateAtNoonFrom(new Date(now.getTime() - (i % 8) * dayMs)),
+      status: 'completed',
+      receiptNumber: `RCPT-${i + 1}-${now.getTime()}`,
+      referenceNumber: `REF-${i + 1}-${Math.floor(Math.random() * 9999)}`,
+      instrumentHash: null,
+      promotionId: null,
+      discountAmount: '0.00' as any,
+      recordedBy: managerId,
+      invoiceNumber: `INV-${i + 1}-${now.getTime()}`,
+    });
+  }
+
+  // PT Sessions (trainer schedule + member appointments)
+  // We'll create non-conflicting sessions per trainer with varied statuses.
+  const ptTimes = [
+    { start: '10:00:00', duration: 60 },
+    { start: '12:00:00', duration: 60 },
+    { start: '16:00:00', duration: 60 },
+  ];
+  const todaySessionDate = dateAtNoonFrom(now).toISOString().slice(0, 10);
+  const tomorrowSessionDate = dateAtNoonFrom(new Date(now.getTime() + 1 * dayMs)).toISOString().slice(0, 10);
+  const yesterdaySessionDate = dateAtNoonFrom(new Date(now.getTime() - 1 * dayMs)).toISOString().slice(0, 10);
+  await db.delete(ptSessions).where(or(inArray(ptSessions.memberId, memberIds), inArray(ptSessions.trainerId, trainerIds)));
+
+  // Map member order per trainer so each trainer has some sessions.
+  const membersByTrainer: Record<string, string[]> = {};
+  for (const m of memberSeedDefs) {
+    const tId = trainerIdByEmail[m.assignedTrainerEmail];
+    if (!tId) continue;
+    if (!membersByTrainer[tId]) membersByTrainer[tId] = [];
+    membersByTrainer[tId].push(m.memberId);
+  }
+
+  for (const tId of trainerIds) {
+    const mems = membersByTrainer[tId] ?? memberIds;
+    const m1 = mems[0]!;
+    const m2 = mems[1] ?? mems[0]!;
+    const m3 = mems[2] ?? mems[0]!;
+
+    // Today: booked + confirmed
+    for (let idx = 0; idx < 2; idx++) {
+      const targetMember = idx === 0 ? m1 : m2;
+      const time = ptTimes[idx]!;
+      const id = ids.uuid();
+      const lc = await insertLifecycleRow();
+      await db.insert(ptSessions).values({
+        id,
+        lifecycleId: lc,
+        memberId: targetMember,
+        trainerId: tId,
+          sessionDate: dateAtNoon(todaySessionDate),
+        startTime: time.start,
+        endTime: endHMS(time.start, time.duration),
+        durationMinutes: time.duration,
+        status: idx === 0 ? 'booked' : 'confirmed',
+        cancelReason: null,
+        reviewRating: null,
+        reviewComment: null,
+      });
+    }
+
+    // Tomorrow: confirmed
+    {
+      const time = ptTimes[2]!;
+      const id = ids.uuid();
+      const lc = await insertLifecycleRow();
+      await db.insert(ptSessions).values({
+        id,
+        lifecycleId: lc,
+        memberId: m2,
+        trainerId: tId,
+        sessionDate: dateAtNoon(tomorrowSessionDate),
+        startTime: time.start,
+        endTime: endHMS(time.start, time.duration),
+        durationMinutes: time.duration,
+        status: 'confirmed',
+      });
+    }
+
+    // Yesterday: completed with review
+    {
+      const time = ptTimes[0]!;
+      const id = ids.uuid();
+      const lc = await insertLifecycleRow();
+      await db.insert(ptSessions).values({
+        id,
+        lifecycleId: lc,
+        memberId: m3,
+        trainerId: tId,
+        sessionDate: dateAtNoon(yesterdaySessionDate),
+        startTime: time.start,
+        endTime: endHMS(time.start, time.duration),
+        durationMinutes: time.duration,
+        status: 'completed',
+        reviewRating: 5,
+        reviewComment: `Great session — strong focus and clear cues.`,
+      });
+    }
+
+    // Older cancelled/no-show
+    {
+      const time = ptTimes[1]!;
+      const id = ids.uuid();
+      const lc = await insertLifecycleRow();
+      await db.insert(ptSessions).values({
+        id,
+        lifecycleId: lc,
+        memberId: m1,
+        trainerId: tId,
+        sessionDate: dateAtNoon(yesterdaySessionDate),
+        startTime: time.start,
+        endTime: endHMS(time.start, time.duration),
+        durationMinutes: time.duration,
+        status: 'cancelled',
+        cancelReason: 'Member requested to reschedule.',
+      });
+    }
+  }
+
+  // Workout plans for members + workout sessions + member metrics
+  // Assign each member a trainer_created plan based on library templates.
+  const memberPlanDefs = new Map<string, string>(); // memberId -> workoutPlans.id
+  const libPlansByDifficulty = {
+    beginner: LIBRARY_WORKOUT_PLANS.filter((p) => p.difficulty === 'beginner'),
+    intermediate: LIBRARY_WORKOUT_PLANS.filter((p) => p.difficulty === 'intermediate'),
+    advanced: LIBRARY_WORKOUT_PLANS.filter((p) => p.difficulty === 'advanced'),
+  } as any;
+
+  // Ensure there are no leftover assigned plans
+  await db.delete(workoutPlans).where(inArray(workoutPlans.memberId, memberIds));
+
+  for (let i = 0; i < memberSeedDefs.length; i++) {
+    const m = memberSeedDefs[i]!;
+    const trainerId = trainerIdByEmail[m.assignedTrainerEmail];
+    if (!trainerId) continue;
+
+    const diff: 'beginner' | 'intermediate' | 'advanced' =
+      i % 3 === 0 ? 'beginner' : i % 3 === 1 ? 'intermediate' : 'advanced';
+    const pool = libPlansByDifficulty[diff] ?? LIBRARY_WORKOUT_PLANS;
+    const def = pool[i % pool.length]!;
+
+    const id = ids.uuid();
+    const lc = await insertLifecycleRow();
+    await db.insert(workoutPlans).values({
+      id,
+      lifecycleId: lc,
+      memberId: m.memberId,
+      trainerId,
+      name: `${m.email.split('@')[0]} — ${def.name}`,
+      description: def.description,
+      source: 'trainer_created',
+      difficulty: def.difficulty,
+      durationWeeks: def.durationWeeks,
+      daysPerWeek: def.daysPerWeek,
+      isActive: true,
+      programJson: stringifyProgram(def.program),
+    });
+    memberPlanDefs.set(m.memberId, id);
+  }
+
+  // Workout sessions (member dashboard + progress charts)
+  await db.delete(workoutSessions).where(inArray(workoutSessions.personId, memberIds));
+  for (const [memberId, planId] of memberPlanDefs.entries()) {
+    for (let j = 0; j < 4; j++) {
+      const endedAt = new Date(now.getTime() - (j * 2 + 1) * dayMs);
+      const durationMin = 45 + (j % 3) * 15;
+      const id = ids.uuid();
+      const lc = await insertLifecycleRow();
+      await db.insert(workoutSessions).values({
+        id,
+        lifecycleId: lc,
+        personId: memberId,
+        planId,
+        status: j % 2 === 0 ? 'completed' : 'stopped',
+        startedAt: new Date(endedAt.getTime() - durationMin * 60_000),
+        endedAt,
+        durationMin,
+        caloriesBurned: 250 + j * 60,
+        mood: j % 5 === 0 ? 'great' : j % 5 === 1 ? 'good' : j % 5 === 2 ? 'okay' : j % 5 === 3 ? 'tired' : 'poor',
+        notes: j % 2 === 0 ? 'Felt strong and consistent.' : 'Stopped due to schedule constraint.',
+      });
+    }
+  }
+
+  // Member metrics
+  await db.delete(memberMetrics).where(inArray(memberMetrics.personId, memberIds));
+  for (let i = 0; i < memberSeedDefs.length; i++) {
+    const m = memberSeedDefs[i]!;
+    const personId = m.memberId;
+    const entries = [
+      { daysAgo: 2, weightKg: 68 + i * 0.8, heightCm: 175 + i, restingHr: 62 - i, bmi: null as any },
+      { daysAgo: 16, weightKg: 67 + i * 0.7, heightCm: 175 + i, restingHr: 64 - i, bmi: null as any },
+      { daysAgo: 32, weightKg: 69 + i * 0.9, heightCm: 175 + i, restingHr: 66 - i, bmi: null as any },
+    ];
+    for (const [idx, e] of entries.entries()) {
+      const bmi = e.heightCm > 0 ? Number((e.weightKg / ((e.heightCm / 100) ** 2)).toFixed(1)) : null;
+      const id = ids.uuid();
+      const lc = await insertLifecycleRow();
+      await db.insert(memberMetrics).values({
+        id,
+        lifecycleId: lc,
+        personId,
+        recordedAt: new Date(now.getTime() - e.daysAgo * dayMs + idx * 60_000),
+        source: 'manual',
+        weightKg: e.weightKg,
+        heightCm: e.heightCm,
+        bmi,
+        restingHr: e.restingHr,
+        notes: `Seed metric #${idx + 1}`,
+      } as any);
+    }
+  }
+
+  // Minimal AI interaction + audit logs so assistant/alerts have content
+  await db.delete(aiInteractions).where(inArray(aiInteractions.userId, memberIds));
+  for (let i = 0; i < 3; i++) {
+    const mId = memberIds[i] ?? memberIds[0];
+    const id = ids.uuid();
+    const lc = await insertLifecycleRow();
+    await db.insert(aiInteractions).values({
+      id,
+      lifecycleId: lc,
+      userId: mId,
+      userRole: 'member',
+      interactionType: i === 0 ? 'chat' : i === 1 ? 'workout_plan' : 'insight',
+      promptText: 'Seed prompt',
+      responseText: 'Seed response',
+      source: 'system',
+      metadataJson: null,
+      chatSessionId: null,
+      chatMessageRole: null,
+      seq: null,
+    } as any);
+  }
+
+  await db.delete(auditLogs).where(inArray(auditLogs.actorId, memberIds));
+  const auditActors = [managerId, trainer1, trainer2, trainer3].filter(Boolean) as string[];
+  for (let i = 0; i < 6; i++) {
+    const actorId = auditActors[i % auditActors.length]!;
+    await db.insert(auditLogs).values({
+      id: ids.uuid(),
+      actorId,
+      actorLabel: null,
+      action: 'staff_broadcast',
+      category: 'system',
+      entityType: 'broadcast',
+      entityId: null,
+      detail: `Seed broadcast #${i + 1}`,
+    });
+  }
+
+  console.log('\n✅ Seed script completed successfully');
 
   console.log('\n📋 Login credentials (password for all):', SEED_PASSWORD);
   console.log('─'.repeat(60));
