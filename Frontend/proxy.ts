@@ -9,7 +9,6 @@ const AUTH_ONLY_ROUTES = ['/login'];
 // Only login + register + forgot/reset. Do NOT include /member/verify-email or
 // /member/onboard — members must be able to complete verify → onboard flow.
 const BOUNCE_AUTHED_TO_DASHBOARD = [
-  '/login',
   '/member/register',
   '/member/forgot-password',
   '/member/reset-password',
