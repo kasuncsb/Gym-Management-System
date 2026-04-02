@@ -22,12 +22,12 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
     useEffect(() => {
         if (isLoading) return;
 
-        if (!isAuthenticated) {
+        if (!isAuthenticated || !user) {
             router.replace('/login');
             return;
         }
 
-        if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+        if (allowedRoles && !allowedRoles.includes(user.role)) {
             router.replace(dashboardPathForRole(user.role));
         }
     }, [isLoading, isAuthenticated, user, allowedRoles, router]);
@@ -40,9 +40,9 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
         );
     }
 
-    if (!isAuthenticated) return null;
+    if (!isAuthenticated || !user) return null;
 
-    if (allowedRoles && user && !allowedRoles.includes(user.role)) return null;
+    if (allowedRoles && !allowedRoles.includes(user.role)) return null;
 
     return <>{children}</>;
 }

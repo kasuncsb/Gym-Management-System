@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { authAPI } from '../lib/api';
 
@@ -76,7 +75,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const profileRequestRef = useRef<Promise<User | null> | null>(null);
   const [avatarMediaVersion, setAvatarMediaVersion] = useState(0);
   const [coverMediaVersion, setCoverMediaVersion] = useState(0);
-  const router = useRouter();
 
   const bumpAvatarMediaVersion = useCallback(() => {
     setAvatarMediaVersion((v) => v + 1);
@@ -113,34 +111,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return freshUser;
       })
       .catch((err) => {
-        // 429: keep cached session — do not log the user out on transient rate limits.
-        if (axios.isAxiosError(err) && err.response?.status === 429) {
-          setIsAuthenticated(true);
-          try {
-            const stored = localStorage.getItem('user');
-            if (stored) {
-              const u = JSON.parse(stored) as User;
-              setUser(u);
-              return u;
-            }
-          } catch {
-            // ignore and fall through
-          }
-          return null;
-        }
+        // Single binary outcome: not authenticated until the server returns a valid profile.
+        // (Including 429 — do not show a “logged in” UI from stale localStorage alone.)
         setUser(null);
         setIsAuthenticated(false);
         localStorage.removeItem('user');
         document.cookie = 'user_role=; path=/; max-age=0';
 
-        // Keep client hints aligned with httpOnly cookies: stale tokens often leave
-        // localStorage cleared but cookies still present, which breaks login/PWA routing.
         const status = axios.isAxiosError(err) ? err.response?.status : undefined;
         const hasResponse = axios.isAxiosError(err) && !!err.response;
         if (hasResponse && (status === 401 || status === 403)) {
           void authAPI.logout().catch(() => {});
         } else if (!hasResponse) {
-          // Offline / DNS / timeout: cookies may still be valid — retry profile when online.
           try {
             sessionStorage.setItem('auth_retry_probe', '1');
           } catch {
@@ -186,10 +168,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Optimistically populate display name from cache for instant UI render,
-    // but isAuthenticated stays false until the server confirms below.
+    // Only use localStorage to decide that we should validate — never hydrate `user`
+    // until GET /auth/profile succeeds (avoids user + !isAuthenticated mixed UI).
     try {
-      setUser(JSON.parse(storedUser));
+      JSON.parse(storedUser);
     } catch {
       localStorage.removeItem('user');
       setIsLoading(false);
