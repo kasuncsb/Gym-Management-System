@@ -128,7 +128,7 @@ export default function AdminAlertsPage() {
                 subtitle="Pending verifications, failed payments, equipment issues, system errors"
             />
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
                 {(['all', 'pending', 'acknowledged', 'resolved'] as const).map(f => (
                     <button key={f} onClick={() => setFilter(f)}
                         className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all ${filter === f ? 'bg-red-600 text-white' : 'bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:bg-zinc-800/50'}`}>
@@ -141,17 +141,24 @@ export default function AdminAlertsPage() {
                 {filtered.map(a => {
                     const Icon = typeIcon[a.type];
                     return (
-                        <Card key={a.id} padding="md" className={`flex items-center justify-between gap-4 ${a.status === 'resolved' ? 'opacity-60' : ''}`}>
-                            <div className="flex items-center gap-4 min-w-0">
+                        <Card
+                            key={a.id}
+                            padding="md"
+                            className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 ${a.status === 'resolved' ? 'opacity-60' : ''}`}
+                        >
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-4 min-w-0 flex-1">
+                                <div className="flex items-center gap-4 min-w-0">
                                 <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center shrink-0">
                                     <Icon size={18} className="text-zinc-400" />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-white font-semibold truncate">{a.title}</p>
-                                    <p className="text-zinc-500 text-sm truncate">{a.message}</p>
+                                    <p className="text-white font-semibold break-words">{a.title}</p>
+                                    <p className="text-zinc-500 text-sm break-words">{a.message}</p>
                                     <p className="text-zinc-600 text-xs mt-1">{new Date(a.createdAt).toLocaleString()}</p>
                                 </div>
-                                <div className="flex gap-2 shrink-0">
+                                </div>
+
+                                <div className="flex gap-2 flex-wrap shrink-0">
                                     <span className={`text-xs px-2 py-0.5 rounded-full font-semibold border ${priorityColor[a.priority]}`}>
                                         {a.priority}
                                     </span>
@@ -163,7 +170,8 @@ export default function AdminAlertsPage() {
                                     </span>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
+
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 sm:justify-end w-full sm:w-auto">
                                 {a.link && (
                                     <Link href={a.link}>
                                         <LoadingButton variant="secondary" size="sm">View</LoadingButton>

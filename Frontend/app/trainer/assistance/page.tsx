@@ -125,26 +125,26 @@ export default function TrainerAssistancePage() {
                 <div className="space-y-4">
                     {filteredEq.map((r) => (
                         <Card key={r.id} padding="md" className={r.priority === 'high' ? 'border-red-500/30' : 'hover:border-zinc-700/50 transition-colors'}>
-                            <div className="flex items-start justify-between mb-3">
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-3 gap-3">
                                 <div>
                                     <p className="text-white font-semibold">{r.title}</p>
                                     <p className="text-zinc-500 text-xs mt-0.5 flex items-center gap-1">
                                         <Clock size={10} /> {r.time}
                                     </p>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2 shrink-0">
                                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${priorityColor[r.priority]}`}>{r.priority}</span>
                                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusColor[r.status]}`}>{r.status.replace('_', ' ')}</span>
                                 </div>
                             </div>
                             <p className="text-zinc-300 text-sm mb-3">{r.description}</p>
                             {r.status !== 'resolved' && (
-                                <div className="flex justify-end">
+                                <div className="flex justify-start sm:justify-end">
                                     <button
                                         type="button"
                                         disabled={!!resolving}
                                         onClick={() => resolveEquipment(r.id)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600/20 hover:bg-green-600/30 text-green-400 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
+                                        className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-green-600/20 hover:bg-green-600/30 text-green-400 rounded-lg text-xs font-semibold transition-all disabled:opacity-50 w-full sm:w-auto"
                                     >
                                         <CheckCircle2 size={12} /> {resolving === r.id ? '…' : 'Mark resolved'}
                                     </button>

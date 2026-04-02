@@ -96,7 +96,11 @@ export default function AdminActivitiesPage() {
 
             <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
                 {filtered.map((e) => (
-                    <Card key={e.id} padding="md" className="flex items-start justify-between gap-4 hover:border-zinc-700/50 transition-colors">
+                    <Card
+                        key={e.id}
+                        padding="md"
+                        className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 hover:border-zinc-700/50 transition-colors"
+                    >
                         <div className="flex items-start gap-3 min-w-0">
                             <span
                                 className={`text-[10px] px-2 py-1 rounded-full font-semibold mt-0.5 flex-shrink-0 ${typeStyle[e.type] ?? typeStyle.system}`}
@@ -110,7 +114,7 @@ export default function AdminActivitiesPage() {
                                 </p>
                             </div>
                         </div>
-                        <span className="text-zinc-600 text-xs flex-shrink-0">{new Date(e.timestamp).toLocaleString()}</span>
+                        <span className="text-zinc-600 text-xs flex-shrink-0 sm:self-end">{new Date(e.timestamp).toLocaleString()}</span>
                     </Card>
                 ))}
                 {filtered.length === 0 && <p className="text-center py-8 text-zinc-600">No events found. Run DB migration if the audit table is missing.</p>}
