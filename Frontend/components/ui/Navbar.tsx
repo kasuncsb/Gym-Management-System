@@ -21,6 +21,7 @@ const NAVBAR_EXCLUDED_PATHS = [
   '/member/reset-password',
   '/member/onboard',
   '/pwa',
+  '/~offline',
 ];
 
 function profileHrefForRole(role: string): string {
