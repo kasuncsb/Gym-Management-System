@@ -6,6 +6,7 @@ import { useAuth, dashboardPathForRole, type Role } from "@/context/AuthContext"
 import { useIsStandalonePwa } from "@/lib/pwa/useIsStandalonePwa";
 import { LoadingButton } from "@/components/ui/SharedComponents";
 import { ChevronDown } from "lucide-react";
+import { PwaErrorMask } from "@/components/pwa/PwaErrorMask";
 
 const ROLE_OPTIONS: Array<{ value: Role; label: string }> = [
   { value: "member", label: "Member" },
@@ -124,7 +125,7 @@ export default function PwaOnboardingPage() {
   const router = useRouter();
   const isStandalone = useIsStandalonePwa();
   const { user, isAuthenticated, isLoading } = useAuth();
-  const [isOnline, setIsOnline] = useState(true);
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
 
   const [step, setStep] = useState(0);
   const [role, setRole] = useState<Role>("member");
@@ -207,15 +208,7 @@ export default function PwaOnboardingPage() {
 
   if (!isOnline) {
     // Don’t show onboarding while offline.
-    return (
-      <div className="min-h-svh bg-app text-white flex items-center justify-center px-6 text-center">
-        <div>
-          <div className="h-10 w-10 border-2 border-zinc-300/70 border-t-transparent rounded-full animate-spin mx-auto" />
-          <div className="mt-3 text-lg font-semibold">Offline</div>
-          <div className="text-zinc-500 text-sm mt-2">Connect to the internet to continue.</div>
-        </div>
-      </div>
-    );
+    return <PwaErrorMask />;
   }
 
   if (isStandalone === undefined || isLoading) {
@@ -229,69 +222,88 @@ export default function PwaOnboardingPage() {
     );
   }
 
+  const artMaxHeight = step === 3 ? "28svh" : "34svh";
+
   return (
-    <div className="min-h-svh bg-app text-white px-[clamp(16px,4vw,40px)]">
-      <div className="max-w-2xl mx-auto min-h-svh flex flex-col py-[clamp(16px,3vh,28px)]">
-        <div className="flex-1 flex flex-col">
+    <div className="h-svh overflow-hidden bg-app text-white">
+      <div
+        className="mx-auto h-full max-w-2xl"
+        style={{
+          // Generous margins, but responsive so short screens still fit (no scrollbars).
+          paddingTop: "max(env(safe-area-inset-top), clamp(20px, 5.5vh, 56px))",
+          paddingBottom: "max(env(safe-area-inset-bottom), clamp(18px, 4.5vh, 44px))",
+          paddingLeft: "max(env(safe-area-inset-left), clamp(18px, 5vw, 56px))",
+          paddingRight: "max(env(safe-area-inset-right), clamp(18px, 5vw, 56px))",
+        }}
+      >
+        <div className="grid h-full grid-rows-[auto,1fr,auto]">
+          {/* Header */}
           <div className="text-center">
-            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">{content.hero}</h1>
-            <p className="mt-5 text-zinc-400 text-base sm:text-lg leading-relaxed max-w-xl mx-auto">
+            <h1 className="font-bold tracking-tight text-[clamp(24px,4.2vw,44px)] leading-tight">
+              {content.hero}
+            </h1>
+            <p className="mt-[clamp(10px,1.6vh,16px)] text-zinc-400 text-[clamp(14px,2.0vw,18px)] leading-relaxed max-w-xl mx-auto">
               {content.sub}
             </p>
           </div>
 
-          <div className="mt-[clamp(14px,2.2vh,28px)]">
-            <OnboardingArt step={step} />
-          </div>
-
-          {step === 3 && (
-            <div className="mt-[clamp(12px,1.9vh,24px)] max-w-md mx-auto w-full">
-              <label className="block text-sm font-medium text-zinc-300 mb-2">Select a role</label>
-              <div ref={roleMenuRef} className="relative">
-                <button
-                  type="button"
-                  onClick={() => setRoleMenuOpen((v) => !v)}
-                  className="w-full bg-zinc-800/90 border border-zinc-700 rounded-xl px-4 py-3 text-left text-white flex items-center justify-between hover:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-red-600"
-                  aria-expanded={roleMenuOpen}
-                >
-                  <span>{ROLE_OPTIONS.find((r) => r.value === role)?.label ?? "Member"}</span>
-                  <ChevronDown
-                    size={16}
-                    className={[
-                      "text-zinc-400 transition-transform",
-                      roleMenuOpen ? "rotate-180" : "",
-                    ].join(" ")}
-                  />
-                </button>
-                {roleMenuOpen && (
-                  <div className="absolute z-20 mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-900/95 shadow-2xl overflow-hidden">
-                    {ROLE_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => {
-                          setRole(option.value);
-                          setRoleMenuOpen(false);
-                        }}
-                        className={[
-                          "w-full px-4 py-3 text-left text-sm transition-colors",
-                          option.value === role
-                            ? "bg-red-600/20 text-red-300"
-                            : "text-zinc-200 hover:bg-zinc-800",
-                        ].join(" ")}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
+          {/* Middle (shrinks to fit) */}
+          <div className="min-h-0 flex flex-col items-center justify-center text-center gap-[clamp(10px,2.2vh,22px)]">
+            <div className="min-h-0 w-full flex items-center justify-center">
+              <div className="w-full flex items-center justify-center" style={{ maxHeight: artMaxHeight }}>
+                <OnboardingArt step={step} />
               </div>
             </div>
-          )}
-        </div>
 
-        <div className="mt-[clamp(12px,1.8vh,22px)]">
-          <div className="flex justify-center gap-2 mb-[clamp(10px,1.6vh,18px)]">
+            {step === 3 && (
+              <div className="max-w-md w-full">
+                <label className="block text-sm font-medium text-zinc-300 mb-2 text-left">Select a role</label>
+                <div ref={roleMenuRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setRoleMenuOpen((v) => !v)}
+                    className="w-full bg-zinc-800/90 border border-zinc-700 rounded-xl px-4 py-3 text-left text-white flex items-center justify-between hover:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+                    aria-expanded={roleMenuOpen}
+                  >
+                    <span>{ROLE_OPTIONS.find((r) => r.value === role)?.label ?? "Member"}</span>
+                    <ChevronDown
+                      size={16}
+                      className={[
+                        "text-zinc-400 transition-transform",
+                        roleMenuOpen ? "rotate-180" : "",
+                      ].join(" ")}
+                    />
+                  </button>
+                  {roleMenuOpen && (
+                    <div className="absolute z-20 mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-900/95 shadow-2xl overflow-hidden">
+                      {ROLE_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => {
+                            setRole(option.value);
+                            setRoleMenuOpen(false);
+                          }}
+                          className={[
+                            "w-full px-4 py-3 text-left text-sm transition-colors",
+                            option.value === role
+                              ? "bg-red-600/20 text-red-300"
+                              : "text-zinc-200 hover:bg-zinc-800",
+                          ].join(" ")}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div>
+            <div className="flex justify-center gap-2 mb-[clamp(10px,1.8vh,16px)]">
             {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
@@ -318,6 +330,7 @@ export default function PwaOnboardingPage() {
                 Start journey
               </LoadingButton>
             )}
+          </div>
           </div>
         </div>
       </div>

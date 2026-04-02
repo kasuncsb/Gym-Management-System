@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { dashboardPathForRole, useAuth } from "@/context/AuthContext";
 import { useIsStandalonePwa } from "@/lib/pwa/useIsStandalonePwa";
+import { PwaErrorMask } from "@/components/pwa/PwaErrorMask";
 
 export default function PwaBootPage() {
   const router = useRouter();
   const isStandalone = useIsStandalonePwa();
   const { user, isAuthenticated, isLoading } = useAuth();
+  const isOnline = useMemo(() => {
+    if (typeof navigator === "undefined") return true;
+    return navigator.onLine;
+  }, []);
 
   useEffect(() => {
     if (isLoading) return;
@@ -20,6 +25,9 @@ export default function PwaBootPage() {
       return;
     }
 
+    // First check: network presence. When offline, do not redirect into onboarding.
+    if (!isOnline) return;
+
     // In standalone PWA mode:
     // - authenticated users go to their role dashboard
     // - guests go to the onboarding flow
@@ -29,7 +37,11 @@ export default function PwaBootPage() {
     }
 
     router.replace("/pwa/onboarding");
-  }, [isLoading, isStandalone, isAuthenticated, user, router]);
+  }, [isLoading, isStandalone, isAuthenticated, user, router, isOnline]);
+
+  if (isStandalone === true && !isOnline) {
+    return <PwaErrorMask />;
+  }
 
   return (
     <div className="min-h-svh bg-app text-white flex items-center justify-center">
