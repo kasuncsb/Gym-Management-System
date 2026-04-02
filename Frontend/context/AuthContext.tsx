@@ -5,9 +5,6 @@ import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { authAPI } from '../lib/api';
 
-/** Throttle profile re-validation to avoid 429 when navigating / remounting. */
-const PROFILE_CACHE_MS = 60_000; // 60s — skip API if we validated recently
-
 function isStandalonePwaRuntime(): boolean {
   try {
     const mql = window.matchMedia?.("(display-mode: standalone)");
@@ -76,7 +73,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // paint is byte-identical to the SSR output. localStorage is only read after
   // mount to eliminate React hydration error #418 in production builds.
   const [mounted, setMounted] = useState(false);
-  const lastProfileSuccessAt = useRef<number>(0);
   const profileRequestRef = useRef<Promise<User | null> | null>(null);
   const [avatarMediaVersion, setAvatarMediaVersion] = useState(0);
   const [coverMediaVersion, setCoverMediaVersion] = useState(0);
@@ -111,7 +107,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           emailVerified: d.emailVerified,
           isOnboarded: d.profile?.isOnboarded,
         };
-        lastProfileSuccessAt.current = Date.now();
         setUser(freshUser);
         setIsAuthenticated(true);
         localStorage.setItem('user', JSON.stringify(freshUser));
@@ -120,7 +115,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .catch((err) => {
         // 429: keep cached session — do not log the user out on transient rate limits.
         if (axios.isAxiosError(err) && err.response?.status === 429) {
-          lastProfileSuccessAt.current = Date.now();
           setIsAuthenticated(true);
           try {
             const stored = localStorage.getItem('user');
@@ -134,10 +128,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           return null;
         }
-        lastProfileSuccessAt.current = 0;
         setUser(null);
         setIsAuthenticated(false);
         localStorage.removeItem('user');
+        document.cookie = 'user_role=; path=/; max-age=0';
+
+        // Keep client hints aligned with httpOnly cookies: stale tokens often leave
+        // localStorage cleared but cookies still present, which breaks login/PWA routing.
+        const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+        const hasResponse = axios.isAxiosError(err) && !!err.response;
+        if (hasResponse && (status === 401 || status === 403)) {
+          void authAPI.logout().catch(() => {});
+        } else if (!hasResponse) {
+          // Offline / DNS / timeout: cookies may still be valid — retry profile when online.
+          try {
+            sessionStorage.setItem('auth_retry_probe', '1');
+          } catch {
+            /* ignore */
+          }
+        }
         return null;
       })
       .finally(() => {
@@ -146,6 +155,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profileRequestRef.current = req;
     return req;
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const onOnline = () => {
+      try {
+        if (sessionStorage.getItem('auth_retry_probe') !== '1') return;
+        sessionStorage.removeItem('auth_retry_probe');
+      } catch {
+        return;
+      }
+      void fetchProfileDeduped();
+    };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [mounted, fetchProfileDeduped]);
 
   useEffect(() => {
     // Guard: only run on client after mount. This is the fix for React hydration
@@ -172,20 +196,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Throttle: if we validated successfully in the last PROFILE_CACHE_MS, trust cache to avoid 429
-    if (Date.now() - lastProfileSuccessAt.current < PROFILE_CACHE_MS) {
-      setIsAuthenticated(true);
-      setIsLoading(false);
-      return;
-    }
-
     fetchProfileDeduped()
       .finally(() => setIsLoading(false));
   }, [mounted, fetchProfileDeduped]);
 
   /** Call after login/register — user object from server response */
   const login = useCallback((newUser: User) => {
-    lastProfileSuccessAt.current = Date.now(); // avoid immediate re-fetch on next mount
+    try {
+      sessionStorage.removeItem('auth_retry_probe');
+    } catch {
+      /* ignore */
+    }
     setUser(newUser);
     setIsAuthenticated(true);
     localStorage.setItem('user', JSON.stringify(newUser));

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { dashboardPathForRole, useAuth } from "@/context/AuthContext";
 import { useIsStandalonePwa } from "@/lib/pwa/useIsStandalonePwa";
@@ -10,9 +10,19 @@ export default function PwaBootPage() {
   const router = useRouter();
   const isStandalone = useIsStandalonePwa();
   const { user, isAuthenticated, isLoading } = useAuth();
-  const isOnline = useMemo(() => {
-    if (typeof navigator === "undefined") return true;
-    return navigator.onLine;
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine,
+  );
+
+  useEffect(() => {
+    const sync = () => setIsOnline(navigator.onLine);
+    sync();
+    window.addEventListener("online", sync);
+    window.addEventListener("offline", sync);
+    return () => {
+      window.removeEventListener("online", sync);
+      window.removeEventListener("offline", sync);
+    };
   }, []);
 
   useEffect(() => {

@@ -73,6 +73,8 @@ apiClient.interceptors.response.use(
           const publicRoutes = [
             '/', '/login',
             '/simulate',
+            '/pwa',
+            '/~offline',
             '/member/register', '/member/register/personal-details',
             '/member/register/identity-verification', '/member/register/subscription',
             '/member/register/verify-email', '/member/register/dashboard',
