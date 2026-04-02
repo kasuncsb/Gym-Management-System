@@ -14,9 +14,9 @@ export function BrokenMachineIcon({ className }: { className?: string }) {
       <circle cx="50" cy="50" r="38" stroke="currentColor" strokeWidth="2.5" />
       <circle cx="38" cy="46" r="3.5" stroke="currentColor" strokeWidth="2" />
       <circle cx="62" cy="46" r="3.5" stroke="currentColor" strokeWidth="2" />
-      {/* Sad mouth: smooth arc — center high, corners low (y grows downward in SVG). */}
+      {/* Sad mouth: smooth arc — 20% shorter width than before, still symmetric about x=50. */}
       <path
-        d="M 28 70 Q 50 56 72 70"
+        d="M 32.4 70 Q 50 56 67.6 70"
         stroke="currentColor"
         strokeWidth="3"
         strokeLinecap="round"
