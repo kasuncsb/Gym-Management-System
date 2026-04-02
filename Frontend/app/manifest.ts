@@ -4,12 +4,17 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "GymSphere",
     short_name: "GymSphere",
+    id: "/pwa",
     description:
       "Sri Lanka fitness network — facilities, trainers, workouts, and member tools.",
     start_url: "/pwa",
     scope: "/",
+    display_override: ["standalone", "minimal-ui"],
     display: "standalone",
     orientation: "portrait-primary",
+    lang: "en",
+    dir: "ltr",
+    prefer_related_applications: false,
     background_color: "#1e1e1e",
     theme_color: "#1e1e1e",
     icons: [
@@ -20,7 +25,7 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: "any",
       },
       {
-        src: "/icons/pwa-192.png",
+        src: "/icons/pwa-192-maskable.png",
         sizes: "192x192",
         type: "image/png",
         purpose: "maskable",
@@ -32,7 +37,7 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: "any",
       },
       {
-        src: "/icons/pwa-512.png",
+        src: "/icons/pwa-512-maskable.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",

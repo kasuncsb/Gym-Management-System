@@ -140,7 +140,7 @@ function LoginForm() {
                 <div className="w-full max-w-md bg-zinc-800/80 backdrop-blur-xl border border-zinc-700 p-8 rounded-3xl shadow-2xl" id="login-card">
                     <div className="mb-8">
                         <h2 className="text-2xl font-bold mb-2" id="login-title">
-                            {roleForUi ? `Sign In (${roleLabel})` : "Sign In"}
+                            Sign In
                         </h2>
                         <p className="text-zinc-400 text-sm">
                             {roleForUi

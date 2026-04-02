@@ -323,8 +323,9 @@ export default function WorkoutsPage() {
                 subtitle="Day-by-day programmes, exercises, and progress at PowerWorld Kiribathgoda"
             />
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex gap-2 flex-wrap items-center">
+            <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1 overflow-x-auto">
+                <div className="flex gap-2 items-center whitespace-nowrap w-max pr-1">
                     <button
                         type="button"
                         onClick={() => {
@@ -356,6 +357,7 @@ export default function WorkoutsPage() {
                             {g === 'all' ? 'All Levels' : g.charAt(0).toUpperCase() + g.slice(1)}
                         </button>
                     ))}
+                </div>
                 </div>
                 <LoadingButton
                     icon={Sparkles}

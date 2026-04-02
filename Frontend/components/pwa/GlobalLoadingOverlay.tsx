@@ -65,7 +65,7 @@ export function GlobalLoadingOverlay() {
             <img
               src="/icons/member.png"
               alt=""
-              className="w-20 h-20 object-contain"
+              className="w-40 h-40 object-contain"
               style={{ animation: "gymsphereFlash 0.65s ease-in-out infinite" }}
             />
           ) : (
@@ -83,7 +83,7 @@ export function GlobalLoadingOverlay() {
               ))}
             </div>
           )}
-          <div className="text-zinc-200 text-sm font-medium">GymSphere</div>
+          <div className="text-zinc-200 text-sm font-medium">Please wait...</div>
         </div>
       </div>
     </>

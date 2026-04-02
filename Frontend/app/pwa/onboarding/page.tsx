@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth, dashboardPathForRole, type Role } from "@/context/AuthContext";
 import { useIsStandalonePwa } from "@/lib/pwa/useIsStandalonePwa";
-import { LoadingButton, Select } from "@/components/ui/SharedComponents";
+import { LoadingButton } from "@/components/ui/SharedComponents";
+import { ChevronDown } from "lucide-react";
 
 const ROLE_OPTIONS: Array<{ value: Role; label: string }> = [
   { value: "member", label: "Member" },
@@ -54,22 +55,14 @@ function OnboardingArt({ step }: { step: number }) {
     // Convenience: tap + shortcuts
     return (
       <svg {...common} aria-hidden>
-        <path
-          d="M210 72c-32 0-58 26-58 58 0 27 18 50 42 56"
-          stroke={muted}
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
-        <circle cx="210" cy="130" r="62" stroke="rgba(239,68,68,0.45)" strokeWidth="3" />
-        <circle cx="210" cy="130" r="10" fill="rgba(239,68,68,0.16)" stroke="rgba(239,68,68,0.55)" />
-
-        <rect x="62" y="168" width="92" height="66" rx="16" stroke={muted} />
-        <rect x="164" y="168" width="92" height="66" rx="16" stroke="rgba(239,68,68,0.55)" fill="rgba(239,68,68,0.10)" />
-        <rect x="266" y="168" width="92" height="66" rx="16" stroke={muted} />
-        <path d="M102 201h12M96 209h24" stroke={muted} strokeWidth="3" strokeLinecap="round" />
-        <path d="M204 198v18M195 207h18" stroke="rgba(239,68,68,0.75)" strokeWidth="3" strokeLinecap="round" />
-        <path d="M298 198h28" stroke={muted} strokeWidth="3" strokeLinecap="round" />
-        <path d="M298 210h18" stroke={muted} strokeWidth="3" strokeLinecap="round" />
+        <rect x="86" y="46" width="248" height="156" rx="24" stroke={stroke} strokeWidth="2.5" />
+        <rect x="110" y="72" width="200" height="74" rx="14" stroke={muted} />
+        <rect x="110" y="158" width="60" height="28" rx="10" stroke={muted} />
+        <rect x="180" y="158" width="60" height="28" rx="10" fill="rgba(239,68,68,0.12)" stroke="rgba(239,68,68,0.55)" />
+        <rect x="250" y="158" width="60" height="28" rx="10" stroke={muted} />
+        <circle cx="210" cy="109" r="20" fill="rgba(239,68,68,0.14)" stroke="rgba(239,68,68,0.6)" />
+        <path d="M210 97v24M198 109h24" stroke="rgba(239,68,68,0.75)" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M58 206h304" stroke={muted} strokeWidth="3" strokeLinecap="round" opacity="0.45" />
       </svg>
     );
   }
@@ -78,23 +71,21 @@ function OnboardingArt({ step }: { step: number }) {
     // Every role: 2x2 role cards + hub
     return (
       <svg {...common} aria-hidden>
-        <circle cx="210" cy="86" r="9" fill="rgba(239,68,68,0.18)" stroke="rgba(239,68,68,0.6)" />
-        <path d="M210 95v24" stroke="rgba(239,68,68,0.6)" strokeWidth="3" strokeLinecap="round" />
-        <path d="M210 119H124M210 119h86" stroke={muted} strokeWidth="3" strokeLinecap="round" />
+        <circle cx="210" cy="124" r="12" fill="rgba(239,68,68,0.18)" stroke="rgba(239,68,68,0.7)" />
+        <path d="M210 112v-26M210 136v26M198 124h-26M222 124h26" stroke="rgba(239,68,68,0.65)" strokeWidth="3" strokeLinecap="round" />
 
-        <rect x="70" y="126" width="132" height="88" rx="20" stroke={muted} />
-        <rect x="218" y="126" width="132" height="88" rx="20" stroke={muted} />
-        <rect x="70" y="26" width="132" height="88" rx="20" stroke={muted} opacity="0.6" />
-        <rect x="218" y="26" width="132" height="88" rx="20" stroke={muted} opacity="0.6" />
+        <rect x="54" y="38" width="140" height="72" rx="18" stroke={muted} />
+        <rect x="226" y="38" width="140" height="72" rx="18" stroke={muted} />
+        <rect x="54" y="146" width="140" height="72" rx="18" stroke={muted} />
+        <rect x="226" y="146" width="140" height="72" rx="18" stroke={muted} />
 
-        <circle cx="122" cy="168" r="14" stroke={muted} />
-        <path d="M108 192c10-12 26-12 36 0" stroke={muted} strokeWidth="3" strokeLinecap="round" />
+        <path d="M194 74h12M226 74h-12M124 110v12M124 146v-12M296 110v12M296 146v-12" stroke={muted} strokeWidth="2.5" strokeLinecap="round" />
 
-        <path d="M272 170h24" stroke={muted} strokeWidth="4" strokeLinecap="round" />
-        <path d="M260 186h48" stroke={muted} strokeWidth="4" strokeLinecap="round" />
-
-        <path d="M110 70h52" stroke={muted} strokeWidth="4" strokeLinecap="round" opacity="0.65" />
-        <path d="M260 70h52" stroke={muted} strokeWidth="4" strokeLinecap="round" opacity="0.65" />
+        <circle cx="102" cy="72" r="11" stroke={muted} />
+        <path d="M90 90c8-9 16-9 24 0" stroke={muted} strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M282 70h28M282 80h28" stroke={muted} strokeWidth="3" strokeLinecap="round" />
+        <path d="M98 180h52" stroke={muted} strokeWidth="3" strokeLinecap="round" />
+        <path d="M270 176h28M264 188h40" stroke={muted} strokeWidth="3" strokeLinecap="round" />
       </svg>
     );
   }
@@ -137,6 +128,8 @@ export default function PwaOnboardingPage() {
 
   const [step, setStep] = useState(0);
   const [role, setRole] = useState<Role>("member");
+  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
+  const roleMenuRef = useRef<HTMLDivElement>(null);
 
   const content = useMemo(() => {
     if (step === 0) {
@@ -201,6 +194,17 @@ export default function PwaOnboardingPage() {
     router.replace(`/login?role=${encodeURIComponent(role)}`);
   };
 
+  useEffect(() => {
+    if (!roleMenuOpen) return;
+    const onClick = (event: MouseEvent) => {
+      if (roleMenuRef.current && !roleMenuRef.current.contains(event.target as Node)) {
+        setRoleMenuOpen(false);
+      }
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, [roleMenuOpen]);
+
   if (!isOnline) {
     // Don’t show onboarding while offline.
     return (
@@ -226,8 +230,8 @@ export default function PwaOnboardingPage() {
   }
 
   return (
-    <div className="min-h-svh bg-app text-white px-6">
-      <div className="max-w-2xl mx-auto min-h-svh flex flex-col py-16 sm:py-20">
+    <div className="min-h-svh bg-app text-white px-8 sm:px-10">
+      <div className="max-w-2xl mx-auto min-h-svh flex flex-col py-24 sm:py-28">
         <div className="flex-1 flex flex-col">
           <div className="text-center">
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">{content.hero}</h1>
@@ -236,24 +240,57 @@ export default function PwaOnboardingPage() {
             </p>
           </div>
 
-          <div className="mt-16 sm:mt-20">
+          <div className="mt-20 sm:mt-24">
             <OnboardingArt step={step} />
           </div>
 
           {step === 3 && (
-            <div className="mt-14 sm:mt-16 max-w-md mx-auto w-full">
-              <Select
-                label="Select a role"
-                value={role}
-                onChange={(e) => setRole(e.target.value as Role)}
-                options={ROLE_OPTIONS}
-                className="w-full"
-              />
+            <div className="mt-16 sm:mt-20 max-w-md mx-auto w-full">
+              <label className="block text-sm font-medium text-zinc-300 mb-2">Select a role</label>
+              <div ref={roleMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setRoleMenuOpen((v) => !v)}
+                  className="w-full bg-zinc-800/90 border border-zinc-700 rounded-xl px-4 py-3 text-left text-white flex items-center justify-between hover:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+                  aria-expanded={roleMenuOpen}
+                >
+                  <span>{ROLE_OPTIONS.find((r) => r.value === role)?.label ?? "Member"}</span>
+                  <ChevronDown
+                    size={16}
+                    className={[
+                      "text-zinc-400 transition-transform",
+                      roleMenuOpen ? "rotate-180" : "",
+                    ].join(" ")}
+                  />
+                </button>
+                {roleMenuOpen && (
+                  <div className="absolute z-20 mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-900/95 shadow-2xl overflow-hidden">
+                    {ROLE_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setRole(option.value);
+                          setRoleMenuOpen(false);
+                        }}
+                        className={[
+                          "w-full px-4 py-3 text-left text-sm transition-colors",
+                          option.value === role
+                            ? "bg-red-600/20 text-red-300"
+                            : "text-zinc-200 hover:bg-zinc-800",
+                        ].join(" ")}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
 
-        <div className="mt-16 sm:mt-20">
+        <div className="mt-20 sm:mt-24">
           <div className="flex justify-center gap-2 mb-10">
             {[0, 1, 2, 3].map((i) => (
               <div
