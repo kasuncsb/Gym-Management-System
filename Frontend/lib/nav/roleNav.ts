@@ -21,7 +21,7 @@ import {
 
 export type NavItem = { label: string; href: string; icon: LucideIcon };
 
-/** Primary destinations shown on the mobile bottom bar before “More”. */
+/** Primary destinations shown on the mobile bottom bar before the Profile link. */
 export const BOTTOM_NAV_PRIMARY_COUNT = 3;
 
 export function navForRole(role: string): NavItem[] {
@@ -30,8 +30,8 @@ export function navForRole(role: string): NavItem[] {
       return [
         { label: "Dashboard", href: "/member/dashboard", icon: LayoutDashboard },
         { label: "Check-in", href: "/member/checkin", icon: QrCode },
-        { label: "My Subscription", href: "/member/subscription", icon: CreditCard },
         { label: "Workouts", href: "/member/workouts", icon: Dumbbell },
+        { label: "My Subscription", href: "/member/subscription", icon: CreditCard },
         { label: "Appointments", href: "/member/appointments", icon: Calendar },
         { label: "Progress & Stats", href: "/member/progress", icon: TrendingUp },
       ];
@@ -39,8 +39,8 @@ export function navForRole(role: string): NavItem[] {
       return [
         { label: "Dashboard", href: "/trainer/dashboard", icon: LayoutDashboard },
         { label: "Check-in", href: "/trainer/checkin", icon: QrCode },
+        { label: "Users", href: "/trainer/members", icon: Users },
         { label: "My Schedule", href: "/trainer/schedule", icon: Calendar },
-        { label: "Members", href: "/trainer/members", icon: Users },
         { label: "Equipment", href: "/trainer/equipment", icon: Wrench },
         { label: "Inventory", href: "/trainer/inventory", icon: Package },
       ];
@@ -61,10 +61,10 @@ export function navForRole(role: string): NavItem[] {
       return [
         { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
         { label: "Check-in", href: "/admin/checkin", icon: QrCode },
+        { label: "System Alerts", href: "/admin/alerts", icon: AlertTriangle },
         { label: "Users", href: "/admin/users", icon: Users },
         { label: "ID Verification", href: "/admin/id-verification", icon: ShieldCheck },
         { label: "Activities", href: "/admin/activities", icon: Activity },
-        { label: "System Alerts", href: "/admin/alerts", icon: AlertTriangle },
         { label: "Settings", href: "/admin/settings", icon: Settings },
       ];
     default:

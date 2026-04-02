@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import { User } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { useAuth } from "@/context/AuthContext";
-import { useSidebar } from "@/context/SidebarContext";
 import { bottomNavPrimaryItems } from "@/lib/nav/roleNav";
 
 function cn(...inputs: ClassValue[]) {
@@ -16,9 +15,22 @@ function cn(...inputs: ClassValue[]) {
 export function MobileBottomNav() {
   const { user } = useAuth();
   const pathname = usePathname();
-  const { toggleMobileSidebar } = useSidebar();
   const role = user?.role ?? "member";
   const primary = bottomNavPrimaryItems(role);
+  const profileHref = (() => {
+    switch (role) {
+      case "trainer":
+        return "/trainer/profile";
+      case "manager":
+        return "/manager/profile";
+      case "admin":
+        return "/admin/profile";
+      case "member":
+      default:
+        return "/member/profile";
+    }
+  })();
+  const isProfileActive = pathname === profileHref || pathname.startsWith(profileHref + "/");
 
   return (
     <nav
@@ -42,15 +54,21 @@ export function MobileBottomNav() {
             </Link>
           );
         })}
-        <button
-          type="button"
-          onClick={() => toggleMobileSidebar()}
-          className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-2 text-[10px] font-medium text-zinc-400 active:text-white sm:text-xs"
-          aria-label="Open menu for more navigation"
+        <Link
+          href={profileHref}
+          className={cn(
+            "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-2 text-[10px] font-medium sm:text-xs",
+            isProfileActive ? "text-red-400" : "text-zinc-400 active:text-white",
+          )}
+          aria-label="Open profile"
         >
-          <Menu size={22} className="shrink-0" />
-          <span className="leading-tight">More</span>
-        </button>
+          <User
+            size={22}
+            strokeWidth={isProfileActive ? 2.25 : 2}
+            className={cn("shrink-0", isProfileActive && "text-red-400")}
+          />
+          <span className="truncate px-0.5 text-center leading-tight">Profile</span>
+        </Link>
       </div>
     </nav>
   );
