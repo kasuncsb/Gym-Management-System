@@ -153,9 +153,16 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
   }, []);
 
   return (
-    <div className="fixed bottom-6 right-6 z-[120] pointer-events-none">
+    <div
+      className="fixed bottom-6 right-6 z-[120] pointer-events-none max-md:bottom-[calc(6rem+env(safe-area-inset-bottom,0px))]"
+      aria-hidden={!open}
+    >
       {open && (
-        <div className="pointer-events-auto absolute bottom-20 right-0 w-[380px] h-[520px] rounded-3xl border border-zinc-700/80 bg-zinc-900/95 backdrop-blur-2xl shadow-[0_18px_45px_rgba(0,0,0,0.75)] flex flex-col overflow-hidden">
+        <div
+          className="pointer-events-auto absolute bottom-20 right-0 rounded-3xl border border-zinc-700/80 bg-zinc-900/95 backdrop-blur-2xl shadow-[0_18px_45px_rgba(0,0,0,0.75)] flex flex-col overflow-hidden w-[min(92vw,380px)] h-[min(75vh,520px)] max-h-[calc(100vh-10rem-env(safe-area-inset-bottom,0px))]"
+          role="dialog"
+          aria-label={role === 'manager' ? 'AI assistant' : 'AI assistant'}
+        >
           <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-red-600">

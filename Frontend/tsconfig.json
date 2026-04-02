@@ -21,6 +21,8 @@
     "paths": {
       "@/*": ["./*"]
     }
+    ,
+    "types": ["node", "react", "react-dom", "@serwist/next/typings"]
   },
   "include": [
     "next-env.d.ts",

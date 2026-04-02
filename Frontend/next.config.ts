@@ -10,7 +10,7 @@ const withSerwist = withSerwistInit({
   swSrc: "app/sw.ts",
   swDest: "public/sw.js",
   disable: process.env.NODE_ENV === "development",
-  register: false,
+  register: true,
   additionalPrecacheEntries: [{ url: "/~offline", revision }],
 });
 
