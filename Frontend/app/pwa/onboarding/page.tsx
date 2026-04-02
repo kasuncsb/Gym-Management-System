@@ -23,16 +23,28 @@ export default function PwaOnboardingPage() {
   const router = useRouter();
   const isStandalone = useIsStandalonePwa();
   const { user, isAuthenticated, isLoading } = useAuth();
+  const [isOnline, setIsOnline] = useState(true);
 
   const [step, setStep] = useState(0);
   const [role, setRole] = useState<Role>("member");
 
   const stepTitle = useMemo(() => {
-    if (step === 0) return "Welcome to GymSphere";
+    if (step === 0) return "Welcome";
     if (step === 1) return "Offline-ready by design";
     if (step === 2) return "Your progress, everywhere";
     return "Choose your role";
   }, [step]);
+
+  useEffect(() => {
+    const compute = () => setIsOnline(navigator.onLine);
+    compute();
+    window.addEventListener("online", compute);
+    window.addEventListener("offline", compute);
+    return () => {
+      window.removeEventListener("online", compute);
+      window.removeEventListener("offline", compute);
+    };
+  }, []);
 
   useEffect(() => {
     if (isLoading) return;
@@ -61,12 +73,25 @@ export default function PwaOnboardingPage() {
     router.replace(`/login?role=${encodeURIComponent(role)}`);
   };
 
+  if (!isOnline) {
+    // Don’t show onboarding while offline.
+    return (
+      <div className="min-h-svh bg-app text-white flex items-center justify-center px-6 text-center">
+        <div>
+          <div className="h-10 w-10 border-2 border-zinc-300/70 border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="mt-3 text-lg font-semibold">Offline</div>
+          <div className="text-zinc-500 text-sm mt-2">Connect to the internet to continue.</div>
+        </div>
+      </div>
+    );
+  }
+
   if (isStandalone === undefined || isLoading) {
     return (
       <div className="min-h-svh bg-app text-white flex items-center justify-center">
         <div className="text-center">
-          <div className="text-lg font-semibold">GymSphere</div>
-          <div className="text-zinc-500 text-sm mt-2">Loading…</div>
+          <div className="h-8 w-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="text-zinc-500 text-sm mt-3">Loading…</div>
         </div>
       </div>
     );
@@ -82,7 +107,7 @@ export default function PwaOnboardingPage() {
         <h1 className="text-3xl font-bold mt-4">{stepTitle}</h1>
         <p className="text-zinc-400 text-sm mt-2">
           {step === 0 &&
-            "A native-like Gym experience with quick access, smooth navigation, and role-based dashboards."}
+            "Quick access, smooth navigation, and role-based dashboards."}
           {step === 1 && "Designed to keep key screens usable even with flaky networks."}
           {step === 2 && "Check-ins, workouts, and profiles—organized for every role."}
           {step === 3 && "Pick the area you want to start with. You can change later from Profile."}
@@ -138,8 +163,8 @@ export default function PwaOnboardingPage() {
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Offline-ready key screens</h2>
             <p className="text-zinc-400 text-sm leading-relaxed">
-              GymSphere uses Serwist caching so navigation and core UI pages can still render when you lose connection.
-              When a page can’t load, the app shows a GymSphere offline mask.
+              This app uses caching so navigation and core UI pages can still render when you lose connection.
+              When a page can’t load, you’ll see an offline screen.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-4">
@@ -148,7 +173,7 @@ export default function PwaOnboardingPage() {
               </div>
               <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-4">
                 <div className="text-white font-medium mb-1">Offline fallback</div>
-                <div className="text-zinc-400 text-sm">Shows the branded GymSphere screen.</div>
+                <div className="text-zinc-400 text-sm">Shows a simple offline screen.</div>
               </div>
             </div>
           </div>

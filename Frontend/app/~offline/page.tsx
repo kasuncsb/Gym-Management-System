@@ -1,7 +1,7 @@
 import { PwaErrorMask } from "@/components/pwa/PwaErrorMask";
 
 export const metadata = {
-  title: "GymSphere Offline",
+  title: "Offline",
 };
 
 export default function OfflinePage() {

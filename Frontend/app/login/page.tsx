@@ -131,7 +131,7 @@ function LoginForm() {
                     </h1>
                     <p className="text-lg text-zinc-400">
                         {roleForUi
-                            ? `Access your ${roleLabel} workspace in GymSphere.`
+                            ? `Access your ${roleLabel} workspace.`
                             : "Track progress, book classes, and crush your goals."}
                     </p>
                 </div>

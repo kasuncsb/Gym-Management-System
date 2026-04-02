@@ -34,8 +34,8 @@ export default function PwaBootPage() {
   return (
     <div className="min-h-svh bg-app text-white flex items-center justify-center">
       <div className="text-center">
-        <div className="text-lg font-semibold text-white">GymSphere</div>
-        <div className="text-zinc-500 text-sm mt-2">Loading…</div>
+        <div className="h-8 w-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin mx-auto" />
+        <div className="text-zinc-500 text-sm mt-3">Loading…</div>
       </div>
     </div>
   );

@@ -8,6 +8,16 @@ import { authAPI } from '../lib/api';
 /** Throttle profile re-validation to avoid 429 when navigating / remounting. */
 const PROFILE_CACHE_MS = 60_000; // 60s — skip API if we validated recently
 
+function isStandalonePwaRuntime(): boolean {
+  try {
+    const mql = window.matchMedia?.("(display-mode: standalone)");
+    const iosStandalone = (window.navigator as any)?.standalone === true;
+    return Boolean((mql && mql.matches) || iosStandalone);
+  } catch {
+    return false;
+  }
+}
+
 export type Role = 'admin' | 'manager' | 'trainer' | 'member';
 
 export interface User {
@@ -203,7 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     sessionStorage.clear();
     document.cookie = 'user_role=; path=/; max-age=0';
     // Hard navigation so the whole app tree unmounts and no stale state remains (fixes empty dashboard on next login).
-    window.location.href = '/';
+    window.location.href = isStandalonePwaRuntime() ? '/pwa/onboarding' : '/';
   }, []);
 
   const hasRole = useCallback((...roles: Role[]) => {

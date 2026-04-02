@@ -15,7 +15,7 @@ const withSerwist = withSerwistInit({
     { url: "/pwa", revision },
     { url: "/pwa/onboarding", revision },
     { url: "/~offline", revision },
-    // Ensure the branded "flash" and offline mask logo is available offline.
+    // Ensure the PWA splash art is available offline.
     { url: "/icons/member.png", revision },
   ],
 });
