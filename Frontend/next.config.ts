@@ -12,8 +12,8 @@ const withSerwist = withSerwistInit({
   disable: process.env.NODE_ENV === "development",
   register: true,
   additionalPrecacheEntries: [
-    { url: "/pwa", revision },
-    { url: "/pwa/onboarding", revision },
+    // IMPORTANT: Do not precache onboarding/boot pages.
+    // When offline, we must always show the offline/error experience instead of cached onboarding.
     { url: "/~offline", revision },
     // Ensure the PWA splash art is available offline.
     { url: "/icons/member.png", revision },

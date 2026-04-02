@@ -250,6 +250,20 @@ export default function PwaOnboardingPage() {
 
           {/* Middle (shrinks to fit) */}
           <div className="min-h-0 flex flex-col items-center justify-center text-center gap-[clamp(10px,2.2vh,22px)]">
+            {/* Minimal KitKat-style page indicator */}
+            <div className="flex items-center justify-center gap-2">
+              {[0, 1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className={[
+                    "h-1.5 rounded-full transition-all duration-200",
+                    i === step ? "w-9 bg-red-500" : "w-1.5 bg-zinc-700/80",
+                  ].join(" ")}
+                  aria-hidden
+                />
+              ))}
+            </div>
+
             <div className="min-h-0 w-full flex items-center justify-center">
               <div
                 className="w-full flex items-center justify-center"
@@ -307,18 +321,6 @@ export default function PwaOnboardingPage() {
 
           {/* Footer */}
           <div>
-            <div className="flex justify-center gap-2 mb-[clamp(8px,1.2vh,12px)]">
-            {[0, 1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className={[
-                  "h-1.5 w-12 rounded-full transition-colors",
-                  i === step ? "bg-red-500" : "bg-zinc-800/70",
-                ].join(" ")}
-              />
-            ))}
-          </div>
-
           <div className="flex items-center justify-center gap-3">
             {step > 0 && (
               <LoadingButton variant="secondary" size="md" onClick={goBack}>
