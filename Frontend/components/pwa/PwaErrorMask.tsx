@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { BrokenMachineIcon } from "./BrokenMachineIcon";
@@ -20,26 +19,17 @@ export function PwaErrorMask() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-2">
-        <Link
-          href="/pwa"
-          className="rounded-full bg-gradient-to-r from-red-700 to-red-900 px-6 py-3 font-bold text-white hover:from-red-600 hover:to-red-800 transition-colors"
-        >
-          Back
-        </Link>
-
-        <button
-          type="button"
-          onClick={() => {
-            router.refresh();
-            window.setTimeout(() => window.location.reload(), 1500);
-          }}
-          className="rounded-full border border-zinc-700 px-6 py-3 font-bold text-white hover:bg-zinc-800/50 transition-colors flex items-center justify-center gap-2"
-        >
-          <RefreshCw size={16} />
-          Retry
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => {
+          router.refresh();
+          window.setTimeout(() => window.location.reload(), 1500);
+        }}
+        className="mt-2 rounded-full bg-gradient-to-r from-red-700 to-red-900 px-8 py-3 font-bold text-white hover:from-red-600 hover:to-red-800 transition-colors flex items-center justify-center gap-2 mx-auto"
+      >
+        <RefreshCw size={16} />
+        Retry
+      </button>
     </div>
   );
 }
