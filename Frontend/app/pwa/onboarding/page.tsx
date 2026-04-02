@@ -230,8 +230,8 @@ export default function PwaOnboardingPage() {
   }
 
   return (
-    <div className="min-h-svh bg-app text-white px-8 sm:px-10">
-      <div className="max-w-2xl mx-auto min-h-svh flex flex-col py-24 sm:py-28">
+    <div className="min-h-svh bg-app text-white px-[clamp(16px,4vw,40px)]">
+      <div className="max-w-2xl mx-auto min-h-svh flex flex-col py-[clamp(16px,3vh,28px)]">
         <div className="flex-1 flex flex-col">
           <div className="text-center">
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">{content.hero}</h1>
@@ -240,12 +240,12 @@ export default function PwaOnboardingPage() {
             </p>
           </div>
 
-          <div className="mt-20 sm:mt-24">
+          <div className="mt-[clamp(14px,2.2vh,28px)]">
             <OnboardingArt step={step} />
           </div>
 
           {step === 3 && (
-            <div className="mt-16 sm:mt-20 max-w-md mx-auto w-full">
+            <div className="mt-[clamp(12px,1.9vh,24px)] max-w-md mx-auto w-full">
               <label className="block text-sm font-medium text-zinc-300 mb-2">Select a role</label>
               <div ref={roleMenuRef} className="relative">
                 <button
@@ -290,8 +290,8 @@ export default function PwaOnboardingPage() {
           )}
         </div>
 
-        <div className="mt-20 sm:mt-24">
-          <div className="flex justify-center gap-2 mb-10">
+        <div className="mt-[clamp(12px,1.8vh,22px)]">
+          <div className="flex justify-center gap-2 mb-[clamp(10px,1.6vh,18px)]">
             {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
