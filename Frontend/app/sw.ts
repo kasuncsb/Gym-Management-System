@@ -1,6 +1,6 @@
 import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { NetworkFirst, NetworkOnly, Serwist } from "serwist";
+import { NetworkOnly, Serwist } from "serwist";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -20,8 +20,8 @@ const serwist = new Serwist({
     // Treat 5xx navigations as failures so the document fallback (/~offline) is used.
     {
       matcher: ({ request, sameOrigin }) => sameOrigin && request.destination === "document",
-      handler: new NetworkFirst({
-        networkTimeoutSeconds: 8,
+      // Strict requirement: when offline, ALWAYS show offline page (never cached HTML).
+      handler: new NetworkOnly({
         plugins: [
           {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -22,13 +22,13 @@ function setUserRoleCookie(role: Role) {
 
 function OnboardingArt({ step }: { step: number }) {
   const common = {
-    width: 420,
-    height: 260,
     viewBox: "0 0 420 260",
     fill: "none",
     xmlns: "http://www.w3.org/2000/svg",
     className:
-      "w-[min(420px,100%)] h-auto mx-auto drop-shadow-[0_40px_80px_rgba(220,38,38,0.08)]",
+      // IMPORTANT: height-responsive (fits the allotted column height).
+      "h-full w-auto max-w-full mx-auto drop-shadow-[0_40px_80px_rgba(220,38,38,0.08)]",
+    preserveAspectRatio: "xMidYMid meet",
   } as const;
 
   const stroke = "rgba(244,244,245,0.78)";
@@ -232,7 +232,7 @@ export default function PwaOnboardingPage() {
           // Generous margins, but responsive so short screens still fit (no scrollbars).
           paddingTop: "max(env(safe-area-inset-top), clamp(20px, 5.5vh, 56px))",
           // Slightly smaller bottom margin pushes buttons down (visually closer to bottom).
-          paddingBottom: "max(env(safe-area-inset-bottom), clamp(10px, 2.8vh, 26px))",
+          paddingBottom: "max(env(safe-area-inset-bottom), clamp(6px, 1.8vh, 18px))",
           paddingLeft: "max(env(safe-area-inset-left), clamp(18px, 5vw, 56px))",
           paddingRight: "max(env(safe-area-inset-right), clamp(18px, 5vw, 56px))",
         }}
@@ -251,7 +251,10 @@ export default function PwaOnboardingPage() {
           {/* Middle (shrinks to fit) */}
           <div className="min-h-0 flex flex-col items-center justify-center text-center gap-[clamp(10px,2.2vh,22px)]">
             <div className="min-h-0 w-full flex items-center justify-center">
-              <div className="w-full flex items-center justify-center" style={{ maxHeight: artMaxHeight }}>
+              <div
+                className="w-full flex items-center justify-center"
+                style={{ height: artMaxHeight }}
+              >
                 <OnboardingArt step={step} />
               </div>
             </div>
@@ -304,7 +307,7 @@ export default function PwaOnboardingPage() {
 
           {/* Footer */}
           <div>
-            <div className="flex justify-center gap-2 mb-[clamp(10px,1.8vh,16px)]">
+            <div className="flex justify-center gap-2 mb-[clamp(8px,1.2vh,12px)]">
             {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
