@@ -143,7 +143,7 @@ export default function ManagerEquipmentPage() {
                 title="Equipment"
                 subtitle="Manage gym equipment and resolve maintenance issues"
                 action={
-                    <div className="flex gap-3">
+                    <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-stretch">
                         <LoadingButton variant="secondary" icon={Wrench} onClick={() => setReportOpen(true)} size="md">
                             Report Issue
                         </LoadingButton>

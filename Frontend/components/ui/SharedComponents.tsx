@@ -166,7 +166,11 @@ export function PageHeader({ title, subtitle, actions, action, badge, badgeColor
                 </div>
                 {subtitle && <p className="text-zinc-400 mt-1 text-sm sm:text-base">{subtitle}</p>}
             </div>
-            {actionContent && <div className="flex items-center gap-3 shrink-0">{actionContent}</div>}
+            {actionContent && (
+                <div className="flex items-center gap-3 min-w-0 sm:shrink-0">
+                    {actionContent}
+                </div>
+            )}
         </div>
     );
 }

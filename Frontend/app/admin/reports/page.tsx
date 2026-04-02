@@ -86,8 +86,8 @@ export default function AdminReportsPage() {
                     <Input id="rpt-from" label="From Date" type="date" value={from} onChange={e => setFrom(e.target.value)} />
                     <Input id="rpt-to" label="To Date" type="date" value={to} onChange={e => setTo(e.target.value)} />
                 </div>
-                <div className="flex gap-3">
-                    <LoadingButton onClick={run} loading={loading} className="flex-1">
+                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-stretch">
+                    <LoadingButton onClick={run} loading={loading} className="sm:flex-1">
                         Generate {label} Report
                     </LoadingButton>
                     {reportData && (

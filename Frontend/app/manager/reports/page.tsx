@@ -84,8 +84,8 @@ export default function ManagerReportsPage() {
                     <Input id="mgr-rpt-from" label="From Date" type="date" value={from} onChange={e => setFrom(e.target.value)} />
                     <Input id="mgr-rpt-to" label="To Date" type="date" value={to} onChange={e => setTo(e.target.value)} />
                 </div>
-                <div className="flex gap-3">
-                    <LoadingButton onClick={generate} loading={loading} className="flex-1">
+                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-stretch">
+                    <LoadingButton onClick={generate} loading={loading} className="sm:flex-1">
                         Generate {label} Report
                     </LoadingButton>
                     {reportData && (

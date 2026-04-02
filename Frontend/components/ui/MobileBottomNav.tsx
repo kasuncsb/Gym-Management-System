@@ -50,7 +50,7 @@ export function MobileBottomNav() {
               )}
             >
               <Icon size={22} strokeWidth={isActive ? 2.25 : 2} className={cn("shrink-0", isActive && "text-red-400")} />
-              <span className="truncate px-0.5 text-center leading-tight">{label}</span>
+              <span className="px-0.5 text-center leading-tight break-words whitespace-normal">{label}</span>
             </Link>
           );
         })}
@@ -67,7 +67,7 @@ export function MobileBottomNav() {
             strokeWidth={isProfileActive ? 2.25 : 2}
             className={cn("shrink-0", isProfileActive && "text-red-400")}
           />
-          <span className="truncate px-0.5 text-center leading-tight">Profile</span>
+          <span className="px-0.5 text-center leading-tight break-words whitespace-normal">Profile</span>
         </Link>
       </div>
     </nav>
