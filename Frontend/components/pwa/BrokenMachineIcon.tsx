@@ -14,13 +14,12 @@ export function BrokenMachineIcon({ className }: { className?: string }) {
       <circle cx="50" cy="50" r="38" stroke="currentColor" strokeWidth="2.5" />
       <circle cx="38" cy="46" r="3.5" stroke="currentColor" strokeWidth="2" />
       <circle cx="62" cy="46" r="3.5" stroke="currentColor" strokeWidth="2" />
-      {/* Downward “V” mouth: corners high, tip low — reads as sad in every renderer (no ambiguous curve). */}
+      {/* Sad mouth: smooth arc — center high, corners low (y grows downward in SVG). */}
       <path
-        d="M 28 56 L 50 76 L 72 56"
+        d="M 28 70 Q 50 56 72 70"
         stroke="currentColor"
         strokeWidth="3"
         strokeLinecap="round"
-        strokeLinejoin="round"
       />
     </svg>
   );
