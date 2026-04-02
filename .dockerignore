@@ -1,0 +1,26 @@
+# Used when the build context is the repository root, e.g.:
+#   docker build -f Backend/Dockerfile .
+# Compose in this repo uses context ./Backend and ./Frontend only; those folders
+# have their own .dockerignore files.
+
+# Mobile app — not part of server images
+Flutter/
+
+.git/
+.gitignore
+.github/
+
+# Secrets and local env
+.env
+.env.*
+!.env.example
+
+# Heavy / irrelevant paths if ever building from root
+Frontend/node_modules/
+Frontend/.next/
+Backend/node_modules/
+Backend/dist/
+
+*.md
+.DS_Store
+Thumbs.db

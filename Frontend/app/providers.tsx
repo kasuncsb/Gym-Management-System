@@ -4,6 +4,7 @@ import { AuthProvider } from "../context/AuthContext";
 import { SidebarProvider } from "../context/SidebarContext";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 
 export function Providers({ children }: { children: React.ReactNode }) {
     return (
@@ -11,6 +12,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             <AuthProvider>
                 <SidebarProvider>
                     <ToastProvider>
+                        <ServiceWorkerRegister />
                         {children}
                     </ToastProvider>
                 </SidebarProvider>

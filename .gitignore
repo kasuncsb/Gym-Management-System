@@ -52,6 +52,28 @@ yarn-error.log*
 Thumbs.db
 Desktop.ini
 
+# Flutter (monorepo mobile app under Flutter/) — mirrors standard Flutter ignores
+Flutter/**/.dart_tool/
+Flutter/**/build/
+Flutter/**/.flutter-plugins
+Flutter/**/.flutter-plugins-dependencies
+Flutter/**/.packages
+Flutter/**/.pub-cache/
+Flutter/**/.pub/
+Flutter/**/coverage/
+Flutter/**/doc/api/
+Flutter/**/*.iml
+Flutter/**/ios/Flutter/.last_build_id
+Flutter/**/ios/Pods/
+Flutter/**/ios/.symlinks/
+Flutter/**/android/.gradle/
+Flutter/**/android/captures/
+Flutter/**/android/local.properties
+
+# Serwist PWA (generated at Frontend build)
+Frontend/public/sw.js
+Frontend/public/sw.js.map
+Frontend/public/swe-worker*
 
 # ── Docker secrets (never commit actual .env used at runtime) ──────────────────
 # .env at root is the production secret file — already excluded above

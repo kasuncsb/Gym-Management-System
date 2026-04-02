@@ -27,6 +27,10 @@ router.get('/workouts/plans/:planId', optionalAuthenticate, ops.getWorkoutPlanDe
 
 router.use(authenticate);
 
+router.post('/push/register-token', authorize('member', 'trainer', 'manager', 'admin'), ops.registerPushToken);
+router.post('/push/unregister-token', authorize('member', 'trainer', 'manager', 'admin'), ops.unregisterPushToken);
+router.post('/push/test-send', authorize('admin', 'manager', 'trainer'), ops.sendPushTest);
+
 router.get('/dashboard/:role', ops.getDashboard);
 router.get('/dashboard/:role/analytics', ops.getDashboardAnalytics);
 

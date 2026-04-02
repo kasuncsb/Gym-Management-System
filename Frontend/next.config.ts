@@ -1,7 +1,21 @@
+import { randomUUID } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import type { NextConfig } from "next";
+import withSerwistInit from "@serwist/next";
+
+const revision =
+  spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf-8" }).stdout?.trim() || randomUUID();
+
+const withSerwist = withSerwistInit({
+  swSrc: "app/sw.ts",
+  swDest: "public/sw.js",
+  disable: process.env.NODE_ENV === "development",
+  register: false,
+  additionalPrecacheEntries: [{ url: "/~offline", revision }],
+});
 
 if (!process.env.BACKEND_URL) {
-  throw new Error('BACKEND_URL is not set in the Frontend .env file.');
+  throw new Error("BACKEND_URL is not set in the Frontend .env file.");
 }
 
 const nextConfig: NextConfig = {
@@ -33,6 +47,14 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
+      },
+    ];
+  },
 };
 
-export default nextConfig;
+export default withSerwist(nextConfig);

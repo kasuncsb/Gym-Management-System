@@ -18,12 +18,28 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  applicationName: "PowerWorld Gyms",
   title: {
     default: "PowerWorld Gyms - Sri Lanka's Premier Fitness Network",
     template: "%s | PowerWorld Gyms",
   },
   description:
     "The largest fitness network in Sri Lanka. State-of-the-art facilities, expert trainers, and personalized workout plans. Join PowerWorld Gyms today.",
+  formatDetection: {
+    telephone: false,
+  },
+  appleWebApp: {
+    capable: true,
+    title: "PowerWorld Gyms",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+    icon: [
+      { url: "/icons/pwa-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/pwa-512.png", sizes: "512x512", type: "image/png" },
+    ],
+  },
   keywords: [
     "gym",
     "fitness",
@@ -48,6 +64,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#1e1e1e",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

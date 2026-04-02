@@ -4,6 +4,7 @@ import * as response from '../utils/response.js';
 import type { AuthRequest } from '../middleware/auth.js';
 import * as opsService from '../services/ops.service.js';
 import * as auditService from '../services/audit.service.js';
+import * as pushService from '../services/push.service.js';
 import { errors } from '../utils/errors.js';
 import type { WorkoutProgramJson } from '../validators/workoutProgram.js';
 import { parseWorkoutPlanPreferences } from '../validators/aiWorkoutPlanPreferences.js';
@@ -118,6 +119,42 @@ export const getBranchCapacity = asyncHandler(async (_req: AuthRequest, res: Res
 
 export const getPublicSystemStatus = asyncHandler(async (_req: AuthRequest, res: Response) => {
   res.json(response.success(await opsService.getPublicSystemStatus()));
+});
+
+export const registerPushToken = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  const token = String(req.body?.token ?? '').trim();
+  if (!token) throw errors.badRequest('token is required');
+  res.json(response.success(await pushService.registerPushToken(user.id, user.role as Role, token), 'Push token registered'));
+});
+
+export const unregisterPushToken = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  const token = String(req.body?.token ?? '').trim();
+  if (!token) throw errors.badRequest('token is required');
+  res.json(response.success(await pushService.unregisterPushToken(user.id, token), 'Push token removed'));
+});
+
+export const sendPushTest = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  const mode = String(req.body?.mode ?? 'self').trim();
+  const title = String(req.body?.title ?? 'PowerWorld Notification');
+  const body = String(req.body?.body ?? 'Test notification from GMS backend');
+  const data = (req.body?.data ?? {}) as Record<string, string>;
+
+  let result: unknown;
+  if (mode === 'role') {
+    const role = String(req.body?.role ?? '').trim() as Role;
+    if (!role) throw errors.badRequest('role is required for role mode');
+    result = await pushService.sendToRole(role, title, body, data);
+  } else if (mode === 'user') {
+    const targetUserId = String(req.body?.userId ?? '').trim();
+    if (!targetUserId) throw errors.badRequest('userId is required for user mode');
+    result = await pushService.sendToUser(targetUserId, title, body, data);
+  } else {
+    result = await pushService.sendToUser(user.id, title, body, data);
+  }
+  res.json(response.success(result, 'Push test dispatched'));
 });
 
 export const listMyPtSessions = asyncHandler(async (req: AuthRequest, res: Response) => {
