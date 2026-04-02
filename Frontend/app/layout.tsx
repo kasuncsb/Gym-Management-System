@@ -18,10 +18,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  applicationName: "PowerWorld Gyms",
+  applicationName: "GymSphere",
   title: {
-    default: "PowerWorld Gyms - Sri Lanka's Premier Fitness Network",
-    template: "%s | PowerWorld Gyms",
+    default: "GymSphere - Sri Lanka's Premier Fitness Network",
+    template: "%s | GymSphere",
   },
   description:
     "The largest fitness network in Sri Lanka. State-of-the-art facilities, expert trainers, and personalized workout plans. Join PowerWorld Gyms today.",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "PowerWorld Gyms",
+    title: "GymSphere",
     statusBarStyle: "black-translucent",
   },
   icons: {
@@ -53,8 +53,8 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_LK",
-    siteName: "PowerWorld Gyms",
-    title: "PowerWorld Gyms - Sri Lanka's Premier Fitness Network",
+    siteName: "GymSphere",
+    title: "GymSphere - Sri Lanka's Premier Fitness Network",
     description:
       "State-of-the-art facilities, expert trainers, and personalized workout plans.",
   },

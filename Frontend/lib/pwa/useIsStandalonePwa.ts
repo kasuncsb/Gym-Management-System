@@ -7,7 +7,8 @@ import { useEffect, useState } from "react";
  * Uses modern `display-mode: standalone` and iOS `navigator.standalone`.
  */
 export function useIsStandalonePwa() {
-  const [isStandalone, setIsStandalone] = useState(false);
+  // `undefined` until we have a chance to evaluate the standalone display mode.
+  const [isStandalone, setIsStandalone] = useState<boolean | undefined>(undefined);
 
   useEffect(() => {
     const mql = window.matchMedia?.("(display-mode: standalone)");

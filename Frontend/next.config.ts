@@ -11,7 +11,13 @@ const withSerwist = withSerwistInit({
   swDest: "public/sw.js",
   disable: process.env.NODE_ENV === "development",
   register: true,
-  additionalPrecacheEntries: [{ url: "/~offline", revision }],
+  additionalPrecacheEntries: [
+    { url: "/pwa", revision },
+    { url: "/pwa/onboarding", revision },
+    { url: "/~offline", revision },
+    // Ensure the branded "flash" and offline mask logo is available offline.
+    { url: "/icons/member.png", revision },
+  ],
 });
 
 if (!process.env.BACKEND_URL) {

@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { authAPI, getErrorMessage } from "@/lib/api";
 import { Mail, Lock, Loader2, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth, dashboardPathForRole } from "@/context/AuthContext";
+import { useAuth, dashboardPathForRole, type Role } from "@/context/AuthContext";
 
 // ── Inner form component ─────────────────────────────────────────────────────
 // useSearchParams() MUST live inside a component that is wrapped in <Suspense>
@@ -23,6 +23,17 @@ function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
+    const roleFromQuery = searchParams.get('role');
+    const roleForUi: Role | null = (["member", "trainer", "manager", "admin"] as const).includes(
+        roleFromQuery as Role
+    )
+        ? (roleFromQuery as Role)
+        : null;
+
+    const roleLabel = roleForUi
+        ? roleForUi.charAt(0).toUpperCase() + roleForUi.slice(1)
+        : "Member";
+
     // Redirect authenticated users to the appropriate step (members: verify → onboard → dashboard).
     useEffect(() => {
         if (!authLoading && isAuthenticated && user) {
@@ -35,6 +46,12 @@ function LoginForm() {
             }
         }
     }, [authLoading, isAuthenticated, user, router]);
+
+    // Save the role hint so we can show role-specific UI immediately after refresh.
+    useEffect(() => {
+        if (!roleForUi) return;
+        document.cookie = `user_role=${roleForUi}; path=/; samesite=lax`;
+    }, [roleForUi]);
 
     // Show success notice when redirected here after password change (BUG-03)
     useEffect(() => {
@@ -102,16 +119,34 @@ function LoginForm() {
                 {/* Welcome — 1–2 lines max */}
                 <div className="w-full max-w-xl text-center mb-10">
                     <h1 className="text-4xl sm:text-5xl font-bold mb-4 leading-tight">
-                        Welcome back to <span className="text-red-500">Elite Fitness.</span>
+                        {roleForUi ? (
+                            <>
+                                Sign in as <span className="text-red-500">{roleLabel}</span>
+                            </>
+                        ) : (
+                            <>
+                                Welcome back to <span className="text-red-500">Elite Fitness.</span>
+                            </>
+                        )}
                     </h1>
-                    <p className="text-lg text-zinc-400">Track progress, book classes, and crush your goals.</p>
+                    <p className="text-lg text-zinc-400">
+                        {roleForUi
+                            ? `Access your ${roleLabel} workspace in GymSphere.`
+                            : "Track progress, book classes, and crush your goals."}
+                    </p>
                 </div>
 
                 {/* Form card — left-aligned form elements */}
                 <div className="w-full max-w-md bg-zinc-800/80 backdrop-blur-xl border border-zinc-700 p-8 rounded-3xl shadow-2xl" id="login-card">
                     <div className="mb-8">
-                        <h2 className="text-2xl font-bold mb-2" id="login-title">Sign In</h2>
-                        <p className="text-zinc-400 text-sm">Enter your details to access your account.</p>
+                        <h2 className="text-2xl font-bold mb-2" id="login-title">
+                            {roleForUi ? `Sign In (${roleLabel})` : "Sign In"}
+                        </h2>
+                        <p className="text-zinc-400 text-sm">
+                            {roleForUi
+                                ? "Enter your details to continue to your role dashboard."
+                                : "Enter your details to access your account."}
+                        </p>
                     </div>
 
                     {successMsg && (

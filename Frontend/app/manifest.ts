@@ -2,11 +2,11 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "PowerWorld Gyms",
-    short_name: "PowerWorld",
+    name: "GymSphere",
+    short_name: "GymSphere",
     description:
       "Sri Lanka fitness network — facilities, trainers, workouts, and member tools.",
-    start_url: "/",
+    start_url: "/pwa",
     scope: "/",
     display: "standalone",
     orientation: "portrait-primary",
