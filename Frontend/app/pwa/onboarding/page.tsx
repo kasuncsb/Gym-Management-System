@@ -231,7 +231,8 @@ export default function PwaOnboardingPage() {
         style={{
           // Generous margins, but responsive so short screens still fit (no scrollbars).
           paddingTop: "max(env(safe-area-inset-top), clamp(20px, 5.5vh, 56px))",
-          paddingBottom: "max(env(safe-area-inset-bottom), clamp(18px, 4.5vh, 44px))",
+          // Slightly smaller bottom margin pushes buttons down (visually closer to bottom).
+          paddingBottom: "max(env(safe-area-inset-bottom), clamp(10px, 2.8vh, 26px))",
           paddingLeft: "max(env(safe-area-inset-left), clamp(18px, 5vw, 56px))",
           paddingRight: "max(env(safe-area-inset-right), clamp(18px, 5vw, 56px))",
         }}

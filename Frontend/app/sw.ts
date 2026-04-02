@@ -32,6 +32,18 @@ const serwist = new Serwist({
               return response;
             },
           },
+          {
+            // Always fall back to the offline mask for navigations on ANY failure
+            // (offline, DNS errors, 5xx, etc.) so Chrome never shows its own unreachable page.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            async handlerDidError(): Promise<Response | undefined> {
+              try {
+                return await serwist.matchPrecache("/~offline");
+              } catch {
+                return undefined;
+              }
+            },
+          },
         ],
       }),
     },
