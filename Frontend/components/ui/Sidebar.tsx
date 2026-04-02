@@ -35,14 +35,14 @@ export function Sidebar() {
               href={href}
               onClick={closeMobileSidebar}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 w-full min-w-0",
                 isActive
                   ? "bg-red-600/15 text-red-400 shadow-sm"
                   : "text-zinc-400 hover:text-white hover:bg-zinc-800/50",
               )}
             >
               <Icon size={18} className={isActive ? "text-red-400" : ""} />
-              {label}
+              <span className="min-w-0 break-words">{label}</span>
             </Link>
           );
         })}
@@ -62,7 +62,7 @@ export function Sidebar() {
             onClick={closeMobileSidebar}
           />
           <div
-            className="absolute left-0 bottom-0 w-72 bg-[#252526] border-r border-zinc-800/50 shadow-2xl"
+            className="absolute left-0 bottom-0 w-[80vw] max-w-72 bg-[#252526] border-r border-zinc-800/50 shadow-2xl"
             style={{ top: NAVBAR_HEIGHT }}
           >
             <SidebarContent />

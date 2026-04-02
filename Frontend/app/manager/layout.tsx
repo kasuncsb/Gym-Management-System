@@ -3,8 +3,11 @@
 import { Sidebar } from "@/components/ui/Sidebar";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { MemberChatbot } from '@/components/ai/MemberChatbot';
+import { MobileBottomNav } from "@/components/ui/MobileBottomNav";
+import { useIsStandalonePwa } from "@/lib/pwa/useIsStandalonePwa";
 
 export default function ManagerLayout({ children }: { children: React.ReactNode }) {
+    const showMobileNav = useIsStandalonePwa();
     return (
         <ProtectedRoute allowedRoles={['manager']}>
             <div className="flex min-h-screen bg-app text-white">
@@ -15,6 +18,7 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
                         {children}
                     </div>
                     <MemberChatbot role="manager" />
+                    {showMobileNav && <MobileBottomNav />}
                 </main>
             </div>
         </ProtectedRoute>

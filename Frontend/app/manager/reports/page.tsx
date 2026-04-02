@@ -116,20 +116,22 @@ export default function ManagerReportsPage() {
                     {reportData.type === 'revenue' && reportData.byMethod && (
                         <Card padding="lg">
                             <h3 className="text-white font-semibold mb-4">Revenue by Payment Method</h3>
-                            <table className="w-full text-sm">
-                                <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
-                                    <th className="text-left py-2">Method</th>
-                                    <th className="text-right py-2">Transactions</th>
-                                    <th className="text-right py-2">Total</th>
-                                </tr></thead>
-                                <tbody>{(reportData.byMethod ?? []).map((r: any, i: number) => (
-                                    <tr key={i} className="border-b border-zinc-800/50">
-                                        <td className="py-2 text-zinc-300 capitalize">{String(r.method).replace('_', ' ')}</td>
-                                        <td className="py-2 text-right text-zinc-400">{r.count}</td>
-                                        <td className="py-2 text-right text-white font-medium">Rs. {Number(r.total).toLocaleString()}</td>
-                                    </tr>
-                                ))}</tbody>
-                            </table>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
+                                        <th className="text-left py-2">Method</th>
+                                        <th className="text-right py-2">Transactions</th>
+                                        <th className="text-right py-2">Total</th>
+                                    </tr></thead>
+                                    <tbody>{(reportData.byMethod ?? []).map((r: any, i: number) => (
+                                        <tr key={i} className="border-b border-zinc-800/50">
+                                            <td className="py-2 text-zinc-300 capitalize">{String(r.method).replace('_', ' ')}</td>
+                                            <td className="py-2 text-right text-zinc-400">{r.count}</td>
+                                            <td className="py-2 text-right text-white font-medium">Rs. {Number(r.total).toLocaleString()}</td>
+                                        </tr>
+                                    ))}</tbody>
+                                </table>
+                            </div>
                         </Card>
                     )}
 
@@ -139,18 +141,20 @@ export default function ManagerReportsPage() {
                             {reportData.byPlan && (
                                 <>
                                     <h3 className="text-white font-semibold mb-3">Active Subscriptions by Plan</h3>
-                                    <table className="w-full text-sm">
-                                        <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
-                                            <th className="text-left py-2">Plan</th>
-                                            <th className="text-right py-2">Active</th>
-                                        </tr></thead>
-                                        <tbody>{(reportData.byPlan ?? []).map((r: any, i: number) => (
-                                            <tr key={i} className="border-b border-zinc-800/50">
-                                                <td className="py-2 text-zinc-300">{r.planName ?? 'Unknown'}</td>
-                                                <td className="py-2 text-right text-white font-medium">{r.count}</td>
-                                            </tr>
-                                        ))}</tbody>
-                                    </table>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
+                                                <th className="text-left py-2">Plan</th>
+                                                <th className="text-right py-2">Active</th>
+                                            </tr></thead>
+                                            <tbody>{(reportData.byPlan ?? []).map((r: any, i: number) => (
+                                                <tr key={i} className="border-b border-zinc-800/50">
+                                                    <td className="py-2 text-zinc-300">{r.planName ?? 'Unknown'}</td>
+                                                    <td className="py-2 text-right text-white font-medium">{r.count}</td>
+                                                </tr>
+                                            ))}</tbody>
+                                        </table>
+                                    </div>
                                 </>
                             )}
                         </Card>
@@ -174,7 +178,7 @@ export default function ManagerReportsPage() {
                                     })}
                                 </div>
                             )}
-                            <div className="max-h-48 overflow-y-auto">
+                            <div className="max-h-48 overflow-y-auto overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
                                         <th className="text-left py-2">Date</th>
@@ -196,27 +200,29 @@ export default function ManagerReportsPage() {
                     {reportData.type === 'trainer' && reportData.trainerStats && (
                         <Card padding="lg">
                             <h3 className="text-white font-semibold mb-4">Trainer Performance</h3>
-                            <table className="w-full text-sm">
-                                <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
-                                    <th className="text-left py-2">Trainer</th>
-                                    <th className="text-right py-2">Total</th>
-                                    <th className="text-right py-2">Completed</th>
-                                    <th className="text-right py-2">Cancelled</th>
-                                    <th className="text-right py-2">Rate</th>
-                                </tr></thead>
-                                <tbody>{(reportData.trainerStats ?? []).map((r: any, i: number) => {
-                                    const pct = r.total > 0 ? Math.round((Number(r.completed) / Number(r.total)) * 100) : 0;
-                                    return (
-                                        <tr key={i} className="border-b border-zinc-800/50">
-                                            <td className="py-2 text-zinc-300">{r.trainerName ?? 'Unknown'}</td>
-                                            <td className="py-2 text-right text-white">{r.total}</td>
-                                            <td className="py-2 text-right text-emerald-400">{r.completed}</td>
-                                            <td className="py-2 text-right text-red-400">{r.cancelled}</td>
-                                            <td className="py-2 text-right text-white font-medium">{pct}%</td>
-                                        </tr>
-                                    );
-                                })}</tbody>
-                            </table>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
+                                        <th className="text-left py-2">Trainer</th>
+                                        <th className="text-right py-2">Total</th>
+                                        <th className="text-right py-2">Completed</th>
+                                        <th className="text-right py-2">Cancelled</th>
+                                        <th className="text-right py-2">Rate</th>
+                                    </tr></thead>
+                                    <tbody>{(reportData.trainerStats ?? []).map((r: any, i: number) => {
+                                        const pct = r.total > 0 ? Math.round((Number(r.completed) / Number(r.total)) * 100) : 0;
+                                        return (
+                                            <tr key={i} className="border-b border-zinc-800/50">
+                                                <td className="py-2 text-zinc-300">{r.trainerName ?? 'Unknown'}</td>
+                                                <td className="py-2 text-right text-white">{r.total}</td>
+                                                <td className="py-2 text-right text-emerald-400">{r.completed}</td>
+                                                <td className="py-2 text-right text-red-400">{r.cancelled}</td>
+                                                <td className="py-2 text-right text-white font-medium">{pct}%</td>
+                                            </tr>
+                                        );
+                                    })}</tbody>
+                                </table>
+                            </div>
                         </Card>
                     )}
                 </div>

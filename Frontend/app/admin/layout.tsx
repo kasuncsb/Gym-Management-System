@@ -2,8 +2,11 @@
 
 import { Sidebar } from "@/components/ui/Sidebar";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { MobileBottomNav } from "@/components/ui/MobileBottomNav";
+import { useIsStandalonePwa } from "@/lib/pwa/useIsStandalonePwa";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+    const showMobileNav = useIsStandalonePwa();
     return (
         <ProtectedRoute allowedRoles={['admin']}>
             <div className="flex min-h-screen bg-app text-white">
@@ -14,6 +17,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         {children}
                     </div>
                 </main>
+                {showMobileNav && <MobileBottomNav />}
             </div>
         </ProtectedRoute>
     );

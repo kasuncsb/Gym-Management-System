@@ -108,7 +108,9 @@ export function Navbar() {
     return () => document.removeEventListener('click', handleClick);
   }, [menuOpen]);
 
-  if (excluded) return null;
+  // Keep navbar visible for authenticated users even on routes that are normally
+  // excluded (helps PWA/standalone desktop where users expect the top nav).
+  if (excluded && (!isAuthenticated || !user)) return null;
 
   const navLinks = [
     { name: "Home", href: "/" },

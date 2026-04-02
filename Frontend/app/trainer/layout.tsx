@@ -2,9 +2,11 @@
 
 import { Sidebar } from "@/components/ui/Sidebar";
 import { MobileBottomNav } from "@/components/ui/MobileBottomNav";
+import { useIsStandalonePwa } from "@/lib/pwa/useIsStandalonePwa";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 export default function TrainerLayout({ children }: { children: React.ReactNode }) {
+    const showMobileNav = useIsStandalonePwa();
     return (
         <ProtectedRoute allowedRoles={['trainer']}>
             <div className="flex min-h-screen bg-app text-white">
@@ -14,7 +16,7 @@ export default function TrainerLayout({ children }: { children: React.ReactNode 
                     <div className="relative z-10 w-full min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 lg:py-10 max-md:pb-[calc(5rem+env(safe-area-inset-bottom,0px))]">
                         {children}
                     </div>
-                    <MobileBottomNav />
+                    {showMobileNav && <MobileBottomNav />}
                 </main>
             </div>
         </ProtectedRoute>

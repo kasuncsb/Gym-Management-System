@@ -1,7 +1,7 @@
-'use client';
+ "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { User, Mail, Phone, Calendar, Shield, Edit, Lock, Camera, Loader2, Upload, FileImage } from 'lucide-react';
+import { User, Mail, Phone, Calendar, Shield, Edit, Lock, Camera, Loader2, Upload, FileImage, LogOut } from 'lucide-react';
 import { PageHeader, Card, Modal, Input, LoadingButton } from '@/components/ui/SharedComponents';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
@@ -47,7 +47,7 @@ interface ProfileContentProps {
 }
 
 export function ProfileContent({ isMember = false }: ProfileContentProps) {
-  const { user, refreshUser, avatarMediaVersion, coverMediaVersion, bumpAvatarMediaVersion, bumpCoverMediaVersion } = useAuth();
+  const { user, refreshUser, logout, avatarMediaVersion, coverMediaVersion, bumpAvatarMediaVersion, bumpCoverMediaVersion } = useAuth();
   const toast = useToast();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -453,6 +453,22 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
           </LoadingButton>
         </div>
       </Card>
+
+      <div className="pt-6">
+        <Card padding="lg">
+          <h3 className="text-lg font-semibold text-white mb-6">Session</h3>
+          <div className="flex items-center justify-end">
+            <LoadingButton
+              variant="danger"
+              icon={LogOut}
+              size="sm"
+              onClick={() => logout()}
+            >
+              Log out
+            </LoadingButton>
+          </div>
+        </Card>
+      </div>
 
       <Modal isOpen={editOpen} onClose={() => setEditOpen(false)} title="Edit Profile" size="md">
         <div className="space-y-4">

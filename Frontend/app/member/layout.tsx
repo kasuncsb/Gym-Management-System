@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Sidebar } from "@/components/ui/Sidebar";
 import { MobileBottomNav } from "@/components/ui/MobileBottomNav";
+import { useIsStandalonePwa } from "@/lib/pwa/useIsStandalonePwa";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import MemberGuard from "@/components/auth/MemberGuard";
 import { MemberChatbot } from '@/components/ai/MemberChatbot';
@@ -20,6 +21,7 @@ const BYPASS_PREFIXES = [
 
 export default function MemberLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
+    const showMobileNav = useIsStandalonePwa();
     const bypass = BYPASS_PREFIXES.some(p => pathname === p || pathname.startsWith(p + '/'));
 
     if (bypass) return <>{children}</>;
@@ -44,7 +46,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
                         {children}
                     </div>
                     <MemberChatbot />
-                    <MobileBottomNav />
+                    {showMobileNav && <MobileBottomNav />}
                 </main>
             </div>
             </MemberGuard>
