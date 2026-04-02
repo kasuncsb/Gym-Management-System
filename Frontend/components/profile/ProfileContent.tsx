@@ -448,27 +448,16 @@ export function ProfileContent({ isMember = false }: ProfileContentProps) {
               <p className="text-xs text-zinc-500">Change your password</p>
             </div>
           </div>
-          <LoadingButton icon={Lock} variant="secondary" onClick={() => setPasswordOpen(true)} size="sm">
-            Change Password
-          </LoadingButton>
-        </div>
-      </Card>
-
-      <div className="pt-6">
-        <Card padding="lg">
-          <h3 className="text-lg font-semibold text-white mb-6">Session</h3>
-          <div className="flex items-center justify-end">
-            <LoadingButton
-              variant="danger"
-              icon={LogOut}
-              size="sm"
-              onClick={() => logout()}
-            >
+          <div className="flex items-center gap-3 flex-wrap justify-end">
+            <LoadingButton icon={Lock} variant="secondary" onClick={() => setPasswordOpen(true)} size="sm">
+              Change Password
+            </LoadingButton>
+            <LoadingButton variant="danger" icon={LogOut} onClick={() => logout()} size="sm">
               Log out
             </LoadingButton>
           </div>
-        </Card>
-      </div>
+        </div>
+      </Card>
 
       <Modal isOpen={editOpen} onClose={() => setEditOpen(false)} title="Edit Profile" size="md">
         <div className="space-y-4">
