@@ -26,9 +26,13 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
 
     if (bypass) return <>{children}</>;
 
-    /** Workout plans use a fixed viewport column and scroll inside the grid; other pages scroll this content pane only. */
-    const workoutsScrollInside =
+    /**
+     * Workout plans historically used an internal scroll grid.
+     * For standalone PWA/mobile we want the content pane to scroll like other pages.
+     */
+    const workoutsScrollInsideBase =
         pathname === '/member/workouts' || pathname.startsWith('/member/workouts/');
+    const workoutsScrollInside = workoutsScrollInsideBase && !showMobileNav;
 
     return (
         <ProtectedRoute allowedRoles={['member']}>
