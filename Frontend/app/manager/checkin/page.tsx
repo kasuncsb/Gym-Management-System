@@ -59,7 +59,7 @@ export default function ManagerCheckinPage() {
     }, []);
     useRealtimePolling(() => {
         refresh().catch(() => undefined);
-    }, 10000);
+    }, 15000);
 
     const filtered = log.filter((l) => l.name.toLowerCase().includes(search.toLowerCase()) || l.id.includes(search));
     const inCount = useMemo(() => log.filter((l) => l.type === 'in' && l.subscription !== 'expired').length, [log]);

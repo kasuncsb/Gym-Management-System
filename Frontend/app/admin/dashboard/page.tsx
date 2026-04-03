@@ -56,7 +56,7 @@ export default function AdminDashboard() {
             members: p.activeSubscribers ?? 0,
         })));
     };
-    useRealtimePolling(() => { refresh().catch(() => undefined); }, 15000);
+    useRealtimePolling(() => { refresh().catch(() => undefined); }, 30000);
 
     const firstName = user?.fullName?.split(' ')[0] ?? 'Admin';
 

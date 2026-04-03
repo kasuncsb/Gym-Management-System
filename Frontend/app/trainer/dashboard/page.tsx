@@ -101,7 +101,7 @@ export default function TrainerDashboard() {
             last: String(e.createdAt ?? '').slice(0, 10),
         })));
     };
-    useRealtimePolling(() => { refresh().catch(() => undefined); }, 15000);
+    useRealtimePolling(() => { refresh().catch(() => undefined); }, 30000);
 
     const firstName = user?.fullName?.split(' ')[0] ?? 'Trainer';
 
