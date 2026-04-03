@@ -136,8 +136,8 @@ export default function PwaOnboardingPage() {
     };
     }
     return {
-      hero: "Sign in to continue",
-      sub: "Use your PowerWorld account—same login as the website.",
+      hero: "Begin your journey",
+      sub: "Choose how you want to enter.",
     };
   }, [step]);
 
@@ -260,7 +260,7 @@ export default function PwaOnboardingPage() {
               </LoadingButton>
             ) : (
               <LoadingButton variant="primary" size="md" onClick={continueToSignIn}>
-                Sign in
+                Start
               </LoadingButton>
             )}
           </div>
