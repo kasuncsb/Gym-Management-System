@@ -2999,44 +2999,45 @@ export async function getSimulationState() {
     }
   }
 
-  const [todayVisits, todayPayments, recentWorkouts, activeWorkoutSessions, upcomingSessions] = await Promise.all([
-    // Order by last activity so a fresh check-out/check-in surfaces first (simulator door pulse).
+  const [todayVisits, todayPayments] = await Promise.all([
+    // Door pulse only needs:
+    // - `id` for stable animation keys
+    // - `status` and the latest activity timestamp (`checkOutAt ?? checkInAt`)
     safeQuery(
       () =>
         db
-          .select()
+          .select({
+            id: visits.id,
+            status: visits.status,
+            checkInAt: visits.checkInAt,
+            checkOutAt: visits.checkOutAt,
+          })
           .from(visits)
+          // Order by last activity so a fresh check-out/check-in surfaces first.
           .orderBy(desc(sql`COALESCE(${visits.checkOutAt}, ${visits.checkInAt})`))
-          .limit(20),
+          .limit(10),
       [] as any[],
     ),
+    // Payment list only needs a small subset of fields.
     safeQuery(async () => {
       const rows = await db
-        .select({ p: payments })
+        .select({
+          id: payments.id,
+          amount: payments.amount,
+          paymentMethod: payments.paymentMethod,
+          status: payments.status,
+        })
         .from(payments)
         .innerJoin(payLc, eq(payments.lifecycleId, payLc.id))
         .orderBy(desc(payLc.createdAt))
-        .limit(20);
-      return rows.map((r) => r.p);
+        .limit(10);
+      return rows;
     }, [] as any[]),
-    safeQuery(() => db.select().from(workoutSessions).where(sql`${workoutSessions.status} in ('completed','stopped')`).orderBy(desc(workoutSessions.endedAt), desc(workoutSessions.startedAt)).limit(20), [] as any[]),
-    safeQuery(() => db.select().from(workoutSessions).where(eq(workoutSessions.status, 'active')).orderBy(desc(workoutSessions.startedAt)).limit(20), [] as any[]),
-    safeQuery(() => db.select().from(ptSessions).orderBy(desc(ptSessions.sessionDate), desc(ptSessions.startTime)).limit(20), [] as any[]),
   ]);
 
   return {
     now: new Date().toISOString(),
     visits: todayVisits,
     payments: todayPayments,
-    workouts: recentWorkouts,
-    workoutSessions: activeWorkoutSessions,
-    ptSessions: upcomingSessions,
-    activeDoorOtps: Array.from(simulateDoorOtpStore.entries()).map(([token, otp]) => ({
-      token,
-      code: otp.code,
-      expiresAt: new Date(otp.expiresAt).toISOString(),
-      generatedBy: otp.generatedBy,
-      expired: Date.now() > otp.expiresAt,
-    })),
   };
 }
