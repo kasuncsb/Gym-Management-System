@@ -159,14 +159,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Next.js compares against the SSR snapshot.
     if (!mounted) return;
 
-    // /simulate is intentionally kiosk-like and must remain fully public.
-    // Skip auth bootstrap there so stale cookies/localStorage never affect access.
-    const path = typeof window !== 'undefined' ? window.location.pathname : '';
-    if (path === '/simulate' || path.startsWith('/simulate/')) {
-      setIsLoading(false);
-      return;
-    }
-
     // BUG-01 fix: Only attempt profile validation if we have a stored user hint.
     // Anonymous/public-page visitors (homepage, /login, /forgot-password, etc.)
     // skip the API call entirely.

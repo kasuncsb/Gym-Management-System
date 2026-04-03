@@ -52,7 +52,7 @@ export default function AdminCheckinPage() {
     useEffect(() => {
         refresh().catch((err) => toast.error('Failed to load visits', getErrorMessage(err)));
     }, []);
-    useRealtimePolling(() => { refresh().catch(() => undefined); }, 15000);
+    useRealtimePolling(() => { refresh().catch(() => undefined); }, 10000);
 
     const filtered = log.filter(l => l.name.toLowerCase().includes(search.toLowerCase()) || l.id.includes(search));
     const inCount = useMemo(() => log.filter((l) => l.type === 'in' && l.granted).length, [log]);

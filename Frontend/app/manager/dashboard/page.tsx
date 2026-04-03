@@ -87,7 +87,7 @@ export default function ManagerDashboard() {
             activityOverview: chartData?.activityOverview ?? [],
         });
     };
-    useRealtimePolling(() => { refresh().catch(() => undefined); }, 30000);
+    useRealtimePolling(() => { refresh().catch(() => undefined); }, 15000);
 
     const firstName = user?.fullName?.split(' ')[0] ?? 'Manager';
 

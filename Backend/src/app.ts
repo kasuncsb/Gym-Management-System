@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { env } from './config/env.js';
 import { notFound, errorHandler } from './middleware/error.js';
+import { apiRateLimiter } from './middleware/rate-limit.js';
 import authRoutes from './routes/auth.routes.js';
 import opsRoutes from './routes/ops.routes.js';
 import aiRoutes from './routes/ai.routes.js';
@@ -37,10 +38,10 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API routes
-app.use('/api/auth', authRoutes);
-app.use('/api/ops', opsRoutes);
-app.use('/api/ai', aiRoutes);
+// API Routes — generous rate limit so normal SPA traffic doesn't trigger 429
+app.use('/api/auth', apiRateLimiter, authRoutes);
+app.use('/api/ops', apiRateLimiter, opsRoutes);
+app.use('/api/ai', apiRateLimiter, aiRoutes);
 
 // Error handling
 app.use(notFound);

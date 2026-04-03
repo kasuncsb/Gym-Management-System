@@ -88,7 +88,7 @@ export default function MemberDashboard() {
             workoutFrequency: chartData?.workoutFrequency ?? [],
         });
     };
-    useRealtimePolling(() => { refresh().catch(() => undefined); }, 30000);
+    useRealtimePolling(() => { refresh().catch(() => undefined); }, 15000);
 
     const greeting = currentTime.getHours() < 12 ? 'Morning' : currentTime.getHours() < 18 ? 'Afternoon' : 'Evening';
     const firstName = user?.fullName?.split(' ')[0] ?? 'Member';
