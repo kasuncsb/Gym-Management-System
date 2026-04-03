@@ -41,7 +41,8 @@ export const apiRateLimiter = rateLimit({
   skip: (req) => {
     const p = req.path || '';
     // Note: this middleware is mounted at /api/*, so req.path is the path after that mount.
-    return p.startsWith('/ops/simulate/public/');
+    // For /api/ops/simulate/public/*, req.path becomes /simulate/public/*.
+    return p.startsWith('/simulate/public/') || p.startsWith('/ops/simulate/public/');
   },
   message: apiResponse.error('TOO_MANY_REQUESTS', 'Too many requests. Please wait a few minutes and try again.'),
   handler: rateLimitJsonHandler,

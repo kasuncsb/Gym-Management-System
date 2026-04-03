@@ -54,6 +54,12 @@ export function proxy(request: NextRequest) {
   const hasSession  = request.cookies.has('access_token');
   const role        = request.cookies.get('user_role')?.value ?? 'member';
 
+  // `/simulate` is a public wallboard-like route and must never be auth-gated
+  // or role-redirected, regardless of whether cookies are present.
+  if (pathname === '/simulate' || pathname.startsWith('/simulate/')) {
+    return NextResponse.next();
+  }
+
   // Helper: is this path under a given prefix?
   const under = (prefix: string) =>
     pathname === prefix || pathname.startsWith(prefix + '/');
