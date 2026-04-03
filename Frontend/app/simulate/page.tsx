@@ -68,13 +68,24 @@ export default function SimulatePage() {
       setRecentPayments(rows.slice(0, 3));
       setProcessorStatus(rows.length ? 'Settlement stream active' : 'Awaiting payment request...');
 
-      // Door event pulse (best-effort)
-      const v = s?.visits?.[0];
-      const lastAt = v?.checkOutAt ?? v?.checkInAt ?? v?.createdAt;
-      if (lastAt) {
-        const age = Date.now() - new Date(lastAt).getTime();
+      // Door event pulse (best-effort): use most recent activity across rows — not only visits[0]
+      // (ordering by check-in alone can hide a member's fresh check-out behind staff visits).
+      const visitRows = Array.isArray(s?.visits) ? s.visits : [];
+      let best: { id?: string; status?: string; lastAt: string } | null = null;
+      let bestTs = 0;
+      for (const row of visitRows) {
+        const lastAt = row?.checkOutAt ?? row?.checkInAt ?? row?.createdAt;
+        if (!lastAt) continue;
+        const ts = new Date(lastAt).getTime();
+        if (Number.isFinite(ts) && ts > bestTs) {
+          bestTs = ts;
+          best = { id: row?.id, status: row?.status, lastAt: String(lastAt) };
+        }
+      }
+      if (best) {
+        const age = Date.now() - new Date(best.lastAt).getTime();
         if (age < 10000) {
-          const eventKey = `${v?.id ?? 'unknown'}:${v?.status ?? 'unknown'}:${lastAt}`;
+          const eventKey = `${best.id ?? 'unknown'}:${best.status ?? 'unknown'}:${best.lastAt}`;
           if (lastDoorEventRef.current !== eventKey) {
             lastDoorEventRef.current = eventKey;
             setDoorOpen(true);

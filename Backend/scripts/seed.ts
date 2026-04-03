@@ -829,17 +829,24 @@ async function seed() {
     }
   }
 
-  // Today: one active visit per member + trainer (used by dashboards "on shift"/"active now")
+  // Today: members are **not** left checked-in so the first simulator door scan is a check-in
+  // (seed used to create an active visit per member, which made the first scan always check-out).
+  // Completed visit earlier today keeps visit history realistic without blocking entry demos.
   for (let mi = 0; mi < memberSeedDefs.length; mi++) {
     const m = memberSeedDefs[mi]!;
     const id = ids.uuid();
     const lc = await insertLifecycleRow();
+    const checkInAt = new Date(now.getTime() - (180 + mi * 15) * 60_000);
+    const durationMin = 75 + (mi % 3) * 15;
+    const checkOutAt = new Date(checkInAt.getTime() + durationMin * 60_000);
     await db.insert(visits).values({
       id,
       lifecycleId: lc,
       personId: m.memberId,
-      checkInAt: new Date(now.getTime() - (25 + mi * 4) * 60_000),
-      status: 'active',
+      checkInAt,
+      checkOutAt,
+      durationMin,
+      status: 'completed',
     });
   }
   for (let ti = 0; ti < trainerIds.length; ti++) {

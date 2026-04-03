@@ -3000,7 +3000,16 @@ export async function getSimulationState() {
   }
 
   const [todayVisits, todayPayments, recentWorkouts, activeWorkoutSessions, upcomingSessions] = await Promise.all([
-    safeQuery(() => db.select().from(visits).orderBy(desc(visits.checkInAt)).limit(20), [] as any[]),
+    // Order by last activity so a fresh check-out/check-in surfaces first (simulator door pulse).
+    safeQuery(
+      () =>
+        db
+          .select()
+          .from(visits)
+          .orderBy(desc(sql`COALESCE(${visits.checkOutAt}, ${visits.checkInAt})`))
+          .limit(20),
+      [] as any[],
+    ),
     safeQuery(async () => {
       const rows = await db
         .select({ p: payments })
