@@ -68,8 +68,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     return (
         <ToastContext.Provider value={contextValue}>
             {children}
-            {/* Toast Container */}
-            <div className="fixed top-4 right-4 z-[200] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+            {/* Toast container: gutters + safe-area on mobile/PWA; top-right stack on sm+ */}
+            <div
+                className={cn(
+                    "pointer-events-none fixed z-[200] flex w-full max-w-sm flex-col gap-2",
+                    "left-1/2 top-[max(0.75rem,env(safe-area-inset-top,0px))] -translate-x-1/2 px-3 sm:left-auto sm:right-4 sm:top-4 sm:translate-x-0 sm:px-0",
+                )}
+            >
                 {toasts.map((t) => (
                     <ToastItem key={t.id} toast={t} onDismiss={dismiss} />
                 ))}
