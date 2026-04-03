@@ -85,19 +85,48 @@ export function DoorQrCheckIn({
 
         try {
             const [myVisits, stats] = await Promise.all([opsAPI.myVisits(20), opsAPI.visitStats()]);
-            const mapped: LogEntry[] = (myVisits ?? []).map((v: any) => ({
-                label: user?.fullName ?? 'You',
-                type: v.status === 'active' ? 'in' : 'out',
-                time: new Date(v.checkInAt ?? v.checkOutAt ?? v.createdAt).toLocaleTimeString('en-US', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true,
-                }),
-                status: v.status,
-            }));
+            const visits = (myVisits ?? []) as any[];
+
+            // Backend updates the same `visits` row from `active` → `completed` on check-out.
+            // To keep a history of BOTH events, we expand each visit row into:
+            // - an "in" entry at `checkInAt`
+            // - an "out" entry at `checkOutAt` (if present)
+            const mappedWithTs: Array<LogEntry & { tsMs: number }> = [];
+            const label = user?.fullName ?? 'You';
+
+            for (const v of visits) {
+                const inRaw = v?.checkInAt ?? v?.createdAt;
+                const inDate = inRaw ? new Date(inRaw) : null;
+                if (inDate && !Number.isNaN(inDate.getTime())) {
+                    mappedWithTs.push({
+                        label,
+                        type: 'in',
+                        time: inDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+                        status: v?.status,
+                        tsMs: inDate.getTime(),
+                    });
+                }
+
+                if (v?.checkOutAt) {
+                    const outDate = new Date(v.checkOutAt);
+                    if (outDate && !Number.isNaN(outDate.getTime())) {
+                        mappedWithTs.push({
+                            label,
+                            type: 'out',
+                            time: outDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+                            status: v?.status,
+                            tsMs: outDate.getTime(),
+                        });
+                    }
+                }
+            }
+
+            const mapped = mappedWithTs
+                .sort((a, b) => b.tsMs - a.tsMs)
+                .map(({ tsMs: _ts, ...rest }) => rest);
             if (!mountedRef.current) return;
             setLog(mapped);
-            setScannedIn(mapped[0]?.type === 'in' && mapped[0]?.status === 'active');
+            setScannedIn(visits.some((v) => v?.status === 'active'));
             setCapacity((prev) => ({ ...prev, current: Number(stats?.activeNow ?? 0) }));
         } catch (err) {
             // If the backend is rate limiting, back off and do not spam toasts.

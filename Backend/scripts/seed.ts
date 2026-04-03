@@ -647,6 +647,7 @@ async function seed() {
   }
 
   const managerId = userIdByEmail.get('kasuncsb+manager@gmail.com')!;
+  const adminId = userIdByEmail.get('kasuncsb+admin@gmail.com')!;
   const trainer1 = userIdByEmail.get('kasuncsb+trainer1@gmail.com') ?? trainerIds[0];
   const trainer2 = userIdByEmail.get('kasuncsb+trainer2@gmail.com') ?? trainerIds[1];
   const trainer3 = userIdByEmail.get('kasuncsb+trainer3@gmail.com') ?? trainerIds[2];
@@ -781,7 +782,8 @@ async function seed() {
   }
 
   // Visits (busy gym): 30-day series for members + trainers. Keep exactly one active visit per person today.
-  await db.delete(visits).where(inArray(visits.personId, [...memberIds, ...trainerIds]));
+  // Also seed some active/completed visits for admin/manager so their "recent visits" UI has both states.
+  await db.delete(visits).where(inArray(visits.personId, [...memberIds, ...trainerIds, managerId, adminId]));
 
   for (let dayAgo = 30; dayAgo >= 1; dayAgo--) {
     const base = new Date(now.getTime() - dayAgo * dayMs);
@@ -852,6 +854,49 @@ async function seed() {
       status: 'active',
     });
   }
+
+  // Today: one active visit per manager + admin (so their check-in recent history can show "checked in").
+  {
+    const managerVisitId = ids.uuid();
+    const managerLc = await insertLifecycleRow();
+    await db.insert(visits).values({
+      id: managerVisitId,
+      lifecycleId: managerLc,
+      personId: managerId,
+      checkInAt: new Date(now.getTime() - 17 * 60_000),
+      status: 'active',
+    });
+  }
+  {
+    const adminVisitId = ids.uuid();
+    const adminLc = await insertLifecycleRow();
+    await db.insert(visits).values({
+      id: adminVisitId,
+      lifecycleId: adminLc,
+      personId: adminId,
+      checkInAt: new Date(now.getTime() - 29 * 60_000),
+      status: 'active',
+    });
+  }
+
+  // Add a small "recent completed" history so UI can show checked-out entries too.
+  const seedCompletedFor = async (personId: string, checkInMsAgo: number, durationMin: number) => {
+    const id = ids.uuid();
+    const lc = await insertLifecycleRow();
+    const checkInAt = new Date(now.getTime() - checkInMsAgo);
+    await db.insert(visits).values({
+      id,
+      lifecycleId: lc,
+      personId,
+      checkInAt,
+      checkOutAt: new Date(checkInAt.getTime() + durationMin * 60_000),
+      durationMin,
+      status: 'completed',
+    });
+  };
+
+  await seedCompletedFor(managerId, 7 * 60_60_000, 55);
+  await seedCompletedFor(adminId, 9 * 60_60_000, 65);
 
   // Subscription plans -> member subscriptions + payments for revenue + active subscription UI
   const planCodesForMembers = memberSeedDefs.map((_, idx) => {

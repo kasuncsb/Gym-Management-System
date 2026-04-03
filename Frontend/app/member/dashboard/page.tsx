@@ -46,11 +46,37 @@ export default function MemberDashboard() {
             time: String(s.startTime).slice(0, 5),
             type: 'Personal Training',
         })));
-        const recentVisits = (visits ?? []).slice(0, 5).map((v: any) => ({
-            text: v.status === 'active' ? 'Checked in' : 'Checked out',
-            time: new Date(v.checkInAt ?? v.checkOutAt ?? v.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-            date: 'Recent',
-        }));
+        // The backend updates one row from active -> completed on check-out.
+        // Expand it so the UI shows BOTH checked-in and checked-out events.
+        const recentVisits = ((visits ?? []) as any[])
+            .flatMap((v: any) => {
+                const inDateRaw = v?.checkInAt ?? v?.createdAt;
+                const inDate = inDateRaw ? new Date(inDateRaw) : null;
+                const outDate = v?.checkOutAt ? new Date(v.checkOutAt) : null;
+
+                const out: Array<{ text: string; time: string; date: string; tsMs: number }> = [];
+
+                if (inDate && !Number.isNaN(inDate.getTime())) {
+                    out.push({
+                        text: 'Checked in',
+                        time: inDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+                        date: 'Recent',
+                        tsMs: inDate.getTime(),
+                    });
+                }
+                if (outDate && !Number.isNaN(outDate.getTime())) {
+                    out.push({
+                        text: 'Checked out',
+                        time: outDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+                        date: 'Recent',
+                        tsMs: outDate.getTime(),
+                    });
+                }
+                return out;
+            })
+            .sort((a, b) => b.tsMs - a.tsMs)
+            .slice(0, 5)
+            .map(({ tsMs: _ts, ...rest }) => rest);
         const recentLogs = (logs ?? []).slice(0, 3).map((l: any) => ({
             text: 'Workout logged',
             time: `${l.durationMin ?? 0} min`,

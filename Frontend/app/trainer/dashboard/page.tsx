@@ -55,11 +55,41 @@ export default function TrainerDashboard() {
             setIsCheckedIn(myVisits[0].status === 'active');
         }
         setDashboard(dash);
-        setRecentCheckIns((visits ?? []).slice(0, 6).map((v: any) => ({
-            member: v.fullName ?? 'Member',
-            time: new Date(v.checkInAt ?? v.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-            type: v.status === 'active' ? 'check-in' : 'check-out',
-        })));
+        // Expand each visit row into both events (see `DoorQrCheckIn` for rationale).
+        const recentCheckInsExpanded = ((visits ?? []) as any[])
+            .flatMap((v: any) => {
+                const member = v?.fullName ?? 'Member';
+                const inRaw = v?.checkInAt ?? v?.createdAt;
+                const inDate = inRaw ? new Date(inRaw) : null;
+                const outDate = v?.checkOutAt ? new Date(v.checkOutAt) : null;
+
+                const entries: Array<{ member: string; time: string; type: CheckInType; tsMs: number }> = [];
+
+                if (inDate && !Number.isNaN(inDate.getTime())) {
+                    entries.push({
+                        member,
+                        type: 'check-in',
+                        time: inDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+                        tsMs: inDate.getTime(),
+                    });
+                }
+
+                if (outDate && !Number.isNaN(outDate.getTime())) {
+                    entries.push({
+                        member,
+                        type: 'check-out',
+                        time: outDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+                        tsMs: outDate.getTime(),
+                    });
+                }
+
+                return entries;
+            })
+            .sort((a, b) => b.tsMs - a.tsMs)
+            .slice(0, 6)
+            .map(({ tsMs: _ts, ...rest }) => rest);
+
+        setRecentCheckIns(recentCheckInsExpanded);
         setPendingTasks((eventRows ?? []).slice(0, 4).map((e: any) => ({
             task: e.description ?? 'Resolve equipment issue',
             priority: (e.severity === 'critical' || e.severity === 'high') ? 'high' : e.severity === 'medium' ? 'medium' : 'low',
