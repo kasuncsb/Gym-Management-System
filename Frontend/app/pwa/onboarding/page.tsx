@@ -1,24 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth, dashboardPathForRole, type Role } from "@/context/AuthContext";
+import { useAuth, dashboardPathForRole } from "@/context/AuthContext";
 import { useIsStandalonePwa } from "@/lib/pwa/useIsStandalonePwa";
 import { LoadingButton } from "@/components/ui/SharedComponents";
-import { ChevronDown } from "lucide-react";
 import { PwaErrorMask } from "@/components/pwa/PwaErrorMask";
-
-const ROLE_OPTIONS: Array<{ value: Role; label: string }> = [
-  { value: "member", label: "Member" },
-  { value: "trainer", label: "Trainer" },
-  { value: "manager", label: "Manager" },
-  { value: "admin", label: "Admin" },
-];
-
-function setUserRoleCookie(role: Role) {
-  // A lightweight hint for role-specific login UI. AuthProvider remains source of truth after login.
-  document.cookie = `user_role=${role}; path=/; samesite=lax`;
-}
 
 function OnboardingArt({ step }: { step: number }) {
   const common = {
@@ -128,9 +115,6 @@ export default function PwaOnboardingPage() {
   const [isOnline, setIsOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
 
   const [step, setStep] = useState(0);
-  const [role, setRole] = useState<Role>("member");
-  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
-  const roleMenuRef = useRef<HTMLDivElement>(null);
 
   const content = useMemo(() => {
     if (step === 0) {
@@ -146,14 +130,14 @@ export default function PwaOnboardingPage() {
       };
     }
     if (step === 2) {
-      return {
-        hero: "Built for every role",
-        sub: "Members, trainers, managers, admins—each gets a focused workspace and clear actions.",
-      };
+    return {
+      hero: "Built for every role",
+      sub: "Members, trainers, managers, admins—each gets a focused workspace and clear actions.",
+    };
     }
     return {
-      hero: "Begin your journey",
-      sub: "Choose how you want to enter.",
+      hero: "Sign in to continue",
+      sub: "Use your PowerWorld account—same login as the website.",
     };
   }, [step]);
 
@@ -190,21 +174,9 @@ export default function PwaOnboardingPage() {
   const goNext = () => setStep((s) => Math.min(3, s + 1));
   const goBack = () => setStep((s) => Math.max(0, s - 1));
 
-  const continueFromRole = () => {
-    setUserRoleCookie(role);
-    router.replace(`/login?role=${encodeURIComponent(role)}`);
+  const continueToSignIn = () => {
+    router.replace("/login");
   };
-
-  useEffect(() => {
-    if (!roleMenuOpen) return;
-    const onClick = (event: MouseEvent) => {
-      if (roleMenuRef.current && !roleMenuRef.current.contains(event.target as Node)) {
-        setRoleMenuOpen(false);
-      }
-    };
-    document.addEventListener("click", onClick);
-    return () => document.removeEventListener("click", onClick);
-  }, [roleMenuOpen]);
 
   if (!isOnline) {
     // Don’t show onboarding while offline.
@@ -272,51 +244,6 @@ export default function PwaOnboardingPage() {
                 <OnboardingArt step={step} />
               </div>
             </div>
-
-            {step === 3 && (
-              <div className="max-w-md w-full">
-                <label className="block text-sm font-medium text-zinc-300 mb-2 text-left">Select a role</label>
-                <div ref={roleMenuRef} className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setRoleMenuOpen((v) => !v)}
-                    className="w-full bg-zinc-800/90 border border-zinc-700 rounded-xl px-4 py-3 text-left text-white flex items-center justify-between hover:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-red-600"
-                    aria-expanded={roleMenuOpen}
-                  >
-                    <span>{ROLE_OPTIONS.find((r) => r.value === role)?.label ?? "Member"}</span>
-                    <ChevronDown
-                      size={16}
-                      className={[
-                        "text-zinc-400 transition-transform",
-                        roleMenuOpen ? "rotate-180" : "",
-                      ].join(" ")}
-                    />
-                  </button>
-                  {roleMenuOpen && (
-                    <div className="absolute z-20 mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-900/95 shadow-2xl overflow-hidden">
-                      {ROLE_OPTIONS.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => {
-                            setRole(option.value);
-                            setRoleMenuOpen(false);
-                          }}
-                          className={[
-                            "w-full px-4 py-3 text-left text-sm transition-colors",
-                            option.value === role
-                              ? "bg-red-600/20 text-red-300"
-                              : "text-zinc-200 hover:bg-zinc-800",
-                          ].join(" ")}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Footer */}
@@ -332,8 +259,8 @@ export default function PwaOnboardingPage() {
                 Next
               </LoadingButton>
             ) : (
-              <LoadingButton variant="primary" size="md" onClick={continueFromRole}>
-                Start journey
+              <LoadingButton variant="primary" size="md" onClick={continueToSignIn}>
+                Sign in
               </LoadingButton>
             )}
           </div>
