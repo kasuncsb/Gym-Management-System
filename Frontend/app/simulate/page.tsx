@@ -120,7 +120,7 @@ export default function SimulatePage() {
     pollState().catch(() => undefined);
     const stateTimer = window.setInterval(() => {
       pollState().catch(() => undefined);
-    }, 1000);
+    }, 3000);
     const countdownTimer = window.setInterval(() => {
       setCountdownSec((prev) => {
         if (prev === 1) {
