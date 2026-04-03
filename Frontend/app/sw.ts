@@ -1,6 +1,6 @@
 import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { NetworkOnly, Serwist } from "serwist";
+import { CacheFirst, NetworkOnly, Serwist } from "serwist";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -16,6 +16,14 @@ const serwist = new Serwist({
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching: [
+    // Manifest is required for installability. If the origin rate-limits,
+    // hammering the manifest fetch can break the install flow. Cache it aggressively.
+    {
+      matcher: ({ sameOrigin, url: { pathname } }) => sameOrigin && pathname === "/manifest.webmanifest",
+      handler: new CacheFirst({
+        cacheName: "pwa-manifest",
+      }),
+    },
     // Important: Cloudflare/edge can return a "successful" HTML response with status 5xx.
     // Treat 5xx navigations as failures so the document fallback (/~offline) is used.
     {
