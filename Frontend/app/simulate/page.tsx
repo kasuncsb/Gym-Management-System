@@ -19,6 +19,8 @@ export default function SimulatePage() {
   const countdownRef = useRef(0);
   const lastDoorEventRef = useRef<string>('');
   const doorCloseTimerRef = useRef<number | null>(null);
+  const statePollInFlightRef = useRef(false);
+  const statePollPausedUntilRef = useRef(0);
 
   const refreshQr = useCallback(async () => {
     if (refreshingRef.current) return;
@@ -49,23 +51,43 @@ export default function SimulatePage() {
     }
   }, [toast]);
 
-  const pollDoor = useCallback(async () => {
+  const pollState = useCallback(async () => {
+    if (document.visibilityState !== 'visible') return;
+    if (statePollInFlightRef.current) return;
+    const now = Date.now();
+    if (now < statePollPausedUntilRef.current) return;
+    statePollInFlightRef.current = true;
     try {
       const s = await opsAPI.publicSimulationState();
+      // Payments / processor status
+      const rows = Array.isArray(s?.payments) ? s.payments : [];
+      setRecentPayments(rows.slice(0, 3));
+      setProcessorStatus(rows.length ? 'Settlement stream active' : 'Awaiting payment request...');
+
+      // Door event pulse (best-effort)
       const v = s?.visits?.[0];
       const lastAt = v?.checkOutAt ?? v?.checkInAt ?? v?.createdAt;
-      if (!lastAt) return;
-      const age = Date.now() - new Date(lastAt).getTime();
-      if (age < 10000) {
-        const eventKey = `${v?.id ?? 'unknown'}:${v?.status ?? 'unknown'}:${lastAt}`;
-        if (lastDoorEventRef.current === eventKey) return;
-        lastDoorEventRef.current = eventKey;
-        setDoorOpen(true);
-        if (doorCloseTimerRef.current) window.clearTimeout(doorCloseTimerRef.current);
-        doorCloseTimerRef.current = window.setTimeout(() => setDoorOpen(false), 3200);
+      if (lastAt) {
+        const age = Date.now() - new Date(lastAt).getTime();
+        if (age < 10000) {
+          const eventKey = `${v?.id ?? 'unknown'}:${v?.status ?? 'unknown'}:${lastAt}`;
+          if (lastDoorEventRef.current !== eventKey) {
+            lastDoorEventRef.current = eventKey;
+            setDoorOpen(true);
+            if (doorCloseTimerRef.current) window.clearTimeout(doorCloseTimerRef.current);
+            doorCloseTimerRef.current = window.setTimeout(() => setDoorOpen(false), 3200);
+          }
+        }
       }
-    } catch {
-      /* ignore */
+    } catch (e: any) {
+      // If the origin is rate-limiting, back off hard to avoid breaking manifest/SW installability.
+      const status = typeof e?.status === 'number' ? e.status : e?.response?.status;
+      if (status === 429) {
+        statePollPausedUntilRef.current = Date.now() + 30_000;
+      }
+    }
+    finally {
+      statePollInFlightRef.current = false;
     }
   }, []);
 
@@ -79,22 +101,11 @@ export default function SimulatePage() {
       .then(() => undefined)
       .catch(() => undefined);
     refreshQr().catch(() => undefined);
-    const doorTimer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        pollDoor().catch(() => undefined);
-      }
-    }, 6000);
-    const paymentReqTimer = window.setInterval(async () => {
-      if (document.visibilityState !== 'visible') return;
-      try {
-        const state = await opsAPI.publicSimulationState();
-        const rows = Array.isArray(state?.payments) ? state.payments : [];
-        setRecentPayments(rows.slice(0, 3));
-        setProcessorStatus(rows.length ? 'Settlement stream active' : 'Awaiting payment request...');
-      } catch {
-        setRecentPayments([]);
-      }
-    }, 1800);
+    // Single poll loop (avoid duplicate state requests).
+    pollState().catch(() => undefined);
+    const stateTimer = window.setInterval(() => {
+      pollState().catch(() => undefined);
+    }, 5000);
     const countdownTimer = window.setInterval(() => {
       setCountdownSec((prev) => {
         if (prev === 1) {
@@ -127,13 +138,12 @@ export default function SimulatePage() {
     document.addEventListener('visibilitychange', onVisible);
 
     return () => {
-      window.clearInterval(doorTimer);
-      window.clearInterval(paymentReqTimer);
+      window.clearInterval(stateTimer);
       window.clearInterval(countdownTimer);
       if (doorCloseTimerRef.current) window.clearTimeout(doorCloseTimerRef.current);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [pollDoor, refreshQr]);
+  }, [pollState, refreshQr]);
 
   const countdownText = useMemo(() => {
     const s = Math.max(0, countdownSec);
