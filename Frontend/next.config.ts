@@ -17,6 +17,8 @@ const withSerwist = withSerwistInit({
     // IMPORTANT: Do not precache onboarding/boot pages.
     // When offline, we must always show the offline/error experience instead of cached onboarding.
     { url: "/~offline", revision },
+    // Serve manifest from precache to avoid rate-limit loops breaking installability.
+    { url: "/manifest.webmanifest", revision },
     // Ensure the PWA splash art is available offline.
     { url: "/icons/member.png", revision },
   ],
@@ -60,17 +62,6 @@ const nextConfig: NextConfig = {
       {
         source: "/sw.js",
         headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
-      },
-      {
-        // Allow the manifest to be cached at the edge to keep installability stable
-        // even if the origin temporarily rate-limits bursts of requests.
-        source: "/manifest.webmanifest",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400",
-          },
-        ],
       },
     ];
   },
