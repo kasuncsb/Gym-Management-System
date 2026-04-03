@@ -86,6 +86,7 @@ export function Navbar() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const excluded = NAVBAR_EXCLUDED_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
+  const isSimulateRoute = pathname === '/simulate' || pathname.startsWith('/simulate/');
   const isHome = pathname === '/';
   const isSidebarRoute =
     isAuthenticated &&
@@ -111,6 +112,9 @@ export function Navbar() {
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
   }, [menuOpen]);
+
+  // Simulator page should be full-bleed: no shared navbar and no secondary headers.
+  if (isSimulateRoute) return null;
 
   // Keep navbar visible for authenticated users even on routes that are normally
   // excluded (helps PWA/standalone desktop where users expect the top nav).

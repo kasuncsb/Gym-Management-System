@@ -90,7 +90,7 @@ export default function SimulatePage() {
         const state = await opsAPI.publicSimulationState();
         const rows = Array.isArray(state?.payments) ? state.payments : [];
         setRecentPayments(rows.slice(0, 3));
-        setProcessorStatus(rows.length ? 'Settlement stream active (direct ledger mode)' : 'Awaiting payment request...');
+        setProcessorStatus(rows.length ? 'Settlement stream active' : 'Awaiting payment request...');
       } catch {
         setRecentPayments([]);
       }
