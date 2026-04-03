@@ -10,7 +10,9 @@ const withSerwist = withSerwistInit({
   swSrc: "app/sw.ts",
   swDest: "public/sw.js",
   disable: process.env.NODE_ENV === "development",
-  register: true,
+  // We register via `components/pwa/ServiceWorkerRegister` to avoid duplicate
+  // registrations (plugin auto-register + manual register can cause update loops).
+  register: false,
   additionalPrecacheEntries: [
     // IMPORTANT: Do not precache onboarding/boot pages.
     // When offline, we must always show the offline/error experience instead of cached onboarding.

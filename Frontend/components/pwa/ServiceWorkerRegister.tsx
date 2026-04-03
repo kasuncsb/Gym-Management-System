@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 type SerwistWindow = Window & { serwist?: { register: () => void } };
 
-/** Registers the Serwist service worker in production (next.config has `register: false`). */
+/** Registers the Serwist service worker in production. */
 export function ServiceWorkerRegister() {
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") return;
@@ -13,26 +13,16 @@ export function ServiceWorkerRegister() {
 
     w.serwist?.register();
 
-    // Ensure updated SW takes control quickly; avoids "stuck" cached behavior.
-    navigator.serviceWorker
-      .getRegistration()
-      .then((reg) => {
-        if (!reg) return;
-        reg.update().catch(() => {});
-
-        reg.addEventListener("updatefound", () => {
-          const installing = reg.installing;
-          if (!installing) return;
-          installing.addEventListener("statechange", () => {
-            if (installing.state === "installed" && navigator.serviceWorker.controller) {
-              // New SW installed; reload once it takes control.
-            }
-          });
-        });
-      })
-      .catch(() => {});
-
     const onControllerChange = () => {
+      // Avoid reload loops: only hard-reload once per tab session when a new SW takes control.
+      try {
+        const key = "sw_controller_reload_once";
+        if (sessionStorage.getItem(key) === "1") return;
+        sessionStorage.setItem(key, "1");
+      } catch {
+        // If storage is unavailable, do not risk reload loops.
+        return;
+      }
       window.location.reload();
     };
     navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
