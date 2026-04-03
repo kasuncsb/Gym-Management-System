@@ -42,7 +42,11 @@ export default function SimulatePage() {
       });
       setQrUrl(url);
       setMeta({ code: otp.code, expiresAt: otp.expiresAt });
-      const initialLeft = Math.max(0, Math.ceil((new Date(otp.expiresAt).getTime() - Date.now()) / 1000));
+      // Use floor to avoid showing 00:31 due to sub-second timing skew.
+      const initialLeft = Math.max(
+        0,
+        Math.min(30, Math.floor((new Date(otp.expiresAt).getTime() - Date.now()) / 1000)),
+      );
       setCountdownSec(initialLeft);
     } catch (e) {
       toast.error('QR refresh failed', getErrorMessage(e));
