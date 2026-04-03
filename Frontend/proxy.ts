@@ -5,6 +5,10 @@ import type { NextRequest } from 'next/server';
 // Authenticated users are redirected to their role dashboard.
 const AUTH_ONLY_ROUTES = ['/login'];
 
+// ── Always-public routes ───────────────────────────────────────────────────────
+// These pages must stay reachable in a no-auth context regardless of cookies.
+const ALWAYS_PUBLIC_PREFIXES = ['/simulate'];
+
 // ── Routes where authenticated users are bounced to dashboard ───────────────────
 // Only login + register + forgot/reset. Do NOT include /member/verify-email or
 // /member/onboard — members must be able to complete verify → onboard flow.
@@ -57,6 +61,11 @@ export function proxy(request: NextRequest) {
   // Helper: is this path under a given prefix?
   const under = (prefix: string) =>
     pathname === prefix || pathname.startsWith(prefix + '/');
+
+  // Hard bypass: /simulate is always public (kiosk-like screen).
+  if (ALWAYS_PUBLIC_PREFIXES.some(under)) {
+    return NextResponse.next();
+  }
 
   // ── /dashboard — permanent redirect to the correct role portal ───────────
   // Handles old bookmarks and any hard-coded links that still use /dashboard.
