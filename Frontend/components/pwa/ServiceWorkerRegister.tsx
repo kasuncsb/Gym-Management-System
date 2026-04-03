@@ -11,7 +11,17 @@ export function ServiceWorkerRegister() {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
     const w = window as SerwistWindow;
 
-    w.serwist?.register();
+    // Prefer Serwist's injected helper, but fall back to a direct SW registration
+    // to ensure installability even if the helper isn't present.
+    try {
+      if (typeof w.serwist?.register === "function") {
+        w.serwist.register();
+      } else {
+        navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
+      }
+    } catch {
+      // Never break app boot due to SW issues.
+    }
 
     const onControllerChange = () => {
       // Avoid reload loops: only hard-reload once per tab session when a new SW takes control.
