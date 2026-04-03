@@ -187,21 +187,21 @@ export default function TrainerSchedulePage() {
                 )}
                 <div className="space-y-3">
                     {upcoming.map(s => (
-                        <div key={s.id} className="flex items-center justify-between bg-zinc-800/30 rounded-xl p-4 gap-4">
-                            <div className="flex items-center gap-3">
+                        <div key={s.id} className="flex min-w-0 flex-col gap-3 bg-zinc-800/30 rounded-xl p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                            <div className="flex min-w-0 flex-1 items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-red-600/20 flex items-center justify-center shrink-0">
                                     <User size={18} className="text-red-400" />
                                 </div>
-                                <div>
-                                    <p className="text-white font-semibold">{s.memberName}</p>
-                                    <p className="text-zinc-500 text-sm">{s.sessionDate} · {s.startTime}–{s.endTime}</p>
+                                <div className="min-w-0">
+                                    <p className="break-words font-semibold text-white">{s.memberName}</p>
+                                    <p className="text-sm text-zinc-500">{s.sessionDate} · {s.startTime}–{s.endTime}</p>
                                 </div>
                             </div>
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2">
-                                <span className={`text-xs px-2 py-1 rounded-full font-semibold capitalize w-fit ${statusStyles[s.status]}`}>
+                            <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:max-w-[min(100%,28rem)] sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2">
+                                <span className={`w-fit shrink-0 text-xs px-2 py-1 font-semibold capitalize rounded-full ${statusStyles[s.status]}`}>
                                     {s.status}
                                 </span>
-                                <div className="flex flex-wrap items-center gap-1.5 justify-end">
+                                <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
                                 {s.status === 'booked' && (
                                     <LoadingButton
                                         size="sm"
@@ -258,12 +258,12 @@ export default function TrainerSchedulePage() {
                     <div className="space-y-2">
                         {past.slice(0, 6).map(s => (
                             <div key={s.id} className="bg-zinc-800/20 rounded-xl p-3 gap-2">
-                                <div className="flex items-center justify-between gap-4">
-                                    <div>
-                                        <p className="text-zinc-300 text-sm font-semibold">{s.memberName}</p>
-                                        <p className="text-zinc-500 text-xs">{s.sessionDate} · {s.startTime}–{s.endTime}</p>
+                                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                                    <div className="min-w-0">
+                                        <p className="break-words text-sm font-semibold text-zinc-300">{s.memberName}</p>
+                                        <p className="text-xs text-zinc-500">{s.sessionDate} · {s.startTime}–{s.endTime}</p>
                                     </div>
-                                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold capitalize shrink-0 ${statusStyles[s.status]}`}>
+                                    <span className={`w-fit shrink-0 self-start text-xs px-2 py-0.5 font-semibold capitalize rounded-full sm:self-center ${statusStyles[s.status]}`}>
                                         {s.status.replace('_', ' ')}
                                     </span>
                                 </div>

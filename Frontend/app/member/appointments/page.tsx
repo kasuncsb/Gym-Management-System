@@ -319,33 +319,33 @@ export default function AppointmentsPage() {
                     <div className="text-center py-12 text-zinc-600">No {displayFilter(filter)} appointments.</div>
                 )}
                 {filtered.map(s => (
-                    <Card key={s.id} padding="md" className="flex flex-col gap-3 hover:border-zinc-700/50 transition-colors">
-                        <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
+                    <Card key={s.id} padding="md" className="flex flex-col gap-3 min-w-0 overflow-hidden hover:border-zinc-700/50 transition-colors">
+                        <div className="flex flex-col gap-3 min-w-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                            <div className="flex items-start gap-4 min-w-0 flex-1">
                             <div className="w-12 h-12 bg-blue-600/20 rounded-full flex items-center justify-center shrink-0">
                                 <User size={20} className="text-blue-400" />
                             </div>
-                            <div>
-                                <p className="text-white font-semibold">{s.trainerName}</p>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-white font-semibold break-words">{s.trainerName}</p>
                                 <p className="text-zinc-500 text-sm">Personal Training</p>
                                 {s.cancelReason && (
                                     <p className="text-zinc-600 text-xs mt-0.5">Reason: {s.cancelReason}</p>
                                 )}
                             </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <div className="text-right">
-                                <p className="text-white text-sm font-semibold flex items-center gap-1 justify-end">
-                                    <Calendar size={12} className="text-zinc-500" /> {s.sessionDate}
+                            </div>
+                            <div className="flex min-w-0 w-full flex-col gap-2 sm:w-auto sm:max-w-[min(100%,20rem)] sm:items-end sm:shrink-0">
+                            <div className="text-right sm:min-w-[9rem]">
+                                <p className="text-white text-sm font-semibold flex items-center gap-1 justify-end flex-wrap">
+                                    <Calendar size={12} className="text-zinc-500 shrink-0" /> {s.sessionDate}
                                 </p>
-                                <p className="text-zinc-500 text-xs flex items-center gap-1 justify-end">
-                                    <Clock size={11} /> {s.startTime} – {s.endTime}
+                                <p className="text-zinc-500 text-xs flex items-center gap-1 justify-end flex-wrap">
+                                    <Clock size={11} className="shrink-0" /> {s.startTime} – {s.endTime}
                                     {s.durationMinutes != null ? (
                                         <span className="text-zinc-600 ml-1">({s.durationMinutes} min)</span>
                                     ) : null}
                                 </p>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center justify-end gap-2">
                                 <span className={`text-xs px-2 py-1 rounded-full font-semibold capitalize ${statusStyles[s.status]}`}>
                                     {displayFilter(s.status)}
                                 </span>
@@ -353,21 +353,21 @@ export default function AppointmentsPage() {
                                     <button
                                         onClick={() => setCancelModal({ id: s.id, trainerName: s.trainerName })}
                                         title="Cancel session"
-                                        className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                                        className="shrink-0 p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
                                     >
                                         <X size={14} />
                                     </button>
                                 )}
                                 {s.status === 'confirmed' && (
-                                    <span title="Confirmed by trainer"><CheckCircle size={16} className="text-green-400" /></span>
+                                    <span title="Confirmed by trainer" className="shrink-0 inline-flex"><CheckCircle size={16} className="text-green-400" /></span>
                                 )}
                                 {s.status === 'completed' && s.reviewRating == null && (
-                                    <LoadingButton size="sm" variant="secondary" className="!py-1 !px-2 text-xs" onClick={() => openRate(s)}>
+                                    <LoadingButton size="sm" variant="secondary" className="!py-1 !px-2 text-xs shrink-0" onClick={() => openRate(s)}>
                                         Rate session
                                     </LoadingButton>
                                 )}
                             </div>
-                        </div>
+                            </div>
                         </div>
                         {s.status === 'completed' && s.reviewRating != null && (
                             <div className="mt-3 pt-3 border-t border-zinc-800/80 text-sm text-zinc-400">

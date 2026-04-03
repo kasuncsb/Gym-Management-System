@@ -148,19 +148,19 @@ export default function MemberDashboard() {
                     </div>
                     <div className="space-y-3">
                         {appointments.map((a, i) => (
-                            <div key={i} className="flex items-center justify-between bg-zinc-800/30 rounded-xl p-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-blue-600/20 flex items-center justify-center">
+                            <div key={i} className="flex min-w-0 flex-col gap-2 bg-zinc-800/30 rounded-xl p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600/20">
                                         <Calendar size={18} className="text-blue-400" />
                                     </div>
-                                    <div>
-                                        <p className="text-white font-semibold text-sm">{a.trainer}</p>
-                                        <p className="text-zinc-500 text-xs">{a.type}</p>
+                                    <div className="min-w-0">
+                                        <p className="break-words text-sm font-semibold text-white">{a.trainer}</p>
+                                        <p className="text-xs text-zinc-500">{a.type}</p>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-white text-sm font-semibold">{a.date}</p>
-                                    <p className="text-zinc-500 text-xs">{a.time}</p>
+                                <div className="shrink-0 text-left sm:text-right">
+                                    <p className="text-sm font-semibold text-white">{a.date}</p>
+                                    <p className="text-xs text-zinc-500">{a.time}</p>
                                 </div>
                             </div>
                         ))}

@@ -369,15 +369,15 @@ export function DoorQrCheckIn({
             </Card>
 
             {showCapacity && (
-                <Card padding="md" className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Users size={20} className="text-blue-400" />
-                        <div>
-                            <p className="text-white font-semibold text-sm">Current occupancy</p>
-                            <p className="text-zinc-500 text-xs">Live from visit log</p>
+                <Card padding="md" className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-center gap-3">
+                        <Users size={20} className="shrink-0 text-blue-400" />
+                        <div className="min-w-0">
+                            <p className="text-sm font-semibold text-white">Current occupancy</p>
+                            <p className="text-xs text-zinc-500">Live from visit log</p>
                         </div>
                     </div>
-                    <div className="text-right">
+                    <div className="shrink-0 text-left sm:text-right">
                         <p className="text-white font-bold text-xl">
                             {capacity.current} / {capacity.limit}
                         </p>
@@ -390,16 +390,16 @@ export function DoorQrCheckIn({
                 <h2 className="text-lg font-semibold text-white mb-4">Your recent visits</h2>
                 <div className="space-y-2">
                     {log.map((l, i) => (
-                        <div key={i} className="flex items-center justify-between bg-zinc-800/30 rounded-xl p-3">
-                            <div className="flex items-center gap-3">
+                        <div key={i} className="flex min-w-0 flex-col gap-2 bg-zinc-800/30 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
                                 {l.type === 'in' ? (
                                     <CheckCircle2 size={16} className="text-green-400" />
                                 ) : (
                                     <LogOut size={16} className="text-red-400" />
                                 )}
-                                <span className="text-white text-sm">{l.label}</span>
+                                <span className="min-w-0 break-words text-sm text-white">{l.label}</span>
                             </div>
-                            <span className="text-zinc-500 text-xs">{l.time}</span>
+                            <span className="shrink-0 text-xs text-zinc-500 sm:text-right">{l.time}</span>
                         </div>
                     ))}
                     {log.length === 0 && <p className="text-zinc-600 text-sm text-center py-4">No visits yet.</p>}

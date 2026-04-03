@@ -96,10 +96,10 @@ export default function TrainerDashboard() {
                 subtitle={`Welcome back, ${firstName} · ${currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} · ${currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`}
             />
 
-            <Card padding="md" className="flex items-center justify-between">
-                <div>
-                    <p className="text-white font-semibold">Shift Status</p>
-                    <p className="text-zinc-500 text-sm">{isCheckedIn ? 'You are currently on shift' : 'You are not checked in'}</p>
+            <Card padding="md" className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                    <p className="font-semibold text-white">Shift Status</p>
+                    <p className="text-sm text-zinc-500">{isCheckedIn ? 'You are currently on shift' : 'You are not checked in'}</p>
                 </div>
                 <button
                     onClick={async () => {
@@ -112,7 +112,7 @@ export default function TrainerDashboard() {
                             toast.error('Shift status update failed', getErrorMessage(err));
                         }
                     }}
-                    className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all ${isCheckedIn ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}
+                    className={`shrink-0 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${isCheckedIn ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}
                 >
                     {isCheckedIn ? 'Check Out' : 'Check In'}
                 </button>
