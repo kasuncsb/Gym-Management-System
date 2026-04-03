@@ -27,12 +27,10 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
     if (bypass) return <>{children}</>;
 
     /**
-     * Workout plans historically used an internal scroll grid.
-     * For standalone PWA/mobile we want the content pane to scroll like other pages.
+     * Workout plans page now scrolls normally (no inner overflow-y containers).
+     * So the shared member content pane must always allow scrolling on all breakpoints.
      */
-    const workoutsScrollInsideBase =
-        pathname === '/member/workouts' || pathname.startsWith('/member/workouts/');
-    const workoutsScrollInside = workoutsScrollInsideBase && !showMobileNav;
+    const workoutsScrollInside = false;
 
     return (
         <ProtectedRoute allowedRoles={['member']}>
