@@ -403,6 +403,20 @@ export const auditLogs = mysqlTable('audit_logs', {
   createdIdx: index('idx_audit_created').on(t.createdAt),
 }));
 
+/** Who generated which report (summary view or PDF download), for audit trails. */
+export const reportRuns = mysqlTable('report_runs', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  actorId: varchar('actor_id', { length: 36 }).notNull(),
+  reportType: varchar('report_type', { length: 50 }).notNull(),
+  fromDate: varchar('from_date', { length: 20 }),
+  toDate: varchar('to_date', { length: 20 }),
+  channel: mysqlEnum('channel', ['summary', 'pdf']).notNull(),
+  directRowsApprox: smallint('direct_rows_approx'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (t) => ({
+  createdIdx: index('idx_report_runs_created').on(t.createdAt),
+}));
+
 // ============================================================================
 // RELATIONS
 // ============================================================================

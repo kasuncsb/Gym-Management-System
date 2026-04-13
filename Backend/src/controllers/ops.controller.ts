@@ -3,6 +3,8 @@ import { asyncHandler } from '../middleware/error.js';
 import * as response from '../utils/response.js';
 import type { AuthRequest } from '../middleware/auth.js';
 import * as opsService from '../services/ops.service.js';
+import { insertReportRun } from '../services/report.service.js';
+import { buildReportPdf } from '../services/report-pdf.js';
 import * as auditService from '../services/audit.service.js';
 import * as pushService from '../services/push.service.js';
 import { errors } from '../utils/errors.js';
@@ -554,10 +556,50 @@ export const updateShiftStatus = asyncHandler(async (req: AuthRequest, res: Resp
 // ── Reports (parameterised) ────────────────────────────────────────────────────
 
 export const getReportSummary = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
   const params = {
     type: req.query.type as string | undefined,
     fromDate: req.query.fromDate as string | undefined,
     toDate: req.query.toDate as string | undefined,
   };
-  res.json(response.success(await opsService.getReportSummary(params)));
+  const data = await opsService.getReportSummary(params);
+  if (req.query.recordRun === 'true') {
+    const direct = (data as { direct?: Record<string, unknown> }).direct ?? {};
+    await insertReportRun({
+      actorId: user.id,
+      reportType: params.type ?? 'overview',
+      fromDate: params.fromDate,
+      toDate: params.toDate,
+      channel: 'summary',
+      direct,
+    });
+  }
+  res.json(response.success(data));
+});
+
+export const getReportPdf = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = requireUser(req);
+  const params = {
+    type: req.query.type as string | undefined,
+    fromDate: req.query.fromDate as string | undefined,
+    toDate: req.query.toDate as string | undefined,
+  };
+  const data = (await opsService.getReportSummary(params)) as Record<string, unknown>;
+  const direct = (data.direct as Record<string, unknown>) ?? {};
+  await insertReportRun({
+    actorId: user.id,
+    reportType: params.type ?? 'overview',
+    fromDate: params.fromDate,
+    toDate: params.toDate,
+    channel: 'pdf',
+    direct,
+  });
+  const buf = await buildReportPdf(data);
+  const safeName = `report-${params.type ?? 'overview'}-${params.fromDate ?? 'all'}-to-${params.toDate ?? 'now'}.pdf`.replace(
+    /[^a-zA-Z0-9._-]+/g,
+    '_',
+  );
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+  res.send(buf);
 });

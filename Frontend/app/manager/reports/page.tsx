@@ -5,6 +5,7 @@ import { Download, TrendingUp, Users, Activity, Wrench, Dumbbell } from 'lucide-
 import { PageHeader, Card, Input, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
 import { getErrorMessage, opsAPI } from '@/lib/api';
+import { DirectReportTables, ReportMetaBar } from '@/components/reports/DirectReportTables';
 
 const REPORT_TYPES = [
     { id: 'membership', label: 'Membership',    icon: Users,      desc: 'New registrations and subscriptions by plan' },
@@ -14,22 +15,13 @@ const REPORT_TYPES = [
     { id: 'equipment',  label: 'Equipment',     icon: Wrench,     desc: 'Incidents by severity and equipment' },
 ];
 
-function downloadJson(data: unknown, filename: string) {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-}
-
 export default function ManagerReportsPage() {
     const toast = useToast();
     const [selected, setSelected] = useState('membership');
     const [from, setFrom] = useState('');
     const [to, setTo] = useState('');
     const [loading, setLoading] = useState(false);
+    const [pdfLoading, setPdfLoading] = useState(false);
     const [reportData, setReportData] = useState<any>(null);
 
     const generate = async () => {
@@ -40,6 +32,7 @@ export default function ManagerReportsPage() {
                 type: selected,
                 fromDate: from || undefined,
                 toDate: to || undefined,
+                recordRun: true,
             });
             setReportData(data);
             toast.success('Report Generated', 'Data loaded from live system');
@@ -50,10 +43,27 @@ export default function ManagerReportsPage() {
         }
     };
 
-    const handleDownload = () => {
+    const handleDownloadPdf = async () => {
         if (!reportData) return;
-        downloadJson(reportData, `report-${selected}-${from || 'all'}-to-${to || 'now'}.json`);
-        toast.success('Download Started', 'Report JSON saved');
+        setPdfLoading(true);
+        try {
+            const blob = await opsAPI.downloadReportPdf({
+                type: selected,
+                fromDate: from || undefined,
+                toDate: to || undefined,
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `report-${selected}-${from || 'all'}-to-${to || 'now'}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.success('Download Started', 'Report PDF saved');
+        } catch (err) {
+            toast.error('PDF download failed', getErrorMessage(err));
+        } finally {
+            setPdfLoading(false);
+        }
     };
 
     const label = REPORT_TYPES.find(r => r.id === selected)?.label ?? selected;
@@ -84,13 +94,13 @@ export default function ManagerReportsPage() {
                     <Input id="mgr-rpt-from" label="From Date" type="date" value={from} onChange={e => setFrom(e.target.value)} />
                     <Input id="mgr-rpt-to" label="To Date" type="date" value={to} onChange={e => setTo(e.target.value)} />
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-stretch">
+                <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-start sm:items-stretch">
                     <LoadingButton onClick={generate} loading={loading} className="sm:flex-1">
                         Generate {label} Report
                     </LoadingButton>
                     {reportData && (
-                        <LoadingButton variant="secondary" icon={Download} onClick={handleDownload}>
-                            Download JSON
+                        <LoadingButton loading={pdfLoading} variant="secondary" icon={Download} onClick={handleDownloadPdf}>
+                            Download PDF
                         </LoadingButton>
                     )}
                 </div>
@@ -98,6 +108,7 @@ export default function ManagerReportsPage() {
 
             {reportData && (
                 <div className="space-y-6">
+                    <ReportMetaBar data={reportData} />
                     {/* Overview KPIs */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[
@@ -113,6 +124,23 @@ export default function ManagerReportsPage() {
                         ))}
                     </div>
 
+                    {reportData.type === 'revenue' && (reportData.totalRevenueInRange != null || reportData.paymentCountInRange != null) && (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <Card padding="md">
+                                <p className="text-zinc-400 text-xs">Total revenue (period)</p>
+                                <p className="text-white text-xl font-bold mt-1">Rs. {Number(reportData.totalRevenueInRange ?? 0).toLocaleString()}</p>
+                            </Card>
+                            <Card padding="md">
+                                <p className="text-zinc-400 text-xs">Payment count</p>
+                                <p className="text-white text-xl font-bold mt-1">{reportData.paymentCountInRange ?? '—'}</p>
+                            </Card>
+                            <Card padding="md">
+                                <p className="text-zinc-400 text-xs">Average payment</p>
+                                <p className="text-white text-xl font-bold mt-1">Rs. {Number(reportData.averagePaymentInRange ?? 0).toLocaleString()}</p>
+                            </Card>
+                        </div>
+                    )}
+
                     {reportData.type === 'revenue' && reportData.byMethod && (
                         <Card padding="lg">
                             <h3 className="text-white font-semibold mb-4">Revenue by Payment Method</h3>
@@ -122,22 +150,51 @@ export default function ManagerReportsPage() {
                                         <th className="text-left py-2">Method</th>
                                         <th className="text-right py-2">Transactions</th>
                                         <th className="text-right py-2">Total</th>
+                                        <th className="text-right py-2">% of total</th>
                                     </tr></thead>
                                     <tbody>{(reportData.byMethod ?? []).map((r: any, i: number) => (
                                         <tr key={i} className="border-b border-zinc-800/50">
                                             <td className="py-2 text-zinc-300 capitalize">{String(r.method).replace('_', ' ')}</td>
                                             <td className="py-2 text-right text-zinc-400">{r.count}</td>
                                             <td className="py-2 text-right text-white font-medium">Rs. {Number(r.total).toLocaleString()}</td>
+                                            <td className="py-2 text-right text-zinc-400">{r.pctOfTotalRevenue != null ? `${Number(r.pctOfTotalRevenue).toFixed(1)}%` : '—'}</td>
                                         </tr>
                                     ))}</tbody>
                                 </table>
                             </div>
+                            {reportData.byPlan && (
+                                <>
+                                    <h3 className="text-white font-semibold mt-6 mb-4">Revenue by Plan</h3>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
+                                                <th className="text-left py-2">Plan</th>
+                                                <th className="text-right py-2">Total</th>
+                                            </tr></thead>
+                                            <tbody>{(reportData.byPlan ?? []).map((r: any, i: number) => (
+                                                <tr key={i} className="border-b border-zinc-800/50">
+                                                    <td className="py-2 text-zinc-300">{r.planName ?? 'Unknown'}</td>
+                                                    <td className="py-2 text-right text-white font-medium">Rs. {Number(r.total).toLocaleString()}</td>
+                                                </tr>
+                                            ))}</tbody>
+                                        </table>
+                                    </div>
+                                </>
+                            )}
                         </Card>
                     )}
 
                     {reportData.type === 'membership' && (
                         <Card padding="lg">
-                            <p className="text-zinc-400 text-sm mb-4">New members in range: <span className="text-white font-bold">{reportData.newMembers ?? 0}</span></p>
+                            <p className="text-zinc-400 text-sm mb-4">
+                                New members in range: <span className="text-white font-bold">{reportData.newMembers ?? 0}</span>
+                                {reportData.subscriptionsCreatedInRange != null && (
+                                    <> · Subscriptions created: <span className="text-white font-bold">{reportData.subscriptionsCreatedInRange}</span></>
+                                )}
+                                {reportData.activeSubscriptionsTotal != null && (
+                                    <> · Active subscriptions: <span className="text-white font-bold">{reportData.activeSubscriptionsTotal}</span></>
+                                )}
+                            </p>
                             {reportData.byPlan && (
                                 <>
                                     <h3 className="text-white font-semibold mb-3">Active Subscriptions by Plan</h3>
@@ -157,12 +214,31 @@ export default function ManagerReportsPage() {
                                     </div>
                                 </>
                             )}
+                            {reportData.byStatus && (
+                                <>
+                                    <h4 className="text-zinc-300 font-medium mb-2 mt-4">Subscription status (created in range)</h4>
+                                    <div className="flex flex-wrap gap-3">
+                                        {(reportData.byStatus ?? []).map((r: any, i: number) => (
+                                            <div key={i} className="bg-zinc-800/50 rounded-lg px-4 py-2 text-center">
+                                                <p className="text-white font-bold">{r.count}</p>
+                                                <p className="text-zinc-400 text-xs capitalize">{String(r.status).replace('_', ' ')}</p>
+                                                {r.pctOfCreated != null && (
+                                                    <p className="text-zinc-500 text-xs">{Number(r.pctOfCreated).toFixed(1)}% of created</p>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
                         </Card>
                     )}
 
                     {reportData.type === 'attendance' && reportData.daily && (
                         <Card padding="lg">
                             <h3 className="text-white font-semibold mb-4">Daily Attendance</h3>
+                            {reportData.avgVisitsPerDayInRange != null && (
+                                <p className="text-zinc-400 text-sm mb-4">Average visits per day: <span className="text-white font-semibold">{reportData.avgVisitsPerDayInRange}</span></p>
+                            )}
                             {reportData.byHour && (
                                 <div className="flex items-end gap-1 h-20 mb-6">
                                     {Array.from({ length: 24 }, (_, h) => {
@@ -200,6 +276,9 @@ export default function ManagerReportsPage() {
                     {reportData.type === 'trainer' && reportData.trainerStats && (
                         <Card padding="lg">
                             <h3 className="text-white font-semibold mb-4">Trainer Performance</h3>
+                            {reportData.ptSessionsInRange != null && (
+                                <p className="text-zinc-400 text-sm mb-4">PT sessions in range: <span className="text-white font-semibold">{reportData.ptSessionsInRange}</span></p>
+                            )}
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
@@ -210,7 +289,12 @@ export default function ManagerReportsPage() {
                                         <th className="text-right py-2">Rate</th>
                                     </tr></thead>
                                     <tbody>{(reportData.trainerStats ?? []).map((r: any, i: number) => {
-                                        const pct = r.total > 0 ? Math.round((Number(r.completed) / Number(r.total)) * 100) : 0;
+                                        const pct =
+                                            r.completionRatePct != null
+                                                ? Number(r.completionRatePct).toFixed(1)
+                                                : r.total > 0
+                                                  ? String(Math.round((Number(r.completed) / Number(r.total)) * 100))
+                                                  : '0';
                                         return (
                                             <tr key={i} className="border-b border-zinc-800/50">
                                                 <td className="py-2 text-zinc-300">{r.trainerName ?? 'Unknown'}</td>
@@ -225,6 +309,52 @@ export default function ManagerReportsPage() {
                             </div>
                         </Card>
                     )}
+
+                    {reportData.type === 'equipment' && (
+                        <Card padding="lg">
+                            <h3 className="text-white font-semibold mb-4">Equipment incidents</h3>
+                            {reportData.incidentsInRange != null && (
+                                <p className="text-zinc-400 text-sm mb-4">Incidents in range: <span className="text-white font-semibold">{reportData.incidentsInRange}</span></p>
+                            )}
+                            {reportData.bySeverity && (
+                                <div className="overflow-x-auto mb-6">
+                                    <table className="w-full text-sm">
+                                        <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
+                                            <th className="text-left py-2">Severity</th>
+                                            <th className="text-left py-2">Status</th>
+                                            <th className="text-right py-2">Count</th>
+                                        </tr></thead>
+                                        <tbody>{(reportData.bySeverity ?? []).map((r: any, i: number) => (
+                                            <tr key={i} className="border-b border-zinc-800/50">
+                                                <td className="py-2 text-zinc-300 capitalize">{r.severity ?? '—'}</td>
+                                                <td className="py-2 text-zinc-400 capitalize">{r.status ?? '—'}</td>
+                                                <td className="py-2 text-right text-white font-medium">{r.count}</td>
+                                            </tr>
+                                        ))}</tbody>
+                                    </table>
+                                </div>
+                            )}
+                            {reportData.byEquipment && (
+                                <div className="overflow-x-auto">
+                                    <h4 className="text-zinc-300 font-medium mb-2">By equipment</h4>
+                                    <table className="w-full text-sm">
+                                        <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
+                                            <th className="text-left py-2">Equipment</th>
+                                            <th className="text-right py-2">Incidents</th>
+                                        </tr></thead>
+                                        <tbody>{(reportData.byEquipment ?? []).map((r: any, i: number) => (
+                                            <tr key={i} className="border-b border-zinc-800/50">
+                                                <td className="py-2 text-zinc-300">{r.equipmentName ?? 'Unknown'}</td>
+                                                <td className="py-2 text-right text-white font-medium">{r.count}</td>
+                                            </tr>
+                                        ))}</tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </Card>
+                    )}
+
+                    <DirectReportTables data={reportData} />
                 </div>
             )}
         </div>

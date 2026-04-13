@@ -891,7 +891,7 @@ Visits today: ${dashboard.todayVisits}
 Open issues: ${dashboard.openIssues}
 Monthly revenue: ${dashboard.monthlyRevenue}
 Visits in range: ${(report as any).visitsInRange ?? (report as any).visitsLast30Days ?? 0}
-Open incidents: ${report.openEquipmentIncidents}
+Open incidents: ${(report as Record<string, unknown>).openEquipmentIncidents ?? 0}
 `;
   let ragContext = '';
   try {
@@ -1071,7 +1071,7 @@ Visits today: ${dashboard.todayVisits}
 Open issues: ${dashboard.openIssues}
 Monthly revenue: ${dashboard.monthlyRevenue}
 Visits last 30 days: ${(report as any).visitsInRange ?? (report as any).visitsLast30Days ?? 0}
-Open incidents: ${report.openEquipmentIncidents}
+Open incidents: ${(report as Record<string, unknown>).openEquipmentIncidents ?? 0}
 `;
   const trendFacts = await buildManagerTrendContext(user.id);
 

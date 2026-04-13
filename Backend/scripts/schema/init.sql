@@ -482,6 +482,23 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
+-- 18b. REPORT_RUNS (report generation audit)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS `report_runs` (
+  `id`                   VARCHAR(36)   NOT NULL,
+  `actor_id`             VARCHAR(36)   NOT NULL,
+  `report_type`          VARCHAR(50)   NOT NULL,
+  `from_date`            VARCHAR(20)   DEFAULT NULL,
+  `to_date`              VARCHAR(20)   DEFAULT NULL,
+  `channel`              ENUM('summary','pdf') NOT NULL,
+  `direct_rows_approx`   SMALLINT UNSIGNED DEFAULT NULL,
+  `created_at`           TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_report_runs_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
 -- 19. AI_INTERACTIONS (chat lines: chat_session_id + seq + chat_message_role)
 -- ============================================================================
 

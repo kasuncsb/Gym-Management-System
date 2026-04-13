@@ -125,6 +125,7 @@ router.post('/shifts', authorize('manager', 'admin'), ops.createShift);
 router.patch('/shifts/:id', authorize('manager', 'admin', 'trainer'), ops.updateShiftStatus);
 
 router.get('/reports/summary', authorize('manager', 'admin'), ops.getReportSummary);
+router.get('/reports/pdf', authorize('manager', 'admin'), ops.getReportPdf);
 router.get('/reports/recent', authorize('manager', 'admin'), ops.getRecentReports);
 
 router.get('/config', authorize('admin', 'manager'), ops.listConfig);

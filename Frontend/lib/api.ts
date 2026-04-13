@@ -282,8 +282,17 @@ export const opsAPI = {
     apiClient
       .get<{ success: boolean; data: MemberDashboardAnalytics | ManagerDashboardAnalytics }>(`/ops/dashboard/${role}/analytics`)
       .then((r) => r.data.data),
-  reportSummary: (params?: { type?: string; fromDate?: string; toDate?: string }) =>
-    apiClient.get('/ops/reports/summary', { params }).then(r => r.data.data),
+  reportSummary: (params?: { type?: string; fromDate?: string; toDate?: string; recordRun?: boolean }) => {
+    const { recordRun, ...rest } = params ?? {};
+    return apiClient
+      .get('/ops/reports/summary', {
+        params: { ...rest, ...(recordRun ? { recordRun: 'true' } : {}) },
+      })
+      .then((r) => r.data.data);
+  },
+  /** Binary PDF; use only after a successful generate (same filters as reportSummary). */
+  downloadReportPdf: (params?: { type?: string; fromDate?: string; toDate?: string }) =>
+    apiClient.get<Blob>('/ops/reports/pdf', { params, responseType: 'blob' }).then((r) => r.data),
   recentReports: () =>
     apiClient.get('/ops/reports/recent').then(r => r.data.data),
 

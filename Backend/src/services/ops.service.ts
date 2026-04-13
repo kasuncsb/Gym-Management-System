@@ -46,6 +46,7 @@ import { errors } from '../utils/errors.js';
 import { hashPassword } from '../utils/password.js';
 import { assertMemberCanPurchaseSubscription } from './auth.service.js';
 import * as audit from './audit.service.js';
+import { finalizeReportPayload } from './report.service.js';
 import { getConfigValue, getConfigInt } from './config.service.js';
 import { generateInvoiceEmailHTML, sendEmail } from '../utils/email.js';
 import {
@@ -2445,7 +2446,8 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
       .where(sql`date(${payments.paymentDate}) >= ${sql.raw(from)} and date(${payments.paymentDate}) <= ${sql.raw(to)}`)
       .groupBy(subscriptions.planId, subscriptionPlans.name);
 
-    return { ...overview, type, fromDate: params?.fromDate, toDate: params?.toDate, byMethod, byPlan };
+    const body = { ...overview, type, fromDate: params?.fromDate, toDate: params?.toDate, byMethod, byPlan };
+    return finalizeReportPayload(body, type, from, to, params);
   }
 
   if (type === 'membership') {
@@ -2472,7 +2474,16 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
       .where(and(eq(subscriptions.status, 'active')))
       .groupBy(subscriptions.planId, subscriptionPlans.name);
 
-    return { ...overview, type, fromDate: params?.fromDate, toDate: params?.toDate, newMembers: Number(newMembers[0]?.count ?? 0), byStatus, byPlan };
+    const body = {
+      ...overview,
+      type,
+      fromDate: params?.fromDate,
+      toDate: params?.toDate,
+      newMembers: Number(newMembers[0]?.count ?? 0),
+      byStatus,
+      byPlan,
+    };
+    return finalizeReportPayload(body, type, from, to, params);
   }
 
   if (type === 'attendance') {
@@ -2487,7 +2498,8 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
       count: sql<number>`count(*)`,
     }).from(visits).where(sql`date(${visits.checkInAt}) >= ${sql.raw(from)} and date(${visits.checkInAt}) <= ${sql.raw(to)}`).groupBy(sql`hour(${visits.checkInAt})`).orderBy(sql`hour(${visits.checkInAt})`);
 
-    return { ...overview, type, fromDate: params?.fromDate, toDate: params?.toDate, daily, byHour };
+    const body = { ...overview, type, fromDate: params?.fromDate, toDate: params?.toDate, daily, byHour };
+    return finalizeReportPayload(body, type, from, to, params);
   }
 
   if (type === 'equipment') {
@@ -2515,7 +2527,8 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
       .groupBy(equipmentEvents.equipmentId, equipment.name)
       .orderBy(sql`count(*) desc`);
 
-    return { ...overview, type, fromDate: params?.fromDate, toDate: params?.toDate, bySeverity, byEquipment };
+    const body = { ...overview, type, fromDate: params?.fromDate, toDate: params?.toDate, bySeverity, byEquipment };
+    return finalizeReportPayload(body, type, from, to, params);
   }
 
   if (type === 'trainer') {
@@ -2530,11 +2543,12 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
       .where(sql`date(${ptSessions.sessionDate}) >= ${sql.raw(from)} and date(${ptSessions.sessionDate}) <= ${sql.raw(to)}`)
       .groupBy(ptSessions.trainerId, users.fullName);
 
-    return { ...overview, type, fromDate: params?.fromDate, toDate: params?.toDate, trainerStats };
+    const body = { ...overview, type, fromDate: params?.fromDate, toDate: params?.toDate, trainerStats };
+    return finalizeReportPayload(body, type, from, to, params);
   }
 
-  // Default overview
-  return { ...overview, type: 'overview', fromDate: params?.fromDate, toDate: params?.toDate };
+  const body = { ...overview, type: 'overview', fromDate: params?.fromDate, toDate: params?.toDate };
+  return finalizeReportPayload(body, 'overview', from, to, params);
 }
 
 export async function getRecentReportItems() {

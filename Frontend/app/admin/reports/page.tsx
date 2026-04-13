@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { Download, TrendingUp, Users, Activity, Wrench, Dumbbell } from 'lucide-react';
-import { PageHeader, Card, Input, Select, LoadingButton } from '@/components/ui/SharedComponents';
+import { PageHeader, Card, Input, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
 import { getErrorMessage, opsAPI } from '@/lib/api';
+import { DirectReportTables, ReportMetaBar } from '@/components/reports/DirectReportTables';
 
 const REPORT_TYPES = [
     { id: 'revenue',    label: 'Revenue',       icon: TrendingUp, desc: 'Payments by method and plan' },
@@ -14,22 +15,13 @@ const REPORT_TYPES = [
     { id: 'trainer',    label: 'Trainers',      icon: Dumbbell,   desc: 'PT session stats per trainer' },
 ];
 
-function downloadJson(data: unknown, filename: string) {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-}
-
 export default function AdminReportsPage() {
     const toast = useToast();
     const [selected, setSelected] = useState('revenue');
     const [from, setFrom] = useState('');
     const [to, setTo] = useState('');
     const [loading, setLoading] = useState(false);
+    const [pdfLoading, setPdfLoading] = useState(false);
     const [reportData, setReportData] = useState<any>(null);
 
     const run = async () => {
@@ -40,6 +32,7 @@ export default function AdminReportsPage() {
                 type: selected,
                 fromDate: from || undefined,
                 toDate: to || undefined,
+                recordRun: true,
             });
             setReportData(data);
             toast.success('Report Generated', 'Data loaded successfully');
@@ -50,10 +43,27 @@ export default function AdminReportsPage() {
         }
     };
 
-    const handleDownload = () => {
+    const handleDownloadPdf = async () => {
         if (!reportData) return;
-        downloadJson(reportData, `report-${selected}-${from || 'all'}-to-${to || 'now'}.json`);
-        toast.success('Download Started', 'Report JSON saved');
+        setPdfLoading(true);
+        try {
+            const blob = await opsAPI.downloadReportPdf({
+                type: selected,
+                fromDate: from || undefined,
+                toDate: to || undefined,
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `report-${selected}-${from || 'all'}-to-${to || 'now'}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.success('Download Started', 'Report PDF saved');
+        } catch (err) {
+            toast.error('PDF download failed', getErrorMessage(err));
+        } finally {
+            setPdfLoading(false);
+        }
     };
 
     const label = REPORT_TYPES.find(r => r.id === selected)?.label ?? selected;
@@ -86,13 +96,13 @@ export default function AdminReportsPage() {
                     <Input id="rpt-from" label="From Date" type="date" value={from} onChange={e => setFrom(e.target.value)} />
                     <Input id="rpt-to" label="To Date" type="date" value={to} onChange={e => setTo(e.target.value)} />
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-stretch">
+                <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-start sm:items-stretch">
                     <LoadingButton onClick={run} loading={loading} className="sm:flex-1">
                         Generate {label} Report
                     </LoadingButton>
                     {reportData && (
-                        <LoadingButton variant="secondary" icon={Download} onClick={handleDownload}>
-                            Download JSON
+                        <LoadingButton loading={pdfLoading} variant="secondary" icon={Download} onClick={handleDownloadPdf}>
+                            Download PDF
                         </LoadingButton>
                     )}
                 </div>
@@ -108,6 +118,7 @@ function ReportResults({ data }: { data: any }) {
 
     return (
         <div className="space-y-6">
+            <ReportMetaBar data={data} />
             {/* Overview KPIs always shown */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
@@ -123,6 +134,23 @@ function ReportResults({ data }: { data: any }) {
                 ))}
             </div>
 
+            {type === 'revenue' && (data.totalRevenueInRange != null || data.paymentCountInRange != null) && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <Card padding="md">
+                        <p className="text-zinc-400 text-xs">Total revenue (period)</p>
+                        <p className="text-white text-xl font-bold mt-1">Rs. {Number(data.totalRevenueInRange ?? 0).toLocaleString()}</p>
+                    </Card>
+                    <Card padding="md">
+                        <p className="text-zinc-400 text-xs">Payment count (period)</p>
+                        <p className="text-white text-xl font-bold mt-1">{data.paymentCountInRange ?? '—'}</p>
+                    </Card>
+                    <Card padding="md">
+                        <p className="text-zinc-400 text-xs">Average payment</p>
+                        <p className="text-white text-xl font-bold mt-1">Rs. {Number(data.averagePaymentInRange ?? 0).toLocaleString()}</p>
+                    </Card>
+                </div>
+            )}
+
             {type === 'revenue' && data.byMethod && (
                 <Card padding="lg">
                     <h3 className="text-white font-semibold mb-4">Revenue by Payment Method</h3>
@@ -132,12 +160,14 @@ function ReportResults({ data }: { data: any }) {
                                 <th className="text-left py-2">Method</th>
                                 <th className="text-right py-2">Transactions</th>
                                 <th className="text-right py-2">Total</th>
+                                <th className="text-right py-2">% of total</th>
                             </tr></thead>
                             <tbody>{(data.byMethod ?? []).map((r: any, i: number) => (
                                 <tr key={i} className="border-b border-zinc-800/50">
                                     <td className="py-2 text-zinc-300 capitalize">{String(r.method).replace('_', ' ')}</td>
                                     <td className="py-2 text-right text-zinc-400">{r.count}</td>
                                     <td className="py-2 text-right text-white font-medium">Rs. {Number(r.total).toLocaleString()}</td>
+                                    <td className="py-2 text-right text-zinc-400">{r.pctOfTotalRevenue != null ? `${Number(r.pctOfTotalRevenue).toFixed(1)}%` : '—'}</td>
                                 </tr>
                             ))}</tbody>
                         </table>
@@ -167,7 +197,15 @@ function ReportResults({ data }: { data: any }) {
             {type === 'membership' && (
                 <Card padding="lg">
                     <h3 className="text-white font-semibold mb-4">Membership Summary</h3>
-                    <p className="text-zinc-400 text-sm mb-4">New members in range: <span className="text-white font-bold">{data.newMembers ?? 0}</span></p>
+                    <p className="text-zinc-400 text-sm mb-4">
+                        New members in range: <span className="text-white font-bold">{data.newMembers ?? 0}</span>
+                        {data.subscriptionsCreatedInRange != null && (
+                            <> · Subscriptions created in range: <span className="text-white font-bold">{data.subscriptionsCreatedInRange}</span></>
+                        )}
+                        {data.activeSubscriptionsTotal != null && (
+                            <> · Active subscriptions (all plans): <span className="text-white font-bold">{data.activeSubscriptionsTotal}</span></>
+                        )}
+                    </p>
                     {data.byPlan && (
                         <>
                             <h4 className="text-zinc-300 font-medium mb-2">Active Subscriptions by Plan</h4>
@@ -195,6 +233,9 @@ function ReportResults({ data }: { data: any }) {
                                     <div key={i} className="bg-zinc-800/50 rounded-lg px-4 py-2 text-center">
                                         <p className="text-white font-bold">{r.count}</p>
                                         <p className="text-zinc-400 text-xs capitalize">{String(r.status).replace('_', ' ')}</p>
+                                        {r.pctOfCreated != null && (
+                                            <p className="text-zinc-500 text-xs">{Number(r.pctOfCreated).toFixed(1)}% of created</p>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -206,6 +247,9 @@ function ReportResults({ data }: { data: any }) {
             {type === 'attendance' && (
                 <Card padding="lg">
                     <h3 className="text-white font-semibold mb-4">Attendance Analysis</h3>
+                    {data.avgVisitsPerDayInRange != null && (
+                        <p className="text-zinc-400 text-sm mb-4">Average visits per day in range: <span className="text-white font-semibold">{data.avgVisitsPerDayInRange}</span></p>
+                    )}
                     {data.byHour && (
                         <>
                             <h4 className="text-zinc-300 font-medium mb-3">Peak Hours</h4>
@@ -251,6 +295,9 @@ function ReportResults({ data }: { data: any }) {
             {type === 'equipment' && (
                 <Card padding="lg">
                     <h3 className="text-white font-semibold mb-4">Equipment Incident Analysis</h3>
+                    {data.incidentsInRange != null && (
+                        <p className="text-zinc-400 text-sm mb-4">Incidents in range (rows): <span className="text-white font-semibold">{data.incidentsInRange}</span></p>
+                    )}
                     {data.bySeverity && (
                         <>
                             <h4 className="text-zinc-300 font-medium mb-2">By Severity & Status</h4>
@@ -307,7 +354,12 @@ function ReportResults({ data }: { data: any }) {
                                 <th className="text-right py-2">Completion %</th>
                             </tr></thead>
                             <tbody>{(data.trainerStats ?? []).map((r: any, i: number) => {
-                                const pct = r.total > 0 ? Math.round((Number(r.completed) / Number(r.total)) * 100) : 0;
+                                const pct =
+                                    r.completionRatePct != null
+                                        ? Number(r.completionRatePct).toFixed(1)
+                                        : r.total > 0
+                                          ? String(Math.round((Number(r.completed) / Number(r.total)) * 100))
+                                          : '0';
                                 return (
                                     <tr key={i} className="border-b border-zinc-800/50">
                                         <td className="py-2 text-zinc-300">{r.trainerName ?? 'Unknown'}</td>
@@ -322,6 +374,8 @@ function ReportResults({ data }: { data: any }) {
                     </div>
                 </Card>
             )}
+
+            <DirectReportTables data={data} />
         </div>
     );
 }
