@@ -330,6 +330,41 @@ function pickAiNarrativeFields(ai: NarrativeMap, base: NarrativeMap): NarrativeM
   return out;
 }
 
+function normalizeNarrativeText(raw: string): string {
+  let s = raw.trim();
+  if (!s) return s;
+  // Enforce local currency conventions and remove foreign currency mentions.
+  s = s.replace(/\$\s*/g, 'Rs. ');
+  s = s.replace(/\bUSD\b/gi, 'LKR');
+  s = s.replace(/\bUS dollars?\b/gi, 'LKR');
+  s = s.replace(/€/g, 'Rs. ');
+  s = s.replace(/£/g, 'Rs. ');
+  // Keep output as plain text paragraphs.
+  s = s.replace(/[*_`#]/g, '');
+  s = s.replace(/\s{2,}/g, ' ');
+  return s;
+}
+
+function sanitizeNarrativeMap(input: NarrativeMap): NarrativeMap {
+  const out: NarrativeMap = { ...input };
+  const scalarKeys = ['executiveSummary', 'sectionTitle', 'sectionSummary', 'chartTitle', 'chartInterpretation'] as const;
+  for (const k of scalarKeys) {
+    const v = out[k];
+    if (typeof v === 'string') out[k] = normalizeNarrativeText(v);
+  }
+  const listKeys = ['sectionParagraphs', 'highlights', 'whatThisMeans', 'recommendedActions'] as const;
+  for (const k of listKeys) {
+    const v = out[k];
+    if (Array.isArray(v)) {
+      out[k] = v
+        .map((x) => (typeof x === 'string' ? normalizeNarrativeText(x) : ''))
+        .filter(Boolean)
+        .slice(0, 6);
+    }
+  }
+  return out;
+}
+
 async function maybeEnhanceNarrativeWithAi(
   baseNarrative: NarrativeMap,
   payload: Record<string, unknown>,
@@ -380,6 +415,8 @@ Rules:
 - Use plain business language, not developer jargon.
 - Keep facts strictly grounded in the provided metrics.
 - Do not invent numbers.
+- Use Sri Lankan currency format only (Rs. / LKR). NEVER use $, USD, EUR, or GBP.
+- Keep text plain (no markdown bullets, no code formatting).
 - Return ONLY JSON (no markdown, no prose outside JSON) with keys:
   executiveSummary (string),
   sectionTitle (string),
@@ -416,7 +453,7 @@ ${JSON.stringify(metricsDigest)}`;
     const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('\n').trim() ?? '';
     const parsed = parseJsonLoose(text);
     if (!parsed) return baseNarrative;
-    return pickAiNarrativeFields(parsed, baseNarrative);
+    return sanitizeNarrativeMap(pickAiNarrativeFields(parsed, baseNarrative));
   } catch {
     return baseNarrative;
   }
@@ -737,6 +774,8 @@ export async function finalizeReportPayload(
   }
 
   const baseNarrative = buildReportNarrative(payload, reportType, params?.fromDate, params?.toDate);
-  const reportNarrative = await maybeEnhanceNarrativeWithAi(baseNarrative, payload, reportType, params?.fromDate, params?.toDate);
+  const reportNarrative = sanitizeNarrativeMap(
+    await maybeEnhanceNarrativeWithAi(baseNarrative, payload, reportType, params?.fromDate, params?.toDate),
+  );
   return maskReportForExport({ ...payload, meta, direct, reportNarrative });
 }

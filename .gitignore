@@ -78,3 +78,7 @@ Frontend/public/swe-worker*
 # ── Docker secrets (never commit actual .env used at runtime) ──────────────────
 # .env at root is the production secret file — already excluded above
 .cursor/
+
+# ignore design documents
+*.puml
+*.drawio
