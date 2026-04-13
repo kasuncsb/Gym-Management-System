@@ -46,11 +46,7 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
       doc.addPage();
       paintPageBackground();
       y = PAGE_TOP;
-      doc.save();
-      doc.strokeColor(THEME.accent).opacity(0.85).lineWidth(2).moveTo(MARGIN, y).lineTo(doc.page.width - MARGIN, y).stroke();
-      doc.opacity(1);
-      doc.restore();
-      y += 10;
+      y += 2;
     };
 
     const ensure = (h: number) => {
@@ -142,7 +138,7 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
       });
     };
 
-    const tableBlock = (title: string, headers: string[], rows: string[][]) => {
+    const tableBlock = (title: string, headers: string[], rows: string[][], maxRows = 24) => {
       if (rows.length === 0) return;
       heading(title, 11);
       const colCount = headers.length;
@@ -162,7 +158,7 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
       y += headerH;
       doc.font('Helvetica').fontSize(7);
       let ri = 0;
-      for (const row of rows.slice(0, 24)) {
+      for (const row of rows.slice(0, maxRows)) {
         ensure(rowH + 6);
         if (ri % 2 === 1) {
           doc.save();
@@ -292,6 +288,7 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
         'Inventory by category',
         ['Category', 'Items', 'Total stock', 'Low-stock items'],
         objectRows(data.byCategory, ['category', 'itemCount', 'totalStock', 'lowStockCount']),
+        12,
       );
     }
     if (Array.isArray(data.txnByType)) {
@@ -300,6 +297,7 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
         'Inventory transactions by type',
         ['Type', 'Transactions', 'Units moved', 'Net change'],
         objectRows(data.txnByType, ['txnType', 'txnCount', 'qtyMoved', 'netQtyChange']),
+        12,
       );
     }
     if (Array.isArray(data.lowStockItems)) {
@@ -308,6 +306,7 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
         'Low-stock items',
         ['Item', 'Category', 'In stock', 'Reorder at'],
         objectRows(data.lowStockItems, ['name', 'category', 'qtyInStock', 'reorderThreshold']),
+        12,
       );
     }
     if (Array.isArray(data.topMovementItems)) {
@@ -316,7 +315,17 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
         'Top movement items',
         ['Item', 'Category', 'Transactions', 'Units moved'],
         objectRows(data.topMovementItems, ['itemName', 'category', 'transactionCount', 'qtyMoved']),
+        12,
       );
+    }
+    if (
+      type === 'inventory' &&
+      !Array.isArray(data.byCategory) &&
+      !Array.isArray(data.txnByType) &&
+      !Array.isArray(data.lowStockItems) &&
+      !Array.isArray(data.topMovementItems)
+    ) {
+      para('No inventory movement or stock detail is available for the selected timeframe. Try a wider date range for fuller inventory analytics.', true);
     }
 
     heading('Glossary', 11);
