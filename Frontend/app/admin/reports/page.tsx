@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Download, TrendingUp, Users, Activity, Wrench, Dumbbell } from 'lucide-react';
 import { PageHeader, Card, Input, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
 import { getErrorMessage, opsAPI } from '@/lib/api';
 import { DirectReportTables, ReportMetaBar } from '@/components/reports/DirectReportTables';
+import { reportSectionCard, reportTableBodyRow, reportTableCell, reportTableCellHead, reportTableHeadRow, reportTypeTileActive, reportTypeTileIdle } from '@/components/reports/reportTheme';
+import { cn } from '@/lib/utils';
+import { MAX_REPORT_RANGE_DAYS, reportDateInputMin, todayLocalYmd, validateReportDateRange } from '@/lib/reportDateRange';
 
 const REPORT_TYPES = [
     { id: 'revenue',    label: 'Revenue',       icon: TrendingUp, desc: 'Payments by method and plan' },
@@ -24,7 +27,15 @@ export default function AdminReportsPage() {
     const [pdfLoading, setPdfLoading] = useState(false);
     const [reportData, setReportData] = useState<any>(null);
 
+    const dateMax = useMemo(() => todayLocalYmd(), []);
+    const dateMin = useMemo(() => reportDateInputMin(), []);
+
     const run = async () => {
+        const check = validateReportDateRange(from, to);
+        if (!check.ok) {
+            toast.error('Invalid date range', check.message);
+            return;
+        }
         setLoading(true);
         setReportData(null);
         try {
@@ -45,6 +56,11 @@ export default function AdminReportsPage() {
 
     const handleDownloadPdf = async () => {
         if (!reportData) return;
+        const check = validateReportDateRange(from, to);
+        if (!check.ok) {
+            toast.error('Invalid date range', check.message);
+            return;
+        }
         setPdfLoading(true);
         try {
             const blob = await opsAPI.downloadReportPdf({
@@ -75,16 +91,14 @@ export default function AdminReportsPage() {
                 subtitle="Generate comprehensive operational reports with live data"
             />
 
-            <Card padding="lg">
+            <Card padding="lg" className={reportSectionCard}>
                 <h2 className="text-white font-semibold mb-5">Report Builder</h2>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
                     {REPORT_TYPES.map(r => (
                         <div
                             key={r.id}
                             onClick={() => { setSelected(r.id); setReportData(null); }}
-                            className={`p-4 rounded-xl border cursor-pointer transition-all ${selected === r.id
-                                ? 'border-red-500/60 bg-red-500/10'
-                                : 'border-zinc-800 hover:border-zinc-700'}`}
+                            className={cn('p-4 rounded-xl border cursor-pointer transition-all', selected === r.id ? reportTypeTileActive : reportTypeTileIdle)}
                         >
                             <r.icon size={16} className={selected === r.id ? 'text-red-400 mb-1' : 'text-zinc-500 mb-1'} />
                             <p className="text-white text-sm font-semibold">{r.label}</p>
@@ -92,10 +106,13 @@ export default function AdminReportsPage() {
                         </div>
                     ))}
                 </div>
-                <div className="grid grid-cols-2 gap-4 mb-5">
-                    <Input id="rpt-from" label="From Date" type="date" value={from} onChange={e => setFrom(e.target.value)} />
-                    <Input id="rpt-to" label="To Date" type="date" value={to} onChange={e => setTo(e.target.value)} />
+                <div className="grid grid-cols-2 gap-4 mb-2">
+                    <Input id="rpt-from" label="From Date" type="date" value={from} min={dateMin} max={dateMax} onChange={e => setFrom(e.target.value)} />
+                    <Input id="rpt-to" label="To Date" type="date" value={to} min={dateMin} max={dateMax} onChange={e => setTo(e.target.value)} />
                 </div>
+                <p className="text-zinc-500 text-xs mb-5">
+                    No future dates. If both dates are set, range cannot exceed {MAX_REPORT_RANGE_DAYS} days. Leave blank to use defaults (e.g. last 30 days).
+                </p>
                 <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-start sm:items-stretch">
                     <LoadingButton onClick={run} loading={loading} className="sm:flex-1">
                         Generate {label} Report
@@ -127,7 +144,7 @@ function ReportResults({ data }: { data: any }) {
                     { label: 'Visits in Range', value: data.visitsInRange ?? '—' },
                     { label: 'Open Incidents', value: data.openEquipmentIncidents ?? '—' },
                 ].map(kpi => (
-                    <Card key={kpi.label} padding="md">
+                    <Card key={kpi.label} padding="md" className={cn(reportSectionCard, 'border-zinc-700/60')}>
                         <p className="text-zinc-400 text-xs">{kpi.label}</p>
                         <p className="text-white text-2xl font-bold mt-1">{kpi.value}</p>
                     </Card>
@@ -136,15 +153,15 @@ function ReportResults({ data }: { data: any }) {
 
             {type === 'revenue' && (data.totalRevenueInRange != null || data.paymentCountInRange != null) && (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <Card padding="md">
+                    <Card padding="md" className={cn(reportSectionCard, 'border-zinc-700/60')}>
                         <p className="text-zinc-400 text-xs">Total revenue (period)</p>
                         <p className="text-white text-xl font-bold mt-1">Rs. {Number(data.totalRevenueInRange ?? 0).toLocaleString()}</p>
                     </Card>
-                    <Card padding="md">
+                    <Card padding="md" className={cn(reportSectionCard, 'border-zinc-700/60')}>
                         <p className="text-zinc-400 text-xs">Payment count (period)</p>
                         <p className="text-white text-xl font-bold mt-1">{data.paymentCountInRange ?? '—'}</p>
                     </Card>
-                    <Card padding="md">
+                    <Card padding="md" className={cn(reportSectionCard, 'border-zinc-700/60')}>
                         <p className="text-zinc-400 text-xs">Average payment</p>
                         <p className="text-white text-xl font-bold mt-1">Rs. {Number(data.averagePaymentInRange ?? 0).toLocaleString()}</p>
                     </Card>
@@ -152,22 +169,25 @@ function ReportResults({ data }: { data: any }) {
             )}
 
             {type === 'revenue' && data.byMethod && (
-                <Card padding="lg">
-                    <h3 className="text-white font-semibold mb-4">Revenue by Payment Method</h3>
+                <Card padding="lg" className={reportSectionCard}>
+                    <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-red-500/70" aria-hidden />
+                        Revenue by Payment Method
+                    </h3>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
-                            <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
-                                <th className="text-left py-2">Method</th>
-                                <th className="text-right py-2">Transactions</th>
-                                <th className="text-right py-2">Total</th>
-                                <th className="text-right py-2">% of total</th>
+                            <thead><tr className={reportTableHeadRow}>
+                                <th className={reportTableCellHead}>Method</th>
+                                <th className={cn(reportTableCellHead, 'text-right')}>Transactions</th>
+                                <th className={cn(reportTableCellHead, 'text-right')}>Total</th>
+                                <th className={cn(reportTableCellHead, 'text-right')}>% of total</th>
                             </tr></thead>
                             <tbody>{(data.byMethod ?? []).map((r: any, i: number) => (
-                                <tr key={i} className="border-b border-zinc-800/50">
-                                    <td className="py-2 text-zinc-300 capitalize">{String(r.method).replace('_', ' ')}</td>
-                                    <td className="py-2 text-right text-zinc-400">{r.count}</td>
-                                    <td className="py-2 text-right text-white font-medium">Rs. {Number(r.total).toLocaleString()}</td>
-                                    <td className="py-2 text-right text-zinc-400">{r.pctOfTotalRevenue != null ? `${Number(r.pctOfTotalRevenue).toFixed(1)}%` : '—'}</td>
+                                <tr key={i} className={reportTableBodyRow}>
+                                    <td className={cn(reportTableCell, 'text-zinc-300 capitalize')}>{String(r.method).replace('_', ' ')}</td>
+                                    <td className={cn(reportTableCell, 'text-right text-zinc-400')}>{r.count}</td>
+                                    <td className={cn(reportTableCell, 'text-right text-white font-medium')}>Rs. {Number(r.total).toLocaleString()}</td>
+                                    <td className={cn(reportTableCell, 'text-right text-zinc-400')}>{r.pctOfTotalRevenue != null ? `${Number(r.pctOfTotalRevenue).toFixed(1)}%` : '—'}</td>
                                 </tr>
                             ))}</tbody>
                         </table>
@@ -177,14 +197,14 @@ function ReportResults({ data }: { data: any }) {
                             <h3 className="text-white font-semibold mt-6 mb-4">Revenue by Plan</h3>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
-                                    <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
-                                        <th className="text-left py-2">Plan</th>
-                                        <th className="text-right py-2">Total</th>
+                                    <thead><tr className={reportTableHeadRow}>
+                                        <th className={reportTableCellHead}>Plan</th>
+                                        <th className={cn(reportTableCellHead, 'text-right')}>Total</th>
                                     </tr></thead>
                                     <tbody>{(data.byPlan ?? []).map((r: any, i: number) => (
-                                        <tr key={i} className="border-b border-zinc-800/50">
-                                            <td className="py-2 text-zinc-300">{r.planName ?? 'Unknown'}</td>
-                                            <td className="py-2 text-right text-white font-medium">Rs. {Number(r.total).toLocaleString()}</td>
+                                        <tr key={i} className={reportTableBodyRow}>
+                                            <td className={cn(reportTableCell, 'text-zinc-300')}>{r.planName ?? 'Unknown'}</td>
+                                            <td className={cn(reportTableCell, 'text-right text-white font-medium')}>Rs. {Number(r.total).toLocaleString()}</td>
                                         </tr>
                                     ))}</tbody>
                                 </table>
@@ -195,7 +215,7 @@ function ReportResults({ data }: { data: any }) {
             )}
 
             {type === 'membership' && (
-                <Card padding="lg">
+                <Card padding="lg" className={reportSectionCard}>
                     <h3 className="text-white font-semibold mb-4">Membership Summary</h3>
                     <p className="text-zinc-400 text-sm mb-4">
                         New members in range: <span className="text-white font-bold">{data.newMembers ?? 0}</span>
@@ -211,14 +231,14 @@ function ReportResults({ data }: { data: any }) {
                             <h4 className="text-zinc-300 font-medium mb-2">Active Subscriptions by Plan</h4>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm mb-6">
-                                    <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
-                                        <th className="text-left py-2">Plan</th>
-                                        <th className="text-right py-2">Active</th>
+                                    <thead><tr className={reportTableHeadRow}>
+                                        <th className={reportTableCellHead}>Plan</th>
+                                        <th className={cn(reportTableCellHead, 'text-right')}>Active</th>
                                     </tr></thead>
                                     <tbody>{(data.byPlan ?? []).map((r: any, i: number) => (
-                                        <tr key={i} className="border-b border-zinc-800/50">
-                                            <td className="py-2 text-zinc-300">{r.planName ?? 'Unknown'}</td>
-                                            <td className="py-2 text-right text-white font-medium">{r.count}</td>
+                                        <tr key={i} className={reportTableBodyRow}>
+                                            <td className={cn(reportTableCell, 'text-zinc-300')}>{r.planName ?? 'Unknown'}</td>
+                                            <td className={cn(reportTableCell, 'text-right text-white font-medium')}>{r.count}</td>
                                         </tr>
                                     ))}</tbody>
                                 </table>
@@ -230,7 +250,7 @@ function ReportResults({ data }: { data: any }) {
                             <h4 className="text-zinc-300 font-medium mb-2">Subscription Status Breakdown</h4>
                             <div className="flex flex-wrap gap-3">
                                 {(data.byStatus ?? []).map((r: any, i: number) => (
-                                    <div key={i} className="bg-zinc-800/50 rounded-lg px-4 py-2 text-center">
+                                    <div key={i} className="bg-zinc-800/60 border border-zinc-700/80 rounded-xl px-4 py-2 text-center">
                                         <p className="text-white font-bold">{r.count}</p>
                                         <p className="text-zinc-400 text-xs capitalize">{String(r.status).replace('_', ' ')}</p>
                                         {r.pctOfCreated != null && (
@@ -245,7 +265,7 @@ function ReportResults({ data }: { data: any }) {
             )}
 
             {type === 'attendance' && (
-                <Card padding="lg">
+                <Card padding="lg" className={reportSectionCard}>
                     <h3 className="text-white font-semibold mb-4">Attendance Analysis</h3>
                     {data.avgVisitsPerDayInRange != null && (
                         <p className="text-zinc-400 text-sm mb-4">Average visits per day in range: <span className="text-white font-semibold">{data.avgVisitsPerDayInRange}</span></p>
@@ -273,16 +293,16 @@ function ReportResults({ data }: { data: any }) {
                             <h4 className="text-zinc-300 font-medium mb-2">Daily Visits</h4>
                             <div className="max-h-60 overflow-y-auto overflow-x-auto">
                                 <table className="w-full text-sm">
-                                    <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
-                                        <th className="text-left py-2">Date</th>
-                                        <th className="text-right py-2">Visits</th>
-                                        <th className="text-right py-2">Avg Duration</th>
+                                    <thead><tr className={reportTableHeadRow}>
+                                        <th className={reportTableCellHead}>Date</th>
+                                        <th className={cn(reportTableCellHead, 'text-right')}>Visits</th>
+                                        <th className={cn(reportTableCellHead, 'text-right')}>Avg Duration</th>
                                     </tr></thead>
                                     <tbody>{(data.daily ?? []).map((r: any, i: number) => (
-                                        <tr key={i} className="border-b border-zinc-800/50">
-                                            <td className="py-2 text-zinc-300">{r.date}</td>
-                                            <td className="py-2 text-right text-white">{r.count}</td>
-                                            <td className="py-2 text-right text-zinc-400">{r.avgDurationMin ? `${r.avgDurationMin} min` : '—'}</td>
+                                        <tr key={i} className={reportTableBodyRow}>
+                                            <td className={cn(reportTableCell, 'text-zinc-300')}>{r.date}</td>
+                                            <td className={cn(reportTableCell, 'text-right text-white')}>{r.count}</td>
+                                            <td className={cn(reportTableCell, 'text-right text-zinc-400')}>{r.avgDurationMin ? `${r.avgDurationMin} min` : '—'}</td>
                                         </tr>
                                     ))}</tbody>
                                 </table>
@@ -293,7 +313,7 @@ function ReportResults({ data }: { data: any }) {
             )}
 
             {type === 'equipment' && (
-                <Card padding="lg">
+                <Card padding="lg" className={reportSectionCard}>
                     <h3 className="text-white font-semibold mb-4">Equipment Incident Analysis</h3>
                     {data.incidentsInRange != null && (
                         <p className="text-zinc-400 text-sm mb-4">Incidents in range (rows): <span className="text-white font-semibold">{data.incidentsInRange}</span></p>
@@ -303,16 +323,16 @@ function ReportResults({ data }: { data: any }) {
                             <h4 className="text-zinc-300 font-medium mb-2">By Severity & Status</h4>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm mb-6">
-                                    <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
-                                        <th className="text-left py-2">Severity</th>
-                                        <th className="text-left py-2">Status</th>
-                                        <th className="text-right py-2">Count</th>
+                                    <thead><tr className={reportTableHeadRow}>
+                                        <th className={reportTableCellHead}>Severity</th>
+                                        <th className={reportTableCellHead}>Status</th>
+                                        <th className={cn(reportTableCellHead, 'text-right')}>Count</th>
                                     </tr></thead>
                                     <tbody>{(data.bySeverity ?? []).map((r: any, i: number) => (
-                                        <tr key={i} className="border-b border-zinc-800/50">
-                                            <td className="py-2 text-zinc-300 capitalize">{r.severity ?? '—'}</td>
-                                            <td className="py-2 text-zinc-400 capitalize">{r.status ?? '—'}</td>
-                                            <td className="py-2 text-right text-white font-medium">{r.count}</td>
+                                        <tr key={i} className={reportTableBodyRow}>
+                                            <td className={cn(reportTableCell, 'text-zinc-300 capitalize')}>{r.severity ?? '—'}</td>
+                                            <td className={cn(reportTableCell, 'text-zinc-400 capitalize')}>{r.status ?? '—'}</td>
+                                            <td className={cn(reportTableCell, 'text-right text-white font-medium')}>{r.count}</td>
                                         </tr>
                                     ))}</tbody>
                                 </table>
@@ -324,14 +344,14 @@ function ReportResults({ data }: { data: any }) {
                             <h4 className="text-zinc-300 font-medium mb-2">Most Reported Equipment</h4>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
-                                    <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
-                                        <th className="text-left py-2">Equipment</th>
-                                        <th className="text-right py-2">Incidents</th>
+                                    <thead><tr className={reportTableHeadRow}>
+                                        <th className={reportTableCellHead}>Equipment</th>
+                                        <th className={cn(reportTableCellHead, 'text-right')}>Incidents</th>
                                     </tr></thead>
                                     <tbody>{(data.byEquipment ?? []).map((r: any, i: number) => (
-                                        <tr key={i} className="border-b border-zinc-800/50">
-                                            <td className="py-2 text-zinc-300">{r.equipmentName ?? 'Unknown'}</td>
-                                            <td className="py-2 text-right text-white font-medium">{r.count}</td>
+                                        <tr key={i} className={reportTableBodyRow}>
+                                            <td className={cn(reportTableCell, 'text-zinc-300')}>{r.equipmentName ?? 'Unknown'}</td>
+                                            <td className={cn(reportTableCell, 'text-right text-white font-medium')}>{r.count}</td>
                                         </tr>
                                     ))}</tbody>
                                 </table>
@@ -342,16 +362,16 @@ function ReportResults({ data }: { data: any }) {
             )}
 
             {type === 'trainer' && data.trainerStats && (
-                <Card padding="lg">
+                <Card padding="lg" className={reportSectionCard}>
                     <h3 className="text-white font-semibold mb-4">Trainer Performance</h3>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
-                            <thead><tr className="text-zinc-400 text-xs border-b border-zinc-700">
-                                <th className="text-left py-2">Trainer</th>
-                                <th className="text-right py-2">Total Sessions</th>
-                                <th className="text-right py-2">Completed</th>
-                                <th className="text-right py-2">Cancelled</th>
-                                <th className="text-right py-2">Completion %</th>
+                            <thead><tr className={reportTableHeadRow}>
+                                <th className={reportTableCellHead}>Trainer</th>
+                                <th className={cn(reportTableCellHead, 'text-right')}>Total Sessions</th>
+                                <th className={cn(reportTableCellHead, 'text-right')}>Completed</th>
+                                <th className={cn(reportTableCellHead, 'text-right')}>Cancelled</th>
+                                <th className={cn(reportTableCellHead, 'text-right')}>Completion %</th>
                             </tr></thead>
                             <tbody>{(data.trainerStats ?? []).map((r: any, i: number) => {
                                 const pct =
@@ -361,12 +381,12 @@ function ReportResults({ data }: { data: any }) {
                                           ? String(Math.round((Number(r.completed) / Number(r.total)) * 100))
                                           : '0';
                                 return (
-                                    <tr key={i} className="border-b border-zinc-800/50">
-                                        <td className="py-2 text-zinc-300">{r.trainerName ?? 'Unknown'}</td>
-                                        <td className="py-2 text-right text-white">{r.total}</td>
-                                        <td className="py-2 text-right text-emerald-400">{r.completed}</td>
-                                        <td className="py-2 text-right text-red-400">{r.cancelled}</td>
-                                        <td className="py-2 text-right text-white font-medium">{pct}%</td>
+                                    <tr key={i} className={reportTableBodyRow}>
+                                        <td className={cn(reportTableCell, 'text-zinc-300')}>{r.trainerName ?? 'Unknown'}</td>
+                                        <td className={cn(reportTableCell, 'text-right text-white')}>{r.total}</td>
+                                        <td className={cn(reportTableCell, 'text-right text-emerald-400')}>{r.completed}</td>
+                                        <td className={cn(reportTableCell, 'text-right text-red-400')}>{r.cancelled}</td>
+                                        <td className={cn(reportTableCell, 'text-right text-white font-medium')}>{pct}%</td>
                                     </tr>
                                 );
                             })}</tbody>

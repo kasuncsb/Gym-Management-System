@@ -1,5 +1,14 @@
 import PDFDocument from 'pdfkit';
 
+/** Aligns with app dark theme (zinc + red accent). */
+const THEME = {
+  bg: '#18181b',
+  accent: '#ef4444',
+  text: '#fafafa',
+  muted: '#a1a1aa',
+  rowAlt: '#27272a',
+};
+
 function cell(v: unknown): string {
   if (v == null || v === '') return '—';
   if (typeof v === 'number' && Number.isFinite(v)) return String(v);
@@ -7,7 +16,6 @@ function cell(v: unknown): string {
   return String(v).replace(/\s+/g, ' ').slice(0, 200);
 }
 
-/** PDFKit default page inner height ~745 for A4 margin 48 */
 const PAGE_TOP = 48;
 const PAGE_BOTTOM = 780;
 const MARGIN = 48;
@@ -26,36 +34,56 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
     const newPage = () => {
       doc.addPage();
       y = PAGE_TOP;
+      doc.save();
+      doc.strokeColor(THEME.accent).opacity(0.85).lineWidth(2).moveTo(MARGIN, y).lineTo(doc.page.width - MARGIN, y).stroke();
+      doc.opacity(1);
+      doc.restore();
+      y += 10;
     };
 
     const ensure = (h: number) => {
       if (y + h > PAGE_BOTTOM) newPage();
     };
 
-    const heading = (t: string, size = 14) => {
-      ensure(24);
-      doc.font('Helvetica-Bold').fontSize(size).text(t, MARGIN, y, { width: CONTENT_W });
-      y = doc.y + 10;
-      doc.font('Helvetica').fontSize(9);
+    const drawHero = () => {
+      doc.save();
+      doc.rect(0, 0, doc.page.width, 82).fill(THEME.bg);
+      doc.fillColor(THEME.accent).font('Helvetica-Bold').fontSize(17).text('PowerWorld · Operations report', MARGIN, 26, { width: CONTENT_W });
+      const type = String(data.type ?? 'report');
+      doc.fillColor(THEME.text).font('Helvetica-Bold').fontSize(11).text(`Type: ${type}`, MARGIN, 48, { width: CONTENT_W });
+      const period =
+        data.fromDate || data.toDate ? `Period: ${data.fromDate ?? '…'} → ${data.toDate ?? '…'}` : 'Period: default (last30 days where applicable)';
+      doc.fillColor(THEME.muted).font('Helvetica').fontSize(8).text(period, MARGIN, 64, { width: CONTENT_W });
+      doc.fillColor(THEME.muted).font('Helvetica').fontSize(7).text('PII masked in member/contact columns.', MARGIN, 74, { width: CONTENT_W });
+      doc.restore();
+      y = 96;
     };
 
-    const para = (t: string) => {
-      ensure(20);
-      doc.font('Helvetica').fontSize(9).text(t, MARGIN, y, { width: CONTENT_W });
-      y = doc.y + 6;
+    const heading = (t: string, size = 11) => {
+      ensure(22);
+      doc.fillColor(THEME.accent).font('Helvetica-Bold').fontSize(size).text(t, MARGIN, y, { width: CONTENT_W });
+      y = doc.y + 8;
+      doc.fillColor(THEME.text).font('Helvetica').fontSize(9);
     };
 
-    const type = String(data.type ?? 'report');
-    heading(`Operations report: ${type}`, 16);
-    para(`Generated (UTC): ${(data.meta as { generatedAt?: string } | undefined)?.generatedAt ?? new Date().toISOString()}`);
-    if (data.fromDate || data.toDate) {
-      para(`Period: ${data.fromDate ?? '…'} → ${data.toDate ?? '…'}`);
-    }
+    const para = (t: string, muted = false) => {
+      ensure(18);
+      doc.fillColor(muted ? THEME.muted : THEME.text).font('Helvetica').fontSize(9).text(t, MARGIN, y, { width: CONTENT_W });
+      y = doc.y + 5;
+      doc.fillColor(THEME.text);
+    };
+
+    drawHero();
+
+    para(
+      `Generated (UTC): ${(data.meta as { generatedAt?: string } | undefined)?.generatedAt ?? new Date().toISOString()}`,
+      true,
+    );
     const cap = (data.meta as { directRowCap?: number } | undefined)?.directRowCap;
-    if (cap != null) para(`Direct row cap per section: ${cap} (see meta.directTruncated if truncated).`);
+    if (cap != null) para(`Direct row cap per section: ${cap}. Truncation noted per table where applicable.`, true);
 
-    y += 6;
-    heading('Summary KPIs', 11);
+    y += 4;
+    heading('Summary KPIs', 12);
     const kpiKeys = ['monthlyRevenue', 'activeMembers', 'visitsInRange', 'openEquipmentIncidents'] as const;
     for (const k of kpiKeys) {
       if (k in data) para(`${k}: ${cell(data[k])}`);
@@ -82,29 +110,40 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
       heading(title, 11);
       const colCount = headers.length;
       const colW = CONTENT_W / colCount;
-      const rowH = 11;
-      const headerH = 14;
+      const rowH = 12;
+      const headerH = 16;
 
-      ensure(headerH + 8);
-      doc.font('Helvetica-Bold').fontSize(7);
-      let hx = MARGIN;
+      ensure(headerH + 10);
+      doc.save();
+      doc.rect(MARGIN, y - 2, CONTENT_W, headerH).fill(THEME.rowAlt);
+      doc.fillColor(THEME.text).font('Helvetica-Bold').fontSize(7);
+      let hx = MARGIN + 3;
       for (let i = 0; i < colCount; i++) {
-        doc.text(headers[i] ?? '', hx, y, { width: colW - 4 });
+        doc.text(headers[i] ?? '', hx, y + 3, { width: colW - 6 });
         hx += colW;
       }
+      doc.restore();
       y += headerH;
       doc.font('Helvetica').fontSize(7);
 
+      let ri = 0;
       for (const row of rows) {
-        ensure(rowH + 4);
-        let rx = MARGIN;
+        ensure(rowH + 6);
+        if (ri % 2 === 1) {
+          doc.save();
+          doc.rect(MARGIN, y - 1, CONTENT_W, rowH).fill('#1c1c20');
+          doc.restore();
+        }
+        doc.fillColor(THEME.text);
+        let rx = MARGIN + 3;
         for (let i = 0; i < colCount; i++) {
-          doc.text(row[i] ?? '', rx, y, { width: colW - 4, lineBreak: true });
+          doc.text(row[i] ?? '', rx, y + 2, { width: colW - 6, lineBreak: true });
           rx += colW;
         }
         y += rowH;
+        ri++;
       }
-      y += 8;
+      y += 10;
     }
 
     function objectRows(arr: unknown[], pick: string[]): string[][] {
@@ -114,6 +153,8 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
         return pick.map((k) => cell(o[k]));
       });
     }
+
+    const type = String(data.type ?? 'report');
 
     if (Array.isArray(data.byMethod)) {
       tableBlock(
@@ -160,31 +201,19 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
       heading('Direct data (row-level)', 12);
       const trunc = (data.meta as { directTruncated?: Record<string, boolean> } | undefined)?.directTruncated ?? {};
       if (Array.isArray(direct.payments)) {
-        if (trunc.payments) para('Payments list: truncated to cap.');
+        if (trunc.payments) para('Payments: list truncated to cap.', true);
         tableBlock(
           'Payment lines',
           ['Date', 'Amount', 'Method', 'Member', 'Plan', 'Receipt', 'Status'],
-          objectRows(direct.payments, [
-            'paymentDate',
-            'amount',
-            'paymentMethod',
-            'memberName',
-            'planName',
-            'receiptNumber',
-            'status',
-          ]),
+          objectRows(direct.payments, ['paymentDate', 'amount', 'paymentMethod', 'memberName', 'planName', 'receiptNumber', 'status']),
         );
       }
       if (Array.isArray(direct.visits)) {
-        if (trunc.visits) para('Visits list: truncated to cap.');
-        tableBlock(
-          'Visit lines',
-          ['Check-in', 'Member', 'Duration', 'Status'],
-          objectRows(direct.visits, ['checkInAt', 'memberName', 'durationMin', 'status']),
-        );
+        if (trunc.visits) para('Visits: list truncated to cap.', true);
+        tableBlock('Visit lines', ['Check-in', 'Member', 'Duration', 'Status'], objectRows(direct.visits, ['checkInAt', 'memberName', 'durationMin', 'status']));
       }
       if (Array.isArray(direct.newMemberRegistrations)) {
-        if (trunc.newMemberRegistrations) para('New member registrations: truncated to cap.');
+        if (trunc.newMemberRegistrations) para('New registrations: truncated to cap.', true);
         tableBlock(
           'New member registrations',
           ['Registered', 'Name', 'Email', 'Code'],
@@ -192,7 +221,7 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
         );
       }
       if (Array.isArray(direct.subscriptionsCreated)) {
-        if (trunc.subscriptionsCreated) para('Subscriptions created: truncated to cap.');
+        if (trunc.subscriptionsCreated) para('Subscriptions created: truncated to cap.', true);
         tableBlock(
           'Subscriptions created',
           ['Created', 'Member', 'Plan', 'Status', 'Start', 'End'],
@@ -200,7 +229,7 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
         );
       }
       if (Array.isArray(direct.equipmentEvents)) {
-        if (trunc.equipmentEvents) para('Equipment events: truncated to cap.');
+        if (trunc.equipmentEvents) para('Equipment events: truncated to cap.', true);
         tableBlock(
           'Equipment event lines',
           ['At', 'Equipment', 'Type', 'Severity', 'Status', 'Description'],
@@ -208,7 +237,7 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
         );
       }
       if (Array.isArray(direct.ptSessions)) {
-        if (trunc.ptSessions) para('PT sessions: truncated to cap.');
+        if (trunc.ptSessions) para('PT sessions: truncated to cap.', true);
         tableBlock(
           'PT session lines',
           ['Date', 'Time', 'Trainer', 'Member', 'Status'],

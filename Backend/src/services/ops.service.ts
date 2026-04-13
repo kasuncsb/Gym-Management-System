@@ -47,6 +47,7 @@ import { hashPassword } from '../utils/password.js';
 import { assertMemberCanPurchaseSubscription } from './auth.service.js';
 import * as audit from './audit.service.js';
 import { finalizeReportPayload } from './report.service.js';
+import { assertValidReportDates } from '../utils/report-dates.js';
 import { getConfigValue, getConfigInt } from './config.service.js';
 import { generateInvoiceEmailHTML, sendEmail } from '../utils/email.js';
 import {
@@ -2407,6 +2408,7 @@ export async function logStaffBroadcast(
 // ── Reports ───────────────────────────────────────────────────────────────────
 
 export async function getReportSummary(params?: { type?: string; fromDate?: string; toDate?: string }) {
+  assertValidReportDates({ fromDate: params?.fromDate, toDate: params?.toDate });
   const from = params?.fromDate ? `'${params.fromDate}'` : `date_sub(curdate(), interval 30 day)`;
   const to = params?.toDate ? `'${params.toDate}'` : `curdate()`;
   const type = params?.type ?? 'overview';

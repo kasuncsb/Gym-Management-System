@@ -1,6 +1,8 @@
 'use client';
 
 import { Card } from '@/components/ui/SharedComponents';
+import { cn } from '@/lib/utils';
+import { reportSectionCard, reportTableBodyRow, reportTableCell, reportTableCellHead, reportTableHeadRow } from '@/components/reports/reportTheme';
 
 type Trunc = Record<string, boolean | undefined>;
 
@@ -20,13 +22,20 @@ function fmtDt(v: unknown) {
     return s;
 }
 
-export function ReportMetaBar({ data }: { data: { meta?: { generatedAt?: string; directRowCap?: number } } }) {
+export function ReportMetaBar({ data }: { data: { meta?: { generatedAt?: string; directRowCap?: number; piiMasked?: boolean } } }) {
     const m = data.meta;
     if (!m?.generatedAt) return null;
     return (
-        <p className="text-zinc-500 text-xs">
-            Generated {new Date(m.generatedAt).toLocaleString()} · direct row cap {m.directRowCap ?? '—'} per section
-        </p>
+        <div className="rounded-xl border border-zinc-700/70 bg-zinc-900/50 px-4 py-3 space-y-1">
+            <p className="text-zinc-400 text-xs">
+                Generated {new Date(m.generatedAt).toLocaleString()} · direct row cap {m.directRowCap ?? '—'} per section
+            </p>
+            {m.piiMasked && (
+                <p className="text-red-400/90 text-xs font-medium">
+                    Names, emails, IDs, and document references are masked in this report.
+                </p>
+            )}
+        </div>
     );
 }
 
@@ -45,9 +54,12 @@ export function DirectReportTables({ data }: { data: any }) {
     if (!hasAny) return null;
 
     return (
-        <Card padding="lg" className="border-zinc-700/80">
-            <h3 className="text-white font-semibold mb-1">Direct data (row-level)</h3>
-            <p className="text-zinc-500 text-xs mb-4">Source rows from the database for the selected period.</p>
+        <Card padding="lg" className={cn(reportSectionCard, 'border-red-500/15')}>
+            <h3 className="text-white font-semibold mb-1 flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-red-500/80" aria-hidden />
+                Direct data (row-level)
+            </h3>
+            <p className="text-zinc-500 text-xs mb-4">Source rows for the selected period (sensitive fields masked).</p>
 
             {d.payments?.length > 0 && (
                 <div className="mb-6">
@@ -56,24 +68,24 @@ export function DirectReportTables({ data }: { data: any }) {
                     <div className="max-h-72 overflow-auto overflow-x-auto">
                         <table className="w-full text-sm min-w-[640px]">
                             <thead>
-                                <tr className="text-zinc-400 text-xs border-b border-zinc-700">
-                                    <th className="text-left py-2 pr-2">Date</th>
-                                    <th className="text-right py-2">Amount</th>
-                                    <th className="text-left py-2 px-2">Method</th>
-                                    <th className="text-left py-2">Member</th>
-                                    <th className="text-left py-2">Plan</th>
-                                    <th className="text-left py-2">Receipt</th>
+                                <tr className={reportTableHeadRow}>
+                                    <th className={cn(reportTableCellHead, 'pr-2')}>Date</th>
+                                    <th className={cn(reportTableCellHead, 'text-right')}>Amount</th>
+                                    <th className={cn(reportTableCellHead, 'px-2')}>Method</th>
+                                    <th className={reportTableCellHead}>Member</th>
+                                    <th className={reportTableCellHead}>Plan</th>
+                                    <th className={reportTableCellHead}>Receipt</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {d.payments.map((r: any, i: number) => (
-                                    <tr key={i} className="border-b border-zinc-800/50">
-                                        <td className="py-2 text-zinc-300 whitespace-nowrap">{r.paymentDate}</td>
-                                        <td className="py-2 text-right text-white">Rs. {Number(r.amount).toLocaleString()}</td>
-                                        <td className="py-2 text-zinc-400 capitalize px-2">{String(r.paymentMethod ?? '').replace('_', ' ')}</td>
-                                        <td className="py-2 text-zinc-300">{r.memberName ?? '—'}</td>
-                                        <td className="py-2 text-zinc-400">{r.planName ?? '—'}</td>
-                                        <td className="py-2 text-zinc-500 text-xs">{r.receiptNumber ?? '—'}</td>
+                                    <tr key={i} className={reportTableBodyRow}>
+                                        <td className={cn(reportTableCell, 'text-zinc-300 whitespace-nowrap')}>{r.paymentDate}</td>
+                                        <td className={cn(reportTableCell, 'text-right text-white')}>Rs. {Number(r.amount).toLocaleString()}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-400 capitalize px-2')}>{String(r.paymentMethod ?? '').replace('_', ' ')}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-300')}>{r.memberName ?? '—'}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-400')}>{r.planName ?? '—'}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-500 text-xs')}>{r.receiptNumber ?? '—'}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -89,20 +101,20 @@ export function DirectReportTables({ data }: { data: any }) {
                     <div className="max-h-72 overflow-auto overflow-x-auto">
                         <table className="w-full text-sm min-w-[520px]">
                             <thead>
-                                <tr className="text-zinc-400 text-xs border-b border-zinc-700">
-                                    <th className="text-left py-2">Check-in</th>
-                                    <th className="text-left py-2">Member</th>
-                                    <th className="text-right py-2">Duration</th>
-                                    <th className="text-left py-2">Status</th>
+                                <tr className={reportTableHeadRow}>
+                                    <th className={reportTableCellHead}>Check-in</th>
+                                    <th className={reportTableCellHead}>Member</th>
+                                    <th className={cn(reportTableCellHead, 'text-right')}>Duration</th>
+                                    <th className={reportTableCellHead}>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {d.visits.map((r: any, i: number) => (
-                                    <tr key={i} className="border-b border-zinc-800/50">
-                                        <td className="py-2 text-zinc-300 whitespace-nowrap">{fmtDt(r.checkInAt)}</td>
-                                        <td className="py-2 text-zinc-300">{r.memberName ?? '—'}</td>
-                                        <td className="py-2 text-right text-zinc-400">{r.durationMin != null ? `${r.durationMin} min` : '—'}</td>
-                                        <td className="py-2 text-zinc-400 capitalize">{r.status}</td>
+                                    <tr key={i} className={reportTableBodyRow}>
+                                        <td className={cn(reportTableCell, 'text-zinc-300 whitespace-nowrap')}>{fmtDt(r.checkInAt)}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-300')}>{r.memberName ?? '—'}</td>
+                                        <td className={cn(reportTableCell, 'text-right text-zinc-400')}>{r.durationMin != null ? `${r.durationMin} min` : '—'}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-400 capitalize')}>{r.status}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -118,20 +130,20 @@ export function DirectReportTables({ data }: { data: any }) {
                     <div className="max-h-72 overflow-auto overflow-x-auto">
                         <table className="w-full text-sm min-w-[480px]">
                             <thead>
-                                <tr className="text-zinc-400 text-xs border-b border-zinc-700">
-                                    <th className="text-left py-2">Registered</th>
-                                    <th className="text-left py-2">Name</th>
-                                    <th className="text-left py-2">Email</th>
-                                    <th className="text-left py-2">Code</th>
+                                <tr className={reportTableHeadRow}>
+                                    <th className={reportTableCellHead}>Registered</th>
+                                    <th className={reportTableCellHead}>Name</th>
+                                    <th className={reportTableCellHead}>Email</th>
+                                    <th className={reportTableCellHead}>Code</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {d.newMemberRegistrations.map((r: any, i: number) => (
-                                    <tr key={i} className="border-b border-zinc-800/50">
-                                        <td className="py-2 text-zinc-300 whitespace-nowrap">{fmtDt(r.registeredAt)}</td>
-                                        <td className="py-2 text-zinc-300">{r.fullName}</td>
-                                        <td className="py-2 text-zinc-400 text-xs">{r.email}</td>
-                                        <td className="py-2 text-zinc-500">{r.memberCode ?? '—'}</td>
+                                    <tr key={i} className={reportTableBodyRow}>
+                                        <td className={cn(reportTableCell, 'text-zinc-300 whitespace-nowrap')}>{fmtDt(r.registeredAt)}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-300')}>{r.fullName}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-400 text-xs')}>{r.email}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-500')}>{r.memberCode ?? '—'}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -147,20 +159,20 @@ export function DirectReportTables({ data }: { data: any }) {
                     <div className="max-h-72 overflow-auto overflow-x-auto">
                         <table className="w-full text-sm min-w-[560px]">
                             <thead>
-                                <tr className="text-zinc-400 text-xs border-b border-zinc-700">
-                                    <th className="text-left py-2">Created</th>
-                                    <th className="text-left py-2">Member</th>
-                                    <th className="text-left py-2">Plan</th>
-                                    <th className="text-left py-2">Status</th>
+                                <tr className={reportTableHeadRow}>
+                                    <th className={reportTableCellHead}>Created</th>
+                                    <th className={reportTableCellHead}>Member</th>
+                                    <th className={reportTableCellHead}>Plan</th>
+                                    <th className={reportTableCellHead}>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {d.subscriptionsCreated.map((r: any, i: number) => (
-                                    <tr key={i} className="border-b border-zinc-800/50">
-                                        <td className="py-2 text-zinc-300 whitespace-nowrap">{fmtDt(r.createdAt)}</td>
-                                        <td className="py-2 text-zinc-300">{r.memberName ?? '—'}</td>
-                                        <td className="py-2 text-zinc-400">{r.planName ?? '—'}</td>
-                                        <td className="py-2 text-zinc-400 capitalize">{String(r.status ?? '').replace('_', ' ')}</td>
+                                    <tr key={i} className={reportTableBodyRow}>
+                                        <td className={cn(reportTableCell, 'text-zinc-300 whitespace-nowrap')}>{fmtDt(r.createdAt)}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-300')}>{r.memberName ?? '—'}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-400')}>{r.planName ?? '—'}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-400 capitalize')}>{String(r.status ?? '').replace('_', ' ')}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -176,22 +188,22 @@ export function DirectReportTables({ data }: { data: any }) {
                     <div className="max-h-72 overflow-auto overflow-x-auto">
                         <table className="w-full text-sm min-w-[560px]">
                             <thead>
-                                <tr className="text-zinc-400 text-xs border-b border-zinc-700">
-                                    <th className="text-left py-2">At</th>
-                                    <th className="text-left py-2">Equipment</th>
-                                    <th className="text-left py-2">Type</th>
-                                    <th className="text-left py-2">Severity</th>
-                                    <th className="text-left py-2">Description</th>
+                                <tr className={reportTableHeadRow}>
+                                    <th className={reportTableCellHead}>At</th>
+                                    <th className={reportTableCellHead}>Equipment</th>
+                                    <th className={reportTableCellHead}>Type</th>
+                                    <th className={reportTableCellHead}>Severity</th>
+                                    <th className={reportTableCellHead}>Description</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {d.equipmentEvents.map((r: any, i: number) => (
-                                    <tr key={i} className="border-b border-zinc-800/50 align-top">
-                                        <td className="py-2 text-zinc-300 whitespace-nowrap">{fmtDt(r.createdAt)}</td>
-                                        <td className="py-2 text-zinc-300">{r.equipmentName ?? '—'}</td>
-                                        <td className="py-2 text-zinc-400 capitalize">{String(r.eventType ?? '').replace('_', ' ')}</td>
-                                        <td className="py-2 text-zinc-400 capitalize">{r.severity ?? '—'}</td>
-                                        <td className="py-2 text-zinc-500 text-xs max-w-xs">{r.description}</td>
+                                    <tr key={i} className={cn(reportTableBodyRow, 'align-top')}>
+                                        <td className={cn(reportTableCell, 'text-zinc-300 whitespace-nowrap')}>{fmtDt(r.createdAt)}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-300')}>{r.equipmentName ?? '—'}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-400 capitalize')}>{String(r.eventType ?? '').replace('_', ' ')}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-400 capitalize')}>{r.severity ?? '—'}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-500 text-xs max-w-xs')}>{r.description}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -207,22 +219,22 @@ export function DirectReportTables({ data }: { data: any }) {
                     <div className="max-h-72 overflow-auto overflow-x-auto">
                         <table className="w-full text-sm min-w-[480px]">
                             <thead>
-                                <tr className="text-zinc-400 text-xs border-b border-zinc-700">
-                                    <th className="text-left py-2">Date</th>
-                                    <th className="text-left py-2">Time</th>
-                                    <th className="text-left py-2">Trainer</th>
-                                    <th className="text-left py-2">Member</th>
-                                    <th className="text-left py-2">Status</th>
+                                <tr className={reportTableHeadRow}>
+                                    <th className={reportTableCellHead}>Date</th>
+                                    <th className={reportTableCellHead}>Time</th>
+                                    <th className={reportTableCellHead}>Trainer</th>
+                                    <th className={reportTableCellHead}>Member</th>
+                                    <th className={reportTableCellHead}>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {d.ptSessions.map((r: any, i: number) => (
-                                    <tr key={i} className="border-b border-zinc-800/50">
-                                        <td className="py-2 text-zinc-300">{r.sessionDate}</td>
-                                        <td className="py-2 text-zinc-400">{r.startTime}</td>
-                                        <td className="py-2 text-zinc-300">{r.trainerName ?? '—'}</td>
-                                        <td className="py-2 text-zinc-300">{r.memberName ?? '—'}</td>
-                                        <td className="py-2 text-zinc-400 capitalize">{r.status}</td>
+                                    <tr key={i} className={reportTableBodyRow}>
+                                        <td className={cn(reportTableCell, 'text-zinc-300')}>{r.sessionDate}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-400')}>{r.startTime}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-300')}>{r.trainerName ?? '—'}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-300')}>{r.memberName ?? '—'}</td>
+                                        <td className={cn(reportTableCell, 'text-zinc-400 capitalize')}>{r.status}</td>
                                     </tr>
                                 ))}
                             </tbody>

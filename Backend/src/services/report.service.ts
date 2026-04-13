@@ -15,6 +15,7 @@ import {
 } from '../db/schema.js';
 import { eeLc, payLc, ptLc, subLc, userLc, visitLc } from '../db/lifecycleAliases.js';
 import { ids } from '../utils/id.js';
+import { maskReportForExport } from '../utils/report-mask.js';
 
 export const REPORT_DIRECT_ROW_CAP = 500;
 
@@ -355,5 +356,5 @@ export async function finalizeReportPayload(
     meta.directTruncated.ptSessions = pt.truncated;
   }
 
-  return { ...payload, meta, direct };
+  return maskReportForExport({ ...payload, meta, direct });
 }
