@@ -338,12 +338,9 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
     const range = doc.bufferedPageRange();
     for (let i = 0; i < range.count; i++) {
       doc.switchToPage(range.start + i);
-      const footerY = doc.page.height - 28;
+      const footerY = doc.page.height - MARGIN - 12;
       doc.save();
-      doc.fillColor(THEME.muted).font('Helvetica').fontSize(8).text(`Page ${i + 1}`, MARGIN, footerY, {
-        width: CONTENT_W,
-        align: 'right',
-      });
+      doc.fillColor('#d4d4d8').font('Helvetica').fontSize(8).text(`Page ${i + 1}`, MARGIN, footerY, { width: CONTENT_W, align: 'right', lineBreak: false });
       doc.restore();
     }
 
