@@ -576,6 +576,12 @@ export const getReportSummary = asyncHandler(async (req: AuthRequest, res: Respo
   }
   const businessData = { ...((data as Record<string, unknown>) ?? {}) };
   delete businessData.direct;
+  if (businessData.meta && typeof businessData.meta === 'object' && !Array.isArray(businessData.meta)) {
+    const meta = { ...(businessData.meta as Record<string, unknown>) };
+    delete meta.directRowCap;
+    delete meta.directTruncated;
+    businessData.meta = meta;
+  }
   res.json(response.success(businessData));
 });
 
@@ -598,6 +604,12 @@ export const getReportPdf = asyncHandler(async (req: AuthRequest, res: Response)
   });
   const businessData = { ...data };
   delete businessData.direct;
+  if (businessData.meta && typeof businessData.meta === 'object' && !Array.isArray(businessData.meta)) {
+    const meta = { ...(businessData.meta as Record<string, unknown>) };
+    delete meta.directRowCap;
+    delete meta.directTruncated;
+    businessData.meta = meta;
+  }
   const buf = await buildReportPdf(businessData);
   const safeName = `report-${params.type ?? 'overview'}-${params.fromDate ?? 'all'}-to-${params.toDate ?? 'now'}.pdf`.replace(
     /[^a-zA-Z0-9._-]+/g,

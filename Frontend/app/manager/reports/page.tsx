@@ -5,7 +5,7 @@ import { Download, TrendingUp, Users, Activity, Wrench, Dumbbell } from 'lucide-
 import { PageHeader, Card, Input, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
 import { getErrorMessage, opsAPI } from '@/lib/api';
-import { DirectReportTables, ReportMetaBar } from '@/components/reports/DirectReportTables';
+import { ReportMetaBar } from '@/components/reports/DirectReportTables';
 import { reportSectionCard, reportTableBodyRow, reportTableCell, reportTableCellHead, reportTableHeadRow, reportTypeTileActive, reportTypeTileIdle } from '@/components/reports/reportTheme';
 import { cn } from '@/lib/utils';
 import { MAX_REPORT_RANGE_DAYS, reportDateInputMin, todayLocalYmd, validateReportDateRange } from '@/lib/reportDateRange';
@@ -376,7 +376,6 @@ export default function ManagerReportsPage() {
                         </Card>
                     )}
 
-                    <DirectReportTables data={reportData} />
                 </div>
             )}
         </div>
