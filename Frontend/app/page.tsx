@@ -83,8 +83,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-app text-white selection:bg-red-600/30">
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-24">
+      {/* Home / Hero Section */}
+      <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-24">
         <div className="absolute inset-0 z-0">
           <HeroVideo className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 min-w-full min-h-full w-auto h-auto object-cover grayscale opacity-30" />
           
@@ -116,8 +116,8 @@ export default function Home() {
           </h1>
 
           <p className="text-xl text-zinc-400 max-w-2xl mx-auto mb-12 leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
-            Experience the next evolution of fitness. State-of-the-art equipment, world-class trainers,
-            and a community that pushes you to exceed your limits.
+            Train with professional coaching, premium equipment, and a member-first digital experience
+            designed for real progress at every fitness level.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
@@ -151,26 +151,40 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section id="features" className="py-32 relative">
+      {/* Facilities Section */}
+      <section id="facilities" className="py-32 relative">
         <div className="container px-6 mx-auto">
           <div className="text-center mb-24">
-            <h2 className="text-3xl md:text-5xl font-bold mb-6">Built for <span className="text-red-600">Performance</span></h2>
-            <p className="text-zinc-400 max-w-2xl mx-auto text-lg">Everything you need to crush your fitness goals, all in one premium ecosystem.</p>
+            <h2 className="text-3xl md:text-5xl font-bold mb-6">Built for <span className="text-red-600">Results</span></h2>
+            <p className="text-zinc-400 max-w-2xl mx-auto text-lg">
+              Our Kiribathgoda facility combines training zones, expert support, and smart member tools in one place.
+            </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { title: "Premium Equipment", icon: Zap, desc: "Top-of-the-line gym machines maintained to the highest standards." },
-              { title: "Expert Coaching", icon: Users, desc: "Certified personal trainers to guide your fitness journey." },
-              { title: "Smart Tracking", icon: Trophy, desc: "Track workouts, progress, and attendance in real time." },
-            ].map((feature, i) => (
+              {
+                title: "Training Zones",
+                icon: Zap,
+                desc: "Dedicated cardio, strength, and functional training areas with regularly maintained machines.",
+              },
+              {
+                title: "Personal Coaching",
+                icon: Users,
+                desc: "Certified trainers provide PT sessions, guided programming, and accountability for members.",
+              },
+              {
+                title: "Progress Intelligence",
+                icon: Trophy,
+                desc: "Track workouts, attendance, body metrics, and improvement trends through your member dashboard.",
+              },
+            ].map((facility, i) => (
               <div key={i} className="p-8 rounded-2xl bg-zinc-900/50 border border-zinc-800 hover:border-red-600/50 hover:bg-zinc-900 transition-all group">
                 <div className="w-14 h-14 rounded-xl bg-zinc-800 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                  <feature.icon className="text-red-500" size={28} />
+                  <facility.icon className="text-red-500" size={28} />
                 </div>
-                <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
-                <p className="text-zinc-400 leading-relaxed">{feature.desc}</p>
+                <h3 className="text-xl font-bold mb-3">{facility.title}</h3>
+                <p className="text-zinc-400 leading-relaxed">{facility.desc}</p>
               </div>
             ))}
           </div>
@@ -245,6 +259,36 @@ export default function Home() {
                 </Link>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* About Section */}
+      <section id="about" className="py-28 border-t border-zinc-900 bg-zinc-900/40">
+        <div className="container px-6 mx-auto">
+          <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-10 items-start">
+            <div>
+              <h2 className="text-3xl md:text-5xl font-bold mb-6">
+                About <span className="text-red-600">PowerWorld</span>
+              </h2>
+              <p className="text-zinc-300 leading-relaxed mb-4">
+                PowerWorld Gym Management System supports the Kiribathgoda branch with a modern, role-based platform
+                for members, trainers, managers, and admins.
+              </p>
+              <p className="text-zinc-400 leading-relaxed">
+                From secure onboarding and subscriptions to PT scheduling, workout tracking, attendance logs, and
+                operational reporting, every workflow is designed to improve service quality and decision-making.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-7">
+              <h3 className="text-xl font-semibold mb-5">Why members choose us</h3>
+              <ul className="space-y-3 text-zinc-300">
+                <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> Flexible plans with transparent pricing.</li>
+                <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> Guided programs and measurable progress tracking.</li>
+                <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> Secure member management with role-based access.</li>
+                <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> Faster day-to-day operations for staff and trainers.</li>
+              </ul>
+            </div>
           </div>
         </div>
       </section>

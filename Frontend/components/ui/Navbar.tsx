@@ -92,7 +92,7 @@ export function Navbar() {
     isAuthenticated &&
     (pathname.startsWith('/member/') || pathname.startsWith('/trainer/') || pathname.startsWith('/manager/') || pathname.startsWith('/admin/'));
   const menuExpanded = isSidebarRoute ? mobileSidebarOpen : isOpen;
-  const showNavLinks = isHome; // Features, Classes, Pricing only on home
+  const showNavLinks = isHome; // Home, Facilities, Pricing, About only on homepage
   const role = user?.role ?? 'member';
   const initials = user?.fullName?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
 
@@ -121,10 +121,10 @@ export function Navbar() {
   if (excluded && (!isAuthenticated || !user)) return null;
 
   const navLinks = [
-    { name: "Home", href: "/" },
-    { name: "Features", href: "/#features" },
-    { name: "Classes", href: "/#classes" },
+    { name: "Home", href: "/#home" },
+    { name: "Facilities", href: "/#facilities" },
     { name: "Pricing", href: "/#pricing" },
+    { name: "About", href: "/#about" },
   ];
 
   return (
