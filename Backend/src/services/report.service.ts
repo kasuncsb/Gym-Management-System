@@ -295,6 +295,133 @@ function titleCase(raw: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+type NarrativeMap = Record<string, unknown>;
+
+function parseJsonLoose(text: string): NarrativeMap | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const raw = fenced ? fenced[1] : trimmed;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as NarrativeMap) : null;
+  } catch {
+    return null;
+  }
+}
+
+function pickAiNarrativeFields(ai: NarrativeMap, base: NarrativeMap): NarrativeMap {
+  const out: NarrativeMap = { ...base };
+  const scalarKeys = ['executiveSummary', 'sectionTitle', 'sectionSummary', 'chartTitle', 'chartInterpretation'] as const;
+  for (const k of scalarKeys) {
+    const v = ai[k];
+    if (typeof v === 'string' && v.trim()) out[k] = v.trim();
+  }
+  const listKeys = ['sectionParagraphs', 'highlights', 'whatThisMeans', 'recommendedActions'] as const;
+  for (const k of listKeys) {
+    const v = ai[k];
+    if (Array.isArray(v)) {
+      out[k] = v
+        .map((x) => (typeof x === 'string' ? x.trim() : ''))
+        .filter(Boolean)
+        .slice(0, 6);
+    }
+  }
+  return out;
+}
+
+async function maybeEnhanceNarrativeWithAi(
+  baseNarrative: NarrativeMap,
+  payload: Record<string, unknown>,
+  reportType: string,
+  fromDate?: string | null,
+  toDate?: string | null,
+): Promise<NarrativeMap> {
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey) return baseNarrative;
+  if (process.env.REPORT_AI_NARRATIVE_ENABLED === 'false') return baseNarrative;
+
+  try {
+    const model = process.env.GEMINI_MODEL ?? 'gemini-3.1-flash-lite-preview';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const metricsDigest = {
+      type: reportType,
+      period: { fromDate: fromDate ?? null, toDate: toDate ?? null },
+      headline: {
+        monthlyRevenue: payload.monthlyRevenue ?? 0,
+        activeMembers: payload.activeMembers ?? 0,
+        visitsInRange: payload.visitsInRange ?? 0,
+        openEquipmentIncidents: payload.openEquipmentIncidents ?? 0,
+      },
+      kpis: {
+        totalRevenueInRange: payload.totalRevenueInRange ?? 0,
+        paymentCountInRange: payload.paymentCountInRange ?? 0,
+        newMembers: payload.newMembers ?? 0,
+        subscriptionsCreatedInRange: payload.subscriptionsCreatedInRange ?? 0,
+        incidentsInRange: payload.incidentsInRange ?? 0,
+        ptSessionsInRange: payload.ptSessionsInRange ?? 0,
+        activeItemCount: payload.activeItemCount ?? 0,
+        lowStockItemCount: payload.lowStockItemCount ?? 0,
+        totalTransactionsInRange: payload.totalTransactionsInRange ?? 0,
+      },
+      seriesPreview: {
+        byMethod: Array.isArray(payload.byMethod) ? (payload.byMethod as unknown[]).slice(0, 6) : [],
+        byPlan: Array.isArray(payload.byPlan) ? (payload.byPlan as unknown[]).slice(0, 6) : [],
+        byStatus: Array.isArray(payload.byStatus) ? (payload.byStatus as unknown[]).slice(0, 6) : [],
+        byHour: Array.isArray(payload.byHour) ? (payload.byHour as unknown[]).slice(0, 6) : [],
+        bySeverity: Array.isArray(payload.bySeverity) ? (payload.bySeverity as unknown[]).slice(0, 6) : [],
+        byCategory: Array.isArray(payload.byCategory) ? (payload.byCategory as unknown[]).slice(0, 6) : [],
+      },
+    };
+
+    const prompt = `You are a business reporting writer for a gym branch manager.
+Rewrite this report narrative to be clearer, richer, and action-oriented for non-technical stakeholders.
+Rules:
+- Use plain business language, not developer jargon.
+- Keep facts strictly grounded in the provided metrics.
+- Do not invent numbers.
+- Return ONLY JSON (no markdown, no prose outside JSON) with keys:
+  executiveSummary (string),
+  sectionTitle (string),
+  sectionSummary (string),
+  sectionParagraphs (string[] max 4),
+  highlights (string[] max 4),
+  whatThisMeans (string[] max 4),
+  recommendedActions (string[] max 4),
+  chartTitle (string),
+  chartInterpretation (string).
+
+Current narrative JSON:
+${JSON.stringify(baseNarrative)}
+
+Metrics digest JSON:
+${JSON.stringify(metricsDigest)}`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 9000);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        generationConfig: { responseMimeType: 'application/json', temperature: 0.3, topP: 0.9, maxOutputTokens: 1200 },
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      }),
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return baseNarrative;
+    const json = (await res.json()) as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    };
+    const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('\n').trim() ?? '';
+    const parsed = parseJsonLoose(text);
+    if (!parsed) return baseNarrative;
+    return pickAiNarrativeFields(parsed, baseNarrative);
+  } catch {
+    return baseNarrative;
+  }
+}
+
 function buildReportNarrative(
   payload: Record<string, unknown>,
   reportType: string,
@@ -609,6 +736,7 @@ export async function finalizeReportPayload(
     meta.directTruncated.ptSessions = pt.truncated;
   }
 
-  const reportNarrative = buildReportNarrative(payload, reportType, params?.fromDate, params?.toDate);
+  const baseNarrative = buildReportNarrative(payload, reportType, params?.fromDate, params?.toDate);
+  const reportNarrative = await maybeEnhanceNarrativeWithAi(baseNarrative, payload, reportType, params?.fromDate, params?.toDate);
   return maskReportForExport({ ...payload, meta, direct, reportNarrative });
 }
