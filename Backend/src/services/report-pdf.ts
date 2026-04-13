@@ -238,6 +238,84 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
       });
     }
 
+    if (type === 'inventory') {
+      para(
+        'Inventory tables below are intentionally capped per section for readability. Use date filtering to focus the period if you need deeper drill-down.',
+        true,
+      );
+      y += 2;
+      if (Array.isArray(data.byCategory)) {
+        para('Category distribution highlights stock concentration and low-stock exposure.', true);
+        tableBlock(
+          'Inventory by category',
+          ['Category', 'Items', 'Total stock', 'Low-stock items'],
+          objectRows(data.byCategory, ['category', 'itemCount', 'totalStock', 'lowStockCount']),
+          10,
+        );
+      }
+      if (Array.isArray(data.txnByType)) {
+        para('Transaction-type view shows whether stock movement is sales-led, restock-led, or adjustment-heavy.', true);
+        tableBlock(
+          'Inventory transactions by type',
+          ['Type', 'Transactions', 'Units moved', 'Net change'],
+          objectRows(data.txnByType, ['txnType', 'txnCount', 'qtyMoved', 'netQtyChange']),
+          10,
+        );
+      }
+      if (Array.isArray(data.lowStockItems)) {
+        para('Low-stock items are prioritized operational risks and should be actioned first.', true);
+        tableBlock(
+          'Low-stock items',
+          ['Item', 'Category', 'In stock', 'Reorder at'],
+          objectRows(data.lowStockItems, ['name', 'category', 'qtyInStock', 'reorderThreshold']),
+          10,
+        );
+      }
+      if (Array.isArray(data.topMovementItems)) {
+        para('Top movement items indicate procurement pressure points and forecast sensitivity.', true);
+        tableBlock(
+          'Top movement items',
+          ['Item', 'Category', 'Transactions', 'Units moved'],
+          objectRows(data.topMovementItems, ['itemName', 'category', 'transactionCount', 'qtyMoved']),
+          10,
+        );
+      }
+      if (
+        !Array.isArray(data.byCategory) &&
+        !Array.isArray(data.txnByType) &&
+        !Array.isArray(data.lowStockItems) &&
+        !Array.isArray(data.topMovementItems)
+      ) {
+        para(
+          'No inventory movement or stock detail is available for the selected timeframe. Try a wider date range for fuller inventory analytics.',
+          true,
+        );
+      }
+
+      heading('Glossary', 11);
+      const glossary = (Array.isArray(narrative.glossary) ? narrative.glossary : []) as Array<Record<string, unknown>>;
+      for (const item of glossary.slice(0, 6)) {
+        para(`${String(item.term ?? '')}: ${String(item.meaning ?? '')}`, true);
+      }
+
+      // Add page numbers after all content is laid out to avoid cursor/layout side-effects.
+      const range = doc.bufferedPageRange();
+      for (let i = 0; i < range.count; i++) {
+        doc.switchToPage(range.start + i);
+        const footerY = doc.page.height - MARGIN - 12;
+        doc.save();
+        doc.fillColor('#d4d4d8').font('Helvetica').fontSize(8).text(`Page ${i + 1}`, MARGIN, footerY, {
+          width: CONTENT_W,
+          align: 'right',
+          lineBreak: false,
+        });
+        doc.restore();
+      }
+
+      doc.end();
+      return;
+    }
+
     if (Array.isArray(data.byMethod)) {
       para('The following table provides a detailed revenue split by payment channel for the selected timeframe.', true);
       tableBlock('Revenue by payment method', ['Method', 'Count', 'Total', '%'], objectRows(data.byMethod, ['method', 'count', 'total', 'pctOfTotalRevenue']));
@@ -282,52 +360,6 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
         objectRows(data.trainerStats, ['trainerName', 'total', 'completed', 'cancelled', 'completionRatePct']),
       );
     }
-    if (Array.isArray(data.byCategory)) {
-      para('Category split provides a top-level view of where inventory volume and low-stock exposure are concentrated.', true);
-      tableBlock(
-        'Inventory by category',
-        ['Category', 'Items', 'Total stock', 'Low-stock items'],
-        objectRows(data.byCategory, ['category', 'itemCount', 'totalStock', 'lowStockCount']),
-        12,
-      );
-    }
-    if (Array.isArray(data.txnByType)) {
-      para('Transaction mix shows how stock changed through restocks, sales, adjustments, and waste.', true);
-      tableBlock(
-        'Inventory transactions by type',
-        ['Type', 'Transactions', 'Units moved', 'Net change'],
-        objectRows(data.txnByType, ['txnType', 'txnCount', 'qtyMoved', 'netQtyChange']),
-        12,
-      );
-    }
-    if (Array.isArray(data.lowStockItems)) {
-      para('Low-stock list identifies items closest to stock-out against their reorder levels.', true);
-      tableBlock(
-        'Low-stock items',
-        ['Item', 'Category', 'In stock', 'Reorder at'],
-        objectRows(data.lowStockItems, ['name', 'category', 'qtyInStock', 'reorderThreshold']),
-        12,
-      );
-    }
-    if (Array.isArray(data.topMovementItems)) {
-      para('High-movement items indicate where procurement planning has the highest impact.', true);
-      tableBlock(
-        'Top movement items',
-        ['Item', 'Category', 'Transactions', 'Units moved'],
-        objectRows(data.topMovementItems, ['itemName', 'category', 'transactionCount', 'qtyMoved']),
-        12,
-      );
-    }
-    if (
-      type === 'inventory' &&
-      !Array.isArray(data.byCategory) &&
-      !Array.isArray(data.txnByType) &&
-      !Array.isArray(data.lowStockItems) &&
-      !Array.isArray(data.topMovementItems)
-    ) {
-      para('No inventory movement or stock detail is available for the selected timeframe. Try a wider date range for fuller inventory analytics.', true);
-    }
-
     heading('Glossary', 11);
     const glossary = (Array.isArray(narrative.glossary) ? narrative.glossary : []) as Array<Record<string, unknown>>;
     for (const item of glossary.slice(0, 6)) {
