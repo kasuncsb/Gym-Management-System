@@ -43,6 +43,9 @@ const STATS = [
 export default function Home() {
   const [planCards, setPlanCards] = useState<HomePlanCard[]>([]);
   const [plansLoading, setPlansLoading] = useState(true);
+  const showDemoDialog = () => {
+    window.alert("This is a demo project. Please treat all content, policies, and support references as demonstration-only.");
+  };
 
   useEffect(() => {
     opsAPI
@@ -266,7 +269,7 @@ export default function Home() {
       {/* About Section */}
       <section id="about" className="py-28 border-t border-zinc-900 bg-zinc-900/40">
         <div className="container px-6 mx-auto">
-          <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-start">
+          <div className="grid md:grid-cols-2 gap-12 items-start">
             <div>
               <h2 className="text-3xl md:text-5xl font-bold mb-6">
                 About <span className="text-red-600">Power World Fitness Centres</span>
@@ -294,7 +297,7 @@ export default function Home() {
               </ul>
             </div>
           </div>
-          <p className="max-w-6xl mx-auto mt-8 text-center text-xs text-zinc-500">
+          <p className="mt-8 text-center text-xs text-zinc-500">
             This is only for demonstration purposes.
           </p>
         </div>
@@ -305,9 +308,9 @@ export default function Home() {
         <div className="container px-6 mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <p className="text-zinc-500 text-sm">&copy; 2026 PowerWorld Gyms. All rights reserved.</p>
           <div className="flex gap-8">
-            <Link href="#" className="text-zinc-500 hover:text-white text-sm transition-colors">Privacy Policy</Link>
-            <Link href="#" className="text-zinc-500 hover:text-white text-sm transition-colors">Terms of Service</Link>
-            <Link href="#" className="text-zinc-500 hover:text-white text-sm transition-colors">Contact Support</Link>
+            <button type="button" onClick={showDemoDialog} className="text-zinc-500 hover:text-white text-sm transition-colors">Privacy Policy</button>
+            <button type="button" onClick={showDemoDialog} className="text-zinc-500 hover:text-white text-sm transition-colors">Terms of Service</button>
+            <button type="button" onClick={showDemoDialog} className="text-zinc-500 hover:text-white text-sm transition-colors">Contact Support</button>
           </div>
         </div>
       </footer>
