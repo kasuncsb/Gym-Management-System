@@ -110,9 +110,6 @@ export default function AdminReportsPage() {
                     <Input id="rpt-from" label="From Date" type="date" value={from} min={dateMin} max={dateMax} onChange={e => setFrom(e.target.value)} />
                     <Input id="rpt-to" label="To Date" type="date" value={to} min={dateMin} max={dateMax} onChange={e => setTo(e.target.value)} />
                 </div>
-                <p className="text-zinc-500 text-xs mb-5">
-                    No future dates. If both dates are set, range cannot exceed {MAX_REPORT_RANGE_DAYS} days. Leave blank to use defaults (e.g. last 30 days).
-                </p>
                 <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-start sm:items-stretch">
                     <LoadingButton onClick={run} loading={loading} className="sm:flex-1">
                         Generate {label} Report

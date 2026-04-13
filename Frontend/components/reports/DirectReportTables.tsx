@@ -30,11 +30,6 @@ export function ReportMetaBar({ data }: { data: { meta?: { generatedAt?: string;
             <p className="text-zinc-400 text-xs">
                 Generated {new Date(m.generatedAt).toLocaleString()}
             </p>
-            {m.piiMasked && (
-                <p className="text-red-400/90 text-xs font-medium">
-                    Member emails are partially masked in this report.
-                </p>
-            )}
         </div>
     );
 }

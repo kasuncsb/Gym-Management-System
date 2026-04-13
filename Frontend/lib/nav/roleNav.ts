@@ -8,6 +8,7 @@ import {
   Users,
   Wrench,
   BarChart3,
+  FileText,
   UserCheck,
   Settings,
   Activity,
@@ -48,6 +49,7 @@ export function navForRole(role: string): NavItem[] {
       return [
         { label: "Dashboard", href: "/manager/dashboard", icon: LayoutDashboard },
         { label: "Check-in", href: "/manager/checkin", icon: QrCode },
+        { label: "Reports", href: "/manager/reports", icon: FileText },
         { label: "Insights", href: "/manager/insights", icon: BarChart3 },
         { label: "Members", href: "/manager/members", icon: Users },
         { label: "Team", href: "/manager/staff", icon: UserCheck },
