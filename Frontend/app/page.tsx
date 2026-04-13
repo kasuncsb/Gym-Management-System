@@ -266,30 +266,37 @@ export default function Home() {
       {/* About Section */}
       <section id="about" className="py-28 border-t border-zinc-900 bg-zinc-900/40">
         <div className="container px-6 mx-auto">
-          <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-10 items-start">
+          <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-start">
             <div>
               <h2 className="text-3xl md:text-5xl font-bold mb-6">
-                About <span className="text-red-600">PowerWorld</span>
+                About <span className="text-red-600">Power World Fitness Centres</span>
               </h2>
               <p className="text-zinc-300 leading-relaxed mb-4">
-                PowerWorld Gym Management System supports the Kiribathgoda branch with a modern, role-based platform
-                for members, trainers, managers, and admins.
+                Power World Gyms is presented as Sri Lanka&apos;s largest fitness network, with over 24 locations and
+                more than 100,000 sq ft of gym space.
+              </p>
+              <p className="text-zinc-400 leading-relaxed mb-4">
+                The brand highlights certified trainers, personalized fitness plans, top-tier equipment, and flexible memberships
+                for both beginners and advanced members.
               </p>
               <p className="text-zinc-400 leading-relaxed">
-                From secure onboarding and subscriptions to PT scheduling, workout tracking, attendance logs, and
-                operational reporting, every workflow is designed to improve service quality and decision-making.
+                Its coverage is described as island-wide across Colombo and surrounding suburbs, supported by a community
+                of 25,000+ active members.
               </p>
             </div>
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-7">
-              <h3 className="text-xl font-semibold mb-5">Why members choose us</h3>
+              <h3 className="text-xl font-semibold mb-5">What Power World highlights</h3>
               <ul className="space-y-3 text-zinc-300">
-                <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> Flexible plans with transparent pricing.</li>
-                <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> Guided programs and measurable progress tracking.</li>
-                <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> Secure member management with role-based access.</li>
-                <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> Faster day-to-day operations for staff and trainers.</li>
+                <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> Sri Lanka&apos;s largest fitness network with 24+ gym locations.</li>
+                <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> 100,000+ sq ft of dedicated fitness space.</li>
+                <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> 25,000+ active members across the network.</li>
+                <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> Certified trainers, comprehensive facilities, and affordable access.</li>
               </ul>
             </div>
           </div>
+          <p className="max-w-6xl mx-auto mt-8 text-center text-xs text-zinc-500">
+            This is only for demonstration purposes.
+          </p>
         </div>
       </section>
 
