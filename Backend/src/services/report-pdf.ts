@@ -2,7 +2,8 @@ import PDFDocument from 'pdfkit';
 
 /** Aligns with app dark theme (zinc + red accent). */
 const THEME = {
-  bg: '#18181b',
+  pageBg: '#0f0f12',
+  headerBg: '#18181b',
   accent: '#ef4444',
   text: '#fafafa',
   muted: '#a1a1aa',
@@ -31,8 +32,16 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
 
     let y = PAGE_TOP;
 
+    const paintPageBackground = () => {
+      doc.save();
+      doc.rect(0, 0, doc.page.width, doc.page.height).fill(THEME.pageBg);
+      doc.restore();
+      doc.fillColor(THEME.text);
+    };
+
     const newPage = () => {
       doc.addPage();
+      paintPageBackground();
       y = PAGE_TOP;
       doc.save();
       doc.strokeColor(THEME.accent).opacity(0.85).lineWidth(2).moveTo(MARGIN, y).lineTo(doc.page.width - MARGIN, y).stroke();
@@ -47,7 +56,7 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
 
     const drawHero = () => {
       doc.save();
-      doc.rect(0, 0, doc.page.width, 82).fill(THEME.bg);
+      doc.rect(0, 0, doc.page.width, 82).fill(THEME.headerBg);
       doc.fillColor(THEME.accent).font('Helvetica-Bold').fontSize(17).text('PowerWorld · Operations report', MARGIN, 26, { width: CONTENT_W });
       const type = String(data.type ?? 'report');
       doc.fillColor(THEME.text).font('Helvetica-Bold').fontSize(11).text(`Type: ${type}`, MARGIN, 48, { width: CONTENT_W });
@@ -73,6 +82,7 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
       doc.fillColor(THEME.text);
     };
 
+    paintPageBackground();
     drawHero();
 
     para(

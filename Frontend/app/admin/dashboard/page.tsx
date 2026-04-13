@@ -71,7 +71,7 @@ export default function AdminDashboard() {
         { label: 'User Management',  href: '/admin/users',      icon: Users },
         { label: 'System Settings',  href: '/admin/settings',   icon: Settings },
         { label: 'Sub. Plans',       href: '/admin/plans',      icon: CreditCard },
-        { label: 'System Reports',   href: '/admin/reports',    icon: TrendingUp },
+        { label: 'System Alerts',    href: '/admin/alerts',     icon: AlertTriangle },
     ];
 
     const activityColor: Record<string, string> = {
@@ -135,7 +135,7 @@ export default function AdminDashboard() {
                 <Card className="lg:col-span-2">
                     <div className="flex items-center justify-between mb-5">
                         <h2 className="text-lg font-semibold text-white flex items-center gap-2"><Activity size={18} className="text-red-500" /> Recent Activity</h2>
-                        <Link href="/admin/reports" className="text-sm text-red-500 hover:text-red-400">View Reports</Link>
+                        <Link href="/admin/alerts" className="text-sm text-red-500 hover:text-red-400">View Alerts</Link>
                     </div>
                     <div className="space-y-3">
                         {activities.map((a, i) => (
