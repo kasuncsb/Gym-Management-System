@@ -25,7 +25,7 @@ const CONTENT_W = 515;
 
 export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: MARGIN, info: { Title: `Gym report — ${data.type}` } });
+    const doc = new PDFDocument({ size: 'A4', margin: MARGIN, bufferPages: true, info: { Title: `Gym report — ${data.type}` } });
     const chunks: Buffer[] = [];
     doc.on('data', (c) => chunks.push(c as Buffer));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -34,26 +34,12 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
     let y = PAGE_TOP;
     const type = String(data.type ?? 'report');
     const narrative = (data.reportNarrative as Record<string, unknown> | undefined) ?? {};
-    let pageNo = 0;
-
-    const drawFooter = (n: number) => {
-      const footerY = doc.page.height - 28;
-      doc.save();
-      doc.fillColor(THEME.muted).font('Helvetica').fontSize(8).text(`Page ${n}`, MARGIN, footerY, {
-        width: CONTENT_W,
-        align: 'right',
-      });
-      doc.restore();
-      doc.fillColor(THEME.text).font('Helvetica').fontSize(9);
-    };
 
     const paintPageBackground = () => {
       doc.save();
       doc.rect(0, 0, doc.page.width, doc.page.height).fill(THEME.pageBg);
       doc.restore();
       doc.fillColor(THEME.text);
-      pageNo += 1;
-      drawFooter(pageNo);
     };
 
     const newPage = () => {
@@ -346,6 +332,19 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
     const glossary = (Array.isArray(narrative.glossary) ? narrative.glossary : []) as Array<Record<string, unknown>>;
     for (const item of glossary.slice(0, 6)) {
       para(`${String(item.term ?? '')}: ${String(item.meaning ?? '')}`, true);
+    }
+
+    // Add page numbers after all content is laid out to avoid cursor/layout side-effects.
+    const range = doc.bufferedPageRange();
+    for (let i = 0; i < range.count; i++) {
+      doc.switchToPage(range.start + i);
+      const footerY = doc.page.height - 28;
+      doc.save();
+      doc.fillColor(THEME.muted).font('Helvetica').fontSize(8).text(`Page ${i + 1}`, MARGIN, footerY, {
+        width: CONTENT_W,
+        align: 'right',
+      });
+      doc.restore();
     }
 
     doc.end();
