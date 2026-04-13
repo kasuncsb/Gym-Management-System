@@ -2447,7 +2447,29 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
       .where(sql`date(${payments.paymentDate}) >= ${sql.raw(from)} and date(${payments.paymentDate}) <= ${sql.raw(to)}`)
       .groupBy(subscriptions.planId, subscriptionPlans.name);
 
-    const body = { ...overview, type, fromDate: params?.fromDate, toDate: params?.toDate, byMethod, byPlan };
+    const [revenueOps] = await db
+      .select({
+        successfulPayments: sql<number>`sum(case when ${payments.status} = 'completed' then 1 else 0 end)`,
+        pendingPayments: sql<number>`sum(case when ${payments.status} = 'pending' then 1 else 0 end)`,
+        failedPayments: sql<number>`sum(case when ${payments.status} = 'failed' then 1 else 0 end)`,
+        uniquePayingMembers: sql<number>`count(distinct ${subscriptions.memberId})`,
+      })
+      .from(payments)
+      .leftJoin(subscriptions, eq(payments.subscriptionId, subscriptions.id))
+      .where(sql`date(${payments.paymentDate}) >= ${sql.raw(from)} and date(${payments.paymentDate}) <= ${sql.raw(to)}`);
+
+    const body = {
+      ...overview,
+      type,
+      fromDate: params?.fromDate,
+      toDate: params?.toDate,
+      byMethod,
+      byPlan,
+      successfulPayments: Number(revenueOps?.successfulPayments ?? 0),
+      pendingPayments: Number(revenueOps?.pendingPayments ?? 0),
+      failedPayments: Number(revenueOps?.failedPayments ?? 0),
+      uniquePayingMembers: Number(revenueOps?.uniquePayingMembers ?? 0),
+    };
     return finalizeReportPayload(body, type, from, to, params);
   }
 
@@ -2474,6 +2496,16 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
       .where(and(eq(subscriptions.status, 'active')))
       .groupBy(subscriptions.planId, subscriptionPlans.name);
 
+    const [membershipOps] = await db
+      .select({
+        cancelledInRange: sql<number>`sum(case when ${subscriptions.status} = 'cancelled' then 1 else 0 end)`,
+        trialInRange: sql<number>`sum(case when ${subscriptions.status} = 'trial' then 1 else 0 end)`,
+        expiringSoon: sql<number>`sum(case when ${subscriptions.endDate} between curdate() and date_add(curdate(), interval 30 day) then 1 else 0 end)`,
+      })
+      .from(subscriptions)
+      .innerJoin(subLc, eq(subscriptions.lifecycleId, subLc.id))
+      .where(sql`date(${subLc.createdAt}) >= ${sql.raw(from)} and date(${subLc.createdAt}) <= ${sql.raw(to)}`);
+
     const body = {
       ...overview,
       type,
@@ -2482,6 +2514,9 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
       newMembers: Number(newMembers[0]?.count ?? 0),
       byStatus,
       byPlan,
+      cancelledInRange: Number(membershipOps?.cancelledInRange ?? 0),
+      trialInRange: Number(membershipOps?.trialInRange ?? 0),
+      expiringSoon: Number(membershipOps?.expiringSoon ?? 0),
     };
     return finalizeReportPayload(body, type, from, to, params);
   }
@@ -2498,7 +2533,24 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
       count: sql<number>`count(*)`,
     }).from(visits).where(sql`date(${visits.checkInAt}) >= ${sql.raw(from)} and date(${visits.checkInAt}) <= ${sql.raw(to)}`).groupBy(sql`hour(${visits.checkInAt})`).orderBy(sql`hour(${visits.checkInAt})`);
 
-    const body = { ...overview, type, fromDate: params?.fromDate, toDate: params?.toDate, daily, byHour };
+    const [attendanceOps] = await db
+      .select({
+        uniqueVisitors: sql<number>`count(distinct ${visits.personId})`,
+        avgDurationAll: sql<number>`round(avg(${visits.durationMin}), 0)`,
+      })
+      .from(visits)
+      .where(sql`date(${visits.checkInAt}) >= ${sql.raw(from)} and date(${visits.checkInAt}) <= ${sql.raw(to)}`);
+
+    const body = {
+      ...overview,
+      type,
+      fromDate: params?.fromDate,
+      toDate: params?.toDate,
+      daily,
+      byHour,
+      uniqueVisitorsInRange: Number(attendanceOps?.uniqueVisitors ?? 0),
+      avgVisitDurationInRange: Number(attendanceOps?.avgDurationAll ?? 0),
+    };
     return finalizeReportPayload(body, type, from, to, params);
   }
 
@@ -2526,7 +2578,25 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
       .groupBy(equipmentEvents.equipmentId, equipment.name)
       .orderBy(sql`count(*) desc`);
 
-    const body = { ...overview, type, fromDate: params?.fromDate, toDate: params?.toDate, bySeverity, byEquipment };
+    const [equipmentOps] = await db
+      .select({
+        highSeverityOpen: sql<number>`sum(case when ${equipmentEvents.severity} = 'high' and ${equipmentEvents.status} = 'open' then 1 else 0 end)`,
+        resolvedInRange: sql<number>`sum(case when ${equipmentEvents.status} = 'resolved' then 1 else 0 end)`,
+      })
+      .from(equipmentEvents)
+      .innerJoin(eeLc, eq(equipmentEvents.lifecycleId, eeLc.id))
+      .where(sql`date(${eeLc.createdAt}) >= ${sql.raw(from)} and date(${eeLc.createdAt}) <= ${sql.raw(to)}`);
+
+    const body = {
+      ...overview,
+      type,
+      fromDate: params?.fromDate,
+      toDate: params?.toDate,
+      bySeverity,
+      byEquipment,
+      highSeverityOpenInRange: Number(equipmentOps?.highSeverityOpen ?? 0),
+      resolvedIncidentsInRange: Number(equipmentOps?.resolvedInRange ?? 0),
+    };
     return finalizeReportPayload(body, type, from, to, params);
   }
 
@@ -2541,7 +2611,115 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
       .where(sql`date(${ptSessions.sessionDate}) >= ${sql.raw(from)} and date(${ptSessions.sessionDate}) <= ${sql.raw(to)}`)
       .groupBy(ptSessions.trainerId, users.fullName);
 
-    const body = { ...overview, type, fromDate: params?.fromDate, toDate: params?.toDate, trainerStats };
+    const [trainerOps] = await db
+      .select({
+        activeTrainersInRange: sql<number>`count(distinct ${ptSessions.trainerId})`,
+        avgSessionsPerTrainer: sql<number>`round(count(*) / nullif(count(distinct ${ptSessions.trainerId}), 0), 2)`,
+      })
+      .from(ptSessions)
+      .where(sql`date(${ptSessions.sessionDate}) >= ${sql.raw(from)} and date(${ptSessions.sessionDate}) <= ${sql.raw(to)}`);
+
+    const body = {
+      ...overview,
+      type,
+      fromDate: params?.fromDate,
+      toDate: params?.toDate,
+      trainerStats,
+      activeTrainersInRange: Number(trainerOps?.activeTrainersInRange ?? 0),
+      avgSessionsPerTrainer: Number(trainerOps?.avgSessionsPerTrainer ?? 0),
+    };
+    return finalizeReportPayload(body, type, from, to, params);
+  }
+
+  if (type === 'inventory') {
+    const byCategory = await db
+      .select({
+        category: inventoryItems.category,
+        itemCount: sql<number>`count(*)`,
+        totalStock: sql<number>`coalesce(sum(${inventoryItems.qtyInStock}), 0)`,
+        lowStockCount: sql<number>`sum(case when ${inventoryItems.qtyInStock} <= ${inventoryItems.reorderThreshold} then 1 else 0 end)`,
+      })
+      .from(inventoryItems)
+      .innerJoin(iiLc, eq(inventoryItems.lifecycleId, iiLc.id))
+      .where(eq(inventoryItems.isActive, true))
+      .groupBy(inventoryItems.category)
+      .orderBy(sql`count(*) desc`);
+
+    const txnByType = await db
+      .select({
+        txnType: inventoryTransactions.txnType,
+        txnCount: sql<number>`count(*)`,
+        qtyMoved: sql<number>`coalesce(sum(abs(${inventoryTransactions.qtyChange})), 0)`,
+        netQtyChange: sql<number>`coalesce(sum(${inventoryTransactions.qtyChange}), 0)`,
+      })
+      .from(inventoryTransactions)
+      .innerJoin(itLc, eq(inventoryTransactions.lifecycleId, itLc.id))
+      .where(sql`date(${itLc.createdAt}) >= ${sql.raw(from)} and date(${itLc.createdAt}) <= ${sql.raw(to)}`)
+      .groupBy(inventoryTransactions.txnType);
+
+    const lowStockItems = await db
+      .select({
+        name: inventoryItems.name,
+        category: inventoryItems.category,
+        qtyInStock: inventoryItems.qtyInStock,
+        reorderThreshold: inventoryItems.reorderThreshold,
+      })
+      .from(inventoryItems)
+      .innerJoin(iiLc, eq(inventoryItems.lifecycleId, iiLc.id))
+      .where(and(eq(inventoryItems.isActive, true), sql`${inventoryItems.qtyInStock} <= ${inventoryItems.reorderThreshold}`))
+      .orderBy(sql`${inventoryItems.qtyInStock} asc`)
+      .limit(30);
+
+    const topMovementItems = await db
+      .select({
+        itemName: inventoryItems.name,
+        category: inventoryItems.category,
+        transactionCount: sql<number>`count(*)`,
+        qtyMoved: sql<number>`coalesce(sum(abs(${inventoryTransactions.qtyChange})), 0)`,
+      })
+      .from(inventoryTransactions)
+      .innerJoin(itLc, eq(inventoryTransactions.lifecycleId, itLc.id))
+      .innerJoin(inventoryItems, eq(inventoryTransactions.itemId, inventoryItems.id))
+      .where(sql`date(${itLc.createdAt}) >= ${sql.raw(from)} and date(${itLc.createdAt}) <= ${sql.raw(to)}`)
+      .groupBy(inventoryTransactions.itemId, inventoryItems.name, inventoryItems.category)
+      .orderBy(sql`coalesce(sum(abs(${inventoryTransactions.qtyChange})), 0) desc`)
+      .limit(20);
+
+    const [inventoryOps] = await db
+      .select({
+        activeItemCount: sql<number>`count(*)`,
+        totalStockUnits: sql<number>`coalesce(sum(${inventoryItems.qtyInStock}), 0)`,
+      })
+      .from(inventoryItems)
+      .innerJoin(iiLc, eq(inventoryItems.lifecycleId, iiLc.id))
+      .where(eq(inventoryItems.isActive, true));
+
+    const [inventoryTxnOps] = await db
+      .select({
+        totalTransactionsInRange: sql<number>`count(*)`,
+        totalQtyMovedInRange: sql<number>`coalesce(sum(abs(${inventoryTransactions.qtyChange})), 0)`,
+        netStockChangeInRange: sql<number>`coalesce(sum(${inventoryTransactions.qtyChange}), 0)`,
+      })
+      .from(inventoryTransactions)
+      .innerJoin(itLc, eq(inventoryTransactions.lifecycleId, itLc.id))
+      .where(sql`date(${itLc.createdAt}) >= ${sql.raw(from)} and date(${itLc.createdAt}) <= ${sql.raw(to)}`);
+
+    const body = {
+      ...overview,
+      type,
+      fromDate: params?.fromDate,
+      toDate: params?.toDate,
+      byCategory,
+      txnByType,
+      lowStockItems,
+      topMovementItems,
+      activeItemCount: Number(inventoryOps?.activeItemCount ?? 0),
+      totalStockUnits: Number(inventoryOps?.totalStockUnits ?? 0),
+      totalTransactionsInRange: Number(inventoryTxnOps?.totalTransactionsInRange ?? 0),
+      totalQtyMovedInRange: Number(inventoryTxnOps?.totalQtyMovedInRange ?? 0),
+      netStockChangeInRange: Number(inventoryTxnOps?.netStockChangeInRange ?? 0),
+      lowStockItemCount: lowStockItems.length,
+    };
     return finalizeReportPayload(body, type, from, to, params);
   }
 

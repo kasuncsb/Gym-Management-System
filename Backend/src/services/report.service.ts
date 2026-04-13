@@ -283,6 +283,233 @@ function enrichAnalytical(payload: Record<string, unknown>, reportType: string, 
   }
 }
 
+function toNum(v: unknown): number {
+  const n = Number(v ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function titleCase(raw: string): string {
+  return raw
+    .replace(/_/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function buildReportNarrative(
+  payload: Record<string, unknown>,
+  reportType: string,
+  fromDate?: string | null,
+  toDate?: string | null,
+): Record<string, unknown> {
+  const periodLabel = fromDate || toDate ? `${fromDate ?? 'Start'} to ${toDate ?? 'End'}` : 'Last 30 days';
+  const baseExecutive = `This report covers ${periodLabel} and summarizes business performance in plain language for leadership review.`;
+
+  const glossary = [
+    { term: 'Active member', meaning: 'A member with an active membership status.' },
+    { term: 'Completion rate', meaning: 'Completed sessions as a percentage of all scheduled sessions.' },
+    { term: 'Open incident', meaning: 'An equipment issue that is still unresolved.' },
+  ];
+
+  if (reportType === 'revenue') {
+    const total = toNum(payload.totalRevenueInRange);
+    const count = toNum(payload.paymentCountInRange);
+    const avg = toNum(payload.averagePaymentInRange);
+    const byMethod = (Array.isArray(payload.byMethod) ? payload.byMethod : []) as Array<Record<string, unknown>>;
+    const successful = toNum(payload.successfulPayments);
+    const failed = toNum(payload.failedPayments);
+    const pending = toNum(payload.pendingPayments);
+    const uniquePayers = toNum(payload.uniquePayingMembers);
+    const topMethod = byMethod
+      .map((r) => ({ method: titleCase(String(r.method ?? 'Unknown')), total: toNum(r.total) }))
+      .sort((a, b) => b.total - a.total)[0];
+    return {
+      executiveSummary: `${baseExecutive} Revenue in period is Rs. ${Math.round(total).toLocaleString()} from ${count.toLocaleString()} payments.`,
+      sectionTitle: 'Revenue Performance',
+      sectionSummary: `Average payment value is Rs. ${Math.round(avg).toLocaleString()}. ${successful.toLocaleString()} payments were successfully completed with ${uniquePayers.toLocaleString()} unique paying members.`,
+      sectionParagraphs: [
+        'This section explains where money came from during the selected period and how stable the collection flow looks.',
+        'A higher number of unique paying members typically means healthier demand distribution rather than dependence on a few customers.',
+        `Payment outcome split: ${successful.toLocaleString()} successful, ${pending.toLocaleString()} pending, ${failed.toLocaleString()} failed.`,
+      ],
+      highlights: [
+        topMethod ? `Top payment method: ${topMethod.method} (Rs. ${Math.round(topMethod.total).toLocaleString()}).` : 'Payment method mix is unavailable.',
+        count > 0 ? `Transaction volume indicates steady customer purchase activity.` : 'No payments were recorded in the selected period.',
+      ],
+      whatThisMeans: [
+        'Higher concentration in one method can increase dependency risk.',
+        'Average payment value indicates customer spending quality.',
+      ],
+      recommendedActions: ['Promote underused payment channels.', 'Review plan pricing if average payment value declines.'],
+      additionalMetrics: [
+        { label: 'Successful payments', value: successful },
+        { label: 'Pending payments', value: pending },
+        { label: 'Failed payments', value: failed },
+        { label: 'Unique paying members', value: uniquePayers },
+      ],
+      chartTitle: 'Revenue by Payment Method',
+      chartSeries: byMethod.map((r) => ({ label: titleCase(String(r.method ?? 'Unknown')), value: toNum(r.total) })),
+      glossary,
+    };
+  }
+
+  if (reportType === 'membership') {
+    const newMembers = toNum(payload.newMembers);
+    const created = toNum(payload.subscriptionsCreatedInRange);
+    const active = toNum(payload.activeSubscriptionsTotal);
+    const cancelled = toNum(payload.cancelledInRange);
+    const trial = toNum(payload.trialInRange);
+    const expiringSoon = toNum(payload.expiringSoon);
+    const byPlan = (Array.isArray(payload.byPlan) ? payload.byPlan : []) as Array<Record<string, unknown>>;
+    return {
+      executiveSummary: `${baseExecutive} Membership growth added ${newMembers.toLocaleString()} new members, with ${created.toLocaleString()} subscriptions created.`,
+      sectionTitle: 'Membership Health',
+      sectionSummary: `There are ${active.toLocaleString()} active subscriptions across all plans. ${expiringSoon.toLocaleString()} subscriptions are due to expire in the next 30 days.`,
+      sectionParagraphs: [
+        'This section describes the strength of the member base and early signs of future retention risk.',
+        `Status movement in this period includes ${cancelled.toLocaleString()} cancellations and ${trial.toLocaleString()} trial subscriptions.`,
+        'Expiring subscriptions provide a practical target list for renewal campaigns.',
+      ],
+      highlights: [
+        byPlan.length > 0 ? `Most subscribed plan: ${String(byPlan.sort((a, b) => toNum(b.count) - toNum(a.count))[0]?.planName ?? 'Unknown')}.` : 'Plan split is unavailable.',
+        'Subscription status mix shows retention and conversion quality.',
+      ],
+      whatThisMeans: ['New members track acquisition performance.', 'Active subscriptions indicate recurring revenue stability.'],
+      recommendedActions: ['Strengthen onboarding for new members.', 'Target at-risk statuses with retention outreach.'],
+      additionalMetrics: [
+        { label: 'Cancellations in period', value: cancelled },
+        { label: 'Trials started', value: trial },
+        { label: 'Expiring in 30 days', value: expiringSoon },
+      ],
+      chartTitle: 'Active Subscriptions by Plan',
+      chartSeries: byPlan.map((r) => ({ label: String(r.planName ?? 'Unknown'), value: toNum(r.count) })),
+      glossary,
+    };
+  }
+
+  if (reportType === 'attendance') {
+    const visits = toNum(payload.visitsInRange);
+    const avgPerDay = toNum(payload.avgVisitsPerDayInRange);
+    const uniqueVisitors = toNum(payload.uniqueVisitorsInRange);
+    const avgVisitDuration = toNum(payload.avgVisitDurationInRange);
+    const byHour = (Array.isArray(payload.byHour) ? payload.byHour : []) as Array<Record<string, unknown>>;
+    return {
+      executiveSummary: `${baseExecutive} The gym logged ${visits.toLocaleString()} visits in total, averaging ${avgPerDay.toLocaleString()} visits per day.`,
+      sectionTitle: 'Attendance Patterns',
+      sectionSummary: `The hourly distribution highlights peak and low-demand operating windows. ${uniqueVisitors.toLocaleString()} unique visitors checked in, with average visit duration of ${avgVisitDuration.toLocaleString()} minutes.`,
+      sectionParagraphs: [
+        'This section explains traffic behaviour across the day so operations can align staffing and floor readiness.',
+        'Daily and hourly patterns are used to anticipate crowding and customer waiting risk.',
+        'Visit duration helps estimate equipment occupancy and turnover pressure.',
+      ],
+      highlights: ['Peak-hour concentration helps optimize staffing and equipment readiness.', 'Daily trend shows usage consistency across the period.'],
+      whatThisMeans: ['Stable daily traffic supports predictable operations.', 'Large hourly spikes can indicate service bottlenecks.'],
+      recommendedActions: ['Align trainer and front-desk shifts to peak times.', 'Schedule maintenance in low-traffic windows.'],
+      additionalMetrics: [
+        { label: 'Unique visitors', value: uniqueVisitors },
+        { label: 'Average visit duration (min)', value: avgVisitDuration },
+      ],
+      chartTitle: 'Visits by Hour',
+      chartSeries: byHour.map((r) => ({ label: `${toNum(r.hour)}h`, value: toNum(r.count) })),
+      glossary,
+    };
+  }
+
+  if (reportType === 'equipment') {
+    const incidents = toNum(payload.incidentsInRange);
+    const highOpen = toNum(payload.highSeverityOpenInRange);
+    const resolved = toNum(payload.resolvedIncidentsInRange);
+    const bySeverity = (Array.isArray(payload.bySeverity) ? payload.bySeverity : []) as Array<Record<string, unknown>>;
+    return {
+      executiveSummary: `${baseExecutive} There were ${incidents.toLocaleString()} equipment incidents reported in this period.`,
+      sectionTitle: 'Equipment Reliability',
+      sectionSummary: `Severity and status distribution show current maintenance risk levels. ${highOpen.toLocaleString()} high-severity issues remain open, while ${resolved.toLocaleString()} incidents were resolved during the same period.`,
+      sectionParagraphs: [
+        'This section shows reliability risk from both safety severity and resolution speed perspectives.',
+        'Open high-severity incidents are the top operational priority because they can reduce safe capacity.',
+        'Resolved incident count indicates maintenance throughput in the selected timeframe.',
+      ],
+      highlights: ['Open incidents should be prioritized by severity.', 'Recurring incidents may indicate replacement needs.'],
+      whatThisMeans: ['High severe-incident share increases operational and safety risk.', 'Open tickets represent unresolved service impact.'],
+      recommendedActions: ['Resolve high-severity open incidents first.', 'Create preventive checks for repeatedly failing equipment.'],
+      additionalMetrics: [
+        { label: 'High-severity open incidents', value: highOpen },
+        { label: 'Incidents resolved in period', value: resolved },
+      ],
+      chartTitle: 'Incidents by Severity/Status',
+      chartSeries: bySeverity.map((r) => ({ label: `${titleCase(String(r.severity ?? 'Unknown'))}/${titleCase(String(r.status ?? 'Unknown'))}`, value: toNum(r.count) })),
+      glossary,
+    };
+  }
+
+  if (reportType === 'inventory') {
+    const activeItemCount = toNum(payload.activeItemCount);
+    const totalStockUnits = toNum(payload.totalStockUnits);
+    const lowStockItemCount = toNum(payload.lowStockItemCount);
+    const txnCount = toNum(payload.totalTransactionsInRange);
+    const moved = toNum(payload.totalQtyMovedInRange);
+    const net = toNum(payload.netStockChangeInRange);
+    const byCategory = (Array.isArray(payload.byCategory) ? payload.byCategory : []) as Array<Record<string, unknown>>;
+    return {
+      executiveSummary: `${baseExecutive} Inventory currently tracks ${activeItemCount.toLocaleString()} active items with ${totalStockUnits.toLocaleString()} units in stock.`,
+      sectionTitle: 'Inventory Position and Movement',
+      sectionSummary: `${txnCount.toLocaleString()} inventory transactions moved ${moved.toLocaleString()} units in the selected period. Net stock change is ${net.toLocaleString()} units.`,
+      sectionParagraphs: [
+        'This section explains inventory health from both current stock position and movement activity perspective.',
+        `${lowStockItemCount.toLocaleString()} items are currently at or below their reorder thresholds and may require restocking decisions.`,
+        'Category-level and transaction-type views help separate demand-driven movement from operational adjustments or waste.',
+      ],
+      highlights: [
+        byCategory.length > 0 ? `Largest inventory category: ${String(byCategory.sort((a, b) => toNum(b.itemCount) - toNum(a.itemCount))[0]?.category ?? 'Unknown')}.` : 'Category split is unavailable.',
+        lowStockItemCount > 0 ? 'Low-stock exposure is present and should be tracked weekly.' : 'No immediate low-stock pressure detected.',
+      ],
+      whatThisMeans: [
+        'Low-stock counts indicate near-term procurement risk.',
+        'Net stock change helps identify whether inventory is accumulating or being depleted.',
+      ],
+      recommendedActions: [
+        'Prioritize replenishment for items below threshold.',
+        'Review high-movement items for forecast-based purchasing.',
+      ],
+      additionalMetrics: [
+        { label: 'Active inventory items', value: activeItemCount },
+        { label: 'Total stock units', value: totalStockUnits },
+        { label: 'Low-stock items', value: lowStockItemCount },
+        { label: 'Transactions in period', value: txnCount },
+        { label: 'Total units moved', value: moved },
+        { label: 'Net stock change', value: net },
+      ],
+      chartTitle: 'Inventory Items by Category',
+      chartSeries: byCategory.map((r) => ({ label: String(r.category ?? 'Unknown'), value: toNum(r.itemCount) })),
+      glossary,
+    };
+  }
+
+  const totalSessions = toNum(payload.ptSessionsInRange);
+  const activeTrainers = toNum(payload.activeTrainersInRange);
+  const avgSessionsPerTrainer = toNum(payload.avgSessionsPerTrainer);
+  const trainerStats = (Array.isArray(payload.trainerStats) ? payload.trainerStats : []) as Array<Record<string, unknown>>;
+  return {
+    executiveSummary: `${baseExecutive} Trainers handled ${totalSessions.toLocaleString()} sessions in the selected period.`,
+    sectionTitle: 'Trainer Performance',
+    sectionSummary: `Completion and cancellation outcomes indicate service delivery quality. ${activeTrainers.toLocaleString()} active trainers delivered an average of ${avgSessionsPerTrainer.toLocaleString()} sessions each.`,
+    sectionParagraphs: [
+      'This section explains trainer delivery consistency, not just total volume.',
+      'Completion rates and cancellation levels directly influence member trust and retention.',
+      'Average load per trainer helps identify workload imbalance and scheduling pressure.',
+    ],
+    highlights: ['Completion rate reflects schedule reliability and member satisfaction.', 'Cancellation trends help detect planning issues.'],
+    whatThisMeans: ['Low completion rates may signal operational friction.', 'Balanced trainer load improves service consistency.'],
+    recommendedActions: ['Coach low-performing schedules.', 'Adjust session allocation based on demand and completion trends.'],
+    additionalMetrics: [
+      { label: 'Active trainers in period', value: activeTrainers },
+      { label: 'Avg sessions per trainer', value: avgSessionsPerTrainer },
+    ],
+    chartTitle: 'Trainer Completion Rate',
+    chartSeries: trainerStats.map((r) => ({ label: String(r.trainerName ?? 'Unknown'), value: toNum(r.completionRatePct) })),
+    glossary,
+  };
+}
+
 /**
  * Adds meta, analytical enrichments, and capped direct (row-level) sections for PDF/UI.
  */
@@ -346,5 +573,6 @@ export async function finalizeReportPayload(
     meta.directTruncated.ptSessions = pt.truncated;
   }
 
-  return maskReportForExport({ ...payload, meta, direct });
+  const reportNarrative = buildReportNarrative(payload, reportType, params?.fromDate, params?.toDate);
+  return maskReportForExport({ ...payload, meta, direct, reportNarrative });
 }

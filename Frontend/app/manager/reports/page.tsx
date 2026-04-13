@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Download, TrendingUp, Users, Activity, Wrench, Dumbbell } from 'lucide-react';
+import { Download, TrendingUp, Users, Activity, Wrench, Dumbbell, Package } from 'lucide-react';
 import { PageHeader, Card, Input, LoadingButton } from '@/components/ui/SharedComponents';
 import { useToast } from '@/components/ui/Toast';
 import { getErrorMessage, opsAPI } from '@/lib/api';
@@ -16,6 +16,7 @@ const REPORT_TYPES = [
     { id: 'attendance', label: 'Attendance',    icon: Activity,   desc: 'Daily visits and peak hours' },
     { id: 'trainer',    label: 'Trainers',      icon: Dumbbell,   desc: 'PT session stats per trainer' },
     { id: 'equipment',  label: 'Equipment',     icon: Wrench,     desc: 'Incidents by severity and equipment' },
+    { id: 'inventory',  label: 'Inventory',     icon: Package,    desc: 'Stock position, low-stock risk, and movement' },
 ];
 
 export default function ManagerReportsPage() {
@@ -369,6 +370,131 @@ export default function ManagerReportsPage() {
                                         ))}</tbody>
                                     </table>
                                 </div>
+                            )}
+                        </Card>
+                    )}
+
+                    {reportData.type === 'inventory' && (
+                        <Card padding="lg" className={reportSectionCard}>
+                            <h3 className="text-white font-semibold mb-4">Inventory overview</h3>
+                            <p className="text-zinc-400 text-sm mb-4">
+                                Active items: <span className="text-white font-semibold">{reportData.activeItemCount ?? '—'}</span>
+                                {reportData.totalStockUnits != null && (
+                                    <> · Total stock units: <span className="text-white font-semibold">{reportData.totalStockUnits}</span></>
+                                )}
+                                {reportData.lowStockItemCount != null && (
+                                    <> · Low-stock items: <span className="text-white font-semibold">{reportData.lowStockItemCount}</span></>
+                                )}
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                                <Card padding="md" className={cn(reportSectionCard, 'border-zinc-700/60')}>
+                                    <p className="text-zinc-400 text-xs">Transactions in period</p>
+                                    <p className="text-white text-xl font-bold mt-1">{reportData.totalTransactionsInRange ?? '—'}</p>
+                                </Card>
+                                <Card padding="md" className={cn(reportSectionCard, 'border-zinc-700/60')}>
+                                    <p className="text-zinc-400 text-xs">Total units moved</p>
+                                    <p className="text-white text-xl font-bold mt-1">{reportData.totalQtyMovedInRange ?? '—'}</p>
+                                </Card>
+                                <Card padding="md" className={cn(reportSectionCard, 'border-zinc-700/60')}>
+                                    <p className="text-zinc-400 text-xs">Net stock change</p>
+                                    <p className="text-white text-xl font-bold mt-1">{reportData.netStockChangeInRange ?? '—'}</p>
+                                </Card>
+                            </div>
+
+                            {reportData.byCategory && (
+                                <>
+                                    <h4 className="text-zinc-300 font-medium mb-2">By category</h4>
+                                    <div className="overflow-x-auto mb-6">
+                                        <table className="w-full text-sm">
+                                            <thead><tr className={reportTableHeadRow}>
+                                                <th className={reportTableCellHead}>Category</th>
+                                                <th className={cn(reportTableCellHead, 'text-right')}>Items</th>
+                                                <th className={cn(reportTableCellHead, 'text-right')}>Total Stock</th>
+                                                <th className={cn(reportTableCellHead, 'text-right')}>Low Stock</th>
+                                            </tr></thead>
+                                            <tbody>{(reportData.byCategory ?? []).map((r: any, i: number) => (
+                                                <tr key={i} className={reportTableBodyRow}>
+                                                    <td className={cn(reportTableCell, 'text-zinc-300')}>{r.category ?? 'Unknown'}</td>
+                                                    <td className={cn(reportTableCell, 'text-right text-white')}>{r.itemCount ?? 0}</td>
+                                                    <td className={cn(reportTableCell, 'text-right text-zinc-300')}>{r.totalStock ?? 0}</td>
+                                                    <td className={cn(reportTableCell, 'text-right text-amber-300')}>{r.lowStockCount ?? 0}</td>
+                                                </tr>
+                                            ))}</tbody>
+                                        </table>
+                                    </div>
+                                </>
+                            )}
+
+                            {reportData.txnByType && (
+                                <>
+                                    <h4 className="text-zinc-300 font-medium mb-2">Transactions by type</h4>
+                                    <div className="overflow-x-auto mb-6">
+                                        <table className="w-full text-sm">
+                                            <thead><tr className={reportTableHeadRow}>
+                                                <th className={reportTableCellHead}>Type</th>
+                                                <th className={cn(reportTableCellHead, 'text-right')}>Transactions</th>
+                                                <th className={cn(reportTableCellHead, 'text-right')}>Units Moved</th>
+                                                <th className={cn(reportTableCellHead, 'text-right')}>Net Change</th>
+                                            </tr></thead>
+                                            <tbody>{(reportData.txnByType ?? []).map((r: any, i: number) => (
+                                                <tr key={i} className={reportTableBodyRow}>
+                                                    <td className={cn(reportTableCell, 'text-zinc-300 capitalize')}>{String(r.txnType ?? '').replace('_', ' ')}</td>
+                                                    <td className={cn(reportTableCell, 'text-right text-white')}>{r.txnCount ?? 0}</td>
+                                                    <td className={cn(reportTableCell, 'text-right text-zinc-300')}>{r.qtyMoved ?? 0}</td>
+                                                    <td className={cn(reportTableCell, 'text-right text-zinc-300')}>{r.netQtyChange ?? 0}</td>
+                                                </tr>
+                                            ))}</tbody>
+                                        </table>
+                                    </div>
+                                </>
+                            )}
+
+                            {reportData.lowStockItems && (
+                                <>
+                                    <h4 className="text-zinc-300 font-medium mb-2">Low-stock items</h4>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead><tr className={reportTableHeadRow}>
+                                                <th className={reportTableCellHead}>Item</th>
+                                                <th className={reportTableCellHead}>Category</th>
+                                                <th className={cn(reportTableCellHead, 'text-right')}>In Stock</th>
+                                                <th className={cn(reportTableCellHead, 'text-right')}>Reorder Level</th>
+                                            </tr></thead>
+                                            <tbody>{(reportData.lowStockItems ?? []).map((r: any, i: number) => (
+                                                <tr key={i} className={reportTableBodyRow}>
+                                                    <td className={cn(reportTableCell, 'text-zinc-300')}>{r.name ?? '—'}</td>
+                                                    <td className={cn(reportTableCell, 'text-zinc-400')}>{r.category ?? '—'}</td>
+                                                    <td className={cn(reportTableCell, 'text-right text-amber-300')}>{r.qtyInStock ?? 0}</td>
+                                                    <td className={cn(reportTableCell, 'text-right text-zinc-300')}>{r.reorderThreshold ?? 0}</td>
+                                                </tr>
+                                            ))}</tbody>
+                                        </table>
+                                    </div>
+                                </>
+                            )}
+
+                            {reportData.topMovementItems && (
+                                <>
+                                    <h4 className="text-zinc-300 font-medium mb-2 mt-6">Top movement items</h4>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead><tr className={reportTableHeadRow}>
+                                                <th className={reportTableCellHead}>Item</th>
+                                                <th className={reportTableCellHead}>Category</th>
+                                                <th className={cn(reportTableCellHead, 'text-right')}>Transactions</th>
+                                                <th className={cn(reportTableCellHead, 'text-right')}>Units Moved</th>
+                                            </tr></thead>
+                                            <tbody>{(reportData.topMovementItems ?? []).map((r: any, i: number) => (
+                                                <tr key={i} className={reportTableBodyRow}>
+                                                    <td className={cn(reportTableCell, 'text-zinc-300')}>{r.itemName ?? '—'}</td>
+                                                    <td className={cn(reportTableCell, 'text-zinc-400')}>{r.category ?? '—'}</td>
+                                                    <td className={cn(reportTableCell, 'text-right text-white')}>{r.transactionCount ?? 0}</td>
+                                                    <td className={cn(reportTableCell, 'text-right text-zinc-300')}>{r.qtyMoved ?? 0}</td>
+                                                </tr>
+                                            ))}</tbody>
+                                        </table>
+                                    </div>
+                                </>
                             )}
                         </Card>
                     )}
