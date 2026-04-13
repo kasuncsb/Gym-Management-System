@@ -28,11 +28,11 @@ export function ReportMetaBar({ data }: { data: { meta?: { generatedAt?: string;
     return (
         <div className="rounded-xl border border-zinc-700/70 bg-zinc-900/50 px-4 py-3 space-y-1">
             <p className="text-zinc-400 text-xs">
-                Generated {new Date(m.generatedAt).toLocaleString()} · direct row cap {m.directRowCap ?? '—'} per section
+                Generated {new Date(m.generatedAt).toLocaleString()} · detailed table cap {m.directRowCap ?? '—'} per section
             </p>
             {m.piiMasked && (
                 <p className="text-red-400/90 text-xs font-medium">
-                    Names, emails, IDs, and document references are masked in this report.
+                    Member emails are partially masked in this report.
                 </p>
             )}
         </div>
@@ -57,9 +57,9 @@ export function DirectReportTables({ data }: { data: any }) {
         <Card padding="lg" className={cn(reportSectionCard, 'border-red-500/15')}>
             <h3 className="text-white font-semibold mb-1 flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-red-500/80" aria-hidden />
-                Direct data (row-level)
+                Detailed business records
             </h3>
-            <p className="text-zinc-500 text-xs mb-4">Source rows for the selected period (sensitive fields masked).</p>
+            <p className="text-zinc-500 text-xs mb-4">Detailed records for operational review in the selected period.</p>
 
             {d.payments?.length > 0 && (
                 <div className="mb-6">

@@ -46,7 +46,7 @@ export default function ManagerReportsPage() {
                 recordRun: true,
             });
             setReportData(data);
-            toast.success('Report Generated', 'Data loaded from live system');
+            toast.success('Report Generated', 'Business report generated successfully');
         } catch (err) {
             toast.error('Failed to generate', getErrorMessage(err));
         } finally {
@@ -88,7 +88,7 @@ export default function ManagerReportsPage() {
         <div className="space-y-8">
             <PageHeader
                 title="Generate Reports"
-                subtitle="Create operational and financial reports for PowerWorld Kiribathgoda"
+                subtitle="Create business performance reports for PowerWorld Kiribathgoda"
             />
 
             <Card padding="lg" className={reportSectionCard}>

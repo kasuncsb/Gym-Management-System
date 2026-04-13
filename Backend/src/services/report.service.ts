@@ -69,7 +69,6 @@ async function fetchDirectPayments(fromFrag: string, toFrag: string, cap: number
   const memberUser = alias(users, 'report_pay_member');
   const rows = await db
     .select({
-      id: payments.id,
       paymentDate: payments.paymentDate,
       amount: payments.amount,
       paymentMethod: payments.paymentMethod,
@@ -79,7 +78,6 @@ async function fetchDirectPayments(fromFrag: string, toFrag: string, cap: number
       invoiceNumber: payments.invoiceNumber,
       memberName: memberUser.fullName,
       memberEmail: memberUser.email,
-      memberId: subscriptions.memberId,
       planName: subscriptionPlans.name,
     })
     .from(payments)
@@ -106,7 +104,6 @@ async function fetchDirectPayments(fromFrag: string, toFrag: string, cap: number
 async function fetchDirectNewMembers(fromFrag: string, toFrag: string, cap: number) {
   const rows = await db
     .select({
-      userId: users.id,
       fullName: users.fullName,
       email: users.email,
       memberCode: members.memberCode,
@@ -132,13 +129,11 @@ async function fetchDirectNewMembers(fromFrag: string, toFrag: string, cap: numb
 async function fetchDirectSubscriptionsCreated(fromFrag: string, toFrag: string, cap: number) {
   const rows = await db
     .select({
-      subscriptionId: subscriptions.id,
       status: subscriptions.status,
       startDate: subscriptions.startDate,
       endDate: subscriptions.endDate,
       planName: subscriptionPlans.name,
       memberName: users.fullName,
-      memberId: subscriptions.memberId,
       createdAt: subLc.createdAt,
     })
     .from(subscriptions)
@@ -157,8 +152,6 @@ async function fetchDirectVisits(fromFrag: string, toFrag: string, cap: number) 
   const visitMember = alias(users, 'report_visit_member');
   const rows = await db
     .select({
-      id: visits.id,
-      personId: visits.personId,
       memberName: visitMember.fullName,
       memberEmail: visitMember.email,
       checkInAt: visits.checkInAt,
@@ -180,7 +173,6 @@ async function fetchDirectVisits(fromFrag: string, toFrag: string, cap: number) 
 async function fetchDirectEquipmentEvents(fromFrag: string, toFrag: string, cap: number) {
   const rows = await db
     .select({
-      id: equipmentEvents.id,
       createdAt: eeLc.createdAt,
       equipmentName: equipment.name,
       eventType: equipmentEvents.eventType,
@@ -210,14 +202,12 @@ async function fetchDirectPtSessions(fromFrag: string, toFrag: string, cap: numb
   const memberUser = alias(users, 'report_pt_member');
   const rows = await db
     .select({
-      id: ptSessions.id,
       sessionDate: ptSessions.sessionDate,
       startTime: ptSessions.startTime,
       endTime: ptSessions.endTime,
       status: ptSessions.status,
       trainerName: trainerUser.fullName,
       memberName: memberUser.fullName,
-      memberId: ptSessions.memberId,
     })
     .from(ptSessions)
     .innerJoin(ptLc, eq(ptSessions.lifecycleId, ptLc.id))

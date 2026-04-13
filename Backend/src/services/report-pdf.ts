@@ -54,7 +54,7 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
       const period =
         data.fromDate || data.toDate ? `Period: ${data.fromDate ?? '…'} → ${data.toDate ?? '…'}` : 'Period: default (last30 days where applicable)';
       doc.fillColor(THEME.muted).font('Helvetica').fontSize(8).text(period, MARGIN, 64, { width: CONTENT_W });
-      doc.fillColor(THEME.muted).font('Helvetica').fontSize(7).text('PII masked in member/contact columns.', MARGIN, 74, { width: CONTENT_W });
+      doc.fillColor(THEME.muted).font('Helvetica').fontSize(7).text('Member emails are partially masked for privacy.', MARGIN, 74, { width: CONTENT_W });
       doc.restore();
       y = 96;
     };
@@ -80,27 +80,32 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
       true,
     );
     const cap = (data.meta as { directRowCap?: number } | undefined)?.directRowCap;
-    if (cap != null) para(`Direct row cap per section: ${cap}. Truncation noted per table where applicable.`, true);
+    if (cap != null) para(`Detailed section cap: ${cap} records per table.`, true);
 
     y += 4;
-    heading('Summary KPIs', 12);
-    const kpiKeys = ['monthlyRevenue', 'activeMembers', 'visitsInRange', 'openEquipmentIncidents'] as const;
-    for (const k of kpiKeys) {
-      if (k in data) para(`${k}: ${cell(data[k])}`);
+    heading('Business Summary', 12);
+    const kpiRows: Array<{ key: string; label: string }> = [
+      { key: 'monthlyRevenue', label: 'Monthly revenue' },
+      { key: 'activeMembers', label: 'Active members' },
+      { key: 'visitsInRange', label: 'Visits in selected period' },
+      { key: 'openEquipmentIncidents', label: 'Open equipment incidents' },
+    ];
+    for (const kpi of kpiRows) {
+      if (kpi.key in data) para(`${kpi.label}: ${cell(data[kpi.key])}`);
     }
-    const extraNumeric = [
-      'totalRevenueInRange',
-      'paymentCountInRange',
-      'averagePaymentInRange',
-      'newMembers',
-      'subscriptionsCreatedInRange',
-      'activeSubscriptionsTotal',
-      'avgVisitsPerDayInRange',
-      'incidentsInRange',
-      'ptSessionsInRange',
-    ] as const;
-    for (const k of extraNumeric) {
-      if (k in data) para(`${k}: ${cell(data[k])}`);
+    const extraRows: Array<{ key: string; label: string }> = [
+      { key: 'totalRevenueInRange', label: 'Revenue in selected period' },
+      { key: 'paymentCountInRange', label: 'Payment count' },
+      { key: 'averagePaymentInRange', label: 'Average payment value' },
+      { key: 'newMembers', label: 'New members in period' },
+      { key: 'subscriptionsCreatedInRange', label: 'Subscriptions created in period' },
+      { key: 'activeSubscriptionsTotal', label: 'Total active subscriptions' },
+      { key: 'avgVisitsPerDayInRange', label: 'Average daily visits' },
+      { key: 'incidentsInRange', label: 'Equipment incidents in period' },
+      { key: 'ptSessionsInRange', label: 'PT sessions in period' },
+    ];
+    for (const extra of extraRows) {
+      if (extra.key in data) para(`${extra.label}: ${cell(data[extra.key])}`);
     }
 
     y += 4;
@@ -198,7 +203,7 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
 
     const direct = data.direct as Record<string, unknown> | undefined;
     if (direct && typeof direct === 'object') {
-      heading('Direct data (row-level)', 12);
+      heading('Detailed Business Breakdown', 12);
       const trunc = (data.meta as { directTruncated?: Record<string, boolean> } | undefined)?.directTruncated ?? {};
       if (Array.isArray(direct.payments)) {
         if (trunc.payments) para('Payments: list truncated to cap.', true);

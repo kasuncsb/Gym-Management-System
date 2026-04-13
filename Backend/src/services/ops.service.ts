@@ -2439,7 +2439,6 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
     }).from(payments).where(sql`date(${payments.paymentDate}) >= ${sql.raw(from)} and date(${payments.paymentDate}) <= ${sql.raw(to)}`).groupBy(payments.paymentMethod);
 
     const byPlan = await db.select({
-      planId: subscriptions.planId,
       planName: subscriptionPlans.name,
       total: sql<string>`coalesce(sum(${payments.amount}), 0)`,
     }).from(payments)
@@ -2468,7 +2467,6 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
       .where(sql`date(${subLc.createdAt}) >= ${sql.raw(from)} and date(${subLc.createdAt}) <= ${sql.raw(to)}`)
       .groupBy(subscriptions.status);
     const byPlan = await db.select({
-      planId: subscriptions.planId,
       planName: subscriptionPlans.name,
       count: sql<number>`count(*)`,
     }).from(subscriptions)
@@ -2518,7 +2516,6 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
 
     const byEquipment = await db
       .select({
-        equipmentId: equipmentEvents.equipmentId,
         equipmentName: equipment.name,
         count: sql<number>`count(*)`,
       })
@@ -2535,7 +2532,6 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
 
   if (type === 'trainer') {
     const trainerStats = await db.select({
-      trainerId: ptSessions.trainerId,
       trainerName: users.fullName,
       total: sql<number>`count(*)`,
       completed: sql<number>`sum(case when ${ptSessions.status} = 'completed' then 1 else 0 end)`,

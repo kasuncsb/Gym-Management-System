@@ -46,7 +46,7 @@ export default function AdminReportsPage() {
                 recordRun: true,
             });
             setReportData(data);
-            toast.success('Report Generated', 'Data loaded successfully');
+            toast.success('Report Generated', 'Business report generated successfully');
         } catch (err) {
             toast.error('Failed to generate', getErrorMessage(err));
         } finally {
@@ -87,8 +87,8 @@ export default function AdminReportsPage() {
     return (
         <div className="space-y-8">
             <PageHeader
-                title="System Reports"
-                subtitle="Generate comprehensive operational reports with live data"
+                title="Business Reports"
+                subtitle="Generate business-focused performance reports"
             />
 
             <Card padding="lg" className={reportSectionCard}>

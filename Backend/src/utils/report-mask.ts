@@ -30,22 +30,6 @@ function maskEmail(raw: string): string {
   return `${maskedLocal}@${domain}`;
 }
 
-function maskIdLike(raw: string): string {
-  const s = String(raw).trim();
-  if (!s) return '—';
-  if (s.length <= 4) return repeat('*', Math.max(4, s.length));
-  const last4 = s.slice(-4);
-  return `${repeat('*', 8)}${last4}`;
-}
-
-function maskReference(raw: string): string {
-  const s = String(raw).trim();
-  if (!s) return '—';
-  if (s.length <= 4) return repeat('*', Math.max(4, s.length));
-  const last4 = s.slice(-4);
-  return `${repeat('*', 6)}${last4}`;
-}
-
 function maskScalar(key: string, val: unknown): unknown {
   if (val == null) return val;
   if (typeof val !== 'string') return val;
@@ -54,17 +38,6 @@ function maskScalar(key: string, val: unknown): unknown {
     case 'memberEmail':
     case 'email':
       return maskEmail(val);
-    case 'memberId':
-    case 'userId':
-    case 'personId':
-    case 'subscriptionId':
-    case 'id':
-      return maskIdLike(val);
-    case 'referenceNumber':
-    case 'invoiceNumber':
-    case 'receiptNumber':
-    case 'memberCode':
-      return maskReference(val);
     default:
       return val;
   }
