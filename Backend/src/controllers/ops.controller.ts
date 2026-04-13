@@ -574,7 +574,9 @@ export const getReportSummary = asyncHandler(async (req: AuthRequest, res: Respo
       direct,
     });
   }
-  res.json(response.success(data));
+  const businessData = { ...((data as Record<string, unknown>) ?? {}) };
+  delete businessData.direct;
+  res.json(response.success(businessData));
 });
 
 export const getReportPdf = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -594,7 +596,9 @@ export const getReportPdf = asyncHandler(async (req: AuthRequest, res: Response)
     channel: 'pdf',
     direct,
   });
-  const buf = await buildReportPdf(data);
+  const businessData = { ...data };
+  delete businessData.direct;
+  const buf = await buildReportPdf(businessData);
   const safeName = `report-${params.type ?? 'overview'}-${params.fromDate ?? 'all'}-to-${params.toDate ?? 'now'}.pdf`.replace(
     /[^a-zA-Z0-9._-]+/g,
     '_',

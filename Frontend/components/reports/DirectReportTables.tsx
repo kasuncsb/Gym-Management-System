@@ -28,7 +28,7 @@ export function ReportMetaBar({ data }: { data: { meta?: { generatedAt?: string;
     return (
         <div className="rounded-xl border border-zinc-700/70 bg-zinc-900/50 px-4 py-3 space-y-1">
             <p className="text-zinc-400 text-xs">
-                Generated {new Date(m.generatedAt).toLocaleString()} · detailed table cap {m.directRowCap ?? '—'} per section
+                Generated {new Date(m.generatedAt).toLocaleString()}
             </p>
             {m.piiMasked && (
                 <p className="text-red-400/90 text-xs font-medium">
