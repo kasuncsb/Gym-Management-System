@@ -102,19 +102,24 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
       const cols = 2;
       const cardW = (CONTENT_W - 12) / cols;
       const cardH = 48;
-      rows.forEach((row, idx) => {
-        const col = idx % cols;
-        if (col === 0) ensure(cardH + 8);
-        const rowIdx = Math.floor(idx / cols);
-        const x = MARGIN + col * (cardW + 12);
-        const cy = y + rowIdx * (cardH + 8);
-        doc.save();
-        doc.roundedRect(x, cy, cardW, cardH, 4).fillAndStroke(THEME.panelBg, THEME.panelBorder);
-        doc.restore();
-        doc.fillColor(THEME.muted).font('Helvetica').fontSize(8).text(row.label, x + 8, cy + 8, { width: cardW - 16 });
-        doc.fillColor(THEME.text).font('Helvetica-Bold').fontSize(12).text(row.value, x + 8, cy + 22, { width: cardW - 16 });
-      });
-      y += Math.ceil(rows.length / cols) * (cardH + 8) + 4;
+      let idx = 0;
+      while (idx < rows.length) {
+        ensure(cardH + 8);
+        const rowY = y;
+        for (let col = 0; col < cols; col++) {
+          const row = rows[idx + col];
+          if (!row) continue;
+          const x = MARGIN + col * (cardW + 12);
+          doc.save();
+          doc.roundedRect(x, rowY, cardW, cardH, 4).fillAndStroke(THEME.panelBg, THEME.panelBorder);
+          doc.restore();
+          doc.fillColor(THEME.muted).font('Helvetica').fontSize(8).text(row.label, x + 8, rowY + 8, { width: cardW - 16 });
+          doc.fillColor(THEME.text).font('Helvetica-Bold').fontSize(12).text(row.value, x + 8, rowY + 22, { width: cardW - 16 });
+        }
+        idx += cols;
+        y += cardH + 8;
+      }
+      y += 4;
     };
 
     const drawBarChart = (title: string, series: Array<{ label: string; value: number }>, valueSuffix = '') => {
