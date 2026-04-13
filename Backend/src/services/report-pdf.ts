@@ -235,6 +235,12 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
       chartSeries.map((s) => ({ label: String(s.label ?? 'Item'), value: Number(s.value ?? 0) })),
       type === 'trainer' ? '%' : '',
     );
+    const chartInterpretation = String(narrative.chartInterpretation ?? '').trim();
+    if (chartInterpretation) {
+      sectionPanel('Data Interpretation', () => {
+        para(chartInterpretation, true);
+      });
+    }
 
     if (Array.isArray(data.byMethod)) {
       para('The following table provides a detailed revenue split by payment channel for the selected timeframe.', true);

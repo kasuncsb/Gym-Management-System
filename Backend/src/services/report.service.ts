@@ -322,6 +322,12 @@ function buildReportNarrative(
     const topMethod = byMethod
       .map((r) => ({ method: titleCase(String(r.method ?? 'Unknown')), total: toNum(r.total) }))
       .sort((a, b) => b.total - a.total)[0];
+    const concentrationPct = topMethod && total > 0 ? Math.round((topMethod.total / total) * 1000) / 10 : 0;
+    const concentrationRisk =
+      concentrationPct >= 65 ? 'high concentration risk' : concentrationPct >= 45 ? 'moderate concentration risk' : 'low concentration risk';
+    const revenueInterpretation = topMethod
+      ? `Trend direction: revenue is led by ${topMethod.method} (${concentrationPct}% share), while overall throughput remains steady at ${count.toLocaleString()} payments. Risk callout: this indicates ${concentrationRisk} if one channel underperforms. Action: run a channel-balance campaign to lift the second-best method and reduce dependency.`
+      : 'Trend direction: channel split is currently unavailable. Risk callout: without channel visibility, revenue dependency risk cannot be measured accurately. Action: verify payment method capture in operational reporting before the next review.';
     return {
       executiveSummary: `${baseExecutive} Revenue in period is Rs. ${Math.round(total).toLocaleString()} from ${count.toLocaleString()} payments.`,
       sectionTitle: 'Revenue Performance',
@@ -348,6 +354,7 @@ function buildReportNarrative(
       ],
       chartTitle: 'Revenue by Payment Method',
       chartSeries: byMethod.map((r) => ({ label: titleCase(String(r.method ?? 'Unknown')), value: toNum(r.total) })),
+      chartInterpretation: revenueInterpretation,
       glossary,
     };
   }
@@ -360,6 +367,9 @@ function buildReportNarrative(
     const trial = toNum(payload.trialInRange);
     const expiringSoon = toNum(payload.expiringSoon);
     const byPlan = (Array.isArray(payload.byPlan) ? payload.byPlan : []) as Array<Record<string, unknown>>;
+    const createdBase = Math.max(1, created);
+    const churnPct = Math.round((cancelled / createdBase) * 1000) / 10;
+    const membershipInterpretation = `Trend direction: active membership is growing with ${newMembers.toLocaleString()} new members and ${active.toLocaleString()} active subscriptions. Risk callout: cancellation pressure is ${churnPct}% of created subscriptions and ${expiringSoon.toLocaleString()} plans are approaching renewal. Action: trigger a 30-day renewal outreach for expiring members and a save-offer workflow for cancellation-prone segments.`;
     return {
       executiveSummary: `${baseExecutive} Membership growth added ${newMembers.toLocaleString()} new members, with ${created.toLocaleString()} subscriptions created.`,
       sectionTitle: 'Membership Health',
@@ -382,6 +392,7 @@ function buildReportNarrative(
       ],
       chartTitle: 'Active Subscriptions by Plan',
       chartSeries: byPlan.map((r) => ({ label: String(r.planName ?? 'Unknown'), value: toNum(r.count) })),
+      chartInterpretation: membershipInterpretation,
       glossary,
     };
   }
@@ -392,6 +403,12 @@ function buildReportNarrative(
     const uniqueVisitors = toNum(payload.uniqueVisitorsInRange);
     const avgVisitDuration = toNum(payload.avgVisitDurationInRange);
     const byHour = (Array.isArray(payload.byHour) ? payload.byHour : []) as Array<Record<string, unknown>>;
+    const peak = byHour
+      .map((r) => ({ hour: toNum(r.hour), count: toNum(r.count) }))
+      .sort((a, b) => b.count - a.count)[0];
+    const attendanceInterpretation = peak
+      ? `Trend direction: attendance clusters around ${peak.hour}h with a peak of ${peak.count.toLocaleString()} visits, while the daily average remains ${avgPerDay.toLocaleString()}. Risk callout: concentrated peak windows can create queueing and reduced service quality. Action: align staffing and equipment availability around the top 2 hourly peaks and shift non-critical tasks to off-peak hours.`
+      : 'Trend direction: hourly attendance detail is unavailable for this period. Risk callout: peak load cannot be forecast reliably without hour-level data. Action: ensure check-in timestamps are consistently captured and retry the report.';
     return {
       executiveSummary: `${baseExecutive} The gym logged ${visits.toLocaleString()} visits in total, averaging ${avgPerDay.toLocaleString()} visits per day.`,
       sectionTitle: 'Attendance Patterns',
@@ -410,6 +427,7 @@ function buildReportNarrative(
       ],
       chartTitle: 'Visits by Hour',
       chartSeries: byHour.map((r) => ({ label: `${toNum(r.hour)}h`, value: toNum(r.count) })),
+      chartInterpretation: attendanceInterpretation,
       glossary,
     };
   }
@@ -419,6 +437,7 @@ function buildReportNarrative(
     const highOpen = toNum(payload.highSeverityOpenInRange);
     const resolved = toNum(payload.resolvedIncidentsInRange);
     const bySeverity = (Array.isArray(payload.bySeverity) ? payload.bySeverity : []) as Array<Record<string, unknown>>;
+    const equipmentInterpretation = `Trend direction: incident volume is ${incidents.toLocaleString()} in the period, with ${resolved.toLocaleString()} resolved items. Risk callout: ${highOpen.toLocaleString()} high-severity open incidents represent immediate availability and safety exposure. Action: prioritize closure of high-severity open incidents before lower-priority maintenance tasks.`;
     return {
       executiveSummary: `${baseExecutive} There were ${incidents.toLocaleString()} equipment incidents reported in this period.`,
       sectionTitle: 'Equipment Reliability',
@@ -437,6 +456,7 @@ function buildReportNarrative(
       ],
       chartTitle: 'Incidents by Severity/Status',
       chartSeries: bySeverity.map((r) => ({ label: `${titleCase(String(r.severity ?? 'Unknown'))}/${titleCase(String(r.status ?? 'Unknown'))}`, value: toNum(r.count) })),
+      chartInterpretation: equipmentInterpretation,
       glossary,
     };
   }
@@ -449,6 +469,14 @@ function buildReportNarrative(
     const moved = toNum(payload.totalQtyMovedInRange);
     const net = toNum(payload.netStockChangeInRange);
     const byCategory = (Array.isArray(payload.byCategory) ? payload.byCategory : []) as Array<Record<string, unknown>>;
+    const topCategory = byCategory
+      .map((r) => ({ category: String(r.category ?? 'Unknown'), count: toNum(r.itemCount) }))
+      .sort((a, b) => b.count - a.count)[0];
+    const inventoryInterpretation = `Trend direction: inventory is ${
+      net >= 0 ? 'expanding' : 'contracting'
+    } with a net change of ${net.toLocaleString()} units across ${txnCount.toLocaleString()} transactions. Risk callout: ${lowStockItemCount.toLocaleString()} low-stock items may cause fulfillment gaps. Action: prioritize restocking for threshold-breaching items, starting with ${
+      topCategory ? `${topCategory.category} category` : 'the highest-demand category'
+    }.`;
     return {
       executiveSummary: `${baseExecutive} Inventory currently tracks ${activeItemCount.toLocaleString()} active items with ${totalStockUnits.toLocaleString()} units in stock.`,
       sectionTitle: 'Inventory Position and Movement',
@@ -480,6 +508,7 @@ function buildReportNarrative(
       ],
       chartTitle: 'Inventory Items by Category',
       chartSeries: byCategory.map((r) => ({ label: String(r.category ?? 'Unknown'), value: toNum(r.itemCount) })),
+      chartInterpretation: inventoryInterpretation,
       glossary,
     };
   }
@@ -488,6 +517,12 @@ function buildReportNarrative(
   const activeTrainers = toNum(payload.activeTrainersInRange);
   const avgSessionsPerTrainer = toNum(payload.avgSessionsPerTrainer);
   const trainerStats = (Array.isArray(payload.trainerStats) ? payload.trainerStats : []) as Array<Record<string, unknown>>;
+  const lowestCompletion = trainerStats
+    .map((r) => ({ name: String(r.trainerName ?? 'Unknown'), rate: toNum(r.completionRatePct) }))
+    .sort((a, b) => a.rate - b.rate)[0];
+  const trainerInterpretation = `Trend direction: trainer delivery remains strong with ${totalSessions.toLocaleString()} sessions and ${avgSessionsPerTrainer.toLocaleString()} sessions per active trainer. Risk callout: ${
+    lowestCompletion ? `${lowestCompletion.name} has the lowest completion rate (${lowestCompletion.rate.toLocaleString()}%).` : 'completion variance data is limited.'
+  } Action: perform targeted schedule and coaching review for the lowest-completion cohort while preserving top-performer practices.`;
   return {
     executiveSummary: `${baseExecutive} Trainers handled ${totalSessions.toLocaleString()} sessions in the selected period.`,
     sectionTitle: 'Trainer Performance',
@@ -506,6 +541,7 @@ function buildReportNarrative(
     ],
     chartTitle: 'Trainer Completion Rate',
     chartSeries: trainerStats.map((r) => ({ label: String(r.trainerName ?? 'Unknown'), value: toNum(r.completionRatePct) })),
+    chartInterpretation: trainerInterpretation,
     glossary,
   };
 }
