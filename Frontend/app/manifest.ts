@@ -1,12 +1,14 @@
 import type { MetadataRoute } from "next";
 
+const APP_VERSION = "2.1.0";
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "GymSphere",
     short_name: "GymSphere",
     id: "/pwa",
     description:
-      "Sri Lanka fitness network — facilities, trainers, workouts, and member tools.",
+      `Sri Lanka fitness network — facilities, trainers, workouts, and member tools. (v${APP_VERSION})`,
     start_url: "/pwa",
     scope: "/",
     display_override: ["standalone", "minimal-ui"],

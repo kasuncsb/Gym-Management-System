@@ -1,5 +1,10 @@
 # Frontend (Next.js)
 
+## Version
+
+- Frontend app version: `2.1.0`
+- Standalone PWA shell version: `2.1.0`
+
 ## Development
 
 `next dev` may log a Serwist + Turbopack notice; the service worker is **disabled** in development anyway (`next.config.ts`). Use `next dev --webpack` if you need a webpack dev server without that warning.

@@ -4,6 +4,7 @@ A web-based gym management system developed for PowerWorld Gyms (Kiribathgoda Br
 
 ## Table of Contents
 - [Project Overview](#project-overview)
+- [Release Versions](#release-versions)
 - [Client Requirements](#client-requirements)
 - [Technology Stack](#technology-stack)
 - [System Architecture](#system-architecture)
@@ -14,6 +15,14 @@ A web-based gym management system developed for PowerWorld Gyms (Kiribathgoda Br
 ## Project Overview
 
 The system is developed as a modular web application. It separates the presentation layer (frontend) from the business logic and data persistence layer (backend). The entire system is containerized for consistent deployment across environments.
+
+## Release Versions
+
+| Component | Version |
+|---------|---------|
+| Backend API | `2.1.0` |
+| Frontend Web App | `2.1.0` |
+| Standalone App (PWA shell) | `2.1.0` |
 
 ```text
 Gym-Management-System/
