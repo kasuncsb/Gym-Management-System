@@ -34,12 +34,26 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
     let y = PAGE_TOP;
     const type = String(data.type ?? 'report');
     const narrative = (data.reportNarrative as Record<string, unknown> | undefined) ?? {};
+    let pageNo = 0;
+
+    const drawFooter = (n: number) => {
+      const footerY = doc.page.height - 28;
+      doc.save();
+      doc.fillColor(THEME.muted).font('Helvetica').fontSize(8).text(`Page ${n}`, MARGIN, footerY, {
+        width: CONTENT_W,
+        align: 'right',
+      });
+      doc.restore();
+      doc.fillColor(THEME.text).font('Helvetica').fontSize(9);
+    };
 
     const paintPageBackground = () => {
       doc.save();
       doc.rect(0, 0, doc.page.width, doc.page.height).fill(THEME.pageBg);
       doc.restore();
       doc.fillColor(THEME.text);
+      pageNo += 1;
+      drawFooter(pageNo);
     };
 
     const newPage = () => {
