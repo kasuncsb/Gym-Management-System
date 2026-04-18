@@ -82,7 +82,12 @@ export default function SimulatePage() {
           best = { id: row?.id, status: row?.status, lastAt: String(lastAt) };
         }
       }
-      if (best) {
+      // Only successful access should animate the door (denied attempts may still appear in other feeds).
+      const opensDoor =
+        best &&
+        best.status !== 'denied' &&
+        ['active', 'completed', 'auto_closed'].includes(String(best.status ?? ''));
+      if (opensDoor) {
         const age = Date.now() - new Date(best.lastAt).getTime();
         if (age < 10000) {
           const eventKey = `${best.id ?? 'unknown'}:${best.status ?? 'unknown'}:${best.lastAt}`;

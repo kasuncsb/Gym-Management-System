@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, ne, sql } from 'drizzle-orm';
 import { db } from '../config/database.js';
 import {
   config,
@@ -3203,6 +3203,8 @@ export async function getSimulationState() {
             checkOutAt: visits.checkOutAt,
           })
           .from(visits)
+          // Denied access still inserts a visit row for audit; it must not drive the door "unlock" pulse.
+          .where(ne(visits.status, 'denied'))
           // Order by last activity so a fresh check-out/check-in surfaces first.
           .orderBy(desc(sql`COALESCE(${visits.checkOutAt}, ${visits.checkInAt})`))
           .limit(10),
