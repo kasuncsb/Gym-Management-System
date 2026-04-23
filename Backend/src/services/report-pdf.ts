@@ -329,6 +329,29 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
       para('Plan-level revenue distribution helps identify where recurring value is concentrated.', true);
       tableBlock('Revenue by plan', ['Plan', 'Total'], objectRows(data.byPlan, ['planName', 'total']));
     }
+    if (Array.isArray(data.byTrainer) && type === 'revenue') {
+      para(
+        'Trainer-level revenue attribution uses each paying member’s currently assigned trainer and summarizes transaction volume and contribution share.',
+        true,
+      );
+      const trainerRows = (data.byTrainer as Array<Record<string, unknown>>).map((row) => {
+        const total = Number(row.total ?? 0);
+        const count = Number(row.count ?? 0);
+        const avg = count > 0 ? total / count : 0;
+        return [
+          cell(row.trainerName ?? 'Unassigned'),
+          cell(row.count),
+          `Rs. ${Math.round(total).toLocaleString()}`,
+          `${Number(row.pctOfTotalRevenue ?? 0).toFixed(1)}%`,
+          `Rs. ${Math.round(avg).toLocaleString()}`,
+        ];
+      });
+      tableBlock(
+        'Revenue by trainer',
+        ['Trainer', 'Transactions', 'Total', '% of total', 'Avg / txn'],
+        trainerRows,
+      );
+    }
     if (Array.isArray(data.byPlan) && type === 'membership') {
       para('Active subscriptions by plan show demand preference and retention strength by product type.', true);
       tableBlock('Active subscriptions by plan', ['Plan', 'Count'], objectRows(data.byPlan, ['planName', 'count']));
