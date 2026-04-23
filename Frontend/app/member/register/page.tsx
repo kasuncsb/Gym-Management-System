@@ -180,7 +180,7 @@ export default function Register() {
                                             value={phone}
                                             onChange={(e) => setPhone(e.target.value)}
                                             className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-3 pl-10 pr-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
-                                            placeholder="+94 77 123 4567"
+                                            placeholder="+100 000 0000"
                                             required
                                             autoComplete="tel"
                                         />
@@ -302,7 +302,7 @@ export default function Register() {
                                         type="tel"
                                         value={emergencyPhone}
                                         onChange={e => setEmergencyPhone(e.target.value)}
-                                        placeholder="+94 77 123 4567"
+                                        placeholder="+100 000 0000"
                                         required
                                         className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl py-3 px-4 text-white placeholder-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all"
                                         autoComplete="off"
@@ -394,7 +394,7 @@ export default function Register() {
                     </div>
                 </div>
 
-                <p className="text-sm text-zinc-500 mt-10 text-center">© 2026 PowerWorld Gyms. All rights reserved.</p>
+                <p className="text-sm text-zinc-500 mt-10 text-center">© 2026 GymSphere. All rights reserved.</p>
             </div>
         </div>
     );

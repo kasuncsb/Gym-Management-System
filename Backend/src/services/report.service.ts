@@ -415,7 +415,7 @@ Rules:
 - Use plain business language, not developer jargon.
 - Keep facts strictly grounded in the provided metrics.
 - Do not invent numbers.
-- Use Sri Lankan currency format only (Rs. / LKR). NEVER use $, USD, EUR, or GBP.
+- Use platform currency format only (Rs.). NEVER use $, USD, EUR, or GBP.
 - Keep text plain (no markdown bullets, no code formatting).
 - Return ONLY JSON (no markdown, no prose outside JSON) with keys:
   executiveSummary (string),

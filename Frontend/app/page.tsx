@@ -25,7 +25,7 @@ function periodLabel(durationDays: number) {
   return `${d} days`;
 }
 
-const DEFAULT_FEATURES = ["Full gym access", "Locker usage", "Kiribathgoda branch"];
+const DEFAULT_FEATURES = ["Full gym access", "Locker usage", "Any GymSphere branch"];
 
 const FALLBACK_PLANS: HomePlanCard[] = [
   { name: "Monthly Individual", price: "Rs. 8,999", period: "mo", popular: false, features: DEFAULT_FEATURES },
@@ -35,7 +35,7 @@ const FALLBACK_PLANS: HomePlanCard[] = [
 
 const STATS = [
   { label: "Active Members", value: "500+" },
-  { label: "Kiribathgoda Branch", value: "1" },
+  { label: "GymSphere Branch", value: "1" },
   { label: "Expert Trainers", value: "8" },
   { label: "Years Running", value: "5+" },
 ];
@@ -108,14 +108,14 @@ export default function Home() {
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-900/50 border border-zinc-800 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
             <span className="text-sm font-medium text-zinc-300">
-              Now Open in Kiribathgoda
+              Now Open at GymSphere
             </span>
           </div>
 
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
             Forging <span className="text-transparent bg-clip-text bg-linear-to-r from-red-500 to-red-500">Elite</span>
             <br />
-            Fitness in Sri Lanka
+            Fitness Management Platform
           </h1>
 
           <p className="text-xl text-zinc-400 max-w-2xl mx-auto mb-12 leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
@@ -160,7 +160,7 @@ export default function Home() {
           <div className="text-center mb-24">
             <h2 className="text-3xl md:text-5xl font-bold mb-6">Built for <span className="text-red-600">Results</span></h2>
             <p className="text-zinc-400 max-w-2xl mx-auto text-lg">
-              Our Kiribathgoda facility combines training zones, expert support, and smart member tools in one place.
+              Our GymSphere facility combines training zones, expert support, and smart member tools in one place.
             </p>
           </div>
 
@@ -199,7 +199,7 @@ export default function Home() {
         <div className="container px-6 mx-auto">
           <div className="text-center mb-24">
             <h2 className="text-3xl md:text-5xl font-bold mb-6">Simple, Transparent <span className="text-red-600">Pricing</span></h2>
-            <p className="text-zinc-400">Pricing reflects live plans at our Kiribathgoda branch. Join online to get started.</p>
+            <p className="text-zinc-400">Pricing reflects live plans for the GymSphere branch demo. Join online to get started.</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
@@ -272,27 +272,27 @@ export default function Home() {
           <div className="grid md:grid-cols-2 gap-12 items-start">
             <div>
               <h2 className="text-3xl md:text-5xl font-bold mb-6">
-                About <span className="text-red-600">Power World Fitness Centres</span>
+                About <span className="text-red-600">Gym Management Suite</span>
               </h2>
               <p className="text-zinc-300 leading-relaxed mb-4">
-                Power World Gyms is presented as Sri Lanka&apos;s largest fitness network, with over 24 locations and
-                more than 100,000 sq ft of gym space.
+                GymSphere is presented as a modern fitness management suite with premium facilities,
+                expert support, and scalable operations.
               </p>
               <p className="text-zinc-400 leading-relaxed mb-4">
-                The brand highlights certified trainers, personalized fitness plans, top-tier equipment, and flexible memberships
+                The platform highlights certified trainers, personalized fitness plans, top-tier equipment, and flexible memberships
                 for both beginners and advanced members.
               </p>
               <p className="text-zinc-400 leading-relaxed">
-                Its coverage is described as island-wide across Colombo and surrounding suburbs, supported by a community
-                of 25,000+ active members.
+                Its coverage is designed for multi-branch operations, supported by configurable dashboards
+                and member engagement tools.
               </p>
             </div>
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-7">
-              <h3 className="text-xl font-semibold mb-5">What Power World highlights</h3>
+              <h3 className="text-xl font-semibold mb-5">What GymSphere highlights</h3>
               <ul className="space-y-3 text-zinc-300">
-                <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> Sri Lanka&apos;s largest fitness network with 24+ gym locations.</li>
-                <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> 100,000+ sq ft of dedicated fitness space.</li>
-                <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> 25,000+ active members across the network.</li>
+                <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> Multi-branch readiness with configurable operations.</li>
+                <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> Unified workflows for members, trainers, managers, and admins.</li>
+                <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> Built-in analytics, subscriptions, attendance, and reporting.</li>
                 <li className="flex gap-3"><Check size={16} className="text-red-500 mt-1 shrink-0" /> Certified trainers, comprehensive facilities, and affordable access.</li>
               </ul>
             </div>
@@ -306,7 +306,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="py-12 border-t border-zinc-800 bg-zinc-900/50">
         <div className="container px-6 mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <p className="text-zinc-500 text-sm">&copy; 2026 PowerWorld Gyms. All rights reserved.</p>
+          <p className="text-zinc-500 text-sm">&copy; 2026 GymSphere. All rights reserved.</p>
           <div className="flex gap-8">
             <button type="button" onClick={showDemoDialog} className="text-zinc-500 hover:text-white text-sm transition-colors">Privacy Policy</button>
             <button type="button" onClick={showDemoDialog} className="text-zinc-500 hover:text-white text-sm transition-colors">Terms of Service</button>

@@ -37,13 +37,13 @@ export default function MaintenanceGate({ children }: MaintenanceGateProps) {
                 <div>
                     <h1 className="text-2xl font-bold text-white">Under Maintenance</h1>
                     <p className="text-zinc-400 mt-2">
-                        PowerWorld Gyms Kiribathgoda is currently undergoing scheduled maintenance.
+                        GymSphere is currently undergoing scheduled maintenance.
                         Please check back shortly.
                     </p>
                 </div>
                 <p className="text-zinc-600 text-sm">
                     For urgent assistance, contact the gym on{' '}
-                    <span className="text-zinc-400">+94112345678</span>
+                    <span className="text-zinc-400">+10000000000</span>
                 </p>
             </div>
         </div>

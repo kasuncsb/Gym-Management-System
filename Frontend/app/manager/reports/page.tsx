@@ -89,7 +89,7 @@ export default function ManagerReportsPage() {
         <div className="space-y-8">
             <PageHeader
                 title="Generate Reports"
-                subtitle="Create business performance reports for PowerWorld Kiribathgoda"
+                subtitle="Create business performance reports for GymSphere"
             />
 
             <Card padding="lg" className={reportSectionCard}>

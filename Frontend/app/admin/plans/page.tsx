@@ -141,7 +141,7 @@ export default function AdminPlansPage() {
         <div className="space-y-8">
             <PageHeader
                 title="Subscription Plans"
-                subtitle="Manage membership plans for PowerWorld Kiribathgoda"
+                subtitle="Manage membership plans for GymSphere"
                 action={
                     <LoadingButton icon={Plus} onClick={openAdd} size="md">
                         Add Plan

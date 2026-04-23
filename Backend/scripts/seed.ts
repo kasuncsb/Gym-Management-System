@@ -42,7 +42,7 @@ import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import { LIBRARY_WORKOUT_PLANS } from './data/libraryWorkoutPlans.seed.js';
 import { stringifyProgram, workoutProgramJsonSchema } from '../src/validators/workoutProgram.js';
 
-const SEED_PASSWORD = 'PWlogin!26';
+const SEED_PASSWORD = 'DemoPass#2026';
 
 function dateAtNoon(isoDate: string): Date {
   return new Date(`${isoDate}T12:00:00.000Z`);
@@ -76,27 +76,27 @@ function endHMS(startHms: string, durationMinutes: number): string {
 }
 
 const SEED_EMAILS = [
-  'kasuncsb+admin@gmail.com',
-  'kasuncsb+manager@gmail.com',
-  'kasuncsb+trainer@gmail.com',
-  'kasuncsb+member@gmail.com',
+  'admin@gymsphere.demo',
+  'manager@gymsphere.demo',
+  'trainer@gymsphere.demo',
+  'member@gymsphere.demo',
   // Legacy seeded trainer/member accounts (removed during re-seed)
-  'kasuncsb+trainer1@gmail.com',
-  'kasuncsb+trainer2@gmail.com',
-  'kasuncsb+trainer3@gmail.com',
-  'kasuncsb+member1@gmail.com',
-  'kasuncsb+member2@gmail.com',
-  'kasuncsb+member3@gmail.com',
-  'kasuncsb+member4@gmail.com',
-  'kasuncsb+member5@gmail.com',
+  'trainer1@gymsphere.demo',
+  'trainer2@gymsphere.demo',
+  'trainer3@gymsphere.demo',
+  'member1@gymsphere.demo',
+  'member2@gymsphere.demo',
+  'member3@gymsphere.demo',
+  'member4@gymsphere.demo',
+  'member5@gymsphere.demo',
 ];
 
 const SEED_USERS = [
   {
     role: 'admin' as const,
-    email: 'kasuncsb+admin@gmail.com',
-    fullName: 'Asiri Wickramasinghe',
-    employeeCode: 'PWG-ADM-001',
+    email: 'admin@gymsphere.demo',
+    fullName: 'Alex Carter',
+    employeeCode: 'GMS-ADM-001',
     designation: 'System Administrator',
     hireDate: '2022-01-15',
     baseSalary: '185000.00',
@@ -104,9 +104,9 @@ const SEED_USERS = [
   },
   {
     role: 'manager' as const,
-    email: 'kasuncsb+manager@gmail.com',
-    fullName: 'Dilini Perera',
-    employeeCode: 'PWG-MGR-001',
+    email: 'manager@gymsphere.demo',
+    fullName: 'Jordan Lee',
+    employeeCode: 'GMS-MGR-001',
     designation: 'Branch Manager',
     hireDate: '2023-03-01',
     baseSalary: '145000.00',
@@ -114,9 +114,9 @@ const SEED_USERS = [
   },
   {
     role: 'trainer' as const,
-    email: 'kasuncsb+trainer1@gmail.com',
-    fullName: 'Chathurika Silva',
-    employeeCode: 'PWG-TRN-001',
+    email: 'trainer1@gymsphere.demo',
+    fullName: 'Taylor Brooks',
+    employeeCode: 'GMS-TRN-001',
     designation: 'Head Trainer',
     specialization: 'Strength & Conditioning',
     ptHourlyRate: '3500.00',
@@ -127,18 +127,18 @@ const SEED_USERS = [
   },
   {
     role: 'member' as const,
-    email: 'kasuncsb+member1@gmail.com',
-    fullName: 'Nimal Perera',
-    memberCode: 'PWG-KBG-2025001',
+    email: 'member1@gymsphere.demo',
+    fullName: 'Morgan Hayes',
+    memberCode: 'GMS-MEM-2025001',
     memberStatus: 'active' as const,
-    assignedTrainerEmail: 'kasuncsb+trainer1@gmail.com',
+    assignedTrainerEmail: 'trainer1@gymsphere.demo',
     idVerificationStatus: 'approved' as const,
   },
   {
     role: 'trainer' as const,
-    email: 'kasuncsb+trainer2@gmail.com',
-    fullName: 'Rangana Perera',
-    employeeCode: 'PWG-TRN-002',
+    email: 'trainer2@gymsphere.demo',
+    fullName: 'Riley Morgan',
+    employeeCode: 'GMS-TRN-002',
     designation: 'Senior Trainer',
     specialization: 'Sports Conditioning',
     ptHourlyRate: '3200.00',
@@ -149,18 +149,18 @@ const SEED_USERS = [
   },
   {
     role: 'member' as const,
-    email: 'kasuncsb+member2@gmail.com',
-    fullName: 'Ishantha Rodrigo',
-    memberCode: 'PWG-KBG-2025002',
+    email: 'member2@gymsphere.demo',
+    fullName: 'Avery Quinn',
+    memberCode: 'GMS-MEM-2025002',
     memberStatus: 'active' as const,
-    assignedTrainerEmail: 'kasuncsb+trainer1@gmail.com',
+    assignedTrainerEmail: 'trainer1@gymsphere.demo',
     idVerificationStatus: 'approved' as const,
   },
   {
     role: 'trainer' as const,
-    email: 'kasuncsb+trainer3@gmail.com',
-    fullName: 'Sahan Jayasekara',
-    employeeCode: 'PWG-TRN-003',
+    email: 'trainer3@gymsphere.demo',
+    fullName: 'Casey Rivera',
+    employeeCode: 'GMS-TRN-003',
     designation: 'Trainer',
     specialization: 'Weight Management',
     ptHourlyRate: '3000.00',
@@ -171,29 +171,29 @@ const SEED_USERS = [
   },
   {
     role: 'member' as const,
-    email: 'kasuncsb+member3@gmail.com',
-    fullName: 'Kavinda Weerasooriya',
-    memberCode: 'PWG-KBG-2025003',
+    email: 'member3@gymsphere.demo',
+    fullName: 'Skyler Cole',
+    memberCode: 'GMS-MEM-2025003',
     memberStatus: 'active' as const,
-    assignedTrainerEmail: 'kasuncsb+trainer2@gmail.com',
+    assignedTrainerEmail: 'trainer2@gymsphere.demo',
     idVerificationStatus: 'approved' as const,
   },
   {
     role: 'member' as const,
-    email: 'kasuncsb+member4@gmail.com',
-    fullName: 'Thilina Kumara',
-    memberCode: 'PWG-KBG-2025004',
+    email: 'member4@gymsphere.demo',
+    fullName: 'Parker Reed',
+    memberCode: 'GMS-MEM-2025004',
     memberStatus: 'active' as const,
-    assignedTrainerEmail: 'kasuncsb+trainer3@gmail.com',
+    assignedTrainerEmail: 'trainer3@gymsphere.demo',
     idVerificationStatus: 'approved' as const,
   },
   {
     role: 'member' as const,
-    email: 'kasuncsb+member5@gmail.com',
-    fullName: 'Chamara Perera',
-    memberCode: 'PWG-KBG-2025005',
+    email: 'member5@gymsphere.demo',
+    fullName: 'Jamie Sloan',
+    memberCode: 'GMS-MEM-2025005',
     memberStatus: 'active' as const,
-    assignedTrainerEmail: 'kasuncsb+trainer2@gmail.com',
+    assignedTrainerEmail: 'trainer2@gymsphere.demo',
     // Keep one member in pending state so manager/admin dashboards show pending ID verifications
     idVerificationStatus: 'pending' as const,
   },
@@ -351,7 +351,7 @@ async function seed() {
 
   const SEED_PLANS = [
     {
-      planCode: 'KBG-DAY',
+      planCode: 'GMS-DAY',
       name: 'Day Pass',
       description: 'Single day, full floor access.',
       planType: 'daily_pass' as const,
@@ -359,7 +359,7 @@ async function seed() {
       durationDays: 1,
     },
     {
-      planCode: 'KBG-WK1',
+      planCode: 'GMS-WK1',
       name: 'Weekly',
       description: '7 days unlimited access.',
       planType: 'individual' as const,
@@ -367,7 +367,7 @@ async function seed() {
       durationDays: 7,
     },
     {
-      planCode: 'KBG-M1',
+      planCode: 'GMS-M1',
       name: 'Monthly',
       description: '30 days individual membership.',
       planType: 'individual' as const,
@@ -375,7 +375,7 @@ async function seed() {
       durationDays: 30,
     },
     {
-      planCode: 'KBG-M3',
+      planCode: 'GMS-M3',
       name: '3 Months',
       description: '90 days — saves vs monthly.',
       planType: 'individual' as const,
@@ -383,7 +383,7 @@ async function seed() {
       durationDays: 90,
     },
     {
-      planCode: 'KBG-M6',
+      planCode: 'GMS-M6',
       name: '6 Months',
       description: '180 days individual membership.',
       planType: 'individual' as const,
@@ -391,7 +391,7 @@ async function seed() {
       durationDays: 180,
     },
     {
-      planCode: 'KBG-Y1',
+      planCode: 'GMS-Y1',
       name: 'Annual',
       description: '12 months — best per-month value.',
       planType: 'individual' as const,
@@ -399,7 +399,7 @@ async function seed() {
       durationDays: 365,
     },
     {
-      planCode: 'KBG-STU',
+      planCode: 'GMS-STU',
       name: 'Student Monthly',
       description: '30 days; valid student ID at desk.',
       planType: 'student' as const,
@@ -407,7 +407,7 @@ async function seed() {
       durationDays: 30,
     },
     {
-      planCode: 'KBG-CP2',
+      planCode: 'GMS-CP2',
       name: 'Couple Monthly',
       description: 'Two adults, one membership, 30 days.',
       planType: 'couple' as const,
@@ -415,7 +415,7 @@ async function seed() {
       durationDays: 30,
     },
     {
-      planCode: 'KBG-CORP',
+      planCode: 'GMS-CORP',
       name: 'Corporate (10 seats)',
       description: '30-day team block; invoice on request.',
       planType: 'corporate' as const,
@@ -423,7 +423,7 @@ async function seed() {
       durationDays: 30,
     },
     {
-      planCode: 'KBG-ELITE',
+      planCode: 'GMS-ELITE',
       name: 'Peak Plus Monthly',
       description: '30 days; peak-hour perks where available.',
       planType: 'individual' as const,
@@ -579,7 +579,7 @@ async function seed() {
       closureDate: dateAtNoonFrom(new Date(now.getTime() - 7 * dayMs)),
       reason: 'Seed planned closure',
       isEmergency: false,
-      closedBy: userIdByEmail.get('kasuncsb+manager@gmail.com') ?? null,
+      closedBy: userIdByEmail.get('manager@gymsphere.demo') ?? null,
     });
   }
   {
@@ -590,7 +590,7 @@ async function seed() {
       closureDate: dateAtNoonFrom(new Date(now.getTime() - 20 * dayMs)),
       reason: 'Seed emergency closure',
       isEmergency: true,
-      closedBy: userIdByEmail.get('kasuncsb+manager@gmail.com') ?? null,
+      closedBy: userIdByEmail.get('manager@gymsphere.demo') ?? null,
     });
   }
 
@@ -646,11 +646,11 @@ async function seed() {
     await db.delete(equipmentEvents).where(inArray(equipmentEvents.equipmentId, seededEqIds));
   }
 
-  const managerId = userIdByEmail.get('kasuncsb+manager@gmail.com')!;
-  const adminId = userIdByEmail.get('kasuncsb+admin@gmail.com')!;
-  const trainer1 = userIdByEmail.get('kasuncsb+trainer1@gmail.com') ?? trainerIds[0];
-  const trainer2 = userIdByEmail.get('kasuncsb+trainer2@gmail.com') ?? trainerIds[1];
-  const trainer3 = userIdByEmail.get('kasuncsb+trainer3@gmail.com') ?? trainerIds[2];
+  const managerId = userIdByEmail.get('manager@gymsphere.demo')!;
+  const adminId = userIdByEmail.get('admin@gymsphere.demo')!;
+  const trainer1 = userIdByEmail.get('trainer1@gymsphere.demo') ?? trainerIds[0];
+  const trainer2 = userIdByEmail.get('trainer2@gymsphere.demo') ?? trainerIds[1];
+  const trainer3 = userIdByEmail.get('trainer3@gymsphere.demo') ?? trainerIds[2];
 
   const SEED_EQUIPMENT_EVENTS: Array<{
     equipmentName: string;
@@ -908,11 +908,11 @@ async function seed() {
   // Subscription plans -> member subscriptions + payments for revenue + active subscription UI
   const planCodesForMembers = memberSeedDefs.map((_, idx) => {
     // Mix plan types so reports have variety
-    if (idx % 3 === 0) return 'KBG-WK1';
-    if (idx % 3 === 1) return 'KBG-M1';
-    return 'KBG-M3';
+    if (idx % 3 === 0) return 'GMS-WK1';
+    if (idx % 3 === 1) return 'GMS-M1';
+    return 'GMS-M3';
   });
-  const desiredPlanCodes = ['KBG-WK1', 'KBG-M1', 'KBG-M3'];
+  const desiredPlanCodes = ['GMS-WK1', 'GMS-M1', 'GMS-M3'];
   const planRows = await db
     .select({ id: subscriptionPlans.id, planCode: subscriptionPlans.planCode, price: subscriptionPlans.price, durationDays: subscriptionPlans.durationDays, name: subscriptionPlans.name })
     .from(subscriptionPlans)
@@ -923,9 +923,9 @@ async function seed() {
     planByCode[r.planCode] = r;
   }
   const trainerRevenueMultiplierByEmail: Record<string, number> = {
-    'kasuncsb+trainer1@gmail.com': 1.25,
-    'kasuncsb+trainer2@gmail.com': 0.95,
-    'kasuncsb+trainer3@gmail.com': 1.4,
+    'trainer1@gymsphere.demo': 1.25,
+    'trainer2@gymsphere.demo': 0.95,
+    'trainer3@gymsphere.demo': 1.4,
   };
 
   // Clear prior subscriptions/payments for these members (removeSeedUsers already removed payments/subscriptions by memberId)
@@ -1210,13 +1210,9 @@ async function seed() {
 
   console.log('\n✅ Seed script completed successfully');
 
-  console.log('\n📋 Login credentials (password for all):', SEED_PASSWORD);
-  console.log('─'.repeat(60));
-  for (const u of SEED_USERS) {
-    console.log(`   ${u.role.padEnd(8)} ${u.email}`);
-  }
-  console.log('─'.repeat(60));
-  console.log('\n🎉 Seed complete!');
+  console.log('\n📋 Seed users created for demo environments.');
+  console.log(`Total users: ${SEED_USERS.length}`);
+  console.log('🎉 Seed complete!');
   process.exit(0);
 }
 

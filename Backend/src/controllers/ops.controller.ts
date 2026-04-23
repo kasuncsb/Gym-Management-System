@@ -140,7 +140,7 @@ export const unregisterPushToken = asyncHandler(async (req: AuthRequest, res: Re
 export const sendPushTest = asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = requireUser(req);
   const mode = String(req.body?.mode ?? 'self').trim();
-  const title = String(req.body?.title ?? 'PowerWorld Notification');
+  const title = String(req.body?.title ?? 'GymSphere Notification');
   const body = String(req.body?.body ?? 'Test notification from GMS backend');
   const data = (req.body?.data ?? {}) as Record<string, string>;
 

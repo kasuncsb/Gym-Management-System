@@ -10,7 +10,7 @@ type DifficultyFilter = 'beginner' | 'intermediate' | 'advanced';
 
 /** Opens the member AI chat—natural back-and-forth; save with a single-line command when the coach confirms readiness. */
 const AI_WORKOUT_PLAN_CHAT_INTRO =
-    'I’d like help building a new workout plan for PowerWorld Kiribathgoda that you can save to My programmes. Let’s chat through it—ask whatever you need, one thing at a time if you like. When we’re happy with the plan, I’ll send: Save my workout plan';
+    'I’d like help building a new workout plan for GymSphere that you can save to My programmes. Let’s chat through it—ask whatever you need, one thing at a time if you like. When we’re happy with the plan, I’ll send: Save my workout plan';
 
 interface Plan {
     id: string;
@@ -320,7 +320,7 @@ export default function WorkoutsPage() {
             <div className="flex shrink-0 flex-col gap-8">
             <PageHeader
                 title="Workout Plans"
-                subtitle="Day-by-day programmes, exercises, and progress at PowerWorld Kiribathgoda"
+                subtitle="Day-by-day programmes, exercises, and progress at GymSphere"
             />
 
             <div className="flex items-center justify-between gap-3">

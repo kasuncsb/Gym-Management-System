@@ -56,7 +56,7 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
     const drawHero = () => {
       doc.save();
       doc.rect(0, 0, doc.page.width, 82).fill(THEME.headerBg);
-      doc.fillColor(THEME.accent).font('Helvetica-Bold').fontSize(17).text('PowerWorld · Business Report', MARGIN, 26, { width: CONTENT_W });
+      doc.fillColor(THEME.accent).font('Helvetica-Bold').fontSize(17).text('GymSphere · Business Report', MARGIN, 26, { width: CONTENT_W });
       doc.fillColor(THEME.text).font('Helvetica-Bold').fontSize(11).text(`Type: ${type}`, MARGIN, 48, { width: CONTENT_W });
       const period =
         data.fromDate || data.toDate ? `Period: ${data.fromDate ?? 'Start'} → ${data.toDate ?? 'End'}` : 'Period: Last 30 days';

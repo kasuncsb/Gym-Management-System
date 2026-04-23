@@ -222,7 +222,7 @@ function LoginForm() {
                     </div>
                 </div>
 
-                <p className="text-sm text-zinc-500 mt-10 text-center">© 2026 PowerWorld Gyms. All rights reserved.</p>
+                <p className="text-sm text-zinc-500 mt-10 text-center">© 2026 GymSphere. All rights reserved.</p>
             </div>
         </div>
     );

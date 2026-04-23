@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
     title: 'Simulator',
-    description: 'Hardware and payment simulator for PowerWorld access control.',
+    description: 'Hardware and payment simulator for Gym Management Suite access control.',
 };
 
 export default function SimulateLayout({ children }: { children: React.ReactNode }) {

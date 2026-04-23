@@ -73,7 +73,7 @@ function emailLayout(title: string, content: string): string {
           <!-- Header -->
           <tr>
             <td style="background-color:#252526;border:1px solid #3c3c3c;border-radius:12px 12px 0 0;padding:24px 28px;text-align:center;">
-              <h1 style="margin:0;font-size:22px;font-weight:bold;color:#ffffff;">Power<span style="color:#b91c1c;">World</span> Gyms</h1>
+              <h1 style="margin:0;font-size:22px;font-weight:bold;color:#ffffff;">Gym<span style="color:#b91c1c;">Sphere</span></h1>
               <p style="margin:6px 0 0 0;font-size:13px;color:#a1a1aa;">Elite Fitness</p>
             </td>
           </tr>
@@ -86,7 +86,7 @@ function emailLayout(title: string, content: string): string {
           <!-- Footer -->
           <tr>
             <td align="center" style="padding:24px 16px;">
-              <p style="margin:0;font-size:12px;color:#71717a;">© 2026 PowerWorld Gyms. All rights reserved.</p>
+              <p style="margin:0;font-size:12px;color:#71717a;">© 2026 GymSphere. All rights reserved.</p>
             </td>
           </tr>
         </table>
@@ -121,7 +121,7 @@ export function generateVerifyEmailHTML(name: string, verifyUrl: string): string
   const content = `
 <h2 style="margin:0 0 16px 0;font-size:20px;font-weight:bold;color:#ffffff;">Welcome, ${escapeHtml(name)}!</h2>
 <p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#d4d4d8;">
-  Thank you for registering with PowerWorld Gyms. Please verify your email address to activate your account.
+  Thank you for registering with GymSphere. Please verify your email address to activate your account.
 </p>
 ${buttonHtml('Verify Email Address', verifyUrl)}
 <p style="margin:0 0 8px 0;font-size:13px;color:#a1a1aa;">
@@ -172,7 +172,7 @@ export function generateIdVerificationHTML(
 </p>
 <p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#d4d4d8;">
   ${isApproved
-    ? 'Your identity has been verified. Welcome to PowerWorld Gyms! You now have full access to all member features.'
+    ? 'Your identity has been verified. Welcome to GymSphere! You now have full access to all member features.'
     : `Your identity verification was not approved.${note ? ` Reason: ${escapeHtml(note)}` : ''} Please re-upload your documents via the app.`}
 </p>
 ${isApproved ? '' : `<p style="margin:0;font-size:14px;color:#a1a1aa;">Log in to your account to resubmit your documents.</p>`}

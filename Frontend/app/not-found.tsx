@@ -52,7 +52,7 @@ export default function NotFound() {
 
             {/* Footer */}
             <p className="absolute bottom-8 text-zinc-600 text-sm z-10">
-                © 2026 PowerWorld Gyms. All rights reserved.
+                © 2026 GymSphere. All rights reserved.
             </p>
         </div>
     );

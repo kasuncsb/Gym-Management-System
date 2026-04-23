@@ -8,7 +8,7 @@ const memberCodeGen = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 8);
 
 export const ids = {
   uuid: generateId,
-  memberCode: () => `PWG-KBG-${memberCodeGen()}`,
+  memberCode: () => `GMS-MEM-${memberCodeGen()}`,
   qrSecret: () => nanoid(32),
   resetToken: () => nanoid(48),
 };

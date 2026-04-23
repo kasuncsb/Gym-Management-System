@@ -74,7 +74,7 @@ export default function ManagerInsightsPage() {
         <div className="space-y-8">
             <PageHeader
                 title="Gym Insights"
-                subtitle="Data-driven insights for PowerWorld Kiribathgoda"
+                subtitle="Data-driven insights for GymSphere"
             />
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

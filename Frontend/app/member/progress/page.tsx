@@ -88,7 +88,7 @@ export default function ProgressPage() {
         <div className="space-y-8">
             <PageHeader
                 title="Progress & Stats"
-                subtitle="Track your fitness journey at PowerWorld Kiribathgoda"
+                subtitle="Track your fitness journey with GymSphere"
                 action={
                     <LoadingButton icon={Plus} onClick={() => setVitalsOpen(true)} size="md">
                         Log Vitals

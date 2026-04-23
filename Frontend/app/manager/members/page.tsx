@@ -144,7 +144,7 @@ export default function ManagerMembersPage() {
         <div className="space-y-8">
             <PageHeader
                 title="Member Management"
-                subtitle="Overview of all gym members — PowerWorld Kiribathgoda"
+                subtitle="Overview of all gym members — GymSphere"
                 action={
                     <LoadingButton icon={Plus} onClick={openAdd} size="md">
                         Add Member

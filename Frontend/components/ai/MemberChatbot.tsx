@@ -33,8 +33,8 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
 
   const greeting = useMemo(
     () => role === 'manager'
-      ? 'Hi! I can help with revenue trends, attendance insights, staffing cues, and operational recommendations for PowerWorld Kiribathgoda.'
-      : 'Hi! I can help with workouts, plans, appointments, and gym usage at PowerWorld Kiribathgoda.',
+      ? 'Hi! I can help with revenue trends, attendance insights, staffing cues, and operational recommendations for GymSphere.'
+      : 'Hi! I can help with workouts, plans, appointments, and gym usage at GymSphere.',
     [role],
   );
 
@@ -170,7 +170,7 @@ export function MemberChatbot({ role = 'member' }: MemberChatbotProps) {
               </span>
               <div>
                 <p className="text-white text-sm font-semibold">{role === 'manager' ? 'Manager Assistant' : 'Member Assistant'}</p>
-                <p className="text-[11px] text-zinc-500">PowerWorld Kiribathgoda · AI</p>
+                <p className="text-[11px] text-zinc-500">GymSphere · AI</p>
               </div>
             </div>
             <span className="text-[11px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">

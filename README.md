@@ -1,4 +1,4 @@
-# PowerWorld Gym Management System
+# GymSphere Gym Management Suite
 
 A full-stack platform for gym operations, including member lifecycle management, staff workflows, and branch administration.
 

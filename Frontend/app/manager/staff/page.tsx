@@ -157,7 +157,7 @@ export default function ManagerStaffPage() {
         <div className="space-y-8">
             <PageHeader
                 title="Staff Management"
-                subtitle="Staff overview for PowerWorld Kiribathgoda"
+                subtitle="Staff overview for GymSphere"
                 action={
                     <LoadingButton icon={Plus} onClick={() => setAddOpen(true)} size="md">
                         Add Staff

@@ -230,7 +230,7 @@ export default function AdminUsersPage() {
         <div className="space-y-8">
             <PageHeader
                 title="User Management"
-                subtitle="Manage all system users — PowerWorld Kiribathgoda"
+                subtitle="Manage all system users — GymSphere"
                 action={
                     <LoadingButton icon={Plus} onClick={openAdd} size="md">
                         Add User

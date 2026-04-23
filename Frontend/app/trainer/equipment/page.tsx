@@ -99,7 +99,7 @@ export default function TrainerEquipmentPage() {
         <div className="space-y-8">
             <PageHeader
                 title="Equipment Status"
-                subtitle="Monitor and report equipment at PowerWorld Kiribathgoda"
+                subtitle="Monitor and report equipment at GymSphere"
                 action={
                     <LoadingButton icon={Plus} onClick={() => setShowReport(true)} size="md">
                         Report Issue

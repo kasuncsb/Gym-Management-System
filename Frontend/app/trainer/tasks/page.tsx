@@ -107,7 +107,7 @@ export default function TrainerTasksPage() {
         <div className="space-y-8">
             <PageHeader
                 title="Daily Tasks"
-                subtitle="Your task list for today at PowerWorld Kiribathgoda"
+                subtitle="Your task list for today at GymSphere"
             />
 
             <Card padding="md">

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "branch-hours",
+    "role": "generic",
+    "topic": "operations",
+    "tags": ["hours", "open", "close", "time", "branch"],
+    "content": "GymSphere operates daily with early-morning and evening peak usage. Members should complete check-in/check-out through QR or assisted trainer flow."
+  },
+  {
+    "id": "checkin-policy",
+    "role": "member",
+    "topic": "subscriptions",
+    "tags": ["checkin", "subscription", "entry", "qr", "access"],
+    "content": "Only members with active or grace-period subscriptions can enter through member check-in. Staff roles can enter without subscription validation."
+  },
+  {
+    "id": "trainer-support",
+    "role": "trainer",
+    "topic": "workouts",
+    "tags": ["trainer", "assistance", "appointment", "session"],
+    "content": "Members can book personal sessions from the app. Trainers should confirm and track session outcomes. If members request help on floor, prioritize safety and form correction before intensity."
+  },
+  {
+    "id": "manager-revenue-focus",
+    "role": "manager",
+    "topic": "insights",
+    "tags": ["revenue", "renewals", "upsell", "branch"],
+    "content": "Monthly revenue is mainly driven by renewals and add-on PT bookings. Managers should watch upcoming expiries and idle members who have not visited in 14+ days."
+  },
+  {
+    "id": "manager-occupancy-best-practices",
+    "role": "manager",
+    "topic": "operations",
+    "tags": ["occupancy", "visits", "shifts", "staffing"],
+    "content": "Use hourly visit peaks to align trainer shifts and equipment maintenance windows. Keep peak-hour occupancy comfortable by adding floor support and deferring non-critical maintenance."
+  },
+  {
+    "id": "safety-guidance",
+    "role": "generic",
+    "topic": "policies",
+    "tags": ["safety", "injury", "health", "medical"],
+    "content": "Always prioritize safety and proper form. Stop exercise if sharp pain, dizziness, or chest discomfort occurs. For diagnosis or medical concerns, direct users to licensed healthcare professionals."
+  }
+]

@@ -1,5 +1,5 @@
 -- ============================================================================
--- Power World Gyms — Kiribathgoda Branch
+-- GymSphere — Demo Branch
 -- Schema v5  |  MySQL 8.0+  |  entity_lifecycle + members/trainers
 -- ============================================================================
 

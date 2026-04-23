@@ -193,7 +193,7 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
   try {
     await sendEmail(
       input.email,
-      'Verify Your Email — PowerWorld Gyms',
+      'Verify Your Email — GymSphere',
       generateVerifyEmailHTML(input.fullName, verifyUrl),
     );
     verificationEmailSent = true;
@@ -462,7 +462,7 @@ export async function sendVerificationEmail(userId: string): Promise<void> {
   const verifyUrl = `${env.FRONTEND_URL}/member/verify-email?token=${verifyToken}`;
   await sendEmail(
     person.email,
-    'Verify Your Email — PowerWorld Gyms',
+    'Verify Your Email — GymSphere',
     generateVerifyEmailHTML(person.fullName, verifyUrl),
   );
 }
@@ -500,7 +500,7 @@ export async function forgotPassword(email: string): Promise<void> {
   const resetUrl = `${env.FRONTEND_URL}/member/reset-password?token=${resetToken}`;
   await sendEmail(
     person.email,
-    'Reset Your Password — PowerWorld Gyms',
+    'Reset Your Password — GymSphere',
     generateResetPasswordHTML(person.fullName, resetUrl),
   );
 }
@@ -650,8 +650,8 @@ export async function adminVerifyId(
   }).where(eq(members.userId, targetUserId));
 
   const subject = input.status === 'approved'
-    ? 'Identity Verified — PowerWorld Gyms'
-    : 'Identity Verification Update — PowerWorld Gyms';
+    ? 'Identity Verified — GymSphere'
+    : 'Identity Verification Update — GymSphere';
 
   const body = generateIdVerificationHTML(person.fullName, input.status, input.note);
   sendEmail(person.email, subject, body).catch(err => console.error('ID verification email failed:', err));

@@ -3,7 +3,7 @@ export const MANAGER_INSIGHT_ACTIONS: ReadonlyArray<{ label: string; prompt: str
     {
         label: 'Weekly ops briefing',
         prompt:
-            'Produce a complete Markdown briefing for PowerWorld Kiribathgoda: executive summary (2–4 sentences), **Priority actions** (5–7 specific bullets with timelines or owners where sensible), **Risks & anomalies** (only if data supports, else say none), and **Metrics to watch** (2–4 bullets). Use only facts from the data snapshot and RAG; do not invent numbers.',
+            'Produce a complete Markdown briefing for GymSphere: executive summary (2–4 sentences), **Priority actions** (5–7 specific bullets with timelines or owners where sensible), **Risks & anomalies** (only if data supports, else say none), and **Metrics to watch** (2–4 bullets). Use only facts from the data snapshot and RAG; do not invent numbers.',
     },
     {
         label: 'Revenue & forecast',

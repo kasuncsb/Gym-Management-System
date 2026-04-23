@@ -321,7 +321,7 @@ async function settleSubscriptionPurchase(
     cardPan?: string;
     /**
      * Optional referral attribution entered by the member at checkout.
-     * Accepts either a trainer userId (UUID) or trainer employee code (e.g. PWG-TRN-001).
+     * Accepts either a trainer userId (UUID) or trainer employee code (e.g. GMS-TRN-001).
      */
     referredByTrainer?: string;
     sessionId?: string;
@@ -1851,7 +1851,7 @@ export async function generateAiWorkoutPlan(
   const combinedFocusForProgram = [goals, prefsFocus].filter(Boolean).join(' | ');
 
   const prompt = `
-You are a fitness trainer AI at PowerWorld Gyms Kiribathgoda.
+You are a fitness trainer AI at GymSphere.
 Coach voice: structured answers below may come from a relaxed chat (possibly incomplete fields)—infer sensible choices from whatever is given plus the profile. Create a UNIQUE, personalised workout plan; vary exercise selection and order—do not repeat generic templates.
 - Experience level (from profile): ${level}
 - Fitness goals (from profile): ${goals}

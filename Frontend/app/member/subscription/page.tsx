@@ -192,7 +192,7 @@ export default function MemberSubscriptionPage() {
         if (!referral) return true;
         const normalized = referral.toLowerCase();
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(referral);
-        const isTrainerCodeFormat = /^PWG-TRN-\d{3}$/i.test(referral);
+        const isTrainerCodeFormat = /^GMS-TRN-\d{3}$/i.test(referral);
 
         if (validTrainerRefs.has(normalized)) return true;
 
@@ -201,7 +201,7 @@ export default function MemberSubscriptionPage() {
             return false;
         }
         if (!isUuid && !isTrainerCodeFormat) {
-            toast.error('Validation Error', 'Referral must be a trainer UUID or code like PWG-TRN-001');
+            toast.error('Validation Error', 'Referral must be a trainer UUID or code like GMS-TRN-001');
             return false;
         }
         return true;
@@ -289,7 +289,7 @@ export default function MemberSubscriptionPage() {
                             </div>
                             <div>
                                 <h3 className="text-xl font-bold text-white">No Active Plan</h3>
-                                <p className="text-zinc-400 text-sm mt-1">Purchase your first subscription to access PowerWorld Kiribathgoda.</p>
+                                <p className="text-zinc-400 text-sm mt-1">Purchase your first subscription to access GymSphere services.</p>
                             </div>
                             <LoadingButton
                                 icon={CreditCard}
@@ -421,7 +421,7 @@ export default function MemberSubscriptionPage() {
                     />
                     <Input
                         label="Referral Code"
-                        placeholder="e.g. PWG-TRN-001 or trainer UUID"
+                        placeholder="e.g. GMS-TRN-001 or trainer UUID"
                         value={renewForm.referredBy}
                         onChange={e => setRenewForm(f => ({ ...f, referredBy: e.target.value }))}
                     />
@@ -517,7 +517,7 @@ export default function MemberSubscriptionPage() {
                     />
                     <Input
                         label="Referral Code"
-                        placeholder="e.g. PWG-TRN-001 or trainer UUID"
+                        placeholder="e.g. GMS-TRN-001 or trainer UUID"
                         value={upgradeForm.referredBy}
                         onChange={e => setUpgradeForm(f => ({ ...f, referredBy: e.target.value }))}
                     />

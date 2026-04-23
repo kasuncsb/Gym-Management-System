@@ -18,19 +18,19 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  applicationName: "PowerWorld Gyms",
+  applicationName: "GymSphere",
   title: {
-    default: "PowerWorld Gyms - Sri Lanka's Premier Fitness Network",
-    template: "%s | PowerWorld Gyms",
+    default: "GymSphere - Gym Management Suite",
+    template: "%s | GymSphere",
   },
   description:
-    "The largest fitness network in Sri Lanka. State-of-the-art facilities, expert trainers, and personalized workout plans. Join PowerWorld Gyms today.",
+    "A modern gym management suite with member tools, trainer workflows, operations dashboards, and reporting.",
   formatDetection: {
     telephone: false,
   },
   appleWebApp: {
     capable: true,
-    title: "PowerWorld Gyms",
+    title: "GymSphere",
     statusBarStyle: "black-translucent",
   },
   icons: {
@@ -43,20 +43,20 @@ export const metadata: Metadata = {
   keywords: [
     "gym",
     "fitness",
-    "Sri Lanka",
-    "Kiribathgoda",
-    "PowerWorld",
+    "GymSphere",
+    "Gym Management Suite",
+    "fitness operations",
     "workout",
     "personal training",
   ],
-  authors: [{ name: "PowerWorld Gyms" }],
+  authors: [{ name: "GymSphere" }],
   openGraph: {
     type: "website",
     locale: "en_LK",
-    siteName: "PowerWorld Gyms",
-    title: "PowerWorld Gyms - Sri Lanka's Premier Fitness Network",
+    siteName: "GymSphere",
+    title: "GymSphere - Gym Management Suite",
     description:
-      "State-of-the-art facilities, expert trainers, and personalized workout plans.",
+      "Member, trainer, manager, and admin workflows in one platform.",
   },
 };
 

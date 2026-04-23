@@ -79,7 +79,7 @@ function twoDay(
 export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
   {
     name: 'Beginner Full Body',
-    description: 'Beginner Full Body: learn squat, push, pull, and core in three short gym sessions per week—built for your first weeks at PowerWorld.',
+    description: 'Beginner Full Body: learn squat, push, pull, and core in three short gym sessions per week—built for your first weeks at GymSphere.',
     difficulty: 'beginner',
     durationWeeks: 4,
     daysPerWeek: 3,
@@ -88,7 +88,7 @@ export const LIBRARY_WORKOUT_PLANS: LibraryPlanSeed[] = [
       3,
       'General fitness',
       px(10483717),
-      'Beginner Full Body is for new PowerWorld members: three non-consecutive days (e.g. Mon/Wed/Fri) with simple patterns (squat, push, pull, core). Prioritise smooth reps over weight—add load only when every rep matches the first.',
+      'Beginner Full Body is for new GymSphere members: three non-consecutive days (e.g. Mon/Wed/Fri) with simple patterns (squat, push, pull, core). Prioritise smooth reps over weight—add load only when every rep matches the first.',
       {
         title: 'Day A — legs & core',
         notes: 'Warm up 5–8 min easy bike or brisk walk, then 2 light rounds of bodyweight squats and leg swings.',

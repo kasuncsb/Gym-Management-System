@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { and, asc, desc, eq, isNotNull, sql } from 'drizzle-orm';
 
 const BRANCH_CONTEXT = `
-PowerWorld Gyms - Kiribathgoda branch.
+GymSphere branch operations context.
 Focus on safe workout advice, membership guidance, check-in rules, and trainer session support.
 Never provide diagnosis. For medical concerns, advise consulting a professional.
 `;
@@ -81,8 +81,8 @@ async function loadTrainingDocs(): Promise<TrainingDoc[]> {
   try {
     const here = dirname(fileURLToPath(import.meta.url));
     const candidates = [
-      resolve(process.cwd(), 'src', 'ai', 'training', 'kiribathgoda.json'),
-      resolve(here, '..', 'ai', 'training', 'kiribathgoda.json'),
+      resolve(process.cwd(), 'src', 'ai', 'training', 'gms-training.json'),
+      resolve(here, '..', 'ai', 'training', 'gms-training.json'),
     ];
     let raw = '';
     for (const p of candidates) {
@@ -300,7 +300,7 @@ async function localRag(message: string): Promise<string | null> {
     .slice(0, 3);
   if (!ranked.length) return null;
   const ctx = ranked.map((r) => `- ${r.d.content}`).join('\n');
-  return `Here is guidance based on PowerWorld Kiribathgoda knowledge base:\n${ctx}`;
+  return `Here is guidance based on the GymSphere knowledge base:\n${ctx}`;
 }
 
 async function fetchTextWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
@@ -778,7 +778,7 @@ async function runMemberChat(
 
   const systemPrompt = `
 ${BRANCH_CONTEXT}
-You are the Member AI assistant for PowerWorld Kiribathgoda.
+You are the Member AI assistant for GymSphere.
 - Audience: gym members only.
 - Voice: warm, conversational, and human—like a knowledgeable gym coach texting them. Ask **one or two** focused follow-ups at a time; never demand a long checklist in one message. Build on what they already said; if they only answer part of a question, acknowledge it and ask the next small thing naturally.
 - Capabilities: explain workout plans, suggest safe starting points, clarify subscriptions/check-ins, and guide on using the app.
@@ -909,7 +909,7 @@ Open incidents: ${(report as Record<string, unknown>).openEquipmentIncidents ?? 
 
   const prompt = `
 ${BRANCH_CONTEXT}
-You are the manager-facing AI assistant for PowerWorld Kiribathgoda.
+You are the manager-facing AI assistant for GymSphere.
 Use the KPI data for factual grounding and use RAG snippets for policy/best-practice context.
 Never fabricate numbers.
 Tone: professional but conversational—like a trusted ops partner, not a rigid report.
@@ -1083,7 +1083,7 @@ Open incidents: ${(report as Record<string, unknown>).openEquipmentIncidents ?? 
       maxItems: 4,
     });
     if (scored.length) {
-      ragSnippet = `\nRAG knowledge for manager (Kiribathgoda):\n${scored
+      ragSnippet = `\nRAG knowledge for manager (GymSphere):\n${scored
         .map((r) => `- (${r.score.toFixed(2)}) ${r.doc.content}`)
         .join('\n')}\n`;
     }
@@ -1093,7 +1093,7 @@ Open incidents: ${(report as Record<string, unknown>).openEquipmentIncidents ?? 
 
   const prompt = `
 ${BRANCH_CONTEXT}
-You are the Manager Insights AI for PowerWorld Kiribathgoda.
+You are the Manager Insights AI for GymSphere.
 Use the numeric data snapshot and, where available, the RAG knowledge base as ground truth for operational best practices.
 Never fabricate numbers—only use values from the snapshot, trends, and RAG text.
 

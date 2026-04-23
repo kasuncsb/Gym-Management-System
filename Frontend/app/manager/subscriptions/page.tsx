@@ -162,7 +162,7 @@ export default function ManagerSubscriptionsPage() {
         <div className="space-y-8">
             <PageHeader
                 title="Subscriptions"
-                subtitle="Manage plans and member subscriptions for PowerWorld Kiribathgoda"
+                subtitle="Manage plans and member subscriptions for GymSphere"
                 action={tab === 'plans' ? (
                     <LoadingButton icon={Plus} onClick={openAdd} size="md">Add Plan</LoadingButton>
                 ) : undefined}
