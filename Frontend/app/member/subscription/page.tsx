@@ -60,6 +60,8 @@ export default function MemberSubscriptionPage() {
         cardHolder: '',
     });
     const [checkoutState, setCheckoutState] = useState<CheckoutState>('idle');
+    const [validTrainerRefs, setValidTrainerRefs] = useState<Set<string>>(new Set());
+    const [trainerRefsLoaded, setTrainerRefsLoaded] = useState(false);
     const cardPanRef = useRef<HTMLInputElement | null>(null);
     const cardExpRef = useRef<HTMLInputElement | null>(null);
     const cardCvvRef = useRef<HTMLInputElement | null>(null);
@@ -79,6 +81,25 @@ export default function MemberSubscriptionPage() {
         ]).catch(() => {
             toast.error('Error', 'Failed to load subscription details');
         });
+    }, []);
+
+    useEffect(() => {
+        opsAPI.users('trainer')
+            .then((rows) => {
+                const refs = new Set<string>();
+                for (const raw of rows ?? []) {
+                    const t = raw as { id?: string; employeeCode?: string };
+                    const id = String(t.id ?? '').trim().toLowerCase();
+                    const code = String(t.employeeCode ?? '').trim().toLowerCase();
+                    if (id) refs.add(id);
+                    if (code) refs.add(code);
+                }
+                setValidTrainerRefs(refs);
+                setTrainerRefsLoaded(true);
+            })
+            .catch(() => {
+                setTrainerRefsLoaded(false);
+            });
     }, []);
 
     const idRejected = idStatus === 'rejected';
@@ -127,6 +148,17 @@ export default function MemberSubscriptionPage() {
         if (checkout.paymentMethod === 'card' && checkout.cardCvv.replace(/\D/g, '').length < 3) {
             toast.error('Validation Error', 'Enter a valid CVV');
             return;
+        }
+        const referral = checkout.referredByTrainer.trim();
+        if (referral) {
+            if (!trainerRefsLoaded) {
+                toast.error('Validation Error', 'Unable to verify referral trainer right now. Please try again.');
+                return;
+            }
+            if (!validTrainerRefs.has(referral.toLowerCase())) {
+                toast.error('Validation Error', 'Referred by (NEW) must be a valid trainer id/code');
+                return;
+            }
         }
         setLoading(true);
         try {
