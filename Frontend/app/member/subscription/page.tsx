@@ -197,7 +197,7 @@ export default function MemberSubscriptionPage() {
         if (validTrainerRefs.has(normalized)) return true;
 
         if (isUuid && trainerIdsLoaded) {
-            toast.error('Validation Error', 'Referred by (NEW) must be a valid trainer id/code');
+            toast.error('Validation Error', 'Referral Code must be a valid trainer id/code');
             return false;
         }
         if (!isUuid && !isTrainerCodeFormat) {
@@ -420,7 +420,7 @@ export default function MemberSubscriptionPage() {
                         onChange={e => setRenewForm(f => ({ ...f, promo: e.target.value }))}
                     />
                     <Input
-                        label="Referred by (NEW)"
+                        label="Referral Code"
                         placeholder="e.g. PWG-TRN-001 or trainer UUID"
                         value={renewForm.referredBy}
                         onChange={e => setRenewForm(f => ({ ...f, referredBy: e.target.value }))}
@@ -516,7 +516,7 @@ export default function MemberSubscriptionPage() {
                         placeholder="Choose a plan"
                     />
                     <Input
-                        label="Referred by (NEW)"
+                        label="Referral Code"
                         placeholder="e.g. PWG-TRN-001 or trainer UUID"
                         value={upgradeForm.referredBy}
                         onChange={e => setUpgradeForm(f => ({ ...f, referredBy: e.target.value }))}
