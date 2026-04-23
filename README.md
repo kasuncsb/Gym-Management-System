@@ -21,6 +21,17 @@ It combines a web frontend, backend API, and supporting services into a deployab
 - Operational dashboards and branch management workflows
 - Integrated messaging, reporting, and AI-assisted backend workflows
 
+## Demo Credentials
+
+When running with seeded demo data (`Backend/scripts/seed.ts`), use the following accounts:
+
+- `admin@gymsphere.demo` (admin)
+- `manager@gymsphere.demo` (manager)
+- `trainer1@gymsphere.demo`, `trainer2@gymsphere.demo`, `trainer3@gymsphere.demo` (trainers)
+- `member1@gymsphere.demo` to `member5@gymsphere.demo` (members)
+
+Shared demo password for all seeded users: `DemoPass#2026`
+
 ## Tech Stack (High Level)
 
 - **Frontend**: Next.js + React + TypeScript
