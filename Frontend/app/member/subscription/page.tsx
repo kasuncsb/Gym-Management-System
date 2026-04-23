@@ -47,7 +47,7 @@ export default function MemberSubscriptionPage() {
     const [payments, setPayments] = useState<MyPayment[]>([]);
 
     const [renewForm, setRenewForm] = useState({ plan: '', promo: '', referredBy: '', payment: 'card' });
-    const [upgradeForm, setUpgradeForm] = useState({ plan: '' });
+    const [upgradeForm, setUpgradeForm] = useState({ plan: '', referredBy: '' });
     const [checkoutOpen, setCheckoutOpen] = useState(false);
     const [checkout, setCheckout] = useState({
         planId: '',
@@ -149,17 +149,7 @@ export default function MemberSubscriptionPage() {
             toast.error('Validation Error', 'Enter a valid CVV');
             return;
         }
-        const referral = checkout.referredByTrainer.trim();
-        if (referral) {
-            if (!trainerRefsLoaded) {
-                toast.error('Validation Error', 'Unable to verify referral trainer right now. Please try again.');
-                return;
-            }
-            if (!validTrainerRefs.has(referral.toLowerCase())) {
-                toast.error('Validation Error', 'Referred by (NEW) must be a valid trainer id/code');
-                return;
-            }
-        }
+        if (!validateReferralCode(checkout.referredByTrainer)) return;
         setLoading(true);
         try {
             setCheckoutState('processing');
@@ -182,12 +172,27 @@ export default function MemberSubscriptionPage() {
         }
     };
 
+    const validateReferralCode = (referralRaw: string): boolean => {
+        const referral = referralRaw.trim();
+        if (!referral) return true;
+        if (!trainerRefsLoaded) {
+            toast.error('Validation Error', 'Unable to verify referral trainer right now. Please try again.');
+            return false;
+        }
+        if (!validTrainerRefs.has(referral.toLowerCase())) {
+            toast.error('Validation Error', 'Referred by (NEW) must be a valid trainer id/code');
+            return false;
+        }
+        return true;
+    };
+
     const handleRenew = async () => {
         if (!canPurchase) return;
         if (!renewForm.plan) {
             toast.error('Validation Error', 'Please select a plan');
             return;
         }
+        if (!validateReferralCode(renewForm.referredBy)) return;
         setRenewOpen(false);
         openCheckout({
             planId: renewForm.plan,
@@ -204,8 +209,14 @@ export default function MemberSubscriptionPage() {
             toast.error('Validation Error', 'Please select a plan');
             return;
         }
+        if (!validateReferralCode(upgradeForm.referredBy)) return;
         setUpgradeOpen(false);
-        openCheckout({ planId: upgradeForm.plan, paymentMethod: 'online' });
+        openCheckout({
+            planId: upgradeForm.plan,
+            referredByTrainer: upgradeForm.referredBy || undefined,
+            paymentMethod: 'online',
+        });
+        setUpgradeForm({ plan: '', referredBy: '' });
     };
 
     return (
@@ -482,6 +493,12 @@ export default function MemberSubscriptionPage() {
                         value={upgradeForm.plan}
                         onChange={e => setUpgradeForm(f => ({ ...f, plan: e.target.value }))}
                         placeholder="Choose a plan"
+                    />
+                    <Input
+                        label="Referred by (NEW)"
+                        placeholder="e.g. PWG-TRN-001 or trainer UUID"
+                        value={upgradeForm.referredBy}
+                        onChange={e => setUpgradeForm(f => ({ ...f, referredBy: e.target.value }))}
                     />
                     <p className="text-xs text-zinc-500">Prorated amount will be calculated at checkout.</p>
                     <div className="flex justify-end gap-3 pt-2">
