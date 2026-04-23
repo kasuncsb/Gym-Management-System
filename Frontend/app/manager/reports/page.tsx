@@ -201,6 +201,29 @@ export default function ManagerReportsPage() {
                                     </div>
                                 </>
                             )}
+                            {reportData.byTrainer && (
+                                <>
+                                    <h3 className="text-white font-semibold mt-6 mb-4">Revenue by Trainer</h3>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead><tr className={reportTableHeadRow}>
+                                                <th className={reportTableCellHead}>Trainer</th>
+                                                <th className={cn(reportTableCellHead, 'text-right')}>Transactions</th>
+                                                <th className={cn(reportTableCellHead, 'text-right')}>Total</th>
+                                                <th className={cn(reportTableCellHead, 'text-right')}>% of total</th>
+                                            </tr></thead>
+                                            <tbody>{(reportData.byTrainer ?? []).map((r: any, i: number) => (
+                                                <tr key={i} className={reportTableBodyRow}>
+                                                    <td className={cn(reportTableCell, 'text-zinc-300')}>{r.trainerName ?? 'Unassigned'}</td>
+                                                    <td className={cn(reportTableCell, 'text-right text-zinc-400')}>{r.count ?? 0}</td>
+                                                    <td className={cn(reportTableCell, 'text-right text-white font-medium')}>Rs. {Number(r.total ?? 0).toLocaleString()}</td>
+                                                    <td className={cn(reportTableCell, 'text-right text-zinc-400')}>{r.pctOfTotalRevenue != null ? `${Number(r.pctOfTotalRevenue).toFixed(1)}%` : '—'}</td>
+                                                </tr>
+                                            ))}</tbody>
+                                        </table>
+                                    </div>
+                                </>
+                            )}
                         </Card>
                     )}
 

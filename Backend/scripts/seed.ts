@@ -922,6 +922,11 @@ async function seed() {
     if (!r.planCode) continue;
     planByCode[r.planCode] = r;
   }
+  const trainerRevenueMultiplierByEmail: Record<string, number> = {
+    'kasuncsb+trainer1@gmail.com': 1.25,
+    'kasuncsb+trainer2@gmail.com': 0.95,
+    'kasuncsb+trainer3@gmail.com': 1.4,
+  };
 
   // Clear prior subscriptions/payments for these members (removeSeedUsers already removed payments/subscriptions by memberId)
   for (let i = 0; i < memberSeedDefs.length; i++) {
@@ -948,13 +953,15 @@ async function seed() {
       promotionId: null,
     });
 
+    const trainerMultiplier = trainerRevenueMultiplierByEmail[m.assignedTrainerEmail] ?? 1;
+    const primaryAmount = (Number(plan.price) * trainerMultiplier).toFixed(2);
     const payId = ids.uuid();
     const payLc = await insertLifecycleRow();
     await db.insert(payments).values({
       id: payId,
       lifecycleId: payLc,
       subscriptionId: subId,
-      amount: plan.price,
+      amount: primaryAmount as any,
       paymentMethod: 'online',
       paymentDate: dateAtNoonFrom(new Date(now.getTime() - (i % 8) * dayMs)),
       status: 'completed',
@@ -966,6 +973,27 @@ async function seed() {
       recordedBy: managerId,
       invoiceNumber: `INV-${i + 1}-${now.getTime()}`,
     });
+
+    // Create additional variation so trainer-level revenue/count breakdowns are visible in reports.
+    if (i % 2 === 0) {
+      const secondaryAmount = (Number(primaryAmount) * 0.35).toFixed(2);
+      await db.insert(payments).values({
+        id: ids.uuid(),
+        lifecycleId: await insertLifecycleRow(),
+        subscriptionId: subId,
+        amount: secondaryAmount as any,
+        paymentMethod: i % 4 === 0 ? 'card' : 'bank_transfer',
+        paymentDate: dateAtNoonFrom(new Date(now.getTime() - (12 + i) * dayMs)),
+        status: 'completed',
+        receiptNumber: `RCPT-B-${i + 1}-${now.getTime()}`,
+        referenceNumber: `REF-B-${i + 1}-${Math.floor(Math.random() * 9999)}`,
+        instrumentHash: null,
+        promotionId: null,
+        discountAmount: '0.00' as any,
+        recordedBy: managerId,
+        invoiceNumber: `INV-B-${i + 1}-${now.getTime()}`,
+      });
+    }
   }
 
   // PT Sessions (busy gym): 30-day history + 7-day forward schedule, non-overlapping per trainer.

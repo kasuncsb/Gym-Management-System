@@ -2447,6 +2447,31 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
       .where(sql`date(${payments.paymentDate}) >= ${sql.raw(from)} and date(${payments.paymentDate}) <= ${sql.raw(to)}`)
       .groupBy(subscriptions.planId, subscriptionPlans.name);
 
+    const byTrainerRaw = await db
+      .select({
+        trainerId: members.assignedTrainerId,
+        trainerName: sql<string>`coalesce(${users.fullName}, 'Unassigned')`,
+        total: sql<string>`coalesce(sum(${payments.amount}), 0)`,
+        count: sql<number>`count(*)`,
+      })
+      .from(payments)
+      .leftJoin(subscriptions, eq(payments.subscriptionId, subscriptions.id))
+      .leftJoin(members, eq(subscriptions.memberId, members.userId))
+      .leftJoin(users, and(eq(members.assignedTrainerId, users.id), eq(users.role, 'trainer')))
+      .where(sql`date(${payments.paymentDate}) >= ${sql.raw(from)} and date(${payments.paymentDate}) <= ${sql.raw(to)}`)
+      .groupBy(members.assignedTrainerId, users.fullName)
+      .orderBy(desc(sql`coalesce(sum(${payments.amount}), 0)`));
+
+    const trainerRevenueTotal = byTrainerRaw.reduce((sum, row) => sum + Number(row.total ?? 0), 0);
+    const byTrainer = byTrainerRaw.map((row) => {
+      const total = Number(row.total ?? 0);
+      return {
+        ...row,
+        total,
+        pctOfTotalRevenue: trainerRevenueTotal > 0 ? Number(((total / trainerRevenueTotal) * 100).toFixed(2)) : 0,
+      };
+    });
+
     const [revenueOps] = await db
       .select({
         successfulPayments: sql<number>`sum(case when ${payments.status} = 'completed' then 1 else 0 end)`,
@@ -2465,6 +2490,7 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
       toDate: params?.toDate,
       byMethod,
       byPlan,
+      byTrainer,
       successfulPayments: Number(revenueOps?.successfulPayments ?? 0),
       pendingPayments: Number(revenueOps?.pendingPayments ?? 0),
       failedPayments: Number(revenueOps?.failedPayments ?? 0),

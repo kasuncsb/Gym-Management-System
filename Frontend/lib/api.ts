@@ -242,6 +242,52 @@ export type ManagerDashboardAnalytics = {
   activityOverview: ManagerActivityPoint[];
 };
 
+export type RevenueByMethodRow = {
+  method: string;
+  total: number | string;
+  count: number;
+  pctOfTotalRevenue?: number;
+};
+
+export type RevenueByPlanRow = {
+  planName: string | null;
+  total: number | string;
+};
+
+export type RevenueByTrainerRow = {
+  trainerId: string | null;
+  trainerName: string;
+  total: number | string;
+  count: number;
+  pctOfTotalRevenue?: number;
+};
+
+export type OpsReportSummary = {
+  type?: string;
+  fromDate?: string;
+  toDate?: string;
+  monthlyRevenue?: number;
+  activeMembers?: number;
+  visitsInRange?: number;
+  openEquipmentIncidents?: number;
+  totalRevenueInRange?: number;
+  paymentCountInRange?: number;
+  averagePaymentInRange?: number;
+  byMethod?: RevenueByMethodRow[];
+  byPlan?: RevenueByPlanRow[];
+  byTrainer?: RevenueByTrainerRow[];
+  successfulPayments?: number;
+  pendingPayments?: number;
+  failedPayments?: number;
+  uniquePayingMembers?: number;
+  meta?: {
+    generatedAt?: string;
+    piiMasked?: boolean;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
 /** Branch PT booking constraints (config + calendar day context when returned from availability). */
 export type PtBookingRules = {
   timezone: string;
@@ -285,7 +331,7 @@ export const opsAPI = {
   reportSummary: (params?: { type?: string; fromDate?: string; toDate?: string; recordRun?: boolean }) => {
     const { recordRun, ...rest } = params ?? {};
     return apiClient
-      .get('/ops/reports/summary', {
+      .get<{ success: boolean; data: OpsReportSummary }>('/ops/reports/summary', {
         params: { ...rest, ...(recordRun ? { recordRun: 'true' } : {}) },
       })
       .then((r) => r.data.data);
