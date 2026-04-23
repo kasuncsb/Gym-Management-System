@@ -61,7 +61,7 @@ export default function MemberSubscriptionPage() {
     });
     const [checkoutState, setCheckoutState] = useState<CheckoutState>('idle');
     const [validTrainerRefs, setValidTrainerRefs] = useState<Set<string>>(new Set());
-    const [trainerRefsLoaded, setTrainerRefsLoaded] = useState(false);
+    const [trainerIdsLoaded, setTrainerIdsLoaded] = useState(false);
     const cardPanRef = useRef<HTMLInputElement | null>(null);
     const cardExpRef = useRef<HTMLInputElement | null>(null);
     const cardCvvRef = useRef<HTMLInputElement | null>(null);
@@ -84,21 +84,36 @@ export default function MemberSubscriptionPage() {
     }, []);
 
     useEffect(() => {
-        opsAPI.users('trainer')
-            .then((rows) => {
+        Promise.allSettled([opsAPI.trainers(), opsAPI.users('trainer')])
+            .then((results) => {
                 const refs = new Set<string>();
-                for (const raw of rows ?? []) {
-                    const t = raw as { id?: string; employeeCode?: string };
-                    const id = String(t.id ?? '').trim().toLowerCase();
-                    const code = String(t.employeeCode ?? '').trim().toLowerCase();
-                    if (id) refs.add(id);
-                    if (code) refs.add(code);
+
+                const trainersRes = results[0];
+                if (trainersRes.status === 'fulfilled') {
+                    for (const raw of trainersRes.value ?? []) {
+                        const t = raw as { id?: string };
+                        const id = String(t.id ?? '').trim().toLowerCase();
+                        if (id) refs.add(id);
+                    }
+                    setTrainerIdsLoaded(true);
                 }
+
+                const usersRes = results[1];
+                if (usersRes.status === 'fulfilled') {
+                    for (const raw of usersRes.value ?? []) {
+                        const t = raw as { id?: string; employeeCode?: string };
+                        const id = String(t.id ?? '').trim().toLowerCase();
+                        const code = String(t.employeeCode ?? '').trim().toLowerCase();
+                        if (id) refs.add(id);
+                        if (code) refs.add(code);
+                    }
+                }
+
                 setValidTrainerRefs(refs);
-                setTrainerRefsLoaded(true);
             })
             .catch(() => {
-                setTrainerRefsLoaded(false);
+                setTrainerIdsLoaded(false);
+                setValidTrainerRefs(new Set());
             });
     }, []);
 
@@ -175,12 +190,18 @@ export default function MemberSubscriptionPage() {
     const validateReferralCode = (referralRaw: string): boolean => {
         const referral = referralRaw.trim();
         if (!referral) return true;
-        if (!trainerRefsLoaded) {
-            toast.error('Validation Error', 'Unable to verify referral trainer right now. Please try again.');
+        const normalized = referral.toLowerCase();
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(referral);
+        const isTrainerCodeFormat = /^PWG-TRN-\d{3}$/i.test(referral);
+
+        if (validTrainerRefs.has(normalized)) return true;
+
+        if (isUuid && trainerIdsLoaded) {
+            toast.error('Validation Error', 'Referred by (NEW) must be a valid trainer id/code');
             return false;
         }
-        if (!validTrainerRefs.has(referral.toLowerCase())) {
-            toast.error('Validation Error', 'Referred by (NEW) must be a valid trainer id/code');
+        if (!isUuid && !isTrainerCodeFormat) {
+            toast.error('Validation Error', 'Referral must be a trainer UUID or code like PWG-TRN-001');
             return false;
         }
         return true;
