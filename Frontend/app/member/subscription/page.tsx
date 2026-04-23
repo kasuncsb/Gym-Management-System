@@ -53,6 +53,7 @@ export default function MemberSubscriptionPage() {
         planId: '',
         promotionCode: '',
         paymentMethod: 'card',
+        referredByTrainer: '',
         cardPan: '',
         cardExpiry: '',
         cardCvv: '',
@@ -94,6 +95,7 @@ export default function MemberSubscriptionPage() {
             planId: payload.planId,
             promotionCode: payload.promotionCode ?? '',
             paymentMethod: payload.paymentMethod ?? 'card',
+            referredByTrainer: '',
             cardPan: '',
             cardExpiry: '',
             cardCvv: '',
@@ -134,6 +136,7 @@ export default function MemberSubscriptionPage() {
                 paymentMethod: checkout.paymentMethod as any,
                 promotionCode: checkout.promotionCode || undefined,
                 cardPan: checkout.cardPan || undefined,
+                referredByTrainer: checkout.referredByTrainer.trim() || undefined,
             });
             setCheckoutState('approved');
             setSubscriptions(await opsAPI.mySubscriptions() as MySubscription[]);
@@ -381,6 +384,12 @@ export default function MemberSubscriptionPage() {
                         ]}
                         value={checkout.paymentMethod}
                         onChange={e => setCheckout((f) => ({ ...f, paymentMethod: e.target.value }))}
+                    />
+                    <Input
+                        label="Referred by (Trainer ID)"
+                        placeholder="e.g. PWG-TRN-001 or trainer UUID"
+                        value={checkout.referredByTrainer}
+                        onChange={e => setCheckout((f) => ({ ...f, referredByTrainer: e.target.value }))}
                     />
                     <Input
                         label="Card Number"

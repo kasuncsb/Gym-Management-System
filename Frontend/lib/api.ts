@@ -361,6 +361,8 @@ export const opsAPI = {
     paymentMethod: 'cash' | 'card' | 'bank_transfer' | 'online';
     promotionCode?: string;
     cardPan?: string;
+    /** Optional trainer referral id/code entered at checkout. */
+    referredByTrainer?: string;
   }) => apiClient.post('/ops/subscriptions/purchase', payload).then(r => r.data.data),
   myPayments: () =>
     apiClient.get('/ops/payments/me').then(r => r.data.data as any[]),

@@ -185,6 +185,8 @@ export const payments = mysqlTable('payments', {
   paymentMethod: mysqlEnum('payment_method', ['cash', 'card', 'bank_transfer', 'online']).notNull(),
   paymentDate: date('payment_date').notNull(),
   status: mysqlEnum('status', ['completed', 'disputed']).notNull(),
+  /** Optional referral attribution: who referred this payment (trainer user id). */
+  referredTrainerId: varchar('referred_trainer_id', { length: 36 }),
   receiptNumber: varchar('receipt_number', { length: 50 }),
   referenceNumber: varchar('reference_number', { length: 100 }),
   instrumentHash: varchar('instrument_hash', { length: 64 }),
@@ -194,6 +196,7 @@ export const payments = mysqlTable('payments', {
   invoiceNumber: varchar('invoice_number', { length: 50 }),
 }, (t) => ({
   invoiceUq: uniqueIndex('uq_pay_invoice').on(t.invoiceNumber),
+  referredTrainerIdx: index('idx_pay_referred_trainer').on(t.referredTrainerId),
 }));
 
 // ============================================================================

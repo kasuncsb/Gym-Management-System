@@ -299,6 +299,7 @@ CREATE TABLE IF NOT EXISTS `payments` (
   `payment_method`      ENUM('cash','card','bank_transfer','online') NOT NULL,
   `payment_date`        DATE          NOT NULL,
   `status`              ENUM('completed','disputed') NOT NULL DEFAULT 'completed',
+  `referred_trainer_id` VARCHAR(36)   DEFAULT NULL,
   `receipt_number`      VARCHAR(50)   DEFAULT NULL,
   `reference_number`    VARCHAR(100)  DEFAULT NULL,
   `instrument_hash`     VARCHAR(64)   DEFAULT NULL,
@@ -313,10 +314,12 @@ CREATE TABLE IF NOT EXISTS `payments` (
   UNIQUE KEY `uq_receipt` (`receipt_number`),
   INDEX `idx_pay_sub`  (`subscription_id`),
   INDEX `idx_pay_date` (`payment_date`),
+  INDEX `idx_pay_referred_trainer` (`referred_trainer_id`),
   CONSTRAINT `fk_pay_lifecycle` FOREIGN KEY (`lifecycle_id`) REFERENCES `entity_lifecycle`(`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_pay_sub`     FOREIGN KEY (`subscription_id`)    REFERENCES `subscriptions`(`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_pay_promo`   FOREIGN KEY (`promotion_id`)        REFERENCES `promotions`(`id`)    ON DELETE SET NULL,
   CONSTRAINT `fk_pay_by`      FOREIGN KEY (`recorded_by`)         REFERENCES `users`(`id`)        ON DELETE SET NULL,
+  CONSTRAINT `fk_pay_ref_trainer` FOREIGN KEY (`referred_trainer_id`) REFERENCES `users`(`id`) ON DELETE SET NULL,
   CONSTRAINT `chk_pay_amount` CHECK (`amount` > 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

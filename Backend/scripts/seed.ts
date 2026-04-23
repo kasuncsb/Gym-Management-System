@@ -955,6 +955,7 @@ async function seed() {
 
     const trainerMultiplier = trainerRevenueMultiplierByEmail[m.assignedTrainerEmail] ?? 1;
     const primaryAmount = (Number(plan.price) * trainerMultiplier).toFixed(2);
+    const referredTrainerId = trainerIdByEmail[m.assignedTrainerEmail] ?? null;
     const payId = ids.uuid();
     const payLc = await insertLifecycleRow();
     await db.insert(payments).values({
@@ -965,6 +966,7 @@ async function seed() {
       paymentMethod: 'online',
       paymentDate: dateAtNoonFrom(new Date(now.getTime() - (i % 8) * dayMs)),
       status: 'completed',
+      referredTrainerId,
       receiptNumber: `RCPT-${i + 1}-${now.getTime()}`,
       referenceNumber: `REF-${i + 1}-${Math.floor(Math.random() * 9999)}`,
       instrumentHash: null,
@@ -985,6 +987,7 @@ async function seed() {
         paymentMethod: i % 4 === 0 ? 'card' : 'bank_transfer',
         paymentDate: dateAtNoonFrom(new Date(now.getTime() - (12 + i) * dayMs)),
         status: 'completed',
+        referredTrainerId,
         receiptNumber: `RCPT-B-${i + 1}-${now.getTime()}`,
         referenceNumber: `REF-B-${i + 1}-${Math.floor(Math.random() * 9999)}`,
         instrumentHash: null,

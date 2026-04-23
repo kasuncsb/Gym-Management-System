@@ -319,6 +319,11 @@ async function settleSubscriptionPurchase(
     paymentMethod: 'cash' | 'card' | 'bank_transfer' | 'online';
     promotionCode?: string;
     cardPan?: string;
+    /**
+     * Optional referral attribution entered by the member at checkout.
+     * Accepts either a trainer userId (UUID) or trainer employee code (e.g. PWG-TRN-001).
+     */
+    referredByTrainer?: string;
     sessionId?: string;
   },
 ) {
@@ -336,6 +341,26 @@ async function settleSubscriptionPurchase(
     .where(and(eq(subscriptionPlans.id, input.planId), eq(subscriptionPlans.isActive, true), isNull(planLc.deletedAt)));
   const plan = planRow?.plan;
   if (!plan) throw errors.notFound('Subscription plan');
+
+  let referredTrainerId: string | null = null;
+  const referralRaw = String(input.referredByTrainer ?? '').trim();
+  if (referralRaw) {
+    const [refRow] = await db
+      .select({ id: users.id })
+      .from(users)
+      .leftJoin(trainers, eq(trainers.userId, users.id))
+      .innerJoin(userLc, eq(users.lifecycleId, userLc.id))
+      .where(and(
+        eq(users.role, 'trainer'),
+        isNull(userLc.deletedAt),
+        sql`(${users.id} = ${referralRaw} or ${users.employeeCode} = ${referralRaw} or ${trainers.employeeCode} = ${referralRaw})`,
+      ))
+      .limit(1);
+    if (!refRow?.id) {
+      throw errors.badRequest('Invalid trainer referral id/code');
+    }
+    referredTrainerId = refRow.id;
+  }
 
   let discountAmount = 0;
   let promotionId: string | null = null;
@@ -393,6 +418,7 @@ async function settleSubscriptionPurchase(
     paymentMethod: input.paymentMethod,
     paymentDate: startDate,
     status: 'completed',
+    referredTrainerId,
     receiptNumber,
     referenceNumber,
     invoiceNumber,
@@ -939,6 +965,8 @@ export async function purchaseSubscription(
     promotionCode?: string;
     /** Digits only or spaced card number — hashed server-side; never stored raw */
     cardPan?: string;
+    /** Optional trainer referral id/code entered at checkout. */
+    referredByTrainer?: string;
   },
 ) {
   const result = await settleSubscriptionPurchase(userId, input);
@@ -2449,17 +2477,15 @@ export async function getReportSummary(params?: { type?: string; fromDate?: stri
 
     const byTrainerRaw = await db
       .select({
-        trainerId: members.assignedTrainerId,
+        trainerId: payments.referredTrainerId,
         trainerName: sql<string>`coalesce(${users.fullName}, 'Unassigned')`,
         total: sql<string>`coalesce(sum(${payments.amount}), 0)`,
         count: sql<number>`count(*)`,
       })
       .from(payments)
-      .leftJoin(subscriptions, eq(payments.subscriptionId, subscriptions.id))
-      .leftJoin(members, eq(subscriptions.memberId, members.userId))
-      .leftJoin(users, and(eq(members.assignedTrainerId, users.id), eq(users.role, 'trainer')))
+      .leftJoin(users, and(eq(payments.referredTrainerId, users.id), eq(users.role, 'trainer')))
       .where(sql`date(${payments.paymentDate}) >= ${sql.raw(from)} and date(${payments.paymentDate}) <= ${sql.raw(to)}`)
-      .groupBy(members.assignedTrainerId, users.fullName)
+      .groupBy(payments.referredTrainerId, users.fullName)
       .orderBy(desc(sql`coalesce(sum(${payments.amount}), 0)`));
 
     const trainerRevenueTotal = byTrainerRaw.reduce((sum, row) => sum + Number(row.total ?? 0), 0);
