@@ -46,7 +46,7 @@ export default function MemberSubscriptionPage() {
     const [subscriptions, setSubscriptions] = useState<MySubscription[]>([]);
     const [payments, setPayments] = useState<MyPayment[]>([]);
 
-    const [renewForm, setRenewForm] = useState({ plan: '', promo: '', payment: 'card' });
+    const [renewForm, setRenewForm] = useState({ plan: '', promo: '', referredBy: '', payment: 'card' });
     const [upgradeForm, setUpgradeForm] = useState({ plan: '' });
     const [checkoutOpen, setCheckoutOpen] = useState(false);
     const [checkout, setCheckout] = useState({
@@ -90,12 +90,12 @@ export default function MemberSubscriptionPage() {
         label: `${p.name} — ${p.durationDays} days — Rs. ${Number(p.price ?? 0).toLocaleString()}`,
     }));
 
-    const openCheckout = (payload: { planId: string; promotionCode?: string; paymentMethod?: string }) => {
+    const openCheckout = (payload: { planId: string; promotionCode?: string; referredByTrainer?: string; paymentMethod?: string }) => {
         setCheckout({
             planId: payload.planId,
             promotionCode: payload.promotionCode ?? '',
             paymentMethod: payload.paymentMethod ?? 'card',
-            referredByTrainer: '',
+            referredByTrainer: payload.referredByTrainer ?? '',
             cardPan: '',
             cardExpiry: '',
             cardCvv: '',
@@ -160,9 +160,10 @@ export default function MemberSubscriptionPage() {
         openCheckout({
             planId: renewForm.plan,
             promotionCode: renewForm.promo || undefined,
+            referredByTrainer: renewForm.referredBy || undefined,
             paymentMethod: renewForm.payment,
         });
-        setRenewForm({ plan: '', promo: '', payment: 'card' });
+        setRenewForm({ plan: '', promo: '', referredBy: '', payment: 'card' });
     };
 
     const handleUpgrade = async () => {
@@ -354,6 +355,12 @@ export default function MemberSubscriptionPage() {
                         value={renewForm.promo}
                         onChange={e => setRenewForm(f => ({ ...f, promo: e.target.value }))}
                     />
+                    <Input
+                        label="Referred by (NEW)"
+                        placeholder="e.g. PWG-TRN-001 or trainer UUID"
+                        value={renewForm.referredBy}
+                        onChange={e => setRenewForm(f => ({ ...f, referredBy: e.target.value }))}
+                    />
                     <Select
                         label="Payment Method"
                         options={[
@@ -384,12 +391,6 @@ export default function MemberSubscriptionPage() {
                         ]}
                         value={checkout.paymentMethod}
                         onChange={e => setCheckout((f) => ({ ...f, paymentMethod: e.target.value }))}
-                    />
-                    <Input
-                        label="Referred by (Trainer ID)"
-                        placeholder="e.g. PWG-TRN-001 or trainer UUID"
-                        value={checkout.referredByTrainer}
-                        onChange={e => setCheckout((f) => ({ ...f, referredByTrainer: e.target.value }))}
                     />
                     <Input
                         label="Card Number"
