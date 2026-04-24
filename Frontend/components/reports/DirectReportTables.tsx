@@ -76,7 +76,7 @@ export function DirectReportTables({ data }: { data: any }) {
                                 {d.payments.map((r: any, i: number) => (
                                     <tr key={i} className={reportTableBodyRow}>
                                         <td className={cn(reportTableCell, 'text-zinc-300 whitespace-nowrap')}>{r.paymentDate}</td>
-                                        <td className={cn(reportTableCell, 'text-right text-white')}>Rs. {Number(r.amount).toLocaleString()}</td>
+                                        <td className={cn(reportTableCell, 'text-right text-white')}>${Number(r.amount).toLocaleString('en-US')}</td>
                                         <td className={cn(reportTableCell, 'text-zinc-400 capitalize px-2')}>{String(r.paymentMethod ?? '').replace('_', ' ')}</td>
                                         <td className={cn(reportTableCell, 'text-zinc-300')}>{r.memberName ?? '—'}</td>
                                         <td className={cn(reportTableCell, 'text-zinc-400')}>{r.planName ?? '—'}</td>

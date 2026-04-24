@@ -123,7 +123,7 @@ export default function MemberSubscriptionPage() {
     const activeSubscription = subscriptions.find((s) => ['active', 'grace_period'].includes(s.status)) ?? subscriptions[0];
     const planOptions = plans.map((p) => ({
         value: p.id,
-        label: `${p.name} — ${p.durationDays} days — Rs. ${Number(p.price ?? 0).toLocaleString()}`,
+        label: `${p.name} — ${p.durationDays} days — $${Number(p.price ?? 0).toLocaleString('en-US')}`,
     }));
 
     const openCheckout = (payload: { planId: string; promotionCode?: string; referredByTrainer?: string; paymentMethod?: string }) => {
@@ -310,7 +310,7 @@ export default function MemberSubscriptionPage() {
                                     <div>
                                         <h3 className="text-xl font-bold text-white">{activeSubscription.planName ?? 'No active plan'}</h3>
                                         <p className="text-zinc-400 text-sm mt-1">
-                                            Rs. {Number(activeSubscription.pricePaid ?? 0).toLocaleString()}
+                                            ${Number(activeSubscription.pricePaid ?? 0).toLocaleString('en-US')}
                                         </p>
                                         <p className="text-zinc-500 text-xs mt-2">
                                             Ends: {activeSubscription.endDate ?? '—'}
@@ -369,7 +369,7 @@ export default function MemberSubscriptionPage() {
                                 {payments.map((p) => (
                                     <tr key={p.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
                                         <td className="px-6 py-4 text-sm text-white">{String(p.paymentDate).slice(0, 10)}</td>
-                                        <td className="px-6 py-4 text-sm text-white">Rs. {Number(p.amount ?? 0).toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-sm text-white">${Number(p.amount ?? 0).toLocaleString('en-US')}</td>
                                         <td className="px-6 py-4 text-sm text-zinc-400">{p.paymentMethod}</td>
                                         <td className="px-6 py-4 text-sm text-zinc-400">{p.receiptNumber ?? '-'}</td>
                                         <td className="px-6 py-4 text-sm text-zinc-400">

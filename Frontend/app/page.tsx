@@ -8,10 +8,10 @@ import { opsAPI } from "@/lib/api";
 
 type HomePlanCard = { name: string; price: string; period: string; popular: boolean; features: string[] };
 
-function formatLkr(price: string | number) {
+function formatUsd(price: string | number) {
   const n = typeof price === "string" ? parseFloat(price) : price;
-  if (!Number.isFinite(n)) return "Rs. —";
-  return `Rs. ${Math.round(n).toLocaleString("en-LK")}`;
+  if (!Number.isFinite(n)) return "$ —";
+  return `$${Math.round(n).toLocaleString("en-US")}`;
 }
 
 function periodLabel(durationDays: number) {
@@ -28,9 +28,9 @@ function periodLabel(durationDays: number) {
 const DEFAULT_FEATURES = ["Full gym access", "Locker usage", "Any GymSphere branch"];
 
 const FALLBACK_PLANS: HomePlanCard[] = [
-  { name: "Monthly Individual", price: "Rs. 8,999", period: "mo", popular: false, features: DEFAULT_FEATURES },
-  { name: "3-Month Commitment", price: "Rs. 23,999", period: "3 mo", popular: true, features: [...DEFAULT_FEATURES, "Better per-month value"] },
-  { name: "Annual Individual", price: "Rs. 79,999", period: "yr", popular: false, features: [...DEFAULT_FEATURES, "Best long-term value"] },
+  { name: "Monthly Individual", price: "$89", period: "mo", popular: false, features: DEFAULT_FEATURES },
+  { name: "3-Month Commitment", price: "$239", period: "3 mo", popular: true, features: [...DEFAULT_FEATURES, "Better per-month value"] },
+  { name: "Annual Individual", price: "$799", period: "yr", popular: false, features: [...DEFAULT_FEATURES, "Best long-term value"] },
 ];
 
 const STATS = [
@@ -70,7 +70,7 @@ export default function Home() {
           const popular = days >= 85 && days <= 100;
           return {
             name: String(p.name),
-            price: formatLkr(p.price ?? 0),
+            price: formatUsd(p.price ?? 0),
             period: periodLabel(days),
             popular,
             features,
@@ -108,7 +108,7 @@ export default function Home() {
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-900/50 border border-zinc-800 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
             <span className="text-sm font-medium text-zinc-300">
-              Now Open at GymSphere
+              Now Open at Demo Branch
             </span>
           </div>
 

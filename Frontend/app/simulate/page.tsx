@@ -268,7 +268,7 @@ export default function SimulatePage() {
             <p className="text-xs text-zinc-500">Recent settlements: {recentPayments.length}</p>
             {recentPayments.slice(0, 3).map((row) => (
               <div key={row.id} className="rounded-lg border border-zinc-800 px-3 py-2 text-xs text-zinc-300">
-                {row.paymentMethod ?? 'online'} • {row.status ?? 'completed'} • Rs. {Number(row.amount ?? 0).toLocaleString()}
+                {row.paymentMethod ?? 'online'} • {row.status ?? 'completed'} • ${Number(row.amount ?? 0).toLocaleString('en-US')}
               </div>
             ))}
           </div>

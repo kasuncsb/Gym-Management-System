@@ -162,7 +162,7 @@ export default function AdminPlansPage() {
                                 <p className="text-zinc-500 text-xs capitalize">{plan.billing} billing</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-white font-bold">Rs.{Number(plan.price).toLocaleString()}</p>
+                                <p className="text-white font-bold">${Number(plan.price).toLocaleString('en-US')}</p>
                                 <p className="text-zinc-500 text-xs">/ {plan.durationDays >= 360 ? 'year' : 'month'}</p>
                             </div>
                         </div>
@@ -221,9 +221,9 @@ export default function AdminPlansPage() {
                     />
                     <Input
                         id="plan-price"
-                        label="Price (Rs.)"
+                        label="Price (USD)"
                         type="number"
-                        placeholder="3500"
+                        placeholder="50"
                         value={formData.price}
                         onChange={e => setFormData(prev => ({ ...prev, price: e.target.value }))}
                         min={0}

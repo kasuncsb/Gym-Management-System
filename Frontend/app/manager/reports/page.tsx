@@ -129,7 +129,7 @@ export default function ManagerReportsPage() {
                     {/* Overview KPIs */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[
-                            { label: 'Monthly Revenue', value: `Rs. ${Number(reportData.monthlyRevenue ?? 0).toLocaleString()}` },
+                            { label: 'Monthly Revenue', value: `$${Number(reportData.monthlyRevenue ?? 0).toLocaleString('en-US')}` },
                             { label: 'Active Members', value: reportData.activeMembers ?? '—' },
                             { label: 'Visits in Range', value: reportData.visitsInRange ?? '—' },
                             { label: 'Open Incidents', value: reportData.openEquipmentIncidents ?? '—' },
@@ -145,7 +145,7 @@ export default function ManagerReportsPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <Card padding="md" className={cn(reportSectionCard, 'border-zinc-700/60')}>
                                 <p className="text-zinc-400 text-xs">Total revenue (period)</p>
-                                <p className="text-white text-xl font-bold mt-1">Rs. {Number(reportData.totalRevenueInRange ?? 0).toLocaleString()}</p>
+                                <p className="text-white text-xl font-bold mt-1">${Number(reportData.totalRevenueInRange ?? 0).toLocaleString('en-US')}</p>
                             </Card>
                             <Card padding="md" className={cn(reportSectionCard, 'border-zinc-700/60')}>
                                 <p className="text-zinc-400 text-xs">Payment count</p>
@@ -153,7 +153,7 @@ export default function ManagerReportsPage() {
                             </Card>
                             <Card padding="md" className={cn(reportSectionCard, 'border-zinc-700/60')}>
                                 <p className="text-zinc-400 text-xs">Average payment</p>
-                                <p className="text-white text-xl font-bold mt-1">Rs. {Number(reportData.averagePaymentInRange ?? 0).toLocaleString()}</p>
+                                <p className="text-white text-xl font-bold mt-1">${Number(reportData.averagePaymentInRange ?? 0).toLocaleString('en-US')}</p>
                             </Card>
                         </div>
                     )}
@@ -176,7 +176,7 @@ export default function ManagerReportsPage() {
                                         <tr key={i} className={reportTableBodyRow}>
                                             <td className={cn(reportTableCell, 'text-zinc-300 capitalize')}>{String(r.method).replace('_', ' ')}</td>
                                             <td className={cn(reportTableCell, 'text-right text-zinc-400')}>{r.count}</td>
-                                            <td className={cn(reportTableCell, 'text-right text-white font-medium')}>Rs. {Number(r.total).toLocaleString()}</td>
+                                            <td className={cn(reportTableCell, 'text-right text-white font-medium')}>${Number(r.total).toLocaleString('en-US')}</td>
                                             <td className={cn(reportTableCell, 'text-right text-zinc-400')}>{r.pctOfTotalRevenue != null ? `${Number(r.pctOfTotalRevenue).toFixed(1)}%` : '—'}</td>
                                         </tr>
                                     ))}</tbody>
@@ -194,7 +194,7 @@ export default function ManagerReportsPage() {
                                             <tbody>{(reportData.byPlan ?? []).map((r: any, i: number) => (
                                                 <tr key={i} className={reportTableBodyRow}>
                                                     <td className={cn(reportTableCell, 'text-zinc-300')}>{r.planName ?? 'Unknown'}</td>
-                                                    <td className={cn(reportTableCell, 'text-right text-white font-medium')}>Rs. {Number(r.total).toLocaleString()}</td>
+                                                    <td className={cn(reportTableCell, 'text-right text-white font-medium')}>${Number(r.total).toLocaleString('en-US')}</td>
                                                 </tr>
                                             ))}</tbody>
                                         </table>
@@ -216,7 +216,7 @@ export default function ManagerReportsPage() {
                                                 <tr key={i} className={reportTableBodyRow}>
                                                     <td className={cn(reportTableCell, 'text-zinc-300')}>{r.trainerName ?? 'Unassigned'}</td>
                                                     <td className={cn(reportTableCell, 'text-right text-zinc-400')}>{r.count ?? 0}</td>
-                                                    <td className={cn(reportTableCell, 'text-right text-white font-medium')}>Rs. {Number(r.total ?? 0).toLocaleString()}</td>
+                                                    <td className={cn(reportTableCell, 'text-right text-white font-medium')}>${Number(r.total ?? 0).toLocaleString('en-US')}</td>
                                                     <td className={cn(reportTableCell, 'text-right text-zinc-400')}>{r.pctOfTotalRevenue != null ? `${Number(r.pctOfTotalRevenue).toFixed(1)}%` : '—'}</td>
                                                 </tr>
                                             ))}</tbody>

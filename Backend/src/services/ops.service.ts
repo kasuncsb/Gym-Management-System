@@ -177,7 +177,7 @@ type PtBookingRulesInternal = {
 };
 
 async function loadPtBookingRules(): Promise<PtBookingRulesInternal> {
-  const timezone = (await getConfigValue('timezone', 'Asia/Colombo')).trim() || 'Asia/Colombo';
+  const timezone = (await getConfigValue('timezone', 'UTC')).trim() || 'UTC';
   const openRaw = await getConfigValue('gym_open_time', '06:00');
   const closeRaw = await getConfigValue('gym_close_time', '22:00');
   const advanceDaysMax = await getConfigInt('pt_booking_advance_days_max', 60);

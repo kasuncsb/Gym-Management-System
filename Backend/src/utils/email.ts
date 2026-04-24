@@ -217,7 +217,7 @@ export function generateInvoiceEmailHTML(input: {
     </td>
     <td style="padding:14px 16px;background-color:#1f1f20;border-bottom:1px solid #3c3c3c;text-align:right;">
       <p style="margin:0;font-size:13px;color:#a1a1aa;">Amount</p>
-      <p style="margin:4px 0 0 0;font-size:16px;font-weight:bold;color:#ffffff;">Rs. ${Number(input.amount || 0).toLocaleString()}</p>
+      <p style="margin:4px 0 0 0;font-size:16px;font-weight:bold;color:#ffffff;">$${Number(input.amount || 0).toLocaleString('en-US')}</p>
     </td>
   </tr>
   <tr>

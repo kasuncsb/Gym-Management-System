@@ -1,5 +1,5 @@
 /**
- * Database seed — 4 users (one per role) + LKR subscription tiers + library workout templates + sample inventory.
+ * Database seed — 4 users (one per role) + USD subscription tiers + library workout templates + sample inventory.
  * Run with: npm run db:seed
  */
 
@@ -238,7 +238,7 @@ async function seed() {
   const configData = [
     { key: 'branch_capacity', value: '120' },
     { key: 'grace_days', value: '3' },
-    { key: 'timezone', value: 'Asia/Colombo' },
+    { key: 'timezone', value: 'UTC' },
     { key: 'checkin_qr_ttl_seconds', value: '120' },
     { key: 'checkin_scan_max_retries', value: '5' },
     { key: 'payment_failure_max_retries', value: '3' },
@@ -453,7 +453,7 @@ async function seed() {
       isActive: true,
     });
   }
-  console.log('✅ Subscription plans seeded (~10 LKR tiers)');
+  console.log('✅ Subscription plans seeded (~10 USD tiers)');
 
   await db.delete(workoutPlans).where(and(eq(workoutPlans.source, 'library'), isNull(workoutPlans.memberId)));
   for (const def of LIBRARY_WORKOUT_PLANS) {

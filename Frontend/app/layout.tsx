@@ -52,7 +52,7 @@ export const metadata: Metadata = {
   authors: [{ name: "GymSphere" }],
   openGraph: {
     type: "website",
-    locale: "en_LK",
+    locale: "en_US",
     siteName: "GymSphere",
     title: "GymSphere - Gym Management Suite",
     description:

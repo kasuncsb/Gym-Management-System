@@ -333,12 +333,9 @@ function pickAiNarrativeFields(ai: NarrativeMap, base: NarrativeMap): NarrativeM
 function normalizeNarrativeText(raw: string): string {
   let s = raw.trim();
   if (!s) return s;
-  // Enforce local currency conventions and remove foreign currency mentions.
-  s = s.replace(/\$\s*/g, 'Rs. ');
-  s = s.replace(/\bUSD\b/gi, 'LKR');
-  s = s.replace(/\bUS dollars?\b/gi, 'LKR');
-  s = s.replace(/€/g, 'Rs. ');
-  s = s.replace(/£/g, 'Rs. ');
+  // Enforce non-localized USD output across AI narratives.
+  s = s.replace(/€/g, '$');
+  s = s.replace(/£/g, '$');
   // Keep output as plain text paragraphs.
   s = s.replace(/[*_`#]/g, '');
   s = s.replace(/\s{2,}/g, ' ');
@@ -415,7 +412,7 @@ Rules:
 - Use plain business language, not developer jargon.
 - Keep facts strictly grounded in the provided metrics.
 - Do not invent numbers.
-- Use platform currency format only (Rs.). NEVER use $, USD, EUR, or GBP.
+- Use platform currency format only ($ / USD). Avoid any other currency symbol or code.
 - Keep text plain (no markdown bullets, no code formatting).
 - Return ONLY JSON (no markdown, no prose outside JSON) with keys:
   executiveSummary (string),
@@ -493,16 +490,16 @@ function buildReportNarrative(
       ? `Trend direction: revenue is led by ${topMethod.method} (${concentrationPct}% share), while overall throughput remains steady at ${count.toLocaleString()} payments. Risk callout: this indicates ${concentrationRisk} if one channel underperforms. Action: run a channel-balance campaign to lift the second-best method and reduce dependency.`
       : 'Trend direction: channel split is currently unavailable. Risk callout: without channel visibility, revenue dependency risk cannot be measured accurately. Action: verify payment method capture in operational reporting before the next review.';
     return {
-      executiveSummary: `${baseExecutive} Revenue in period is Rs. ${Math.round(total).toLocaleString()} from ${count.toLocaleString()} payments.`,
+      executiveSummary: `${baseExecutive} Revenue in period is $${Math.round(total).toLocaleString('en-US')} from ${count.toLocaleString()} payments.`,
       sectionTitle: 'Revenue Performance',
-      sectionSummary: `Average payment value is Rs. ${Math.round(avg).toLocaleString()}. ${successful.toLocaleString()} payments were successfully completed with ${uniquePayers.toLocaleString()} unique paying members.`,
+      sectionSummary: `Average payment value is $${Math.round(avg).toLocaleString('en-US')}. ${successful.toLocaleString()} payments were successfully completed with ${uniquePayers.toLocaleString()} unique paying members.`,
       sectionParagraphs: [
         'This section explains where money came from during the selected period and how stable the collection flow looks.',
         'A higher number of unique paying members typically means healthier demand distribution rather than dependence on a few customers.',
         `Payment outcome split: ${successful.toLocaleString()} successful, ${pending.toLocaleString()} pending, ${failed.toLocaleString()} failed.`,
       ],
       highlights: [
-        topMethod ? `Top payment method: ${topMethod.method} (Rs. ${Math.round(topMethod.total).toLocaleString()}).` : 'Payment method mix is unavailable.',
+        topMethod ? `Top payment method: ${topMethod.method} ($${Math.round(topMethod.total).toLocaleString('en-US')}).` : 'Payment method mix is unavailable.',
         count > 0 ? `Transaction volume indicates steady customer purchase activity.` : 'No payments were recorded in the selected period.',
       ],
       whatThisMeans: [

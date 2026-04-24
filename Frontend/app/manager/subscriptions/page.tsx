@@ -197,7 +197,7 @@ export default function ManagerSubscriptionsPage() {
                                     <tr key={p.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
                                         <td className="px-6 py-4 text-white font-semibold">{p.name}</td>
                                         <td className="px-6 py-4 text-zinc-400 capitalize">{p.planType.replace('_', ' ')}</td>
-                                        <td className="px-6 py-4 text-white">Rs. {p.price.toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-white">${p.price.toLocaleString('en-US')}</td>
                                         <td className="px-6 py-4 text-zinc-400">{p.durationDays} days</td>
                                         <td className="px-6 py-4 text-zinc-300 font-semibold">{p.subscribers}</td>
                                         <td className="px-6 py-4">
@@ -260,7 +260,7 @@ export default function ManagerSubscriptionsPage() {
                                             </td>
                                             <td className="px-5 py-3 text-zinc-400 text-sm">{s.startDate}</td>
                                             <td className="px-5 py-3 text-zinc-400 text-sm">{s.endDate}</td>
-                                            <td className="px-5 py-3 text-zinc-300 text-sm">Rs. {s.pricePaid.toLocaleString()}</td>
+                                            <td className="px-5 py-3 text-zinc-300 text-sm">${s.pricePaid.toLocaleString('en-US')}</td>
                                         </tr>
                                     ))}
                                     {filteredSubs.length === 0 && (
@@ -285,7 +285,7 @@ export default function ManagerSubscriptionsPage() {
                             onChange={e => setForm(f => ({ ...f, planType: e.target.value }))}
                         />
                     )}
-                    <Input id="subscriptions-price" label="Price (Rs.)" type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="4500" />
+                    <Input id="subscriptions-price" label="Price (USD)" type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="50" />
                     <Input id="subscriptions-duration" label="Duration (days)" type="number" value={form.durationDays} onChange={e => setForm(f => ({ ...f, durationDays: e.target.value }))} placeholder="30" />
                     <Select
                         id="subscriptions-active"

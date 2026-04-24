@@ -202,7 +202,7 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
 
     heading('KPI Snapshot');
     drawKpiGrid([
-      { label: 'Monthly revenue', value: `Rs. ${Math.round(Number(data.monthlyRevenue ?? 0)).toLocaleString()}` },
+      { label: 'Monthly revenue', value: `$${Math.round(Number(data.monthlyRevenue ?? 0)).toLocaleString('en-US')}` },
       { label: 'Active members', value: Math.round(Number(data.activeMembers ?? 0)).toLocaleString() },
       { label: 'Visits in period', value: Math.round(Number(data.visitsInRange ?? 0)).toLocaleString() },
       { label: 'Open incidents', value: Math.round(Number(data.openEquipmentIncidents ?? 0)).toLocaleString() },
@@ -341,9 +341,9 @@ export function buildReportPdf(data: Record<string, unknown>): Promise<Buffer> {
         return [
           cell(row.trainerName ?? 'Unassigned'),
           cell(row.count),
-          `Rs. ${Math.round(total).toLocaleString()}`,
+          `$${Math.round(total).toLocaleString('en-US')}`,
           `${Number(row.pctOfTotalRevenue ?? 0).toFixed(1)}%`,
-          `Rs. ${Math.round(avg).toLocaleString()}`,
+          `$${Math.round(avg).toLocaleString('en-US')}`,
         ];
       });
       tableBlock(

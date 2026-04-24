@@ -660,7 +660,7 @@ async function callExternalRag(user: AuthUser, message: string): Promise<string 
       body: JSON.stringify({
         session_id: `gym-${user.id}`,
         message,
-        context: { role: user.role, user_id: user.id, branch: 'kiribathgoda' },
+        context: { role: user.role, user_id: user.id, branch: 'demo-branch' },
       }),
     });
     if (!res.ok) return null;
@@ -945,7 +945,7 @@ Respond in **Markdown** (bold for emphasis, lists when useful). Structure flexib
     });
     const fallbackText = parsed.rateLimited
       ? 'AI is temporarily rate-limited due to quota usage. Please retry in about a minute.'
-      : `Current snapshot: ${dashboard.todayVisits} visits today, ${dashboard.openIssues} open issues, and Rs. ${dashboard.monthlyRevenue} monthly revenue. Prioritize unresolved incidents, monitor low-visit members nearing expiry, and balance trainer coverage during peak hours.`;
+      : `Current snapshot: ${dashboard.todayVisits} visits today, ${dashboard.openIssues} open issues, and $${dashboard.monthlyRevenue} monthly revenue. Prioritize unresolved incidents, monitor low-visit members nearing expiry, and balance trainer coverage during peak hours.`;
     await logInteraction(user, { interactionType: 'chat', promptText: message, responseText: fallbackText, source: 'fallback', metadata: { route: 'manager_chat' } });
     await appendChatMessage(resolvedSessionId, user, 'assistant', fallbackText, 'fallback');
     return { answer: fallbackText, source: 'fallback', sessionId: resolvedSessionId };

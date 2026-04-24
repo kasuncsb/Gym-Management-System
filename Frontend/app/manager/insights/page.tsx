@@ -60,7 +60,7 @@ export default function ManagerInsightsPage() {
 
     const kpis = [
         { label: 'Avg Daily Check-ins', value: String(Math.round((summary?.visitsLast30Days ?? 0) / 30)), delta: 'from live visit logs', good: true },
-        { label: 'Monthly Revenue', value: `Rs. ${Number(summary?.monthlyRevenue ?? 0).toLocaleString()}`, delta: 'from payment records', good: true },
+        { label: 'Monthly Revenue', value: `$${Number(summary?.monthlyRevenue ?? 0).toLocaleString('en-US')}`, delta: 'from payment records', good: true },
         { label: 'Active Members', value: String(summary?.activeMembers ?? 0), delta: 'current status', good: true },
         { label: 'Open Incidents', value: String(summary?.openEquipmentIncidents ?? 0), delta: 'needs attention', good: false },
     ];
@@ -110,7 +110,7 @@ export default function ManagerInsightsPage() {
                     <h2 className="text-lg font-semibold text-white mb-4">Revenue Trend</h2>
                     <ThemedLineChart
                         labels={revenueTrend.map((p: any) => p.label)}
-                        series={[{ name: 'Revenue (LKR)', color: '#22c55e', values: revenueTrend.map((p: any) => Number(p.value ?? 0)) }]}
+                        series={[{ name: 'Revenue (USD)', color: '#22c55e', values: revenueTrend.map((p: any) => Number(p.value ?? 0)) }]}
                         height={210}
                     />
                 </Card>

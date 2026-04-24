@@ -72,7 +72,7 @@ export default function ManagerDashboard() {
         setBranchInsights([
             { title: 'Visits Today', description: `${dash.todayVisits ?? 0} recorded check-ins today`, impact: 'high', rec: 'Optimize trainer staffing during peaks' },
             { title: 'Open Issues', description: `${dash.openIssues ?? 0} unresolved incidents`, impact: dash.openIssues > 0 ? 'medium' : 'positive', rec: 'Review equipment incident queue daily' },
-            { title: 'Revenue', description: `Rs. ${Number(summary.monthlyRevenue ?? 0).toLocaleString()} this month`, impact: 'positive', rec: 'Track conversion from trial to paid plans' },
+            { title: 'Revenue', description: `$${Number(summary.monthlyRevenue ?? 0).toLocaleString('en-US')} this month`, impact: 'positive', rec: 'Track conversion from trial to paid plans' },
         ]);
         setTasks((reports ?? []).slice(0, 3).map((r: any) => ({
             task: r.title ?? 'Review report',
@@ -93,7 +93,7 @@ export default function ManagerDashboard() {
 
     const kpis = [
         { label: 'Total Members', value: String(dashboard?.activeMembers ?? 0), sub: 'active', icon: Users, color: 'from-blue-600 to-blue-700' },
-        { label: 'Monthly Revenue', value: `Rs.${Number(dashboard?.monthlyRevenue ?? 0).toLocaleString()}`, sub: 'current month', icon: TrendingUp, color: 'from-green-600 to-green-700' },
+        { label: 'Monthly Revenue', value: `$${Number(dashboard?.monthlyRevenue ?? 0).toLocaleString('en-US')}`, sub: 'current month', icon: TrendingUp, color: 'from-green-600 to-green-700' },
         { label: 'Visits Today', value: String(dashboard?.todayVisits ?? 0), sub: 'facility entries', icon: UserCheck, color: 'from-purple-600 to-purple-700' },
         { label: 'Open Issues', value: String(dashboard?.openIssues ?? 0), sub: 'action items', icon: Star, color: 'from-yellow-600 to-yellow-700' },
     ];

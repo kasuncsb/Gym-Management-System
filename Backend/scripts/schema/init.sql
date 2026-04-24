@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS `config` (
 INSERT INTO `config` (`key`, `value`) VALUES
   ('branch_capacity', '120'),
   ('grace_days',      '3'),
-  ('timezone',        'Asia/Colombo'),
+  ('timezone',        'UTC'),
   ('checkin_qr_ttl_seconds', '120'),
   ('checkin_scan_max_retries', '5'),
   ('payment_failure_max_retries', '3'),

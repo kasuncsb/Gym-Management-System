@@ -369,7 +369,7 @@ export default function AdminUsersPage() {
                     {!editingUser && (
                         <Input
                             label="Phone"
-                            placeholder="+94…"
+                            placeholder="+100…"
                             value={formData.phone}
                             onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
                         />

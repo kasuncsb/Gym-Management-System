@@ -110,7 +110,7 @@ export default function AdminPromotionsPage() {
     };
 
     const formatDiscount = (p: Promotion) =>
-        p.discountType === 'percentage' ? `${Number(p.discountValue)}%` : `Rs. ${Number(p.discountValue).toLocaleString()}`;
+        p.discountType === 'percentage' ? `${Number(p.discountValue)}%` : `$${Number(p.discountValue).toLocaleString('en-US')}`;
 
     const formatDate = (d: string | null) => d ? String(d).slice(0, 10) : '—';
 
@@ -208,14 +208,14 @@ export default function AdminPromotionsPage() {
                         label="Discount Type"
                         options={[
                             { value: 'percentage', label: 'Percentage (%)' },
-                            { value: 'fixed', label: 'Fixed Amount (Rs.)' },
+                            { value: 'fixed', label: 'Fixed Amount (USD)' },
                         ]}
                         value={form.discountType}
                         onChange={e => setForm(f => ({ ...f, discountType: e.target.value as 'percentage' | 'fixed' }))}
                     />
                     <Input
                         id="promo-discount-value"
-                        label={form.discountType === 'percentage' ? 'Discount %' : 'Discount Amount (Rs.)'}
+                        label={form.discountType === 'percentage' ? 'Discount %' : 'Discount Amount (USD)'}
                         type="number"
                         value={form.discountValue}
                         onChange={e => setForm(f => ({ ...f, discountValue: e.target.value }))}

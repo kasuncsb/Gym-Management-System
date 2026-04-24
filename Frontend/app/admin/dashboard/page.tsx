@@ -52,7 +52,7 @@ export default function AdminDashboard() {
         })));
         setPlans((subscriptions ?? []).slice(0, 6).map((p: any) => ({
             name: p.name,
-            price: `Rs.${Number(p.price).toLocaleString()}`,
+            price: `$${Number(p.price).toLocaleString('en-US')}`,
             members: p.activeSubscribers ?? 0,
         })));
     };
@@ -62,7 +62,7 @@ export default function AdminDashboard() {
 
     const kpis = [
         { label: 'Total Members', value: String(dashboard?.activeMembers ?? 0), sub: 'active', icon: Users, color: 'from-blue-600 to-blue-700' },
-        { label: 'Total Revenue', value: `Rs.${Number(dashboard?.monthlyRevenue ?? 0).toLocaleString()}`, sub: 'this month', icon: TrendingUp, color: 'from-green-600 to-green-700' },
+        { label: 'Total Revenue', value: `$${Number(dashboard?.monthlyRevenue ?? 0).toLocaleString('en-US')}`, sub: 'this month', icon: TrendingUp, color: 'from-green-600 to-green-700' },
         { label: 'Visits Today', value: String(dashboard?.todayVisits ?? 0), sub: 'today', icon: Activity, color: 'from-purple-600 to-purple-700' },
         { label: 'Open Issues', value: String(dashboard?.openIssues ?? 0), sub: 'equipment/incidents', icon: CreditCard, color: 'from-orange-600 to-orange-700' },
     ];
