@@ -303,6 +303,23 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Simulator Banner */}
+      <section className="border-t border-zinc-800/70 bg-white text-zinc-900 dark:bg-zinc-950/40 dark:text-white">
+        <div className="container px-6 mx-auto py-8">
+          <Link
+            href="/simulate"
+            className="block rounded-2xl border border-zinc-200 bg-gradient-to-r from-zinc-50 to-white px-6 py-5 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-800 dark:from-zinc-900/60 dark:to-zinc-950/40"
+          >
+            <span className="text-sm md:text-base font-semibold">
+              Access the simulator environment here
+            </span>
+            <span className="ml-2 inline-flex align-middle text-red-600 dark:text-red-500">
+              <ArrowRight size={18} />
+            </span>
+          </Link>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-12 border-t border-zinc-800 bg-zinc-900/50">
         <div className="container px-6 mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
