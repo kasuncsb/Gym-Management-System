@@ -139,14 +139,14 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
         {isStandalone === true ? (
           <div className="flex items-center group relative shrink-0 select-none">
-            <div className="relative h-7 md:h-12 w-auto opacity-90">
-              <Image src="/icons/member.png" alt="GymSphere" width={162} height={50} className="h-7 md:h-12 w-auto object-contain" priority />
+            <div className="relative h-12 md:h-16 w-auto opacity-90">
+              <Image src="/icons/member.png" alt="GymSphere" width={240} height={80} className="h-12 md:h-16 w-auto object-contain" priority />
             </div>
           </div>
         ) : (
           <Link href="/" className="flex items-center group relative shrink-0">
-            <div className="relative h-7 md:h-12 w-auto group-hover:scale-105 transition-all duration-300">
-              <Image src="/icons/member.png" alt="GymSphere" width={162} height={50} className="h-7 md:h-12 w-auto object-contain" priority />
+            <div className="relative h-12 md:h-16 w-auto group-hover:scale-105 transition-all duration-300">
+              <Image src="/icons/member.png" alt="GymSphere" width={240} height={80} className="h-12 md:h-16 w-auto object-contain" priority />
             </div>
           </Link>
         )}
