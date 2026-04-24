@@ -321,36 +321,43 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Bottom sentinel (controls overlay visibility) */}
+      {/* Bottom sentinel (controls simulator banner visibility) */}
       <div ref={bottomSentinelRef} className="h-px w-full" />
 
-      {/* Simulator overlay banner (always above footer) */}
-      <div
-        className={[
-          "sticky bottom-4 z-40 px-4 transition-all duration-500 ease-out will-change-transform",
-          showSimulatorBanner ? "opacity-100 translate-y-0 scale-100 rotate-0" : "opacity-0 pointer-events-none translate-y-6 scale-95 rotate-6",
-        ].join(" ")}
-        aria-hidden={!showSimulatorBanner}
-      >
-        <div className="mx-auto max-w-3xl">
-          <Link
-            href="/simulate"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex items-center justify-between gap-4 rounded-2xl border border-zinc-200/70 bg-white/90 px-5 py-4 shadow-xl shadow-black/10 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-white dark:border-zinc-800/70 dark:bg-zinc-950/70 dark:hover:bg-zinc-950"
-            aria-label="Access the simulator environment here (opens in a new tab)"
+      {/* Simulator banner (in-flow, between demo text and footer) */}
+      <section className="py-10 md:py-14">
+        <div className="container px-6 mx-auto">
+          <div
+            className={[
+              "mx-auto max-w-3xl transition-all duration-700 ease-out will-change-transform",
+              showSimulatorBanner
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 pointer-events-none translate-y-10",
+            ].join(" ")}
+            aria-hidden={!showSimulatorBanner}
           >
-            <div className="flex items-center gap-3">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-red-600/10 text-red-600 dark:bg-red-500/15 dark:text-red-400">
-                <ArrowRight size={18} />
+            <Link
+              href="/simulate"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center justify-between gap-4 rounded-3xl border border-zinc-200/70 bg-white/90 px-6 py-6 shadow-2xl shadow-black/10 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-white dark:border-zinc-800/70 dark:bg-zinc-950/70 dark:hover:bg-zinc-950"
+              aria-label="Access the simulator environment here (opens in a new tab)"
+            >
+              <div className="flex items-center gap-4">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-red-600/10 text-red-600 dark:bg-red-500/15 dark:text-red-400">
+                  <ArrowRight size={20} />
+                </span>
+                <span className="text-base md:text-lg font-semibold text-zinc-900 dark:text-white">
+                  Access the simulator environment here
+                </span>
+              </div>
+              <span className="hidden sm:inline text-xs font-semibold uppercase tracking-wide text-zinc-500 transition-colors group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200">
+                Open
               </span>
-              <span className="text-sm md:text-base font-semibold text-zinc-900 dark:text-white">
-                Access the simulator environment here
-              </span>
-            </div>
-          </Link>
+            </Link>
+          </div>
         </div>
-      </div>
+      </section>
 
       {/* Footer */}
       <footer className="py-12 border-t border-zinc-800 bg-zinc-900/50">
