@@ -28,9 +28,9 @@ function periodLabel(durationDays: number) {
 const DEFAULT_FEATURES = ["Full gym access", "Locker usage", "Any GymSphere branch"];
 
 const FALLBACK_PLANS: HomePlanCard[] = [
-  { name: "Monthly Individual", price: "$89", period: "mo", popular: false, features: DEFAULT_FEATURES },
-  { name: "3-Month Commitment", price: "$239", period: "3 mo", popular: true, features: [...DEFAULT_FEATURES, "Better per-month value"] },
-  { name: "Annual Individual", price: "$799", period: "yr", popular: false, features: [...DEFAULT_FEATURES, "Best long-term value"] },
+  { name: "Monthly Individual", price: "$49", period: "mo", popular: false, features: DEFAULT_FEATURES },
+  { name: "3-Month Commitment", price: "$129", period: "3 mo", popular: true, features: [...DEFAULT_FEATURES, "Better per-month value"] },
+  { name: "Annual Individual", price: "$449", period: "yr", popular: false, features: [...DEFAULT_FEATURES, "Best long-term value"] },
 ];
 
 const STATS = [

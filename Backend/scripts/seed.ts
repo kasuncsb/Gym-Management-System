@@ -355,7 +355,7 @@ async function seed() {
       name: 'Day Pass',
       description: 'Single day, full floor access.',
       planType: 'daily_pass' as const,
-      price: '800.00',
+      price: '8.00',
       durationDays: 1,
     },
     {
@@ -363,7 +363,7 @@ async function seed() {
       name: 'Weekly',
       description: '7 days unlimited access.',
       planType: 'individual' as const,
-      price: '2800.00',
+      price: '25.00',
       durationDays: 7,
     },
     {
@@ -371,7 +371,7 @@ async function seed() {
       name: 'Monthly',
       description: '30 days individual membership.',
       planType: 'individual' as const,
-      price: '5500.00',
+      price: '49.00',
       durationDays: 30,
     },
     {
@@ -379,7 +379,7 @@ async function seed() {
       name: '3 Months',
       description: '90 days — saves vs monthly.',
       planType: 'individual' as const,
-      price: '14500.00',
+      price: '129.00',
       durationDays: 90,
     },
     {
@@ -387,7 +387,7 @@ async function seed() {
       name: '6 Months',
       description: '180 days individual membership.',
       planType: 'individual' as const,
-      price: '24000.00',
+      price: '239.00',
       durationDays: 180,
     },
     {
@@ -395,7 +395,7 @@ async function seed() {
       name: 'Annual',
       description: '12 months — best per-month value.',
       planType: 'individual' as const,
-      price: '42000.00',
+      price: '449.00',
       durationDays: 365,
     },
     {
@@ -403,7 +403,7 @@ async function seed() {
       name: 'Student Monthly',
       description: '30 days; valid student ID at desk.',
       planType: 'student' as const,
-      price: '4500.00',
+      price: '39.00',
       durationDays: 30,
     },
     {
@@ -411,7 +411,7 @@ async function seed() {
       name: 'Couple Monthly',
       description: 'Two adults, one membership, 30 days.',
       planType: 'couple' as const,
-      price: '9500.00',
+      price: '79.00',
       durationDays: 30,
     },
     {
@@ -419,7 +419,7 @@ async function seed() {
       name: 'Corporate (10 seats)',
       description: '30-day team block; invoice on request.',
       planType: 'corporate' as const,
-      price: '38000.00',
+      price: '299.00',
       durationDays: 30,
     },
     {
@@ -427,7 +427,7 @@ async function seed() {
       name: 'Peak Plus Monthly',
       description: '30 days; peak-hour perks where available.',
       planType: 'individual' as const,
-      price: '6500.00',
+      price: '59.00',
       durationDays: 30,
     },
   ];
@@ -438,7 +438,20 @@ async function seed() {
       .from(subscriptionPlans)
       .where(eq(subscriptionPlans.planCode, p.planCode))
       .limit(1);
-    if (existing) continue;
+    if (existing) {
+      await db
+        .update(subscriptionPlans)
+        .set({
+          name: p.name,
+          description: p.description,
+          planType: p.planType,
+          price: p.price,
+          durationDays: p.durationDays,
+          isActive: true,
+        })
+        .where(eq(subscriptionPlans.id, existing.id));
+      continue;
+    }
     const planId = ids.uuid();
     const lc = await insertLifecycleRow();
     await db.insert(subscriptionPlans).values({
