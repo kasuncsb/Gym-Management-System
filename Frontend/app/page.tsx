@@ -303,23 +303,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Simulator Banner */}
-      <section className="border-t border-zinc-800/70 bg-white text-zinc-900 dark:bg-zinc-950/40 dark:text-white">
-        <div className="container px-6 mx-auto py-8">
-          <Link
-            href="/simulate"
-            className="block rounded-2xl border border-zinc-200 bg-gradient-to-r from-zinc-50 to-white px-6 py-5 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-800 dark:from-zinc-900/60 dark:to-zinc-950/40"
-          >
-            <span className="text-sm md:text-base font-semibold">
-              Access the simulator environment here
-            </span>
-            <span className="ml-2 inline-flex align-middle text-red-600 dark:text-red-500">
-              <ArrowRight size={18} />
-            </span>
-          </Link>
-        </div>
-      </section>
-
       {/* Footer */}
       <footer className="py-12 border-t border-zinc-800 bg-zinc-900/50">
         <div className="container px-6 mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
@@ -331,6 +314,31 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* Simulator overlay banner */}
+      <div className="fixed inset-x-0 bottom-4 z-50 px-4">
+        <div className="mx-auto max-w-3xl">
+          <Link
+            href="/simulate"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-center justify-between gap-4 rounded-2xl border border-zinc-200/70 bg-white/90 px-5 py-4 shadow-xl shadow-black/10 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-white dark:border-zinc-800/70 dark:bg-zinc-950/70 dark:hover:bg-zinc-950"
+            aria-label="Access the simulator environment here (opens in a new tab)"
+          >
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-red-600/10 text-red-600 dark:bg-red-500/15 dark:text-red-400">
+                <ArrowRight size={18} />
+              </span>
+              <span className="text-sm md:text-base font-semibold text-zinc-900 dark:text-white">
+                Access the simulator environment here
+              </span>
+            </div>
+            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500 transition-colors group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200">
+              New tab
+            </span>
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
