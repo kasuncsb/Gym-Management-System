@@ -315,9 +315,6 @@ export default function Home() {
               </ul>
             </div>
           </div>
-          <p className="mt-8 text-center text-xs text-zinc-500">
-            This is only for demonstration purposes.
-          </p>
         </div>
       </section>
 
@@ -341,14 +338,14 @@ export default function Home() {
               target="_blank"
               rel="noopener noreferrer"
               className="group flex items-center justify-between gap-4 rounded-3xl border border-zinc-200/70 bg-white/90 px-6 py-6 shadow-2xl shadow-black/10 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-white dark:border-zinc-800/70 dark:bg-zinc-950/70 dark:hover:bg-zinc-950"
-              aria-label="Access the simulator environment here (opens in a new tab)"
+              aria-label="Access the simulator environment (opens in a new tab)"
             >
               <div className="flex items-center gap-4">
                 <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-red-600/10 text-red-600 dark:bg-red-500/15 dark:text-red-400">
                   <ArrowRight size={20} />
                 </span>
                 <span className="text-base md:text-lg font-semibold text-zinc-900 dark:text-white">
-                  Access the simulator environment here
+                  Access the simulator environment
                 </span>
               </div>
               <span className="hidden sm:inline text-xs font-semibold uppercase tracking-wide text-zinc-500 transition-colors group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200">
