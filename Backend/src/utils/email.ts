@@ -1,6 +1,12 @@
 import nodemailer from 'nodemailer';
 import { env } from '../config/env.js';
 
+const DEMO_EMAIL_DOMAIN = '@gymsphere.demo';
+
+function isDemoSeededAccount(email: string): boolean {
+  return email.trim().toLowerCase().endsWith(DEMO_EMAIL_DOMAIN);
+}
+
 // Create reusable transporter
 const transporter = env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASSWORD
   ? nodemailer.createTransport({
@@ -20,6 +26,11 @@ function stripHtml(html: string): string {
 }
 
 export async function sendEmail(to: string, subject: string, html: string, text?: string): Promise<void> {
+  if (isDemoSeededAccount(to)) {
+    console.log(`📧 Skipping email for seeded demo account: ${to}`);
+    return;
+  }
+
   if (!transporter) {
     console.warn(`📧 Email would be sent to ${to}: ${subject}`);
     console.warn(`Email service not configured (SMTP_* env vars missing)`);
