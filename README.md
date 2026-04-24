@@ -139,7 +139,6 @@ Shared demo password for seeded users:
 
 - `DemoPass#2026`
 
-Email delivery is intentionally skipped for demo-domain seeded accounts to prevent non-production notification behavior during development/testing.
 
 
 ## License
