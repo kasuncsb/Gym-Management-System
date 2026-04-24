@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { HeroVideo } from "@/components/ui/HeroVideo";
 import { ArrowRight, Check, Zap, Users, Trophy } from "lucide-react";
@@ -43,6 +43,8 @@ const STATS = [
 export default function Home() {
   const [planCards, setPlanCards] = useState<HomePlanCard[]>([]);
   const [plansLoading, setPlansLoading] = useState(true);
+  const [showSimulatorBanner, setShowSimulatorBanner] = useState(false);
+  const bottomSentinelRef = useRef<HTMLDivElement | null>(null);
   const showDemoDialog = () => {
     window.alert("This is a demo project. Please treat all content, policies, and support references as demonstration-only.");
   };
@@ -80,6 +82,22 @@ export default function Home() {
       })
       .catch(() => setPlanCards([]))
       .finally(() => setPlansLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const el = bottomSentinelRef.current;
+    if (!el) return;
+
+    // Show the overlay only when the user reaches the bottom area.
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        setShowSimulatorBanner(Boolean(entry?.isIntersecting));
+      },
+      { root: null, threshold: 0.15 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
   }, []);
 
   const displayPlans = planCards.length >= 3 ? planCards : FALLBACK_PLANS;
@@ -303,20 +321,17 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 border-t border-zinc-800 bg-zinc-900/50">
-        <div className="container px-6 mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <p className="text-zinc-500 text-sm">&copy; 2026 GymSphere. All rights reserved.</p>
-          <div className="flex gap-8">
-            <button type="button" onClick={showDemoDialog} className="text-zinc-500 hover:text-white text-sm transition-colors">Privacy Policy</button>
-            <button type="button" onClick={showDemoDialog} className="text-zinc-500 hover:text-white text-sm transition-colors">Terms of Service</button>
-            <button type="button" onClick={showDemoDialog} className="text-zinc-500 hover:text-white text-sm transition-colors">Contact Support</button>
-          </div>
-        </div>
-      </footer>
+      {/* Bottom sentinel (controls overlay visibility) */}
+      <div ref={bottomSentinelRef} className="h-px w-full" />
 
-      {/* Simulator overlay banner */}
-      <div className="fixed inset-x-0 bottom-4 z-50 px-4">
+      {/* Simulator overlay banner (always above footer) */}
+      <div
+        className={[
+          "sticky bottom-4 z-40 px-4 transition-all duration-500 ease-out will-change-transform",
+          showSimulatorBanner ? "opacity-100 translate-y-0 scale-100 rotate-0" : "opacity-0 pointer-events-none translate-y-6 scale-95 rotate-6",
+        ].join(" ")}
+        aria-hidden={!showSimulatorBanner}
+      >
         <div className="mx-auto max-w-3xl">
           <Link
             href="/simulate"
@@ -333,12 +348,21 @@ export default function Home() {
                 Access the simulator environment here
               </span>
             </div>
-            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500 transition-colors group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200">
-              New tab
-            </span>
           </Link>
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="py-12 border-t border-zinc-800 bg-zinc-900/50">
+        <div className="container px-6 mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+          <p className="text-zinc-500 text-sm">&copy; 2026 GymSphere. All rights reserved.</p>
+          <div className="flex gap-8">
+            <button type="button" onClick={showDemoDialog} className="text-zinc-500 hover:text-white text-sm transition-colors">Privacy Policy</button>
+            <button type="button" onClick={showDemoDialog} className="text-zinc-500 hover:text-white text-sm transition-colors">Terms of Service</button>
+            <button type="button" onClick={showDemoDialog} className="text-zinc-500 hover:text-white text-sm transition-colors">Contact Support</button>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
