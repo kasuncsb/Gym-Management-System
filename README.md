@@ -141,13 +141,7 @@ Shared demo password for seeded users:
 
 Email delivery is intentionally skipped for demo-domain seeded accounts to prevent non-production notification behavior during development/testing.
 
-## Open-Source Status
-
-This project is now open-source and distributed under the MIT License.
-
-- License text: `LICENSE`
-- Copyright: Kasun Chanaka
 
 ## License
 
-MIT License. See the `LICENSE` file for full terms.
+MIT License. See the `LICENSE` file for details.
